@@ -1,47 +1,34 @@
 import { createHighlighterCore, type HighlighterCore } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
+import type { LanguageRegistration } from "@shikijs/types";
 import githubDark from "@shikijs/themes/github-dark";
 import githubLight from "@shikijs/themes/github-light";
-import bash from "@shikijs/langs/bash";
-import css from "@shikijs/langs/css";
-import go from "@shikijs/langs/go";
-import html from "@shikijs/langs/html";
-import javascript from "@shikijs/langs/javascript";
-import json from "@shikijs/langs/json";
-import jsonc from "@shikijs/langs/jsonc";
-import jsx from "@shikijs/langs/jsx";
-import markdown from "@shikijs/langs/markdown";
-import python from "@shikijs/langs/python";
-import rust from "@shikijs/langs/rust";
-import scss from "@shikijs/langs/scss";
-import sql from "@shikijs/langs/sql";
-import tsx from "@shikijs/langs/tsx";
-import typescript from "@shikijs/langs/typescript";
-import xml from "@shikijs/langs/xml";
-import yaml from "@shikijs/langs/yaml";
 import type { ResolvedTheme } from "./theme.js";
 
-const supportedLanguages = new Set([
-  "bash",
-  "css",
-  "go",
-  "html",
-  "javascript",
-  "json",
-  "jsonc",
-  "jsx",
-  "markdown",
-  "python",
-  "rust",
-  "scss",
-  "sql",
-  "tsx",
-  "typescript",
-  "xml",
-  "yaml",
-]);
+type SupportedLanguage = keyof typeof languageLoaders;
+
+const languageLoaders = {
+  bash: () => import("@shikijs/langs/bash"),
+  css: () => import("@shikijs/langs/css"),
+  go: () => import("@shikijs/langs/go"),
+  html: () => import("@shikijs/langs/html"),
+  javascript: () => import("@shikijs/langs/javascript"),
+  json: () => import("@shikijs/langs/json"),
+  jsonc: () => import("@shikijs/langs/jsonc"),
+  jsx: () => import("@shikijs/langs/jsx"),
+  markdown: () => import("@shikijs/langs/markdown"),
+  python: () => import("@shikijs/langs/python"),
+  rust: () => import("@shikijs/langs/rust"),
+  scss: () => import("@shikijs/langs/scss"),
+  sql: () => import("@shikijs/langs/sql"),
+  tsx: () => import("@shikijs/langs/tsx"),
+  typescript: () => import("@shikijs/langs/typescript"),
+  xml: () => import("@shikijs/langs/xml"),
+  yaml: () => import("@shikijs/langs/yaml"),
+} satisfies Record<string, () => Promise<{ default: LanguageRegistration[] }>>;
 
 let highlighterPromise: Promise<HighlighterCore> | null = null;
+const loadedLanguages = new Set<SupportedLanguage>();
 
 export async function highlightCode(
   code: string,
@@ -49,7 +36,8 @@ export async function highlightCode(
   theme: ResolvedTheme,
 ): Promise<string> {
   const highlighter = await getHighlighter();
-  const lang = supportedLanguages.has(language) ? language : "text";
+  const lang = isSupportedLanguage(language) ? language : "text";
+  if (lang !== "text") await loadLanguage(highlighter, lang);
   return highlighter.codeToHtml(code, {
     lang,
     theme: theme === "light" ? "github-light" : "github-dark",
@@ -59,26 +47,22 @@ export async function highlightCode(
 function getHighlighter(): Promise<HighlighterCore> {
   highlighterPromise ??= createHighlighterCore({
     themes: [githubDark, githubLight],
-    langs: [
-      bash,
-      css,
-      go,
-      html,
-      javascript,
-      json,
-      jsonc,
-      jsx,
-      markdown,
-      python,
-      rust,
-      scss,
-      sql,
-      tsx,
-      typescript,
-      xml,
-      yaml,
-    ],
+    langs: [],
     engine: createJavaScriptRegexEngine(),
   });
   return highlighterPromise;
+}
+
+async function loadLanguage(
+  highlighter: HighlighterCore,
+  language: SupportedLanguage,
+): Promise<void> {
+  if (loadedLanguages.has(language)) return;
+  const registration = await languageLoaders[language]();
+  await highlighter.loadLanguage(registration.default);
+  loadedLanguages.add(language);
+}
+
+function isSupportedLanguage(language: string): language is SupportedLanguage {
+  return language in languageLoaders;
 }
