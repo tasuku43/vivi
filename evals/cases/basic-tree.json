@@ -6,17 +6,22 @@
       "README.md",
       "index.html",
       "src/app.ts",
-      "data/sample.json"
+      "data/sample.json",
+      "assets/logo.svg",
+      "config.yaml",
+      "preview/styled.html",
+      "preview/style.css"
     ],
-    "omitsPaths": [
-      "node_modules/ignored.js",
-      ".git/config"
-    ],
+    "omitsPaths": ["node_modules/ignored.js", ".git/config"],
     "viewerKinds": {
       "README.md": "markdown",
       "index.html": "html",
       "src/app.ts": "code",
-      "data/sample.json": "json"
+      "data/sample.json": "json",
+      "assets/logo.svg": "image",
+      "config.yaml": "code",
+      "preview/styled.html": "html",
+      "preview/style.css": "code"
     }
   }
 }

@@ -1,9 +1,15 @@
-import type { FilePayload, FsEvent, TreeSnapshot } from '../domain/fs-node.js';
+import type {
+  FilePayload,
+  FsEvent,
+  TreeSnapshot,
+  ViewerConfig,
+} from "../domain/fs-node.js";
 
 export interface FileSystemPort {
   readTree(): Promise<TreeSnapshot>;
   readFile(relativePath: string): Promise<FilePayload>;
   readHtmlPreview(relativePath: string): Promise<string>;
+  getConfig?(): ViewerConfig;
 }
 
 export interface WatcherPort {

@@ -1,3 +1,3 @@
 export function hello(): string {
-  return 'hello from sample workspace';
+  return "hello from sample workspace";
 }

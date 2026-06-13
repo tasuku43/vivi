@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1 id="title">Styled HTML</h1>
+    <div style="height: 900px"></div>
+    <h2>Details</h2>
+    <script>
+      document.body.dataset.scriptRan = "true";
+      window.addEventListener("load", () => {
+        document.body.dataset.titleColor = getComputedStyle(
+          document.querySelector("#title"),
+        ).color;
+        document.body.dataset.bodyBackground = getComputedStyle(
+          document.body,
+        ).backgroundColor;
+      });
+      window.addEventListener("scroll", () => {
+        document.body.dataset.scrollY = String(window.scrollY);
+      });
+    </script>
+  </body>
+</html>

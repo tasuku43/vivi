@@ -8,14 +8,14 @@ pathlens [root] --port 4317
 pathlens [root] --host 127.0.0.1
 pathlens [root] --open
 pathlens [root] --include md,html,ts,tsx,json
-pathlens [root] --allow-html-scripts
+pathlens [root] --no-html-scripts
 ```
 
 Default root: `.`
 
 Default host: `127.0.0.1`
 
-Default security posture: local-only, sandboxed HTML, scripts disabled unless explicitly allowed.
+Default security posture: local-only, sandboxed HTML preview, local CSS and scripts enabled for practical artifact inspection. Use `--no-html-scripts` to disable script execution while keeping stylesheet preview support.
 
 ## HTTP API
 
@@ -52,7 +52,24 @@ Returns file content and metadata for a relative path under the root.
   "content": "# Example",
   "etag": "sha256:...",
   "size": 10,
-  "mtimeMs": 1710000000000
+  "mtimeMs": 1710000000000,
+  "mimeType": "text/markdown; charset=utf-8",
+  "truncated": false,
+  "maxSizeBytes": 1048576
+}
+```
+
+Image payloads use `encoding: "base64"` and include a MIME type suitable for browser display. Files larger than the configured preview limit use `encoding: "none"`, empty `content`, and `truncated: true`.
+
+### `GET /api/config`
+
+Returns viewer configuration needed by the SPA.
+
+```json
+{
+  "root": "/absolute/served/root",
+  "allowHtmlScripts": true,
+  "maxFileSizeBytes": 1048576
 }
 ```
 
