@@ -62,7 +62,7 @@ Forbidden moves:
 Before finishing a coding pass, run:
 
 ```bash
-make check
+task check
 ```
 
 If dependencies are unavailable, run the parts that can run, especially:
@@ -84,7 +84,7 @@ For every meaningful change:
 1. Update or add tests/evals first or alongside implementation.
 2. Preserve public contracts documented in `docs/03-cli-or-api-contract.md`.
 3. Keep docs current when behavior changes.
-4. Run `make check`.
+4. Run `task check`.
 5. Summarize changed behavior, verification, and deferred work.
 
 ## Current UI direction

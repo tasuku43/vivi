@@ -20,7 +20,7 @@ Before making changes, read:
 2. Add or update tests/evals for the target behavior.
 3. Implement within the architecture boundaries.
 4. Run targeted checks.
-5. Run `make check`.
+5. Run `task check`.
 6. Fix failures.
 7. Update docs if the product contract changed.
 8. Summarize implemented behavior, verification, remaining gaps, and any contract changes.
@@ -35,7 +35,7 @@ A change is acceptable when all of these are true:
 - It does not weaken root path safety.
 - It does not introduce full-page reload requirements for normal live updates.
 - It keeps TypeScript contracts explicit.
-- It runs through `make check` or clearly documents why a subcommand could not run.
+- It runs through `task check` or clearly documents why a subcommand could not run.
 
 ## Implementation priorities
 

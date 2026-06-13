@@ -58,7 +58,7 @@ Fixture-driven evals encode product acceptance scenarios. They should be human-r
 CI should run the same command as local development:
 
 ```bash
-make check
+task check
 ```
 
 ## Failure triage

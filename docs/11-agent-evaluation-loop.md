@@ -24,7 +24,7 @@ For each implementation slice:
 2. Encode it in a test, fixture, eval case, or golden output.
 3. Implement the behavior.
 4. Run the narrow check.
-5. Run `make check`.
+5. Run `task check`.
 6. Fix failures.
 7. Stop only when the repository is closer to the documented ideal state.
 

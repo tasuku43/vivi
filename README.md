@@ -15,6 +15,7 @@ pathlens .
 pathlens ./docs
 pathlens ./dist --open
 pathlens . --include md,html,ts,tsx,json,css,png,jpg
+pathlens . --no-html-scripts
 ```
 
 Expected user experience:
@@ -23,10 +24,94 @@ Expected user experience:
 2. A local server starts on localhost.
 3. The browser SPA shows a sidebar tree and main viewer.
 4. Markdown renders as HTML.
-5. HTML renders in a sandboxed iframe.
+5. HTML renders in a sandboxed iframe with local CSS and scripts enabled by default.
 6. Code renders with syntax highlighting.
 7. File changes update the currently open viewer without a full page reload.
 8. File additions, deletions, and renames update the sidebar tree dynamically.
+
+## Run With Docker
+
+Docker is the recommended way to run `pathlens` locally because it keeps the Node runtime isolated while mounting the directory you want to inspect as read-only.
+
+```bash
+docker run --rm -it \
+  -p 4317:4317 \
+  -v "$PWD:/workspace:ro" \
+  ghcr.io/tasuku43/pathlens:latest
+```
+
+Then open:
+
+```text
+http://127.0.0.1:4317
+```
+
+The Docker image defaults to serving `/workspace` and binding `0.0.0.0` inside the container so the published port works from the host. The CLI default outside Docker remains `127.0.0.1`.
+
+### Build The Docker Image Locally
+
+Use Taskfile for local project tasks:
+
+```bash
+task docker:build
+task docker:run
+```
+
+Stop the foreground Docker run with `Ctrl+C`. The container uses `tini` and the CLI handles `SIGINT`/`SIGTERM`, so the local watcher and HTTP server shut down cleanly.
+
+Equivalent Docker commands:
+
+```bash
+docker build -t pathlens:local .
+docker run --rm -it -p 4317:4317 -v "$PWD:/workspace:ro" pathlens:local
+```
+
+You can override the image tag, served directory, or host port:
+
+```bash
+task docker:build IMAGE=pathlens TAG=dev
+task docker:run IMAGE=pathlens TAG=dev ROOT="$PWD/docs" PORT=4320
+```
+
+## Other Run Options
+
+Use `npx` when you want to run the npm package without installing it globally:
+
+```bash
+npx pathlens . --open
+```
+
+Or install it as an npm package:
+
+```bash
+npm install -g pathlens
+pathlens . --open
+```
+
+For source checkouts:
+
+```bash
+npm install
+npm run build
+node dist/cli/main.js . --open
+```
+
+## Release Images
+
+The release workflow builds and pushes Docker images to GitHub Container Registry:
+
+```text
+ghcr.io/tasuku43/pathlens
+```
+
+Pushing a semver tag such as `v0.1.0` runs the release workflow and pushes both the version tag and `latest`:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Manual workflow runs are available for validation builds. Provide a `release_tag` value matching `vMAJOR.MINOR.PATCH` only when intentionally publishing that tag; otherwise the workflow publishes a `sha-...` image tag.
 
 ## Current scaffold status
 
@@ -47,16 +132,18 @@ Using one typed language keeps the API contract between server and client explic
 
 ## Development
 
+Install [Task](https://taskfile.dev/) first if it is not already available.
+
 ```bash
 npm install
-npm run dev:server
-npm run dev
+task check
+task build
 ```
 
 Run the full local validation suite:
 
 ```bash
-make check
+task check
 ```
 
 The scaffold validator can run without installed dependencies:
@@ -85,7 +172,7 @@ docs/          product, architecture, requirements, and agent context
 
 ## Handing this repository to a coding agent
 
-Instruct the agent to read `AGENTS.md`, `GOALS.md`, `docs/09-codex-runbook.md`, `docs/13-test-and-eval-strategy.md`, and `docs/14-architecture.md`. The agent should implement autonomously, drive behavior with tests and evals, run `make check`, and summarize product behavior, remaining gaps, and contract changes.
+Instruct the agent to read `AGENTS.md`, `GOALS.md`, `docs/09-codex-runbook.md`, `docs/13-test-and-eval-strategy.md`, and `docs/14-architecture.md`. The agent should implement autonomously, drive behavior with tests and evals, run `task check`, and summarize product behavior, remaining gaps, and contract changes.
 
 ## UI mockups and product reference
 

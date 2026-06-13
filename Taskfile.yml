@@ -1,0 +1,68 @@
+version: "3"
+
+vars:
+  IMAGE: '{{.IMAGE | default "pathlens"}}'
+  TAG: '{{.TAG | default "local"}}'
+  PORT: '{{.PORT | default "4317"}}'
+  ROOT: "{{.ROOT | default .USER_WORKING_DIR}}"
+
+tasks:
+  default:
+    cmds:
+      - task --list
+
+  install:
+    desc: Install Node dependencies
+    cmds:
+      - npm install
+
+  validate:
+    desc: Run scaffold validation
+    cmds:
+      - npm run validate:scaffold
+
+  typecheck:
+    desc: Run TypeScript checks
+    cmds:
+      - npm run typecheck
+
+  test:
+    desc: Run unit and integration tests
+    cmds:
+      - npm test
+
+  eval:
+    desc: Run fixture-driven evals
+    cmds:
+      - npm run eval
+
+  e2e:
+    desc: Run local server contract tests
+    cmds:
+      - npm run e2e
+
+  build:
+    desc: Build the CLI and browser app
+    cmds:
+      - npm run build
+
+  check:
+    desc: Run the full validation suite
+    cmds:
+      - npm run check
+
+  docker:build:
+    desc: Build the local Docker image
+    cmds:
+      - docker build -t {{.IMAGE}}:{{.TAG}} .
+
+  docker:run:
+    desc: Run pathlens from the local Docker image
+    cmds:
+      - docker run --rm -it -p {{.PORT}}:4317 -v "{{.ROOT}}:/workspace:ro" {{.IMAGE}}:{{.TAG}}
+
+  docker:smoke:
+    desc: Build and smoke-test the Docker image help output
+    cmds:
+      - task: docker:build
+      - docker run --rm {{.IMAGE}}:{{.TAG}} --help

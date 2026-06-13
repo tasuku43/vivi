@@ -1,22 +1,22 @@
 .PHONY: check validate typecheck test eval e2e build
 
 check:
-	npm run check
+	task check
 
 validate:
-	node scripts/validate-scaffold.mjs
+	task validate
 
 typecheck:
-	npm run typecheck
+	task typecheck
 
 test:
-	npm run test
+	task test
 
 eval:
-	npm run eval
+	task eval
 
 e2e:
-	npm run e2e
+	task e2e
 
 build:
-	npm run build
+	task build
