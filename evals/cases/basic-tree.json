@@ -22,6 +22,20 @@
       "config.yaml": "code",
       "preview/styled.html": "html",
       "preview/style.css": "code"
+    },
+    "openablePaths": [
+      "README.md",
+      "index.html",
+      "src/app.ts",
+      "data/sample.json",
+      "assets/logo.svg",
+      "config.yaml"
+    ],
+    "codeReference": {
+      "path": "src/app.ts",
+      "start": 1,
+      "end": 2,
+      "expected": "src/app.ts:1-2"
     }
   }
 }

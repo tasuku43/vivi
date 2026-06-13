@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { NodeFileSystem } from "../src/infra/node-file-system.js";
+import { formatLineReference } from "../src/ui/state/code-viewer.js";
 
 interface EvalCase {
   name: string;
@@ -10,6 +11,13 @@ interface EvalCase {
     containsPaths: string[];
     omitsPaths: string[];
     viewerKinds: Record<string, string>;
+    openablePaths?: string[];
+    codeReference?: {
+      path: string;
+      start: number;
+      end: number;
+      expected: string;
+    };
   };
 }
 
@@ -38,6 +46,28 @@ for (const [filePath, viewerKind] of Object.entries(
   if (node.viewerKind !== viewerKind)
     throw new Error(
       `${evalCase.name}: ${filePath} expected ${viewerKind} got ${node.viewerKind}`,
+    );
+}
+
+for (const filePath of evalCase.expect.openablePaths ?? []) {
+  const payload = await fs.readFile(filePath);
+  if (payload.path !== filePath)
+    throw new Error(`${evalCase.name}: ${filePath} opened as ${payload.path}`);
+  if (payload.truncated)
+    throw new Error(`${evalCase.name}: ${filePath} should not be truncated`);
+  if (payload.encoding === "none")
+    throw new Error(`${evalCase.name}: ${filePath} has no preview content`);
+}
+
+if (evalCase.expect.codeReference) {
+  const reference = evalCase.expect.codeReference;
+  const actual = formatLineReference(reference.path, {
+    start: reference.start,
+    end: reference.end,
+  });
+  if (actual !== reference.expected)
+    throw new Error(
+      `${evalCase.name}: expected code reference ${reference.expected} got ${actual}`,
     );
 }
 

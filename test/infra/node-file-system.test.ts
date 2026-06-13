@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
+import { mkdtemp, rm, writeFile, mkdir, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it } from "vitest";
@@ -28,6 +28,18 @@ it("scans a tree and ignores default ignored directories", async () => {
   const tree = await fs.readTree();
   expect(tree.nodes.map((node) => node.path)).toContain("README.md");
   expect(JSON.stringify(tree)).not.toContain("node_modules");
+});
+
+it("reflects added and removed files on subsequent tree reads", async () => {
+  const fs = new NodeFileSystem({ rootDir: dir });
+  await writeFile(path.join(dir, "generated.log"), "started\n");
+
+  const afterAdd = JSON.stringify(await fs.readTree());
+  expect(afterAdd).toContain("generated.log");
+
+  await unlink(path.join(dir, "generated.log"));
+  const afterRemove = JSON.stringify(await fs.readTree());
+  expect(afterRemove).not.toContain("generated.log");
 });
 
 it("reads a file payload with viewer kind and etag", async () => {

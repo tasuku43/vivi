@@ -3,6 +3,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { ViewerService } from "../../src/app/viewer-service.js";
+import type { WatcherPort } from "../../src/app/contracts.js";
+import type { FsEvent } from "../../src/domain/fs-node.js";
 import { NodeFileSystem } from "../../src/infra/node-file-system.js";
 import { startHttpServer } from "../../src/server/http-server.js";
 
@@ -112,8 +114,63 @@ it("closes promptly with an open event stream", async () => {
   server = null;
 }, 10000);
 
+it("streams filesystem events over SSE for live review", async () => {
+  const watcher = new ManualWatcher();
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+    watcher,
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const response = await fetch(`${server.url}/events`);
+  expect(response.status).toBe(200);
+  const reader = response.body?.getReader();
+  expect(reader).toBeDefined();
+
+  watcher.emit({ type: "change", path: "README.md", version: 2 });
+  const chunk = await readUntil(reader!, "README.md");
+
+  expect(chunk).toContain("event: fs");
+  expect(chunk).toContain('"type":"change"');
+  expect(chunk).toContain('"path":"README.md"');
+  await reader?.cancel();
+}, 10000);
+
 function timeoutAfter(ms: number): Promise<never> {
   return new Promise((_, reject) => {
     setTimeout(() => reject(new Error(`timed out after ${ms}ms`)), ms);
   });
+}
+
+async function readUntil(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  text: string,
+): Promise<string> {
+  const decoder = new TextDecoder();
+  let received = "";
+  const deadline = Date.now() + 1_000;
+  while (!received.includes(text)) {
+    const timeout = deadline - Date.now();
+    if (timeout <= 0) throw new Error(`timed out waiting for ${text}`);
+    const result = await Promise.race([reader.read(), timeoutAfter(timeout)]);
+    if (result.done) break;
+    received += decoder.decode(result.value, { stream: true });
+  }
+  return received;
+}
+
+class ManualWatcher implements WatcherPort {
+  private listener: ((event: FsEvent) => void) | null = null;
+
+  async start(onEvent: (event: FsEvent) => void): Promise<void> {
+    this.listener = onEvent;
+  }
+
+  async stop(): Promise<void> {
+    this.listener = null;
+  }
+
+  emit(event: FsEvent): void {
+    this.listener?.(event);
+  }
 }
