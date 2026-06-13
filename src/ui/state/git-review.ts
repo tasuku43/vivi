@@ -30,6 +30,19 @@ export interface ParsedDiffLine {
   newLine?: number;
 }
 
+export type SideBySideDiffRow =
+  | {
+      kind: "meta" | "hunk";
+      text: string;
+    }
+  | {
+      kind: "context" | "changed" | "add" | "remove";
+      oldLine?: number;
+      oldText?: string;
+      newLine?: number;
+      newText?: string;
+    };
+
 export function mergeReviewChanges(
   watcherState: FileReviewState,
   gitState: GitChangeReviewState | null,
@@ -134,4 +147,69 @@ export function parseUnifiedDiff(
   return parsed.filter(
     (line) => line.text.length > 0 || line.kind === "context",
   );
+}
+
+export function buildSideBySideDiffRows(
+  lines: ParsedDiffLine[],
+): SideBySideDiffRow[] {
+  const rows: SideBySideDiffRow[] = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index];
+    if (!line) break;
+
+    if (line.kind === "meta" || line.kind === "hunk") {
+      rows.push({ kind: line.kind, text: line.text });
+      index += 1;
+      continue;
+    }
+
+    if (line.kind === "context") {
+      rows.push({
+        kind: "context",
+        oldLine: line.oldLine,
+        oldText: line.text,
+        newLine: line.newLine,
+        newText: line.text,
+      });
+      index += 1;
+      continue;
+    }
+
+    if (line.kind === "remove") {
+      const removed: ParsedDiffLine[] = [];
+      const added: ParsedDiffLine[] = [];
+      while (lines[index]?.kind === "remove") {
+        removed.push(lines[index]);
+        index += 1;
+      }
+      while (lines[index]?.kind === "add") {
+        added.push(lines[index]);
+        index += 1;
+      }
+      const rowCount = Math.max(removed.length, added.length);
+      for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
+        const oldLine = removed[rowIndex];
+        const newLine = added[rowIndex];
+        rows.push({
+          kind: oldLine && newLine ? "changed" : oldLine ? "remove" : "add",
+          oldLine: oldLine?.oldLine,
+          oldText: oldLine?.text,
+          newLine: newLine?.newLine,
+          newText: newLine?.text,
+        });
+      }
+      continue;
+    }
+
+    rows.push({
+      kind: "add",
+      newLine: line.newLine,
+      newText: line.text,
+    });
+    index += 1;
+  }
+
+  return rows;
 }

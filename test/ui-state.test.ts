@@ -11,6 +11,7 @@ import {
   reviewArtifactResults,
 } from "../src/ui/state/files.js";
 import {
+  buildSideBySideDiffRows,
   changeStatusLabel,
   diffStatusLabel,
   mergeReviewChanges,
@@ -280,20 +281,20 @@ it("merges Git working tree changes with live review events", () => {
 });
 
 it("parses unified diff lines for review rendering", () => {
-  expect(
-    parseUnifiedDiff(
-      [
-        "diff --git a/README.md b/README.md",
-        "index 123..456 100644",
-        "--- a/README.md",
-        "+++ b/README.md",
-        "@@ -2,2 +2,2 @@",
-        " context",
-        "-old",
-        "+new",
-      ].join("\n"),
-    ),
-  ).toEqual([
+  const parsed = parseUnifiedDiff(
+    [
+      "diff --git a/README.md b/README.md",
+      "index 123..456 100644",
+      "--- a/README.md",
+      "+++ b/README.md",
+      "@@ -2,2 +2,2 @@",
+      " context",
+      "-old",
+      "+new",
+    ].join("\n"),
+  );
+
+  expect(parsed).toEqual([
     { kind: "meta", text: "diff --git a/README.md b/README.md" },
     { kind: "meta", text: "index 123..456 100644" },
     { kind: "meta", text: "--- a/README.md" },
@@ -302,6 +303,47 @@ it("parses unified diff lines for review rendering", () => {
     { kind: "context", text: "context", oldLine: 2, newLine: 2 },
     { kind: "remove", text: "old", oldLine: 3 },
     { kind: "add", text: "new", newLine: 3 },
+  ]);
+  expect(buildSideBySideDiffRows(parsed)).toEqual([
+    { kind: "meta", text: "diff --git a/README.md b/README.md" },
+    { kind: "meta", text: "index 123..456 100644" },
+    { kind: "meta", text: "--- a/README.md" },
+    { kind: "meta", text: "+++ b/README.md" },
+    { kind: "hunk", text: "@@ -2,2 +2,2 @@" },
+    {
+      kind: "context",
+      oldLine: 2,
+      oldText: "context",
+      newLine: 2,
+      newText: "context",
+    },
+    {
+      kind: "changed",
+      oldLine: 3,
+      oldText: "old",
+      newLine: 3,
+      newText: "new",
+    },
+  ]);
+});
+
+it("builds side-by-side rows for add-only and remove-only diff blocks", () => {
+  expect(
+    buildSideBySideDiffRows([
+      { kind: "remove", text: "gone", oldLine: 4 },
+      { kind: "context", text: "still", oldLine: 5, newLine: 4 },
+      { kind: "add", text: "new", newLine: 5 },
+    ]),
+  ).toEqual([
+    { kind: "remove", oldLine: 4, oldText: "gone" },
+    {
+      kind: "context",
+      oldLine: 5,
+      oldText: "still",
+      newLine: 4,
+      newText: "still",
+    },
+    { kind: "add", newLine: 5, newText: "new" },
   ]);
 });
 

@@ -93,7 +93,7 @@ Requirements:
 - The active heading should be highlightable later as the user scrolls.
 - The inspector should show file type, path, watch status, and last update information.
 - Recent file events can be shown as a compact diagnostic/status feed.
-- In Git worktrees, uncommitted working-tree changes can appear beside watcher events, with small text diffs shown read-only from `HEAD` or another recent allowed commit base.
+- In Git worktrees, uncommitted working-tree changes can appear beside watcher events, with small side-by-side text diffs shown read-only from `HEAD` or another recent allowed commit base.
 - For non-Markdown files, the inspector can show file metadata and related actions instead of an outline.
 - For code files, the inspector shows language, line count, selected range, lightweight symbols, and recent filesystem events.
 - The review queue is a live filesystem review surface with a read-only Git working-tree supplement. It is not a staging UI or a full history browser. Rename may appear as add/remove when that is the watcher signal available, while Git status can surface renamed files in the changed-file list.

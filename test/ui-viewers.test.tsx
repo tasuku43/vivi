@@ -146,9 +146,11 @@ it("renders code metadata and actionable review events in the inspector", () => 
   expect(html).toContain("start");
   expect(html).toContain("Changed files");
   expect(html).toContain("Git working tree");
-  expect(html).toContain("diff-line remove");
+  expect(html).toContain("diff-split-row changed");
   expect(html).toContain(">old</code>");
-  expect(html).toContain("diff-line add");
+  expect(html).toContain(">new</code>");
+  expect(html).toContain("Base");
+  expect(html).toContain("Working tree");
   expect(html).toContain("Compare from");
   expect(html).toContain("HEAD~1");
   expect(html).toContain("Recent events");

@@ -3,12 +3,14 @@ import type { FilePayload, FsNode } from "../../domain/fs-node.js";
 import { buildCodeMetadata, type LineRange } from "../state/code-viewer.js";
 import { iconForPath } from "../state/file-icons.js";
 import {
+  buildSideBySideDiffRows,
   changeStatusLabel,
   diffStatusLabel,
   parseUnifiedDiff,
   type DiffBaseState,
   type GitChangeReviewState,
   type ReviewChangeItem,
+  type SideBySideDiffRow,
 } from "../state/git-review.js";
 import type { OutlineHeading } from "../state/outline.js";
 import { eventLabel, type ReviewEvent } from "../state/review-events.js";
@@ -69,6 +71,7 @@ export function Inspector({
     activeDiff?.status === "available"
       ? parseUnifiedDiff(activeDiff.content)
       : [];
+  const splitDiffRows = buildSideBySideDiffRows(parsedDiff);
 
   return (
     <aside className="inspector">
@@ -292,19 +295,37 @@ export function Inspector({
           ) : null}
           {activeDiff?.status === "available" ? (
             <div
-              className="diff-preview"
+              className="diff-preview diff-split"
               aria-label={`Diff for ${activeDiff.path}`}
             >
-              {parsedDiff.map((line, index) => (
-                <div
-                  className={`diff-line ${line.kind}`}
-                  key={`${line.kind}-${index}-${line.oldLine ?? ""}-${line.newLine ?? ""}`}
-                >
-                  <span className="diff-line-no old">{line.oldLine ?? ""}</span>
-                  <span className="diff-line-no new">{line.newLine ?? ""}</span>
-                  <code>{line.text}</code>
-                </div>
-              ))}
+              <div className="diff-split-head" aria-hidden="true">
+                <span>Base</span>
+                <span>Working tree</span>
+              </div>
+              {splitDiffRows.map((line, index) =>
+                isFullWidthDiffRow(line) ? (
+                  <div
+                    className={`diff-split-full ${line.kind}`}
+                    key={`${line.kind}-${index}-${line.text}`}
+                  >
+                    <code>{line.text}</code>
+                  </div>
+                ) : (
+                  <div
+                    className={`diff-split-row ${line.kind}`}
+                    key={`${line.kind}-${index}-${line.oldLine ?? ""}-${line.newLine ?? ""}`}
+                  >
+                    <span className="diff-line-no old">
+                      {line.oldLine ?? ""}
+                    </span>
+                    <code className="old">{line.oldText ?? ""}</code>
+                    <span className="diff-line-no new">
+                      {line.newLine ?? ""}
+                    </span>
+                    <code className="new">{line.newText ?? ""}</code>
+                  </div>
+                ),
+              )}
             </div>
           ) : null}
         </div>
@@ -337,6 +358,12 @@ export function Inspector({
       </div>
     </aside>
   );
+}
+
+function isFullWidthDiffRow(
+  line: SideBySideDiffRow,
+): line is Extract<SideBySideDiffRow, { kind: "meta" | "hunk" }> {
+  return line.kind === "meta" || line.kind === "hunk";
 }
 
 function formatBytes(size: number): string {

@@ -1321,6 +1321,69 @@ kbd {
   font-size: 11px;
   line-height: 1.55;
 }
+.diff-split {
+  min-width: 520px;
+}
+.diff-split-head,
+.diff-split-row {
+  display: grid;
+  grid-template-columns: 34px minmax(170px, 1fr) 34px minmax(170px, 1fr);
+  gap: 7px;
+}
+.diff-split-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 720;
+  text-transform: uppercase;
+}
+.diff-split-head span:first-child {
+  grid-column: 1 / 3;
+}
+.diff-split-head span:last-child {
+  grid-column: 3 / 5;
+}
+.diff-split-row,
+.diff-split-full {
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 45%, transparent);
+}
+.diff-split-row {
+  padding: 1px 8px;
+}
+.diff-split-row code,
+.diff-split-full code {
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+.diff-split-full {
+  padding: 2px 8px;
+}
+.diff-split-full code {
+  color: var(--muted);
+}
+.diff-split-full.hunk {
+  background: var(--accent-soft);
+}
+.diff-split-row.add {
+  background: color-mix(in srgb, #9ece6a 13%, transparent);
+}
+.diff-split-row.remove {
+  background: color-mix(in srgb, #f7768e 13%, transparent);
+}
+.diff-split-row.changed code.old {
+  background: color-mix(in srgb, #f7768e 16%, transparent);
+}
+.diff-split-row.changed code.new {
+  background: color-mix(in srgb, #9ece6a 16%, transparent);
+}
 .diff-line {
   display: grid;
   grid-template-columns: 34px 34px minmax(0, 1fr);

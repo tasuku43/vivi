@@ -43,7 +43,7 @@ and use the browser UI to inspect a mixed directory without refreshing the page 
 - Command palette actions for changed files, reveal in tree, source/rendered toggles, local URLs, outline focus, inspector visibility, split right, close/reopen tab, recent files, shortcuts, and context export.
 - Generated-review target surfacing for common output directories such as reports, coverage, screenshots, docs, dist, and build.
 - SSE-driven recent event queue, active-file refresh markers, inactive changed-tab markers, and tree refresh on add/remove events.
-- Read-only Git working-tree review for uncommitted added/modified/deleted/renamed files, with bounded structured text diffs from `HEAD` or another recent commit base.
+- Read-only Git working-tree review for uncommitted added/modified/deleted/renamed files, with bounded side-by-side text diffs from `HEAD` or another recent commit base.
 - Bounded initial tree expansion for large workspaces, with selected and changed paths kept revealable.
 - Fixture eval coverage for mixed file opening and code references.
 
@@ -54,7 +54,7 @@ and use the browser UI to inspect a mixed directory without refreshing the page 
 - Fuzzy file picker.
 - First-class rename events beyond add/remove watcher semantics.
 - Multi-pane viewing.
-- Rich side-by-side diff review and arbitrary commit comparison beyond recent allowed bases.
+- Arbitrary commit comparison beyond recent allowed bases.
 - Pluggable viewer registry.
 
 ## Explicit non-goals
