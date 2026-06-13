@@ -58,4 +58,4 @@ Future thresholds:
 - HTML iframe preview with relative asset resolution.
 - Scroll-position preservation after open-file refresh.
 - Syntax-highlighted source using Shiki.
-- Mermaid rendering in Markdown.
+- Safe lightweight Mermaid rendering in Markdown fences.

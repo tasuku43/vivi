@@ -1215,10 +1215,32 @@ kbd {
   fill: none;
   stroke: var(--accent);
   stroke-width: 2;
-  marker-end: url("#pathlens-arrow");
 }
 .mermaid-svg marker path {
   fill: var(--accent);
+}
+.markdown-mermaid {
+  margin: 18px 0;
+}
+.markdown-mermaid figcaption,
+.markdown-mermaid-source summary {
+  color: var(--muted);
+  font-size: 12px;
+}
+.markdown-mermaid-source {
+  margin-top: 10px;
+}
+.markdown-mermaid-source summary {
+  cursor: pointer;
+}
+.markdown-mermaid-source pre {
+  margin: 8px 0 0;
+}
+.markdown-mermaid.unsupported {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 12px;
 }
 
 .change-row {

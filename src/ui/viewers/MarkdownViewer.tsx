@@ -6,6 +6,7 @@ import {
   renderMarkdownHtmlWithHeadingIds,
 } from "../state/outline.js";
 import type { ViewerMode } from "../state/viewer-mode.js";
+import { renderMermaidPreviewHtml } from "./MermaidViewer.js";
 
 export function MarkdownViewer({
   file,
@@ -60,11 +61,31 @@ export function MarkdownViewer({
 }
 
 export function renderMarkdownDocumentHtml(markdown: string): string {
+  const markdownWithSafeDiagrams = injectMermaidPreviewBlocks(markdown);
   const html = renderMarkdownHtmlWithHeadingIds(
-    marked.parse(markdown) as string,
+    marked.parse(markdownWithSafeDiagrams) as string,
     extractMarkdownOutline(markdown),
   );
   return enhanceMarkdownHtml(html);
+}
+
+export function injectMermaidPreviewBlocks(markdown: string): string {
+  let index = 0;
+  return markdown.replace(
+    /```(?:mermaid|mmd)\s*\n([\s\S]*?)```/gi,
+    (_match, diagram: string) => {
+      const preview = renderMermaidPreviewHtml(diagram, {
+        idPrefix: `pathlens-md-mermaid-${index}`,
+        title: `Mermaid diagram ${index + 1}`,
+      });
+      const source = `<details class="markdown-mermaid-source"><summary>Mermaid source</summary><pre><code>${escapeHtml(diagram.trim())}</code></pre></details>`;
+      index += 1;
+      if (!preview) {
+        return `<div class="markdown-mermaid unsupported"><p>Mermaid preview supports simple flowchart arrows. Source is shown below.</p>${source}</div>`;
+      }
+      return `<figure class="markdown-mermaid"><figcaption>Safe Mermaid preview · scripts inactive</figcaption>${preview}${source}</figure>`;
+    },
+  );
 }
 
 function enhanceMarkdownHtml(html: string): string {
@@ -106,4 +127,12 @@ function alertLabelForKind(kind: string): string {
   if (kind === "warning") return "Warning";
   if (kind === "caution") return "Caution";
   return "Note";
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }

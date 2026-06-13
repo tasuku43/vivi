@@ -14,6 +14,7 @@ import { JsonViewer } from "../src/ui/viewers/JsonViewer.js";
 import {
   MermaidViewer,
   parseMermaidEdges,
+  renderMermaidPreviewHtml,
 } from "../src/ui/viewers/MermaidViewer.js";
 
 const codeFile: FilePayload = {
@@ -210,6 +211,11 @@ it("renders simple Mermaid flowcharts without script execution", () => {
   expect(parseMermaidEdges("graph TD\nA[Start] -->|ok| B[Done]")).toEqual([
     { from: "Start", label: "ok", to: "Done" },
   ]);
+  expect(
+    renderMermaidPreviewHtml('graph TD\nA["<Start>"] -->|<ok>| B[Done]', {
+      idPrefix: "test",
+    }),
+  ).toContain("&lt;Start&gt;");
 
   const html = renderToStaticMarkup(
     <MermaidViewer

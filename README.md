@@ -28,7 +28,7 @@ Expected user experience:
 6. Code renders in a read-only inspection view with syntax highlighting, stable line numbers, line-range selection, copyable line references, and lightweight symbols in the inspector.
 7. Text/log files use a readable monospace viewer with wrapping controls.
 8. Images preview with fit-to-screen and actual-size modes.
-9. JSON uses an expandable tree/source viewer; CSV/TSV uses a table/source viewer; Mermaid uses a lightweight safe preview/source viewer.
+9. JSON uses an expandable tree/source viewer; CSV/TSV uses a table/source viewer; Mermaid uses a lightweight safe preview/source viewer, including simple Mermaid fences inside Markdown.
 10. File changes update the currently open viewer without a full page reload and mark inactive tabs as changed.
 11. File additions, deletions, and rename-like add/remove pairs update the sidebar tree dynamically.
 12. Recent filesystem events appear in a compact review queue so changed files can be opened quickly, and the tree can be filtered to changed files only.
@@ -208,7 +208,7 @@ docs/          product, architecture, requirements, and agent context
 - Code: syntax-highlighted read-only code viewer with line numbers, line/range selection, copyable references, copyable selected code with path and line numbers, current-scope hinting, and inspector metadata.
 - JSON: expandable tree/source viewer.
 - CSV/TSV: bounded table/source viewer for local reports and exports.
-- Mermaid: lightweight safe preview/source viewer for simple flowchart files.
+- Mermaid: lightweight safe preview/source viewer for simple flowchart files and Markdown fenced Mermaid blocks.
 - Text/log: monospaced read-only viewer with wrap/no-wrap toggle.
 - Images/SVG: fit-to-screen and actual-size preview modes with size metadata; SVG renders as an image so scripts stay inactive.
 - Large or unsupported files: safe fallback that explains why a richer preview is unavailable.
@@ -223,7 +223,7 @@ Viewer selection starts in `src/domain/viewer-kind.ts`. Add or adjust an extensi
 
 ## Known Limitations
 
-- The Mermaid preview intentionally supports only simple flowchart arrows; source mode remains the fallback.
+- Mermaid preview intentionally supports only simple flowchart arrows; source mode or the inline Markdown source disclosure remains the fallback.
 - Git integration is read-only and limited to uncommitted working-tree status plus small structured text diffs from recent commit bases; it does not stage, commit, or browse full history.
 - Large files are capped by the preview size limit and shown with a safe explanation.
 - Full tree virtualization and rich side-by-side diffs are deferred.
