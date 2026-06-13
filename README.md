@@ -34,6 +34,7 @@ Expected user experience:
 12. Recent filesystem events appear in a compact review queue so changed files can be opened quickly, and the tree can be filtered to changed files only.
 13. Generated-review targets under directories such as `dist/`, `build/`, `reports/`, `coverage/`, `screenshots/`, and `docs/` are surfaced in the inspector.
 14. In Git worktrees, uncommitted added, modified, deleted, and renamed files appear in the changed-file review list, with a lightweight text diff for small files.
+15. Large trees start with a bounded auto-expanded view, while selected or changed files remain easy to reveal.
 
 ## What pathlens is not
 
@@ -214,6 +215,8 @@ docs/          product, architecture, requirements, and agent context
 
 Recent filesystem events are shown as a compact review queue. Change events refresh the active file and mark inactive tabs/changed tree rows; add/remove events refresh the tree. In Git worktrees, `pathlens` also reads uncommitted working-tree status and can show a bounded text diff against `HEAD` for small files. Rename is currently represented by watcher add/remove semantics when the underlying platform reports it that way, while Git status can surface renamed files in the changed-file list.
 
+The sidebar avoids expanding every descendant in very large trees on first render. It auto-expands within a row budget, keeps selected and changed paths revealable by expanding their ancestors, and shows a small note when collapsed folders are hiding additional rows.
+
 ## Adding a Viewer
 
 Viewer selection starts in `src/domain/viewer-kind.ts`. Add or adjust an extension there, then implement a browser-only component under `src/ui/viewers/` and dispatch it from `src/ui/components/FileViewer.tsx`. Keep filesystem reads in `src/infra`, keep viewer logic read-only, add at least one focused test, and update eval fixtures when the viewer changes product coverage.
@@ -223,7 +226,7 @@ Viewer selection starts in `src/domain/viewer-kind.ts`. Add or adjust an extensi
 - The Mermaid preview intentionally supports only simple flowchart arrows; source mode remains the fallback.
 - Git integration is read-only and limited to uncommitted working-tree status plus small text diffs against `HEAD`; it does not stage, commit, or browse full history.
 - Large files are capped by the preview size limit and shown with a safe explanation.
-- Tree virtualization and rich text diffs are deferred.
+- Full tree virtualization and rich side-by-side diffs are deferred.
 
 ## Handing this repository to a coding agent
 

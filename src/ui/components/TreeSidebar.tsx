@@ -1,6 +1,12 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FsNode } from "../../domain/fs-node.js";
 import { iconForPath } from "../state/file-icons.js";
+import {
+  countTreeNodes,
+  ensureVisibleAncestors,
+  initialExpandedPaths,
+  visibleTreeRows,
+} from "../state/tree-expansion.js";
 
 interface Props {
   nodes: FsNode[];
@@ -17,19 +23,53 @@ export function TreeSidebar({
   removedPaths = new Set(),
   onSelect,
 }: Props) {
+  const forceVisiblePaths = useMemo(
+    () =>
+      [selectedPath, ...changedPaths, ...removedPaths].filter(
+        (path): path is string => Boolean(path),
+      ),
+    [changedPaths, removedPaths, selectedPath],
+  );
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() =>
+    initialExpandedPaths(nodes, { forceVisiblePaths }),
+  );
+
+  useEffect(() => {
+    setExpandedPaths((current) => {
+      return ensureVisibleAncestors(current, forceVisiblePaths);
+    });
+  }, [forceVisiblePaths, nodes]);
+
+  const totalRows = useMemo(() => countTreeNodes(nodes), [nodes]);
+  const visibleRows = useMemo(
+    () => visibleTreeRows(nodes, expandedPaths),
+    [expandedPaths, nodes],
+  );
+
   return (
-    <div className="tree">
-      {nodes.map((node) => (
-        <TreeNode
-          key={node.path}
-          node={node}
-          selectedPath={selectedPath}
-          changedPaths={changedPaths}
-          removedPaths={removedPaths}
-          onSelect={onSelect}
-        />
-      ))}
-    </div>
+    <>
+      {totalRows > visibleRows ? (
+        <div className="tree-perf-note">
+          Showing {visibleRows} of {totalRows} rows. Expand folders as needed.
+        </div>
+      ) : null}
+      <div className="tree">
+        {nodes.map((node) => (
+          <TreeNode
+            key={node.path}
+            node={node}
+            selectedPath={selectedPath}
+            changedPaths={changedPaths}
+            removedPaths={removedPaths}
+            expandedPaths={expandedPaths}
+            onToggleDirectory={(path) =>
+              setExpandedPaths((current) => togglePath(current, path))
+            }
+            onSelect={onSelect}
+          />
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -38,21 +78,25 @@ function TreeNode({
   selectedPath,
   changedPaths,
   removedPaths,
+  expandedPaths,
+  onToggleDirectory,
   onSelect,
 }: {
   node: FsNode;
   selectedPath: string | null;
   changedPaths: Set<string>;
   removedPaths: Set<string>;
+  expandedPaths: Set<string>;
+  onToggleDirectory: (path: string) => void;
   onSelect: (path: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(true);
   if (node.kind === "directory") {
+    const expanded = expandedPaths.has(node.path);
     return (
       <div className="tree-node">
         <button
           className="tree-row dir"
-          onClick={() => setExpanded((value) => !value)}
+          onClick={() => onToggleDirectory(node.path)}
         >
           <span className="tree-twisty">{expanded ? "▾" : "▸"}</span>
           <span className="file-icon">📁</span>
@@ -67,6 +111,8 @@ function TreeNode({
                 selectedPath={selectedPath}
                 changedPaths={changedPaths}
                 removedPaths={removedPaths}
+                expandedPaths={expandedPaths}
+                onToggleDirectory={onToggleDirectory}
                 onSelect={onSelect}
               />
             ))}
@@ -98,4 +144,11 @@ function TreeNode({
       ) : null}
     </button>
   );
+}
+
+function togglePath(paths: Set<string>, path: string): Set<string> {
+  const next = new Set(paths);
+  if (next.has(path)) next.delete(path);
+  else next.add(path);
+  return next;
 }

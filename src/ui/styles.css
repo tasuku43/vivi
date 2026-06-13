@@ -170,6 +170,16 @@ button.pill {
 .tree {
   padding: 8px;
 }
+.tree-perf-note {
+  margin: 6px 8px 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  padding: 7px 9px;
+  font-size: 11px;
+  line-height: 1.4;
+}
 .tree-row {
   display: flex;
   align-items: center;

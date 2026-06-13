@@ -3,6 +3,7 @@ import { expect, it } from "vitest";
 import type { FilePayload } from "../src/domain/fs-node.js";
 import { FileViewer } from "../src/ui/components/FileViewer.js";
 import { Inspector } from "../src/ui/components/Inspector.js";
+import { TreeSidebar } from "../src/ui/components/TreeSidebar.js";
 import {
   CodeViewer,
   extractHighlightedLines,
@@ -161,6 +162,35 @@ it("renders CSV files as a bounded review table", () => {
   expect(html).toContain("reports/results.csv");
   expect(html).toContain("<th>name</th>");
   expect(html).toContain("<td>true</td>");
+});
+
+it("renders a bounded tree with a large-workspace hint", () => {
+  const html = renderToStaticMarkup(
+    <TreeSidebar
+      nodes={[
+        {
+          id: "src",
+          path: "src",
+          name: "src",
+          kind: "directory",
+          parentPath: null,
+          children: Array.from({ length: 400 }, (_, index) => ({
+            id: `src/file-${index}.ts`,
+            path: `src/file-${index}.ts`,
+            name: `file-${index}.ts`,
+            kind: "file" as const,
+            parentPath: "src",
+            viewerKind: "code" as const,
+          })),
+        },
+      ]}
+      selectedPath={null}
+      onSelect={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Showing 1 of 401 rows");
+  expect(html).toContain("Expand folders as needed");
 });
 
 it("renders simple Mermaid flowcharts without script execution", () => {

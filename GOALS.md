@@ -44,11 +44,12 @@ and use the browser UI to inspect a mixed directory without refreshing the page 
 - Generated-review target surfacing for common output directories such as reports, coverage, screenshots, docs, dist, and build.
 - SSE-driven recent event queue, active-file refresh markers, inactive changed-tab markers, and tree refresh on add/remove events.
 - Read-only Git working-tree review for uncommitted added/modified/deleted/renamed files, with bounded text diffs against `HEAD`.
+- Bounded initial tree expansion for large workspaces, with selected and changed paths kept revealable.
 - Fixture eval coverage for mixed file opening and code references.
 
 ## Deferred extensions
 
-- Virtualized tree for very large workspaces.
+- Full virtualized tree for very large workspaces.
 - Text diff patching for very large open files.
 - Full Mermaid rendering in Markdown.
 - Fuzzy file picker.

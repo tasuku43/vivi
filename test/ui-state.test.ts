@@ -53,6 +53,12 @@ import {
   supportsSourceToggle,
 } from "../src/ui/state/viewer-mode.js";
 import { summarizeReviewEvents } from "../src/ui/state/review-events.js";
+import {
+  countTreeNodes,
+  ensureVisibleAncestors,
+  initialExpandedPaths,
+  visibleTreeRows,
+} from "../src/ui/state/tree-expansion.js";
 import { inspectorTargetLabel } from "../src/ui/components/Inspector.js";
 
 it("opens, updates, and marks tabs by path", () => {
@@ -521,6 +527,68 @@ it("filters the tree to changed paths and ranks generated review targets", () =>
     JSON.stringify(filterTreeToPaths(nodes, new Set(["reports/index.html"]))),
   ).toContain("reports/index.html");
   expect(reviewArtifactResults(nodes)[0]?.path).toBe("reports/index.html");
+});
+
+it("limits initial tree expansion while keeping important paths visible", () => {
+  const nodes: FsNode[] = [
+    {
+      id: "src",
+      path: "src",
+      name: "src",
+      kind: "directory",
+      parentPath: null,
+      children: Array.from(
+        { length: 20 },
+        (_, index): FsNode => ({
+          id: `src/file-${index}.ts`,
+          path: `src/file-${index}.ts`,
+          name: `file-${index}.ts`,
+          kind: "file",
+          parentPath: "src",
+          viewerKind: "code",
+        }),
+      ),
+    },
+    {
+      id: "reports",
+      path: "reports",
+      name: "reports",
+      kind: "directory",
+      parentPath: null,
+      children: [
+        {
+          id: "reports/deep",
+          path: "reports/deep",
+          name: "deep",
+          kind: "directory",
+          parentPath: "reports",
+          children: [
+            {
+              id: "reports/deep/summary.html",
+              path: "reports/deep/summary.html",
+              name: "summary.html",
+              kind: "file",
+              parentPath: "reports/deep",
+              viewerKind: "html",
+            },
+          ],
+        },
+      ],
+    },
+  ];
+
+  const expanded = initialExpandedPaths(nodes, {
+    maxAutoExpandedRows: 3,
+    forceVisiblePaths: ["reports/deep/summary.html"],
+  });
+
+  expect(countTreeNodes(nodes)).toBe(24);
+  expect(expanded.has("reports")).toBe(true);
+  expect(expanded.has("reports/deep")).toBe(true);
+  expect(visibleTreeRows(nodes, expanded)).toBeLessThan(countTreeNodes(nodes));
+  expect(
+    ensureVisibleAncestors(new Set<string>(), ["reports/deep/summary.html"]),
+  ).toEqual(new Set(["reports", "reports/deep"]));
 });
 
 it("models source toggles only for rendered viewers", () => {
