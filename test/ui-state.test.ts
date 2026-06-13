@@ -24,6 +24,15 @@ import {
   resolveThemePreference,
   themePreferenceLabel,
 } from "../src/ui/state/theme.js";
+import {
+  buildWorkspaceSession,
+  collectFilePaths,
+  parseWorkspaceSession,
+  recordRecentFile,
+  restoreWorkspaceSession,
+  workspaceSessionStorageKeyForRoot,
+  workspaceSessionTtlMs,
+} from "../src/ui/state/workspace-session.js";
 import { inspectorTargetLabel } from "../src/ui/components/Inspector.js";
 
 it("opens, updates, and marks tabs by path", () => {
@@ -217,4 +226,150 @@ it("cycles theme preference while keeping system as the default option", () => {
   expect(themePreferenceLabel("system")).toBe("System");
   expect(isThemePreference("sepia")).toBe(false);
   expect(isThemePreference("dark")).toBe(true);
+});
+
+it("restores workspace tabs and layout only for the current root and tree", () => {
+  const now = 100_000;
+  const layout = splitEditorPane(
+    setPaneActivePath(initialEditorLayout, "main", "README.md"),
+    "main",
+    "vertical",
+    "right",
+  );
+  const activeLayout = setPaneActivePath(layout, "pane-1", "docs/guide.md");
+  const openTabs = [
+    { path: "README.md", viewerKind: "markdown", paneId: "main" },
+    { path: "docs/guide.md", viewerKind: "markdown", paneId: "pane-1" },
+    { path: "missing.md", viewerKind: "markdown", paneId: "pane-2" },
+  ];
+
+  const stored = buildWorkspaceSession(
+    "/workspace",
+    {
+      openTabs,
+      layout: activeLayout,
+      recentFiles: [
+        { path: "README.md", viewerKind: "markdown", lastOpenedAt: now - 1 },
+        { path: "missing.md", viewerKind: "markdown", lastOpenedAt: now },
+      ],
+    },
+    now,
+  );
+  const restored = restoreWorkspaceSession(
+    stored,
+    "/workspace",
+    new Set(["README.md", "docs/guide.md"]),
+    now,
+  );
+
+  expect(restored?.openTabs).toEqual([
+    { path: "README.md", viewerKind: "markdown", paneId: "main" },
+    { path: "docs/guide.md", viewerKind: "markdown", paneId: "pane-1" },
+  ]);
+  expect(restored?.recentFiles).toEqual([
+    { path: "README.md", viewerKind: "markdown", lastOpenedAt: now - 1 },
+  ]);
+  expect(restored ? flattenPanes(restored.layout) : []).toEqual([
+    { id: "main", activePath: "README.md" },
+    { id: "pane-1", activePath: "docs/guide.md" },
+  ]);
+  expect(restored?.layout.activePaneId).toBe("pane-1");
+  expect(restoreWorkspaceSession(stored, "/other", new Set(), now)).toBeNull();
+  expect(
+    restoreWorkspaceSession(
+      stored,
+      "/workspace",
+      new Set(["README.md"]),
+      now + workspaceSessionTtlMs + 1,
+    ),
+  ).toBeNull();
+});
+
+it("resets persisted layout when the last tab is closed but keeps recents", () => {
+  const now = 200_000;
+  const stored = buildWorkspaceSession(
+    "/workspace",
+    {
+      openTabs: [],
+      layout: setPaneActivePath(initialEditorLayout, "main", "README.md"),
+      recentFiles: [
+        { path: "README.md", viewerKind: "markdown", lastOpenedAt: now },
+      ],
+    },
+    now,
+  );
+
+  expect(stored.openTabs).toEqual([]);
+  expect(stored.layout).toEqual(initialEditorLayout);
+  expect(stored.recentFiles).toEqual([
+    { path: "README.md", viewerKind: "markdown", lastOpenedAt: now },
+  ]);
+});
+
+it("tracks recently opened files independently from restored tabs", () => {
+  const recent = recordRecentFile(
+    [
+      { path: "README.md", viewerKind: "markdown", lastOpenedAt: 1 },
+      { path: "docs/guide.md", viewerKind: "markdown", lastOpenedAt: 2 },
+    ],
+    { path: "README.md", viewerKind: "markdown" },
+    3,
+  );
+
+  expect(recent).toEqual([
+    { path: "README.md", viewerKind: "markdown", lastOpenedAt: 3 },
+    { path: "docs/guide.md", viewerKind: "markdown", lastOpenedAt: 2 },
+  ]);
+});
+
+it("parses stored workspace sessions defensively", () => {
+  expect(parseWorkspaceSession("{")).toBeNull();
+  expect(parseWorkspaceSession(JSON.stringify({ version: 2 }))).toBeNull();
+  expect(
+    parseWorkspaceSession(
+      JSON.stringify(
+        buildWorkspaceSession(
+          "/workspace",
+          {
+            openTabs: [
+              { path: "README.md", viewerKind: "markdown", paneId: "main" },
+            ],
+            layout: setPaneActivePath(initialEditorLayout, "main", "README.md"),
+            recentFiles: [],
+          },
+          1,
+        ),
+      ),
+    )?.root,
+  ).toBe("/workspace");
+});
+
+it("collects file paths from nested tree nodes for session pruning", () => {
+  const paths = collectFilePaths([
+    {
+      id: "docs",
+      path: "docs",
+      name: "docs",
+      kind: "directory",
+      parentPath: null,
+      children: [
+        {
+          id: "docs/guide.md",
+          path: "docs/guide.md",
+          name: "guide.md",
+          kind: "file",
+          parentPath: "docs",
+          viewerKind: "markdown",
+        },
+      ],
+    },
+  ]);
+
+  expect([...paths]).toEqual(["docs/guide.md"]);
+});
+
+it("scopes persisted workspace sessions by root path", () => {
+  expect(workspaceSessionStorageKeyForRoot("/tmp/a project")).toBe(
+    "pathlens.workspaceSession.v1:%2Ftmp%2Fa%20project",
+  );
 });

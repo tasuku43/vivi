@@ -43,6 +43,18 @@ import {
   type ResolvedTheme,
   type ThemePreference,
 } from "./state/theme.js";
+import {
+  buildWorkspaceSession,
+  collectFilePaths,
+  parseWorkspaceSession,
+  recordRecentFile,
+  restoreWorkspaceSession,
+  workspaceSessionStorageKey,
+  workspaceSessionStorageKeyForRoot,
+  workspaceSessionTtlMs,
+  type RecentFile,
+  type StoredWorkspaceSessionV1,
+} from "./state/workspace-session.js";
 
 export function App() {
   const [tree, setTree] = useState<TreeSnapshot | null>(null);
@@ -50,6 +62,7 @@ export function App() {
   const [layout, setLayout] = useState(initialEditorLayout);
   const [files, setFiles] = useState<Record<string, FilePayload>>({});
   const [openTabs, setOpenTabs] = useState<OpenTab[]>([]);
+  const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [recentEvents, setRecentEvents] = useState<FsEvent[]>([]);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState("");
@@ -60,12 +73,13 @@ export function App() {
     paneId: string;
     edge: SplitEdge;
   } | null>(null);
-  const [themePreference, setThemePreference] =
-    useState<ThemePreference>(readStoredThemePreference);
-  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(
-    readSystemTheme,
+  const [themePreference, setThemePreference] = useState<ThemePreference>(
+    readStoredThemePreference,
   );
+  const [systemTheme, setSystemTheme] =
+    useState<ResolvedTheme>(readSystemTheme);
   const [inspectorTargetVisible, setInspectorTargetVisible] = useState(false);
+  const [workspaceSessionReady, setWorkspaceSessionReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function loadTree() {
@@ -89,15 +103,38 @@ export function App() {
   const file = selectedPath ? (files[selectedPath] ?? null) : null;
   const resolvedTheme = resolveThemePreference(themePreference, systemTheme);
 
-  async function loadFile(path: string, paneId = layout.activePaneId) {
-    setLayout((current) => setPaneActivePath(current, paneId, path));
-    setError(null);
+  async function fetchFilePayload(path: string): Promise<FilePayload> {
     const response = await fetch(`/api/file?path=${encodeURIComponent(path)}`);
     if (!response.ok)
       throw new Error(`file request failed: ${response.status}`);
-    const payload = (await response.json()) as FilePayload;
+    return (await response.json()) as FilePayload;
+  }
+
+  async function loadFile(path: string, paneId = layout.activePaneId) {
+    setLayout((current) => setPaneActivePath(current, paneId, path));
+    setError(null);
+    const payload = await fetchFilePayload(path);
     setFiles((items) => ({ ...items, [payload.path]: payload }));
     setOpenTabs((tabs) => upsertOpenTab(tabs, payload, paneId));
+    setRecentFiles((items) => recordRecentFile(items, payload));
+  }
+
+  async function hydrateRestoredFiles(restoredLayout: EditorLayoutNode) {
+    const activePaths = [
+      ...new Set(
+        flattenPanes({
+          root: restoredLayout,
+          activePaneId: "main",
+          nextPaneNumber: 1,
+        }).flatMap((pane) => (pane.activePath ? [pane.activePath] : [])),
+      ),
+    ];
+    const payloads = await Promise.all(activePaths.map(fetchFilePayload));
+    setFiles((items) => {
+      const next = { ...items };
+      for (const payload of payloads) next[payload.path] = payload;
+      return next;
+    });
   }
 
   function closeTab(path: string, paneId = layout.activePaneId) {
@@ -219,6 +256,39 @@ export function App() {
     loadConfig().catch((err) => setError(String(err)));
     loadTree().catch((err) => setError(String(err)));
   }, []);
+
+  useEffect(() => {
+    if (!config || !tree || workspaceSessionReady) return;
+    pruneStoredWorkspaceSessions();
+
+    const restored = restoreWorkspaceSession(
+      readStoredWorkspaceSession(config.root),
+      config.root,
+      collectFilePaths(tree.nodes),
+    );
+
+    if (restored) {
+      setOpenTabs(restored.openTabs);
+      setLayout(restored.layout);
+      setRecentFiles(restored.recentFiles);
+      void hydrateRestoredFiles(restored.layout.root).catch((err) =>
+        setError(String(err)),
+      );
+    }
+
+    setWorkspaceSessionReady(true);
+  }, [config, tree, workspaceSessionReady]);
+
+  useEffect(() => {
+    if (!config || !workspaceSessionReady) return;
+    writeStoredWorkspaceSession(
+      buildWorkspaceSession(config.root, {
+        openTabs,
+        layout,
+        recentFiles,
+      }),
+    );
+  }, [config, workspaceSessionReady, openTabs, layout, recentFiles]);
 
   useEffect(() => {
     const query = window.matchMedia("(prefers-color-scheme: light)");
@@ -488,6 +558,48 @@ function readStoredThemePreference(): ThemePreference {
   if (typeof window === "undefined") return "system";
   const stored = window.localStorage.getItem(themeStorageKey);
   return isThemePreference(stored) ? stored : "system";
+}
+
+function readStoredWorkspaceSession(
+  root: string,
+): StoredWorkspaceSessionV1 | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return parseWorkspaceSession(
+      window.localStorage.getItem(workspaceSessionStorageKeyForRoot(root)),
+    );
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredWorkspaceSession(session: StoredWorkspaceSessionV1) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      workspaceSessionStorageKeyForRoot(session.root),
+      JSON.stringify(session),
+    );
+  } catch {
+    // Storage can be unavailable in private or quota-limited browser contexts.
+  }
+}
+
+function pruneStoredWorkspaceSessions(now = Date.now()) {
+  if (typeof window === "undefined") return;
+  const prefix = `${workspaceSessionStorageKey}:`;
+  try {
+    for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
+      const key = window.localStorage.key(index);
+      if (!key?.startsWith(prefix)) continue;
+      const session = parseWorkspaceSession(window.localStorage.getItem(key));
+      if (!session || now - session.updatedAt > workspaceSessionTtlMs) {
+        window.localStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // Best-effort cleanup only; persistence should never block the viewer.
+  }
 }
 
 function readSystemTheme(): ResolvedTheme {

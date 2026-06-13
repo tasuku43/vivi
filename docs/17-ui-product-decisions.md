@@ -46,9 +46,13 @@ Requirements:
 
 - Opening a file from the tree should create or activate a tab.
 - Tabs should preserve open-file context across Markdown, HTML, code, text, and image files.
+- Open tabs, active panes, and split layout should survive browser refresh for the same selected root.
+- Closing a tab should remove it from automatic refresh restoration, while keeping it eligible for recent-file affordances.
 - The active tab should drive the main viewer.
 - A changed but inactive file should show a subtle stale/changed indicator.
 - Closing the active tab should select a neighboring tab predictably.
+
+The refresh-restoration state is browser-local UI state, so it belongs in localStorage rather than the server process. Stored sessions are scoped by root path, pruned when older than 30 days, and validated against the current tree before restoration. File payloads are not stored; active files are refetched after restoration.
 
 ## Main viewer
 
