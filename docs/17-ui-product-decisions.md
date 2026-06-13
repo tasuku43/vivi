@@ -93,7 +93,7 @@ Requirements:
 - The active heading should be highlightable later as the user scrolls.
 - The inspector should show file type, path, watch status, and last update information.
 - Recent file events can be shown as a compact diagnostic/status feed.
-- In Git worktrees, uncommitted working-tree changes can appear beside watcher events, with small side-by-side text diffs shown read-only from `HEAD` or another recent allowed commit base.
+- In Git worktrees, uncommitted working-tree changes can appear beside watcher events. Diff viewing belongs to the open file's viewer modes and compares the working tree to `HEAD` by default; it is not a right-inspector preview. Markdown and HTML diffs should favor rendered visual output, while source/code files can use a read-only side-by-side text diff.
 - For non-Markdown files, the inspector can show file metadata and related actions instead of an outline.
 - For code files, the inspector shows language, line count, selected range, lightweight symbols, and recent filesystem events.
 - The review queue is a live filesystem review surface with a read-only Git working-tree supplement. It is not a staging UI or a full history browser. Rename-like watcher add/remove pairs are grouped as likely renames when they are close in time and share parent and extension, while Git status can surface explicit renamed files in the changed-file list.
@@ -106,7 +106,7 @@ Initial commands:
 
 - Open file by fuzzy path search.
 - Open changed file from the review queue.
-- Show diff for a changed file.
+- Show diff from `HEAD` for a changed file.
 - Reveal active file in the tree.
 - Toggle rendered/source mode when supported.
 - Copy a local raw preview URL.

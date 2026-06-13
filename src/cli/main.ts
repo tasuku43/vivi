@@ -14,6 +14,7 @@ interface CliOptions {
   open: boolean;
   includeExtensions?: Set<string>;
   allowHtmlScripts: boolean;
+  maxFileSizeBytes?: number;
 }
 
 interface ClosableServer {
@@ -53,6 +54,8 @@ export function parseArgs(argv: string[]): CliOptions {
     else if (arg === "--open") options.open = true;
     else if (arg === "--include")
       options.includeExtensions = parseInclude(argv[++i] ?? "");
+    else if (arg === "--max-file-size")
+      options.maxFileSizeBytes = parsePositiveInteger(argv[++i] ?? "");
     else if (arg === "--allow-html-scripts") options.allowHtmlScripts = true;
     else if (arg === "--no-html-scripts") options.allowHtmlScripts = false;
     else if (arg === "--help" || arg === "-h") {
@@ -72,6 +75,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     rootDir,
     includeExtensions: options.includeExtensions,
     allowHtmlScripts: options.allowHtmlScripts,
+    maxFileSizeBytes: options.maxFileSizeBytes,
   });
   const watcher = new NodeWatcher({ rootDir });
   const changeReview = new GitChangeReview({ rootDir });
@@ -140,7 +144,7 @@ function exitCodeForSignal(signal: NodeJS.Signals): number {
 
 function printHelp(): void {
   console.log(
-    `pathlens - live local viewer for Markdown, HTML, code, and assets\n\nUsage:\n  pathlens [root] [--host 127.0.0.1] [--port 4317] [--open] [--include md,html,ts] [--allow-html-scripts]\n`,
+    `pathlens - live local viewer for Markdown, HTML, code, and assets\n\nUsage:\n  pathlens [root] [--host 127.0.0.1] [--port 4317] [--open] [--include md,html,ts] [--max-file-size 1048576] [--allow-html-scripts]\n`,
   );
 }
 
@@ -151,6 +155,11 @@ function parseInclude(value: string): Set<string> {
       .map((item) => item.trim().toLowerCase().replace(/^\./, ""))
       .filter(Boolean),
   );
+}
+
+function parsePositiveInteger(value: string): number | undefined {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

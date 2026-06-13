@@ -1,32 +1,57 @@
 import { useState } from "react";
 import { marked } from "marked";
+import type { TextDiff } from "../../domain/change-review.js";
 import type { FilePayload } from "../../domain/fs-node.js";
 import {
   extractMarkdownOutline,
   renderMarkdownHtmlWithHeadingIds,
 } from "../state/outline.js";
 import type { ViewerMode } from "../state/viewer-mode.js";
+import { DiffViewer } from "./DiffViewer.js";
 import { renderMermaidPreviewHtml } from "./MermaidViewer.js";
 
 export function MarkdownViewer({
   file,
   mode: controlledMode,
+  diff,
+  diffLoading,
   onModeChange,
+  onReloadDiff,
 }: {
   file: FilePayload;
   mode?: ViewerMode;
+  diff?: TextDiff | null;
+  diffLoading?: boolean;
   onModeChange?: (mode: ViewerMode) => void;
+  onReloadDiff?: () => void;
 }) {
-  const [localMode, setLocalMode] = useState<"rendered" | "source">("rendered");
+  const [localMode, setLocalMode] = useState<ViewerMode>("rendered");
   const mode =
-    controlledMode === "source" || controlledMode === "rendered"
+    controlledMode === "source" ||
+    controlledMode === "rendered" ||
+    controlledMode === "diff"
       ? controlledMode
       : localMode;
   const html = renderMarkdownDocumentHtml(file.content);
-  const setMode = (nextMode: "rendered" | "source") => {
+  const setMode = (nextMode: ViewerMode) => {
     setLocalMode(nextMode);
     onModeChange?.(nextMode);
   };
+
+  if (mode === "diff") {
+    return (
+      <DiffViewer
+        path={file.path}
+        diff={diff ?? null}
+        loading={diffLoading}
+        renderKind="markdown"
+        sourceMode="rendered"
+        onModeChange={setMode}
+        onReload={onReloadDiff}
+      />
+    );
+  }
+
   return (
     <section className="document-viewer">
       <div className="viewer-toolbar">
@@ -45,6 +70,9 @@ export function MarkdownViewer({
             onClick={() => setMode("source")}
           >
             Source
+          </button>
+          <button type="button" onClick={() => setMode("diff")}>
+            Diff from HEAD
           </button>
         </div>
       </div>

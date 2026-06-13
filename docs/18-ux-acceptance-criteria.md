@@ -20,7 +20,8 @@ A build is acceptable when a user can:
 12. Open source code with syntax highlighting, line numbers, line/range selection, and copyable references.
 13. Open recent changed files from a compact review queue.
 14. Toggle Markdown and HTML between rendered/preview and source modes.
-15. Keep image, text/log, and structured file previews readable without implying editing.
+15. Switch changed Markdown, HTML, and source/code files into a read-only diff-from-`HEAD` viewer mode.
+16. Keep image, text/log, and structured file previews readable without implying editing.
 
 ## Evaluation function
 
@@ -48,5 +49,6 @@ Add or update tests for:
 - code viewer line numbers, line selection, copy-reference formatting, and code inspector metadata.
 - recent review queue event rendering and SSE event transport.
 - JSON/structured formatting and text wrap behavior where feasible.
+- diff-from-`HEAD` viewer mode rendering inside the open file surface, including rendered Markdown/HTML diffs.
 
 Add an E2E test that starts the server against a fixture directory and verifies the UI can load the tree, open a Markdown file, open an HTML file, and receive at least one simulated filesystem event.

@@ -33,6 +33,7 @@ export interface FilePayload {
   mimeType?: string;
   truncated?: boolean;
   maxSizeBytes?: number;
+  previewBytes?: number;
 }
 
 export type FsEvent =

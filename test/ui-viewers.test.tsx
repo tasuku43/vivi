@@ -9,6 +9,10 @@ import {
   extractHighlightedLines,
 } from "../src/ui/viewers/CodeViewer.js";
 import { CsvViewer, parseDelimitedText } from "../src/ui/viewers/CsvViewer.js";
+import {
+  buildRenderedDiffBlocks,
+  DiffViewer,
+} from "../src/ui/viewers/DiffViewer.js";
 import { HtmlViewer } from "../src/ui/viewers/HtmlViewer.js";
 import { JsonViewer } from "../src/ui/viewers/JsonViewer.js";
 import {
@@ -50,6 +54,56 @@ it("extracts shiki line spans without losing nested syntax spans", () => {
       '<pre><code><span class="line"><span style="color:red">const</span> x</span>\n<span class="line">y</span></code></pre>',
     ),
   ).toEqual(['<span style="color:red">const</span> x', "y"]);
+});
+
+it("renders large text files as explicit partial previews", () => {
+  const html = renderToStaticMarkup(
+    <FileViewer
+      file={{
+        ...codeFile,
+        path: "logs/build.log",
+        viewerKind: "text",
+        encoding: "utf8",
+        content: "first chunk",
+        size: 10_000,
+        truncated: true,
+        maxSizeBytes: 10,
+        previewBytes: 10,
+      }}
+      allowHtmlScripts={false}
+      theme="dark"
+      selectedCodeRange={null}
+      onCodeSelectionChange={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("partial preview");
+  expect(html).toContain("first chunk");
+  expect(html).toContain("larger than the 10 B rich preview limit");
+});
+
+it("keeps non-text large files in the safe unsupported state", () => {
+  const html = renderToStaticMarkup(
+    <FileViewer
+      file={{
+        ...codeFile,
+        path: "index.html",
+        viewerKind: "html",
+        encoding: "none",
+        content: "",
+        size: 10_000,
+        truncated: true,
+        maxSizeBytes: 10,
+      }}
+      allowHtmlScripts={false}
+      theme="dark"
+      selectedCodeRange={null}
+      onCodeSelectionChange={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("larger than the");
+  expect(html).not.toContain("partial preview");
 });
 
 it("keeps the HTML viewer sandboxed and exposes source mode controls", () => {
@@ -96,18 +150,6 @@ it("renders code metadata and actionable review events in the inspector", () => 
           receivedAt: 10,
         },
       ]}
-      gitReview={{
-        available: true,
-        changes: [{ path: "src/app.ts", status: "modified" }],
-      }}
-      diffBases={{
-        available: true,
-        options: [
-          { ref: "HEAD", label: "HEAD", subject: "current" },
-          { ref: "abc123", label: "HEAD~1", subject: "previous" },
-        ],
-      }}
-      activeDiffBase="HEAD"
       reviewChanges={[
         { path: "src/app.ts", status: "modified", source: "git" },
         {
@@ -117,30 +159,12 @@ it("renders code metadata and actionable review events in the inspector", () => 
           source: "watcher",
         },
       ]}
-      activeDiff={{
-        path: "src/app.ts",
-        status: "available",
-        baseLabel: "HEAD",
-        compareLabel: "working tree",
-        content: "@@ -1 +1 @@\n-old\n+new",
-      }}
       selectedCodeRange={{ start: 2, end: 2 }}
       activePaneId="main"
-      reviewTargets={[
-        {
-          id: "reports/index.html",
-          path: "reports/index.html",
-          name: "index.html",
-          kind: "file",
-          parentPath: null,
-          viewerKind: "html",
-        },
-      ]}
       onOutlineSelect={() => undefined}
       onOpenEventPath={() => undefined}
       onOpenAllChanged={() => undefined}
       onShowDiff={() => undefined}
-      onSelectDiffBase={() => undefined}
       onTargetHoverChange={() => undefined}
       onRevealTarget={() => undefined}
     />,
@@ -153,17 +177,44 @@ it("renders code metadata and actionable review events in the inspector", () => 
   expect(html).toContain("Changed files");
   expect(html).toContain("Git working tree");
   expect(html).toContain("docs/old.md -&gt; docs/new.md");
-  expect(html).toContain("diff-split-row changed");
-  expect(html).toContain(">old</code>");
-  expect(html).toContain(">new</code>");
-  expect(html).toContain("Base");
-  expect(html).toContain("Working tree");
-  expect(html).toContain("Compare from");
-  expect(html).toContain("HEAD~1");
   expect(html).toContain("Recent events");
   expect(html).toContain("Changed");
-  expect(html).toContain("Review targets");
-  expect(html).toContain("reports/index.html");
+  expect(html).not.toContain("Review targets");
+  expect(html).not.toContain("Diff preview");
+});
+
+it("renders HEAD diffs inside the file viewer surface", () => {
+  const html = renderToStaticMarkup(
+    <DiffViewer
+      path="README.md"
+      renderKind="markdown"
+      sourceMode="rendered"
+      diff={{
+        path: "README.md",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content: "@@ -1,2 +1,2 @@\n-# Old title\n+# New title\n body",
+      }}
+    />,
+  );
+
+  expect(html).toContain('aria-label="Diff from HEAD for README.md"');
+  expect(html).toContain("Diff from HEAD");
+  expect(html).toContain('<h1 id="old-title">Old title</h1>');
+  expect(html).toContain('<h1 id="new-title">New title</h1>');
+  expect(html).toContain("rendered-diff-pane removed");
+  expect(html).toContain("rendered-diff-pane added");
+});
+
+it("groups unified diff lines into rendered change blocks", () => {
+  expect(
+    buildRenderedDiffBlocks([
+      { kind: "hunk", text: "@@ -1 +1 @@" },
+      { kind: "remove", text: "# Old", oldLine: 1 },
+      { kind: "add", text: "# New", newLine: 1 },
+    ]),
+  ).toEqual([{ hunk: "@@ -1 +1 @@", removed: "# Old\n", added: "# New\n" }]);
 });
 
 it("renders CSV files as a bounded review table", () => {

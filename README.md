@@ -15,6 +15,7 @@ pathlens .
 pathlens ./docs
 pathlens ./dist --open
 pathlens . --include md,html,ts,tsx,json,css,png,jpg
+pathlens . --max-file-size 2097152
 pathlens . --allow-html-scripts
 ```
 
@@ -119,6 +120,14 @@ pathlens ./dist --open --allow-html-scripts
 
 When scripts are allowed, the UI shows `scripts on` in the HTML toolbar and the preview CSP permits inline scripts inside the sandboxed iframe. Only use this for local artifacts you trust.
 
+### Large file limits
+
+By default, rich previews read up to 1 MiB per file. Oversized text-like files show an explicit partial preview of the leading chunk, while oversized HTML, images, and binary-like files stop with a safe explanation. You can raise or lower the limit for a local run:
+
+```bash
+pathlens ./reports --open --max-file-size 2097152
+```
+
 ## Keyboard Flow
 
 - `Cmd/Ctrl+K`: open the command palette.
@@ -211,7 +220,7 @@ docs/          product, architecture, requirements, and agent context
 - Mermaid: lightweight safe preview/source viewer for simple flowchart files and Markdown fenced Mermaid blocks.
 - Text/log: monospaced read-only viewer with wrap/no-wrap toggle.
 - Images/SVG: fit-to-screen and actual-size preview modes with size metadata; SVG renders as an image so scripts stay inactive.
-- Large or unsupported files: safe fallback that explains why a richer preview is unavailable.
+- Large or unsupported files: safe fallback that explains why a richer preview is unavailable; large text-like files show a bounded leading chunk as an explicit partial preview.
 
 Recent filesystem events are shown as a compact review queue. Change events refresh the active file and mark inactive tabs/changed tree rows; add/remove events refresh the tree. Close add/remove file pairs with the same parent and extension are grouped as likely renames in the review list. In Git worktrees, `pathlens` also reads uncommitted working-tree status and can show a bounded side-by-side text diff from `HEAD` or another recent allowed commit base to the working tree. Git status can surface explicit renamed files in the changed-file list.
 
@@ -225,7 +234,7 @@ Viewer selection starts in `src/domain/viewer-kind.ts`. Add or adjust an extensi
 
 - Mermaid preview intentionally supports only simple flowchart arrows; source mode or the inline Markdown source disclosure remains the fallback.
 - Git integration is read-only and limited to uncommitted working-tree status plus small side-by-side text diffs from recent commit bases; it does not stage, commit, or browse full history.
-- Large files are capped by the preview size limit and shown with a safe explanation.
+- Large files are capped by the preview size limit; text-like files show a bounded partial preview, while non-text previews stop with a safe explanation.
 - Smooth full tree virtualization and arbitrary commit comparison beyond recent allowed bases are deferred.
 
 ## Handing this repository to a coding agent

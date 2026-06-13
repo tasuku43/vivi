@@ -54,6 +54,25 @@ export class NodeFileSystem implements FileSystemPort {
     const mimeType = mimeTypeFor(resolved.relativePath, viewerKind);
 
     if (stat.size > this.maxFileSizeBytes) {
+      if (supportsPartialTextPreview(viewerKind)) {
+        const bytes = await readLeadingBytes(
+          resolved.absolutePath,
+          this.maxFileSizeBytes,
+        );
+        return {
+          path: resolved.relativePath,
+          viewerKind,
+          encoding: "utf8",
+          content: bytes.toString("utf8"),
+          etag: `mtime:${stat.mtimeMs}:size:${stat.size}:preview:${bytes.length}`,
+          size: stat.size,
+          mtimeMs: stat.mtimeMs,
+          mimeType,
+          truncated: true,
+          maxSizeBytes: this.maxFileSizeBytes,
+          previewBytes: bytes.length,
+        };
+      }
       return {
         path: resolved.relativePath,
         viewerKind,
@@ -193,4 +212,28 @@ function mimeTypeFor(
   if (extension === ".webp") return "image/webp";
   if (extension === ".svg") return "image/svg+xml";
   return undefined;
+}
+
+async function readLeadingBytes(
+  absolutePath: string,
+  byteLimit: number,
+): Promise<Buffer> {
+  const handle = await fs.open(absolutePath, "r");
+  try {
+    const buffer = Buffer.alloc(byteLimit);
+    const { bytesRead } = await handle.read(buffer, 0, byteLimit, 0);
+    return buffer.subarray(0, bytesRead);
+  } finally {
+    await handle.close();
+  }
+}
+
+function supportsPartialTextPreview(viewerKind: ViewerKind): boolean {
+  return (
+    viewerKind === "text" ||
+    viewerKind === "code" ||
+    viewerKind === "markdown" ||
+    viewerKind === "json" ||
+    viewerKind === "mermaid"
+  );
 }

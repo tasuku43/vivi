@@ -11,6 +11,8 @@ it("parses documented CLI switches", () => {
     "--open",
     "--include",
     "md,.html,ts",
+    "--max-file-size",
+    "2048",
     "--allow-html-scripts",
   ]);
 
@@ -19,6 +21,7 @@ it("parses documented CLI switches", () => {
   expect(args.port).toBe(5000);
   expect(args.open).toBe(true);
   expect(args.allowHtmlScripts).toBe(true);
+  expect(args.maxFileSizeBytes).toBe(2048);
   expect(args.includeExtensions).toEqual(new Set(["md", "html", "ts"]));
 });
 

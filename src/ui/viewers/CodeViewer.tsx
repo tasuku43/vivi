@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { TextDiff } from "../../domain/change-review.js";
 import type { FilePayload } from "../../domain/fs-node.js";
 import {
   currentScopeForLine,
@@ -12,19 +13,31 @@ import {
 } from "../state/code-viewer.js";
 import { iconForPath, languageForPath } from "../state/file-icons.js";
 import type { ResolvedTheme } from "../state/theme.js";
+import type { ViewerMode } from "../state/viewer-mode.js";
+import { DiffViewer } from "./DiffViewer.js";
 
 export function CodeViewer({
   file,
   theme,
   selectedRange,
   refreshedAt,
+  mode = "source",
+  diff,
+  diffLoading,
   onSelectionChange,
+  onModeChange,
+  onReloadDiff,
 }: {
   file: FilePayload;
   theme: ResolvedTheme;
   selectedRange: LineRange | null;
   refreshedAt?: number;
+  mode?: ViewerMode;
+  diff?: TextDiff | null;
+  diffLoading?: boolean;
   onSelectionChange: (range: LineRange | null) => void;
+  onModeChange?: (mode: ViewerMode) => void;
+  onReloadDiff?: () => void;
 }) {
   const [html, setHtml] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
@@ -75,6 +88,20 @@ export function CodeViewer({
     } catch {
       setCopyStatus("Copy failed");
     }
+  }
+
+  if (mode === "diff") {
+    return (
+      <DiffViewer
+        path={file.path}
+        diff={diff ?? null}
+        loading={diffLoading}
+        renderKind="source"
+        sourceMode="source"
+        onModeChange={onModeChange}
+        onReload={onReloadDiff}
+      />
+    );
   }
 
   return (
@@ -131,6 +158,14 @@ export function CodeViewer({
           {copyStatus ? (
             <span className="copy-status">{copyStatus}</span>
           ) : null}
+          <div className="segmented-control" aria-label="Code view mode">
+            <button className="active" type="button">
+              Source
+            </button>
+            <button type="button" onClick={() => onModeChange?.("diff")}>
+              Diff from HEAD
+            </button>
+          </div>
         </div>
       </div>
       <div className="code-scope-bar">

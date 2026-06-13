@@ -1,3 +1,4 @@
+import type { TextDiff } from "../../domain/change-review.js";
 import type { FilePayload } from "../../domain/fs-node.js";
 import { MarkdownViewer } from "../viewers/MarkdownViewer.js";
 import { HtmlViewer } from "../viewers/HtmlViewer.js";
@@ -5,6 +6,7 @@ import { CodeViewer } from "../viewers/CodeViewer.js";
 import { CsvViewer, isDelimitedPath } from "../viewers/CsvViewer.js";
 import { ImageViewer } from "../viewers/ImageViewer.js";
 import { JsonViewer } from "../viewers/JsonViewer.js";
+import { LargeTextPreview } from "../viewers/LargeTextPreview.js";
 import { MermaidViewer } from "../viewers/MermaidViewer.js";
 import { TextViewer } from "../viewers/TextViewer.js";
 import type { LineRange } from "../state/code-viewer.js";
@@ -17,23 +19,31 @@ export function FileViewer({
   theme,
   selectedCodeRange,
   viewerMode,
+  diff,
+  diffLoading,
   refreshedAt,
   onCodeSelectionChange,
   onViewerModeChange,
+  onReloadDiff,
 }: {
   file: FilePayload | null;
   allowHtmlScripts: boolean;
   theme: ResolvedTheme;
   selectedCodeRange: LineRange | null;
   viewerMode?: ViewerMode;
+  diff?: TextDiff | null;
+  diffLoading?: boolean;
   refreshedAt?: number;
   onCodeSelectionChange: (range: LineRange | null) => void;
   onViewerModeChange?: (mode: ViewerMode) => void;
+  onReloadDiff?: () => void;
 }) {
   if (!file)
     return <div className="empty-viewer">Select a file from the tree.</div>;
 
   if (file.truncated) {
+    if (file.encoding === "utf8" && file.content)
+      return <LargeTextPreview file={file} />;
     return (
       <div className="unsupported">
         <h2>{file.path}</h2>
@@ -50,7 +60,10 @@ export function FileViewer({
       <MarkdownViewer
         file={file}
         mode={viewerMode}
+        diff={diff}
+        diffLoading={diffLoading}
         onModeChange={onViewerModeChange}
+        onReloadDiff={onReloadDiff}
       />
     );
   if (file.viewerKind === "html")
@@ -59,7 +72,10 @@ export function FileViewer({
         file={file}
         allowHtmlScripts={allowHtmlScripts}
         mode={viewerMode}
+        diff={diff}
+        diffLoading={diffLoading}
         onModeChange={onViewerModeChange}
+        onReloadDiff={onReloadDiff}
       />
     );
   if (file.viewerKind === "json") return <JsonViewer file={file} />;
@@ -71,7 +87,12 @@ export function FileViewer({
         theme={theme}
         selectedRange={selectedCodeRange}
         refreshedAt={refreshedAt}
+        mode={viewerMode}
+        diff={diff}
+        diffLoading={diffLoading}
         onSelectionChange={onCodeSelectionChange}
+        onModeChange={onViewerModeChange}
+        onReloadDiff={onReloadDiff}
       />
     );
   if (file.viewerKind === "text" && isDelimitedPath(file.path))

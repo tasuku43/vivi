@@ -8,6 +8,7 @@ pathlens [root] --port 4317
 pathlens [root] --host 127.0.0.1
 pathlens [root] --open
 pathlens [root] --include md,html,ts,tsx,json
+pathlens [root] --max-file-size 1048576
 pathlens [root] --allow-html-scripts
 ```
 
@@ -16,6 +17,8 @@ Default root: `.`
 Default host: `127.0.0.1`
 
 Default security posture: local-only, sandboxed HTML preview, local CSS enabled for practical artifact inspection, and HTML script execution disabled. Use `--allow-html-scripts` only when intentionally reviewing generated HTML that needs script execution.
+
+Default rich preview limit: `1048576` bytes. Use `--max-file-size <bytes>` to change it for the current local run.
 
 ## HTTP API
 
@@ -59,7 +62,7 @@ Returns file content and metadata for a relative path under the root.
 }
 ```
 
-Image payloads use `encoding: "base64"` and include a MIME type suitable for browser display. Files larger than the configured preview limit use `encoding: "none"`, empty `content`, and `truncated: true`.
+Image payloads use `encoding: "base64"` and include a MIME type suitable for browser display. Files larger than the configured preview limit use `truncated: true`. Text-like large files may include a bounded leading UTF-8 `content` chunk with `previewBytes`; non-text large files use `encoding: "none"` and empty `content`.
 
 ### `GET /api/config`
 

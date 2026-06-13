@@ -1,16 +1,8 @@
-import type { TextDiff } from "../../domain/change-review.js";
-import type { FilePayload, FsNode } from "../../domain/fs-node.js";
+import type { FilePayload } from "../../domain/fs-node.js";
 import { buildCodeMetadata, type LineRange } from "../state/code-viewer.js";
-import { iconForPath } from "../state/file-icons.js";
 import {
-  buildSideBySideDiffRows,
   changeStatusLabel,
-  diffStatusLabel,
-  parseUnifiedDiff,
-  type DiffBaseState,
-  type GitChangeReviewState,
   type ReviewChangeItem,
-  type SideBySideDiffRow,
 } from "../state/git-review.js";
 import type { OutlineHeading } from "../state/outline.js";
 import { eventLabel, type ReviewEvent } from "../state/review-events.js";
@@ -19,12 +11,7 @@ interface Props {
   file: FilePayload | null;
   outline: OutlineHeading[];
   events: ReviewEvent[];
-  gitReview: GitChangeReviewState | null;
-  diffBases: DiffBaseState | null;
-  activeDiffBase: string;
   reviewChanges: ReviewChangeItem[];
-  activeDiff: TextDiff | null;
-  reviewTargets: FsNode[];
   selectedCodeRange: LineRange | null;
   refreshedAt?: number;
   activePaneId: string;
@@ -32,7 +19,6 @@ interface Props {
   onOpenEventPath: (path: string) => void;
   onOpenAllChanged: () => void;
   onShowDiff: (path: string) => void;
-  onSelectDiffBase: (baseRef: string) => void;
   onTargetHoverChange: (hovering: boolean) => void;
   onRevealTarget: () => void;
 }
@@ -41,12 +27,7 @@ export function Inspector({
   file,
   outline,
   events,
-  gitReview,
-  diffBases,
-  activeDiffBase,
   reviewChanges,
-  activeDiff,
-  reviewTargets,
   selectedCodeRange,
   refreshedAt,
   activePaneId,
@@ -54,7 +35,6 @@ export function Inspector({
   onOpenEventPath,
   onOpenAllChanged,
   onShowDiff,
-  onSelectDiffBase,
   onTargetHoverChange,
   onRevealTarget,
 }: Props) {
@@ -67,12 +47,6 @@ export function Inspector({
       item.event.type === "change" ||
       (item.event.type === "add" && item.event.kind === "file"),
   );
-  const parsedDiff =
-    activeDiff?.status === "available"
-      ? parseUnifiedDiff(activeDiff.content)
-      : [];
-  const splitDiffRows = buildSideBySideDiffRows(parsedDiff);
-
   return (
     <aside className="inspector">
       <div className="panel-title">
@@ -190,30 +164,6 @@ export function Inspector({
           </>
         )}
 
-        <h3 className="section-title">Review targets</h3>
-        {reviewTargets.length ? (
-          reviewTargets.slice(0, 6).map((target) => (
-            <button
-              className="review-target"
-              key={target.path}
-              onClick={() => onOpenEventPath(target.path)}
-              type="button"
-            >
-              <span className="file-icon">
-                {iconForPath(target.path, target.viewerKind)}
-              </span>
-              <span>{target.path}</span>
-              <small>
-                {target.mtimeMs
-                  ? new Date(target.mtimeMs).toLocaleTimeString()
-                  : target.viewerKind}
-              </small>
-            </button>
-          ))
-        ) : (
-          <p className="muted">No generated-review targets detected yet.</p>
-        )}
-
         <div className="section-title with-action">
           <span>Changed files</span>
           {reviewChanges.length ? (
@@ -222,11 +172,6 @@ export function Inspector({
             </button>
           ) : null}
         </div>
-        {gitReview && !gitReview.available ? (
-          <p className="muted">
-            {gitReview.reason ?? "Git changes unavailable."}
-          </p>
-        ) : null}
         {reviewChanges.length ? (
           reviewChanges.slice(0, 10).map((change) => (
             <div className="change-row" key={`${change.source}:${change.path}`}>
@@ -248,12 +193,12 @@ export function Inspector({
               </button>
               <button
                 className="diff-button"
-                disabled={change.source !== "git"}
+                disabled={change.status === "deleted"}
                 onClick={() => onShowDiff(change.path)}
                 title={
                   change.source === "git"
-                    ? "Show uncommitted text diff"
-                    : "Diff available after Git sees this file"
+                    ? "Show diff from HEAD in the active viewer"
+                    : "Open this file and switch to diff mode"
                 }
                 type="button"
               >
@@ -264,75 +209,6 @@ export function Inspector({
         ) : (
           <p className="muted">No changed files detected yet.</p>
         )}
-
-        <h3 className="section-title">Diff preview</h3>
-        <div className="diff-card">
-          <label className="diff-base-picker">
-            <span>Compare from</span>
-            <select
-              value={activeDiffBase}
-              disabled={!diffBases?.available || !diffBases.options.length}
-              onChange={(event) => onSelectDiffBase(event.currentTarget.value)}
-            >
-              {(diffBases?.options.length
-                ? diffBases.options
-                : [{ ref: "HEAD", label: "HEAD" }]
-              ).map((option) => (
-                <option key={option.ref} value={option.ref}>
-                  {option.label}
-                  {option.subject ? ` · ${option.subject}` : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-          {diffBases && !diffBases.available ? (
-            <p className="muted">
-              {diffBases.reason ?? "Diff base selection is unavailable."}
-            </p>
-          ) : null}
-          <div className="kv">
-            <span>Status</span>
-            <strong>{diffStatusLabel(activeDiff)}</strong>
-          </div>
-          {activeDiff?.reason ? (
-            <p className="muted">{activeDiff.reason}</p>
-          ) : null}
-          {activeDiff?.status === "available" ? (
-            <div
-              className="diff-preview diff-split"
-              aria-label={`Diff for ${activeDiff.path}`}
-            >
-              <div className="diff-split-head" aria-hidden="true">
-                <span>Base</span>
-                <span>Working tree</span>
-              </div>
-              {splitDiffRows.map((line, index) =>
-                isFullWidthDiffRow(line) ? (
-                  <div
-                    className={`diff-split-full ${line.kind}`}
-                    key={`${line.kind}-${index}-${line.text}`}
-                  >
-                    <code>{line.text}</code>
-                  </div>
-                ) : (
-                  <div
-                    className={`diff-split-row ${line.kind}`}
-                    key={`${line.kind}-${index}-${line.oldLine ?? ""}-${line.newLine ?? ""}`}
-                  >
-                    <span className="diff-line-no old">
-                      {line.oldLine ?? ""}
-                    </span>
-                    <code className="old">{line.oldText ?? ""}</code>
-                    <span className="diff-line-no new">
-                      {line.newLine ?? ""}
-                    </span>
-                    <code className="new">{line.newText ?? ""}</code>
-                  </div>
-                ),
-              )}
-            </div>
-          ) : null}
-        </div>
 
         <div className="section-title with-action">
           <span>Recent events</span>
@@ -362,12 +238,6 @@ export function Inspector({
       </div>
     </aside>
   );
-}
-
-function isFullWidthDiffRow(
-  line: SideBySideDiffRow,
-): line is Extract<SideBySideDiffRow, { kind: "meta" | "hunk" }> {
-  return line.kind === "meta" || line.kind === "hunk";
 }
 
 function formatBytes(size: number): string {

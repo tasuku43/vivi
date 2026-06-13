@@ -60,13 +60,22 @@ it("returns image payloads as base64 with a mime type", async () => {
   );
 });
 
-it("does not read files larger than the configured preview limit", async () => {
+it("returns a bounded partial preview for large text files", async () => {
   const fs = new NodeFileSystem({ rootDir: dir, maxFileSizeBytes: 4 });
   const file = await fs.readFile("large.txt");
+  expect(file.encoding).toBe("utf8");
+  expect(file.content).toBe("too ");
+  expect(file.truncated).toBe(true);
+  expect(file.maxSizeBytes).toBe(4);
+  expect(file.previewBytes).toBe(4);
+});
+
+it("does not read large HTML files into preview content", async () => {
+  const fs = new NodeFileSystem({ rootDir: dir, maxFileSizeBytes: 4 });
+  const file = await fs.readFile("index.html");
   expect(file.encoding).toBe("none");
   expect(file.content).toBe("");
   expect(file.truncated).toBe(true);
-  expect(file.maxSizeBytes).toBe(4);
 });
 
 it("rejects HTML preview when the file exceeds the preview limit", async () => {

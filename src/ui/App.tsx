@@ -42,10 +42,9 @@ import {
   type SplitDirection,
   type SplitEdge,
 } from "./state/editor-layout.js";
-import { filterTreeToPaths, reviewArtifactResults } from "./state/files.js";
+import { filterTreeToPaths } from "./state/files.js";
 import {
   mergeReviewChanges,
-  type DiffBaseState,
   type GitChangeReviewState,
 } from "./state/git-review.js";
 import {
@@ -73,6 +72,7 @@ import {
   defaultViewerMode,
   modeLabel,
   nextViewerMode,
+  supportsDiffMode,
   supportsSourceToggle,
   type ViewerMode,
 } from "./state/viewer-mode.js";
@@ -87,9 +87,8 @@ export function App() {
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [recentEvents, setRecentEvents] = useState<ReviewEvent[]>([]);
   const [gitReview, setGitReview] = useState<GitChangeReviewState | null>(null);
-  const [diffBases, setDiffBases] = useState<DiffBaseState | null>(null);
-  const [activeDiffBase, setActiveDiffBase] = useState("HEAD");
-  const [activeDiff, setActiveDiff] = useState<TextDiff | null>(null);
+  const [diffs, setDiffs] = useState<Record<string, TextDiff>>({});
+  const [loadingDiffs, setLoadingDiffs] = useState<Record<string, boolean>>({});
   const [viewerModes, setViewerModes] = useState<Record<string, ViewerMode>>(
     {},
   );
@@ -140,27 +139,20 @@ export function App() {
     setGitReview((await response.json()) as GitChangeReviewState);
   }
 
-  async function loadDiffBases() {
-    const response = await fetch("/api/diff-bases");
-    if (!response.ok)
-      throw new Error(`diff bases request failed: ${response.status}`);
-    setDiffBases((await response.json()) as DiffBaseState);
-  }
-
-  async function showDiff(path: string, baseRef = activeDiffBase) {
-    const params = new URLSearchParams({ path, base: baseRef });
-    const response = await fetch(`/api/diff?${params.toString()}`);
-    if (!response.ok)
-      throw new Error(`diff request failed: ${response.status}`);
-    setActiveDiff((await response.json()) as TextDiff);
-  }
-
-  function selectDiffBase(baseRef: string) {
-    setActiveDiffBase(baseRef);
-    if (activeDiff?.path) {
-      void showDiff(activeDiff.path, baseRef).catch((err) =>
-        setError(String(err)),
-      );
+  async function loadHeadDiff(path: string) {
+    setLoadingDiffs((items) => ({ ...items, [path]: true }));
+    const params = new URLSearchParams({ path, base: "HEAD" });
+    try {
+      const response = await fetch(`/api/diff?${params.toString()}`);
+      if (!response.ok)
+        throw new Error(`diff request failed: ${response.status}`);
+      const diff = (await response.json()) as TextDiff;
+      setDiffs((items) => ({
+        ...items,
+        [path]: diff,
+      }));
+    } finally {
+      setLoadingDiffs((items) => ({ ...items, [path]: false }));
     }
   }
 
@@ -189,10 +181,6 @@ export function App() {
         : (tree?.nodes ?? []),
     [changedPathSet, tree, treeChangedOnly],
   );
-  const reviewTargets = useMemo(
-    () => reviewArtifactResults(tree?.nodes ?? []),
-    [tree],
-  );
   const activeViewerMode = file
     ? (viewerModes[file.path] ?? defaultViewerMode(file))
     : undefined;
@@ -211,6 +199,12 @@ export function App() {
     setFiles((items) => ({ ...items, [payload.path]: payload }));
     setOpenTabs((tabs) => upsertOpenTab(tabs, payload, paneId));
     setRecentFiles((items) => recordRecentFile(items, payload));
+  }
+
+  async function openHeadDiff(path: string, paneId = layout.activePaneId) {
+    await loadFile(path, paneId);
+    setViewerModes((items) => ({ ...items, [path]: "diff" }));
+    await loadHeadDiff(path);
   }
 
   async function hydrateRestoredFiles(restoredLayout: EditorLayoutNode) {
@@ -356,7 +350,7 @@ export function App() {
   function runCommandAction(id: CommandActionId) {
     if (id === "open-changed-file") openFirstChangedFile();
     else if (id === "show-diff" && selectedPath)
-      void showDiff(selectedPath).catch((err) => setError(String(err)));
+      void openHeadDiff(selectedPath).catch((err) => setError(String(err)));
     else if (id === "reveal-in-tree") revealActiveInTree();
     else if (id === "toggle-source-rendered") toggleActiveViewerMode();
     else if (id === "copy-local-url")
@@ -432,11 +426,12 @@ export function App() {
       },
       {
         id: "show-diff" as const,
-        label: "Show diff",
+        label: "Show diff from HEAD",
         detail: selectedPath ?? "No active file",
         keywords: ["review", "diff", "change", "git"],
         disabled:
           !selectedPath ||
+          !supportsDiffMode(file) ||
           !reviewChanges.some((change) => change.path === selectedPath),
       },
       {
@@ -578,7 +573,6 @@ export function App() {
     loadConfig().catch((err) => setError(String(err)));
     loadTree().catch((err) => setError(String(err)));
     loadGitReview().catch((err) => setError(String(err)));
-    loadDiffBases().catch((err) => setError(String(err)));
   }, []);
 
   useEffect(() => {
@@ -664,6 +658,11 @@ export function App() {
               [event.path]: Date.now(),
             })),
           )
+          .then(() => {
+            if (viewerModes[event.path] === "diff")
+              return loadHeadDiff(event.path);
+            return undefined;
+          })
           .catch((err) => setError(String(err)));
       } else if (event.type === "change") {
         setOpenTabs((tabs) => markTabChanged(tabs, event.path));
@@ -675,7 +674,7 @@ export function App() {
       loadGitReview().catch((err) => setError(String(err)));
     });
     return () => events.close();
-  }, [selectedPath, layout.activePaneId]);
+  }, [selectedPath, layout.activePaneId, viewerModes]);
 
   useEffect(() => {
     if (!manualDraggedTab) return;
@@ -755,12 +754,7 @@ export function App() {
             file={file}
             outline={outline}
             events={recentEvents}
-            gitReview={gitReview}
-            diffBases={diffBases}
-            activeDiffBase={activeDiffBase}
             reviewChanges={reviewChanges}
-            activeDiff={activeDiff}
-            reviewTargets={reviewTargets}
             selectedCodeRange={
               file?.path ? (codeSelections[file.path] ?? null) : null
             }
@@ -772,9 +766,8 @@ export function App() {
             }
             onOpenAllChanged={openAllChangedFiles}
             onShowDiff={(path) =>
-              void showDiff(path).catch((err) => setError(String(err)))
+              void openHeadDiff(path).catch((err) => setError(String(err)))
             }
-            onSelectDiffBase={selectDiffBase}
             onTargetHoverChange={setInspectorTargetVisible}
             onRevealTarget={revealInspectorTarget}
           />
@@ -870,6 +863,10 @@ export function App() {
                   ? (viewerModes[paneFile.path] ?? defaultViewerMode(paneFile))
                   : undefined
               }
+              diff={paneFile?.path ? (diffs[paneFile.path] ?? null) : null}
+              diffLoading={
+                paneFile?.path ? Boolean(loadingDiffs[paneFile.path]) : false
+              }
               refreshedAt={
                 paneFile?.path ? refreshedFiles[paneFile.path] : undefined
               }
@@ -886,6 +883,16 @@ export function App() {
                   ...items,
                   [paneFile.path]: mode,
                 }));
+                if (mode === "diff")
+                  void loadHeadDiff(paneFile.path).catch((err) =>
+                    setError(String(err)),
+                  );
+              }}
+              onReloadDiff={() => {
+                if (!paneFile?.path) return;
+                void loadHeadDiff(paneFile.path).catch((err) =>
+                  setError(String(err)),
+                );
               }}
             />
           )}
