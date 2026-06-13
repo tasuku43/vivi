@@ -3,7 +3,9 @@ export type ResolvedTheme = "light" | "dark";
 
 export const themeStorageKey = "pathlens.theme";
 
-export function isThemePreference(value: string | null): value is ThemePreference {
+export function isThemePreference(
+  value: string | null,
+): value is ThemePreference {
   return value === "system" || value === "light" || value === "dark";
 }
 
