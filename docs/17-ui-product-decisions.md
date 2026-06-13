@@ -94,4 +94,3 @@ The palette should close on Escape and preserve the current workspace state.
 ## Product intent
 
 This is not an IDE clone. It is a local live viewer for reading and inspecting files. Editing, git staging, remote collaboration, and project-wide semantic intelligence are non-goals for the initial product.
-

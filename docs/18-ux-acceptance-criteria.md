@@ -43,4 +43,3 @@ Add or update tests for:
 - HTML preview route preserving sandbox defaults.
 
 Add an E2E test that starts the server against a fixture directory and verifies the UI can load the tree, open a Markdown file, open an HTML file, and receive at least one simulated filesystem event.
-

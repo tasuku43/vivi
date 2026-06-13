@@ -1,127 +1,497 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>05 Command focus - Pathlens mock</title>
-  <style>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>05 Command focus - Pathlens mock</title>
+    <style>
+      :root {
+        --bg: #0f1117;
+        --panel: #151923;
+        --panel-2: #1b2130;
+        --panel-3: #222a3b;
+        --text: #e6e8ef;
+        --muted: #9ba4b5;
+        --line: #2a3346;
+        --accent: #7aa2ff;
+        --accent-2: #9ece6a;
+        --warn: #e0af68;
+        --danger: #f7768e;
+        --code: #0b0e14;
+        --shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+        --radius: 12px;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+      }
+      body {
+        overflow: hidden;
+      }
+      button,
+      input {
+        font: inherit;
+      }
+      .app {
+        height: 100vh;
+        display: grid;
+      }
+      .topbar {
+        height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(15, 17, 23, 0.92);
+        backdrop-filter: blur(10px);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+      }
+      .logo {
+        width: 22px;
+        height: 22px;
+        border-radius: 7px;
+        background: linear-gradient(135deg, var(--accent), #c099ff);
+        box-shadow: 0 0 24px rgba(122, 162, 255, 0.45);
+      }
+      .pathbar {
+        color: var(--muted);
+        font-size: 12px;
+        padding: 6px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--panel);
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 12px;
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: var(--accent-2);
+      }
+      .sidebar {
+        background: var(--panel);
+        border-right: 1px solid var(--line);
+        min-width: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .side-head {
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .tree {
+        padding: 8px;
+        overflow: auto;
+      }
+      .node {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 27px;
+        padding: 4px 8px;
+        border-radius: 8px;
+        color: var(--muted);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      .node.active {
+        background: rgba(122, 162, 255, 0.16);
+        color: var(--text);
+      }
+      .node.changed {
+        color: var(--warn);
+      }
+      .node .twisty {
+        width: 12px;
+        color: #697386;
+      }
+      .node .icon {
+        width: 18px;
+        text-align: center;
+        opacity: 0.92;
+      }
+      .node .badge {
+        margin-left: auto;
+        font-size: 10px;
+        color: var(--accent-2);
+      }
+      .indent {
+        margin-left: 18px;
+      }
+      .tabs {
+        height: 39px;
+        display: flex;
+        align-items: end;
+        gap: 2px;
+        padding: 0 8px;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel-2);
+        overflow-x: auto;
+      }
+      .tab {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 32px;
+        padding: 0 12px;
+        border: 1px solid transparent;
+        border-bottom: 0;
+        border-radius: 9px 9px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        background: transparent;
+        white-space: nowrap;
+      }
+      .tab.active {
+        color: var(--text);
+        background: var(--bg);
+        border-color: var(--line);
+      }
+      .tab .x {
+        color: #697386;
+        font-size: 14px;
+      }
+      .main {
+        min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg);
+      }
+      .viewer {
+        min-height: 0;
+        overflow: auto;
+        padding: 22px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+      }
+      .card-head {
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .card-body {
+        padding: 18px;
+      }
+      h1,
+      h2,
+      h3 {
+        margin: 0 0 12px;
+        line-height: 1.25;
+      }
+      p {
+        color: #c9d1df;
+        line-height: 1.65;
+      }
+      pre {
+        margin: 0;
+        padding: 16px;
+        border-radius: 10px;
+        background: var(--code);
+        border: 1px solid var(--line);
+        overflow: auto;
+        color: #c0caf5;
+        line-height: 1.55;
+      }
+      code {
+        font-family: "SFMono-Regular", Consolas, ui-monospace, monospace;
+        font-size: 12.5px;
+      }
+      .k {
+        color: #bb9af7;
+      }
+      .s {
+        color: #9ece6a;
+      }
+      .fn {
+        color: #7aa2ff;
+      }
+      .cm {
+        color: #697386;
+      }
+      .num {
+        color: #ff9e64;
+      }
+      .statusbar {
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 10px;
+        border-top: 1px solid var(--line);
+        background: #0b0e14;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .btn {
+        border: 1px solid var(--line);
+        background: var(--panel-2);
+        color: var(--muted);
+        border-radius: 8px;
+        padding: 6px 9px;
+        font-size: 12px;
+      }
+      .btn.active {
+        color: var(--text);
+        border-color: rgba(122, 162, 255, 0.55);
+        background: rgba(122, 162, 255, 0.14);
+      }
+      .search {
+        width: 100%;
+        border: 1px solid var(--line);
+        color: var(--text);
+        background: #0b0e14;
+        border-radius: 9px;
+        padding: 8px 10px;
+        outline: none;
+      }
+      .mock-note {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .fake-frame {
+        height: 310px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #f6f8fb;
+        color: #1e2430;
+        overflow: hidden;
+      }
+      .fake-frame .browser {
+        height: 34px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 10px;
+        background: #e8edf5;
+        border-bottom: 1px solid #ccd5e3;
+      }
+      .fake-frame .lightdot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: #c4cedd;
+      }
+      .fake-frame .page {
+        padding: 24px;
+        font-family: ui-sans-serif, system-ui;
+      }
+      .fake-frame h2 {
+        color: #182033;
+      }
+      .fake-frame p {
+        color: #465268;
+      }
+      .event {
+        display: flex;
+        gap: 8px;
+        padding: 7px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .event b {
+        color: var(--text);
+        font-weight: 600;
+      }
 
-:root {
-  --bg: #0f1117;
-  --panel: #151923;
-  --panel-2: #1b2130;
-  --panel-3: #222a3b;
-  --text: #e6e8ef;
-  --muted: #9ba4b5;
-  --line: #2a3346;
-  --accent: #7aa2ff;
-  --accent-2: #9ece6a;
-  --warn: #e0af68;
-  --danger: #f7768e;
-  --code: #0b0e14;
-  --shadow: 0 16px 48px rgba(0,0,0,.35);
-  --radius: 12px;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-* { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); }
-body { overflow: hidden; }
-button, input { font: inherit; }
-.app { height: 100vh; display: grid; }
-.topbar { height: 44px; display:flex; align-items:center; gap:12px; padding:0 14px; border-bottom:1px solid var(--line); background:rgba(15,17,23,.92); backdrop-filter: blur(10px); }
-.brand { display:flex; align-items:center; gap:9px; font-weight:700; letter-spacing:.2px; }
-.logo { width:22px; height:22px; border-radius:7px; background:linear-gradient(135deg,var(--accent),#c099ff); box-shadow:0 0 24px rgba(122,162,255,.45); }
-.pathbar { color:var(--muted); font-size:12px; padding:6px 10px; border:1px solid var(--line); border-radius:999px; background:var(--panel); }
-.pill { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border:1px solid var(--line); border-radius:999px; color:var(--muted); font-size:12px; background:rgba(255,255,255,.02); }
-.dot { width:7px; height:7px; border-radius:999px; background:var(--accent-2); }
-.sidebar { background:var(--panel); border-right:1px solid var(--line); min-width:0; overflow:hidden; display:flex; flex-direction:column; }
-.side-head { height:42px; display:flex; align-items:center; justify-content:space-between; padding:0 12px; border-bottom:1px solid var(--line); color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.08em; }
-.tree { padding:8px; overflow:auto; }
-.node { display:flex; align-items:center; gap:7px; min-height:27px; padding:4px 8px; border-radius:8px; color:var(--muted); font-size:13px; white-space:nowrap; }
-.node.active { background:rgba(122,162,255,.16); color:var(--text); }
-.node.changed { color:var(--warn); }
-.node .twisty { width:12px; color:#697386; }
-.node .icon { width:18px; text-align:center; opacity:.92; }
-.node .badge { margin-left:auto; font-size:10px; color:var(--accent-2); }
-.indent { margin-left:18px; }
-.tabs { height:39px; display:flex; align-items:end; gap:2px; padding:0 8px; border-bottom:1px solid var(--line); background:var(--panel-2); overflow-x:auto; }
-.tab { display:flex; align-items:center; gap:8px; height:32px; padding:0 12px; border:1px solid transparent; border-bottom:0; border-radius:9px 9px 0 0; color:var(--muted); font-size:13px; background:transparent; white-space:nowrap; }
-.tab.active { color:var(--text); background:var(--bg); border-color:var(--line); }
-.tab .x { color:#697386; font-size:14px; }
-.main { min-width:0; min-height:0; display:flex; flex-direction:column; background:var(--bg); }
-.viewer { min-height:0; overflow:auto; padding:22px; }
-.card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
-.card-head { height:42px; display:flex; align-items:center; justify-content:space-between; padding:0 14px; border-bottom:1px solid var(--line); color:var(--muted); font-size:12px; }
-.card-body { padding:18px; }
-h1,h2,h3 { margin:0 0 12px; line-height:1.25; }
-p { color:#c9d1df; line-height:1.65; }
-pre { margin:0; padding:16px; border-radius:10px; background:var(--code); border:1px solid var(--line); overflow:auto; color:#c0caf5; line-height:1.55; }
-code { font-family:"SFMono-Regular", Consolas, ui-monospace, monospace; font-size:12.5px; }
-.k { color:#bb9af7; } .s { color:#9ece6a; } .fn { color:#7aa2ff; } .cm { color:#697386; } .num { color:#ff9e64; }
-.statusbar { height:28px; display:flex; align-items:center; justify-content:space-between; padding:0 10px; border-top:1px solid var(--line); background:#0b0e14; color:var(--muted); font-size:12px; }
-.toolbar { display:flex; align-items:center; gap:8px; }
-.btn { border:1px solid var(--line); background:var(--panel-2); color:var(--muted); border-radius:8px; padding:6px 9px; font-size:12px; }
-.btn.active { color:var(--text); border-color:rgba(122,162,255,.55); background:rgba(122,162,255,.14); }
-.search { width:100%; border:1px solid var(--line); color:var(--text); background:#0b0e14; border-radius:9px; padding:8px 10px; outline:none; }
-.mock-note { color:var(--muted); font-size:12px; line-height:1.5; }
-.fake-frame { height:310px; border:1px solid var(--line); border-radius:12px; background:#f6f8fb; color:#1e2430; overflow:hidden; }
-.fake-frame .browser { height:34px; display:flex; align-items:center; gap:6px; padding:0 10px; background:#e8edf5; border-bottom:1px solid #ccd5e3; }
-.fake-frame .lightdot { width:10px; height:10px; border-radius:999px; background:#c4cedd; }
-.fake-frame .page { padding:24px; font-family: ui-sans-serif, system-ui; }
-.fake-frame h2 { color:#182033; }
-.fake-frame p { color:#465268; }
-.event { display:flex; gap:8px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,.06); color:var(--muted); font-size:12px; }
-.event b { color:var(--text); font-weight:600; }
-
-
-.app { grid-template-rows:44px 1fr; }
-.workbench { min-height:0; display:grid; grid-template-columns:72px 1fr; }
-.rail { background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; align-items:center; padding:10px 0; gap:10px; }
-.railbtn { width:42px; height:42px; display:grid; place-items:center; border-radius:12px; color:var(--muted); background:transparent; border:1px solid transparent; }
-.railbtn.active { color:var(--text); background:rgba(122,162,255,.14); border-color:rgba(122,162,255,.35); }
-.command { max-width:780px; margin:0 auto 18px; background:var(--panel); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow); padding:12px; }
-.command input { width:100%; border:0; outline:none; background:#0b0e14; color:var(--text); border-radius:10px; padding:12px 14px; }
-.results { display:grid; gap:6px; margin-top:10px; }
-.result { display:grid; grid-template-columns:28px 1fr auto; align-items:center; gap:8px; padding:8px 10px; border-radius:10px; color:var(--muted); }
-.result.active { background:rgba(122,162,255,.14); color:var(--text); }
-.workspace { display:grid; grid-template-columns:1fr 320px; gap:14px; }
-.minimap { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:14px; }
-
-  </style>
-</head>
-<body>
-
-<div class="app">
-  <div class="topbar"><div class="brand"><span class="logo"></span>Pathlens</div><span class="pathbar">Command-first layout</span><span class="mock-note">Tree is available, but fuzzy open and tabs carry the workflow.</span></div>
-  <div class="workbench">
-    <nav class="rail">
-      <button class="railbtn active">📁</button>
-      <button class="railbtn">🔎</button>
-      <button class="railbtn">🕘</button>
-      <button class="railbtn">⚙️</button>
-    </nav>
-    <main class="main">
-  <div class="tabs">
-    <button class="tab active" data-tab>📘 README.md <span class="x">×</span></button>
-    <button class="tab" data-tab>🌐 index.html <span class="x">×</span></button>
-    <button class="tab" data-tab>⚛️ App.tsx <span class="x">×</span></button>
-    <button class="tab" data-tab>📄 architecture.md <span class="x">×</span></button>
-  </div>
-
-      <section class="viewer">
-        <div class="command">
-          <input value="Open file: arch" />
-          <div class="results">
-            <div class="result active"><span>📄</span><span>docs/architecture.md</span><span>Markdown</span></div>
-            <div class="result"><span>⚛️</span><span>src/tree/architecture.ts</span><span>TypeScript</span></div>
-            <div class="result"><span>🌐</span><span>public/architecture.html</span><span>HTML</span></div>
+      .app {
+        grid-template-rows: 44px 1fr;
+      }
+      .workbench {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 72px 1fr;
+      }
+      .rail {
+        background: var(--panel);
+        border-right: 1px solid var(--line);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 10px 0;
+        gap: 10px;
+      }
+      .railbtn {
+        width: 42px;
+        height: 42px;
+        display: grid;
+        place-items: center;
+        border-radius: 12px;
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid transparent;
+      }
+      .railbtn.active {
+        color: var(--text);
+        background: rgba(122, 162, 255, 0.14);
+        border-color: rgba(122, 162, 255, 0.35);
+      }
+      .command {
+        max-width: 780px;
+        margin: 0 auto 18px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+        padding: 12px;
+      }
+      .command input {
+        width: 100%;
+        border: 0;
+        outline: none;
+        background: #0b0e14;
+        color: var(--text);
+        border-radius: 10px;
+        padding: 12px 14px;
+      }
+      .results {
+        display: grid;
+        gap: 6px;
+        margin-top: 10px;
+      }
+      .result {
+        display: grid;
+        grid-template-columns: 28px 1fr auto;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        color: var(--muted);
+      }
+      .result.active {
+        background: rgba(122, 162, 255, 0.14);
+        color: var(--text);
+      }
+      .workspace {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 14px;
+      }
+      .minimap {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="topbar">
+        <div class="brand"><span class="logo"></span>Pathlens</div>
+        <span class="pathbar">Command-first layout</span
+        ><span class="mock-note"
+          >Tree is available, but fuzzy open and tabs carry the workflow.</span
+        >
+      </div>
+      <div class="workbench">
+        <nav class="rail">
+          <button class="railbtn active">📁</button>
+          <button class="railbtn">🔎</button>
+          <button class="railbtn">🕘</button>
+          <button class="railbtn">⚙️</button>
+        </nav>
+        <main class="main">
+          <div class="tabs">
+            <button class="tab active" data-tab>
+              📘 README.md <span class="x">×</span>
+            </button>
+            <button class="tab" data-tab>
+              🌐 index.html <span class="x">×</span>
+            </button>
+            <button class="tab" data-tab>
+              ⚛️ App.tsx <span class="x">×</span>
+            </button>
+            <button class="tab" data-tab>
+              📄 architecture.md <span class="x">×</span>
+            </button>
           </div>
-        </div>
-        <div class="workspace">
-          <article class="card">
-            <div class="card-head"><span>App.tsx</span><div class="toolbar"><button class="btn active">Code</button><button class="btn">Preview related</button></div></div>
-            <div class="card-body">
-              <pre><code><span class="k">export function</span> <span class="fn">ViewerTabs</span>() {
+
+          <section class="viewer">
+            <div class="command">
+              <input value="Open file: arch" />
+              <div class="results">
+                <div class="result active">
+                  <span>📄</span><span>docs/architecture.md</span
+                  ><span>Markdown</span>
+                </div>
+                <div class="result">
+                  <span>⚛️</span><span>src/tree/architecture.ts</span
+                  ><span>TypeScript</span>
+                </div>
+                <div class="result">
+                  <span>🌐</span><span>public/architecture.html</span
+                  ><span>HTML</span>
+                </div>
+              </div>
+            </div>
+            <div class="workspace">
+              <article class="card">
+                <div class="card-head">
+                  <span>App.tsx</span>
+                  <div class="toolbar">
+                    <button class="btn active">Code</button
+                    ><button class="btn">Preview related</button>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <pre><code><span class="k">export function</span> <span class="fn">ViewerTabs</span>() {
   <span class="k">return</span> (
     &lt;Tabs files={openFiles} activePath={activePath} /&gt;
   );
@@ -130,37 +500,52 @@ code { font-family:"SFMono-Regular", Consolas, ui-monospace, monospace; font-siz
 <span class="k">function</span> <span class="fn">applyFileEvent</span>(event: FsEvent) {
   <span class="cm">// update normalized tree state</span>
 }</code></pre>
+                </div>
+              </article>
+              <aside class="minimap">
+                <h3>Open files</h3>
+                <div class="event">
+                  <b>README.md</b><span>rendered markdown</span>
+                </div>
+                <div class="event">
+                  <b>index.html</b><span>sandbox preview</span>
+                </div>
+                <div class="event">
+                  <b>App.tsx</b><span>syntax-highlighted source</span>
+                </div>
+                <div class="event">
+                  <b>architecture.md</b><span>stale after change</span>
+                </div>
+                <h3 style="margin-top: 22px">Design intent</h3>
+                <p class="mock-note">
+                  This pattern is fast for keyboard-heavy users, but the
+                  directory tree becomes secondary.
+                </p>
+              </aside>
             </div>
-          </article>
-          <aside class="minimap">
-            <h3>Open files</h3>
-            <div class="event"><b>README.md</b><span>rendered markdown</span></div>
-            <div class="event"><b>index.html</b><span>sandbox preview</span></div>
-            <div class="event"><b>App.tsx</b><span>syntax-highlighted source</span></div>
-            <div class="event"><b>architecture.md</b><span>stale after change</span></div>
-            <h3 style="margin-top:22px">Design intent</h3>
-            <p class="mock-note">This pattern is fast for keyboard-heavy users, but the directory tree becomes secondary.</p>
-          </aside>
-        </div>
-      </section>
-    </main>
-  </div>
-</div>
+          </section>
+        </main>
+      </div>
+    </div>
 
-<script>
-  document.querySelectorAll('[data-tab]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const group = btn.closest('.tabs') || document;
-      group.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      btn.classList.add('active');
-    });
-  });
-  document.querySelectorAll('.node').forEach(node => {
-    node.addEventListener('click', () => {
-      document.querySelectorAll('.node').forEach(n => n.classList.remove('active'));
-      node.classList.add('active');
-    });
-  });
-</script>
-</body>
+    <script>
+      document.querySelectorAll("[data-tab]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const group = btn.closest(".tabs") || document;
+          group
+            .querySelectorAll(".tab")
+            .forEach((t) => t.classList.remove("active"));
+          btn.classList.add("active");
+        });
+      });
+      document.querySelectorAll(".node").forEach((node) => {
+        node.addEventListener("click", () => {
+          document
+            .querySelectorAll(".node")
+            .forEach((n) => n.classList.remove("active"));
+          node.classList.add("active");
+        });
+      });
+    </script>
+  </body>
 </html>

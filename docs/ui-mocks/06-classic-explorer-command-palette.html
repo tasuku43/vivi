@@ -1,235 +1,686 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>06 Classic explorer + command palette - Pathlens mock</title>
-  <style>
-:root {
-  --bg: #0f1117;
-  --panel: #151923;
-  --panel-2: #1b2130;
-  --panel-3: #222a3b;
-  --text: #e6e8ef;
-  --muted: #9ba4b5;
-  --line: #2a3346;
-  --accent: #7aa2ff;
-  --accent-2: #9ece6a;
-  --warn: #e0af68;
-  --danger: #f7768e;
-  --code: #0b0e14;
-  --shadow: 0 16px 48px rgba(0,0,0,.35);
-  --radius: 12px;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-* { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); }
-body { overflow: hidden; }
-button, input { font: inherit; }
-.app { height: 100vh; display: grid; grid-template-rows:44px 1fr 28px; }
-.topbar { height: 44px; display:flex; align-items:center; gap:12px; padding:0 14px; border-bottom:1px solid var(--line); background:rgba(15,17,23,.92); backdrop-filter: blur(10px); }
-.brand { display:flex; align-items:center; gap:9px; font-weight:700; letter-spacing:.2px; }
-.logo { width:22px; height:22px; border-radius:7px; background:linear-gradient(135deg,var(--accent),#c099ff); box-shadow:0 0 24px rgba(122,162,255,.45); }
-.pathbar { color:var(--muted); font-size:12px; padding:6px 10px; border:1px solid var(--line); border-radius:999px; background:var(--panel); }
-.pill { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border:1px solid var(--line); border-radius:999px; color:var(--muted); font-size:12px; background:rgba(255,255,255,.02); }
-.dot { width:7px; height:7px; border-radius:999px; background:var(--accent-2); }
-.kbd { border:1px solid var(--line); background:var(--panel-2); color:var(--text); border-radius:8px; padding:5px 8px; font-size:12px; }
-.workbench { min-height:0; display:grid; grid-template-columns:280px 1fr; }
-.sidebar { background:var(--panel); border-right:1px solid var(--line); min-width:0; overflow:hidden; display:flex; flex-direction:column; }
-.side-head { height:42px; display:flex; align-items:center; justify-content:space-between; padding:0 12px; border-bottom:1px solid var(--line); color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.08em; }
-.tree { padding:8px; overflow:auto; }
-.node { display:flex; align-items:center; gap:7px; min-height:27px; padding:4px 8px; border-radius:8px; color:var(--muted); font-size:13px; white-space:nowrap; cursor:pointer; }
-.node.active { background:rgba(122,162,255,.16); color:var(--text); }
-.node.changed { color:var(--warn); }
-.node .twisty { width:12px; color:#697386; }
-.node .icon { width:18px; text-align:center; opacity:.92; }
-.node .badge { margin-left:auto; font-size:10px; color:var(--accent-2); }
-.indent { margin-left:18px; }
-.tabs { height:39px; display:flex; align-items:end; gap:2px; padding:0 8px; border-bottom:1px solid var(--line); background:var(--panel-2); overflow-x:auto; }
-.tab { display:flex; align-items:center; gap:8px; height:32px; padding:0 12px; border:1px solid transparent; border-bottom:0; border-radius:9px 9px 0 0; color:var(--muted); font-size:13px; background:transparent; white-space:nowrap; cursor:pointer; }
-.tab.active { color:var(--text); background:var(--bg); border-color:var(--line); }
-.tab .x { color:#697386; font-size:14px; }
-.main { min-width:0; min-height:0; display:flex; flex-direction:column; background:var(--bg); }
-.viewer { min-height:0; overflow:auto; padding:22px; background:radial-gradient(circle at 80% 10%, rgba(122,162,255,.08), transparent 34%), var(--bg); }
-.card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
-.card-head { height:42px; display:flex; align-items:center; justify-content:space-between; padding:0 14px; border-bottom:1px solid var(--line); color:var(--muted); font-size:12px; }
-.card-body { padding:18px; }
-h1,h2,h3 { margin:0 0 12px; line-height:1.25; }
-p { color:#c9d1df; line-height:1.65; }
-ul { color:#c9d1df; line-height:1.8; }
-pre { margin:0; padding:16px; border-radius:10px; background:var(--code); border:1px solid var(--line); overflow:auto; color:#c0caf5; line-height:1.55; }
-code { font-family:"SFMono-Regular", Consolas, ui-monospace, monospace; font-size:12.5px; }
-.cm { color:#697386; }
-.statusbar { height:28px; display:flex; align-items:center; justify-content:space-between; padding:0 10px; border-top:1px solid var(--line); background:#0b0e14; color:var(--muted); font-size:12px; }
-.toolbar { display:flex; align-items:center; gap:8px; }
-.btn { border:1px solid var(--line); background:var(--panel-2); color:var(--muted); border-radius:8px; padding:6px 9px; font-size:12px; }
-.btn.active { color:var(--text); border-color:rgba(122,162,255,.55); background:rgba(122,162,255,.14); }
-.search { width:100%; border:1px solid var(--line); color:var(--text); background:#0b0e14; border-radius:9px; padding:8px 10px; outline:none; }
-.mock-note { color:var(--muted); font-size:12px; line-height:1.5; }
-.overlay {
-  position: fixed; inset: 0; display: none; place-items: start center; padding-top: 84px;
-  background: rgba(5,8,14,.48); backdrop-filter: blur(8px);
-}
-.overlay.open { display: grid; }
-.palette {
-  width: min(760px, calc(100vw - 40px));
-  background: rgba(21,25,35,.96); border:1px solid rgba(122,162,255,.16);
-  border-radius: 18px; box-shadow: 0 24px 80px rgba(0,0,0,.5); overflow:hidden;
-}
-.palette-head { padding: 12px; border-bottom:1px solid var(--line); }
-.palette-input {
-  width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px;
-  background:#0b0e14; color:var(--text); outline:none;
-}
-.palette-meta { display:flex; align-items:center; justify-content:space-between; padding: 10px 14px 0; color:var(--muted); font-size:12px; }
-.palette-body { max-height: 460px; overflow:auto; padding: 8px 10px 12px; }
-.group-label { color:#7f8aa3; font-size:11px; text-transform:uppercase; letter-spacing:.08em; padding: 10px 8px 6px; }
-.result { display:grid; grid-template-columns:28px 1fr auto; gap:10px; align-items:center; padding: 10px 12px; border-radius: 12px; color:var(--muted); cursor:pointer; }
-.result:hover, .result.active { background: rgba(122,162,255,.14); color: var(--text); }
-.result-path { font-size: 12px; color:#7f8aa3; }
-.result-shortcut { font-size:11px; color:#7f8aa3; border:1px solid var(--line); border-radius:999px; padding:4px 8px; }
-.hintbar { display:flex; gap:8px; align-items:center; justify-content:space-between; border-top:1px solid var(--line); padding: 10px 14px; color:var(--muted); font-size:12px; }
-.hints { display:flex; gap:8px; flex-wrap:wrap; }
-.kchip { border:1px solid var(--line); background:#0b0e14; border-radius:8px; padding:4px 8px; color:var(--text); }
-.dimmed { filter: saturate(.92) brightness(.92); }
-  </style>
-</head>
-<body>
-<div class="app" id="appRoot">
-  <div class="topbar">
-    <div class="brand"><span class="logo"></span>Pathlens</div>
-    <span class="pathbar">pathlens ./demo --open</span>
-    <span class="pill"><span class="dot"></span>SSE connected</span>
-    <span style="margin-left:auto" class="kbd">⌘K</span>
-  </div>
-  <div class="workbench">
-    <aside class="sidebar">
-      <div class="side-head"><span>Explorer</span><span class="pill"><span class="dot"></span>live</span></div>
-      <div style="padding:10px;border-bottom:1px solid var(--line)"><input class="search" value="/workspace/demo" /></div>
-      <div class="tree">
-        <div class="node"><span class="twisty">▾</span><span class="icon">📁</span><span>demo</span></div>
-        <div class="indent">
-          <div class="node"><span class="twisty">▾</span><span class="icon">📁</span><span>docs</span></div>
-          <div class="indent">
-            <div class="node active"><span class="twisty"></span><span class="icon">📘</span><span>README.md</span><span class="badge">open</span></div>
-            <div class="node changed"><span class="twisty"></span><span class="icon">📄</span><span>architecture.md</span></div>
-          </div>
-          <div class="node"><span class="twisty">▾</span><span class="icon">📁</span><span>public</span></div>
-          <div class="indent">
-            <div class="node"><span class="twisty"></span><span class="icon">🌐</span><span>index.html</span></div>
-            <div class="node"><span class="twisty"></span><span class="icon">🖼️</span><span>hero.png</span></div>
-          </div>
-          <div class="node"><span class="twisty">▾</span><span class="icon">📁</span><span>src</span></div>
-          <div class="indent">
-            <div class="node"><span class="twisty"></span><span class="icon">⚛️</span><span>App.tsx</span></div>
-            <div class="node"><span class="twisty"></span><span class="icon">{} </span><span>tree.ts</span></div>
-          </div>
-          <div class="node"><span class="twisty"></span><span class="icon">⚙️</span><span>package.json</span></div>
-        </div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>06 Classic explorer + command palette - Pathlens mock</title>
+    <style>
+      :root {
+        --bg: #0f1117;
+        --panel: #151923;
+        --panel-2: #1b2130;
+        --panel-3: #222a3b;
+        --text: #e6e8ef;
+        --muted: #9ba4b5;
+        --line: #2a3346;
+        --accent: #7aa2ff;
+        --accent-2: #9ece6a;
+        --warn: #e0af68;
+        --danger: #f7768e;
+        --code: #0b0e14;
+        --shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+        --radius: 12px;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+      }
+      body {
+        overflow: hidden;
+      }
+      button,
+      input {
+        font: inherit;
+      }
+      .app {
+        height: 100vh;
+        display: grid;
+        grid-template-rows: 44px 1fr 28px;
+      }
+      .topbar {
+        height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(15, 17, 23, 0.92);
+        backdrop-filter: blur(10px);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+      }
+      .logo {
+        width: 22px;
+        height: 22px;
+        border-radius: 7px;
+        background: linear-gradient(135deg, var(--accent), #c099ff);
+        box-shadow: 0 0 24px rgba(122, 162, 255, 0.45);
+      }
+      .pathbar {
+        color: var(--muted);
+        font-size: 12px;
+        padding: 6px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--panel);
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 12px;
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: var(--accent-2);
+      }
+      .kbd {
+        border: 1px solid var(--line);
+        background: var(--panel-2);
+        color: var(--text);
+        border-radius: 8px;
+        padding: 5px 8px;
+        font-size: 12px;
+      }
+      .workbench {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 280px 1fr;
+      }
+      .sidebar {
+        background: var(--panel);
+        border-right: 1px solid var(--line);
+        min-width: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .side-head {
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .tree {
+        padding: 8px;
+        overflow: auto;
+      }
+      .node {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 27px;
+        padding: 4px 8px;
+        border-radius: 8px;
+        color: var(--muted);
+        font-size: 13px;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      .node.active {
+        background: rgba(122, 162, 255, 0.16);
+        color: var(--text);
+      }
+      .node.changed {
+        color: var(--warn);
+      }
+      .node .twisty {
+        width: 12px;
+        color: #697386;
+      }
+      .node .icon {
+        width: 18px;
+        text-align: center;
+        opacity: 0.92;
+      }
+      .node .badge {
+        margin-left: auto;
+        font-size: 10px;
+        color: var(--accent-2);
+      }
+      .indent {
+        margin-left: 18px;
+      }
+      .tabs {
+        height: 39px;
+        display: flex;
+        align-items: end;
+        gap: 2px;
+        padding: 0 8px;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel-2);
+        overflow-x: auto;
+      }
+      .tab {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 32px;
+        padding: 0 12px;
+        border: 1px solid transparent;
+        border-bottom: 0;
+        border-radius: 9px 9px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        background: transparent;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      .tab.active {
+        color: var(--text);
+        background: var(--bg);
+        border-color: var(--line);
+      }
+      .tab .x {
+        color: #697386;
+        font-size: 14px;
+      }
+      .main {
+        min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg);
+      }
+      .viewer {
+        min-height: 0;
+        overflow: auto;
+        padding: 22px;
+        background:
+          radial-gradient(
+            circle at 80% 10%,
+            rgba(122, 162, 255, 0.08),
+            transparent 34%
+          ),
+          var(--bg);
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+      }
+      .card-head {
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .card-body {
+        padding: 18px;
+      }
+      h1,
+      h2,
+      h3 {
+        margin: 0 0 12px;
+        line-height: 1.25;
+      }
+      p {
+        color: #c9d1df;
+        line-height: 1.65;
+      }
+      ul {
+        color: #c9d1df;
+        line-height: 1.8;
+      }
+      pre {
+        margin: 0;
+        padding: 16px;
+        border-radius: 10px;
+        background: var(--code);
+        border: 1px solid var(--line);
+        overflow: auto;
+        color: #c0caf5;
+        line-height: 1.55;
+      }
+      code {
+        font-family: "SFMono-Regular", Consolas, ui-monospace, monospace;
+        font-size: 12.5px;
+      }
+      .cm {
+        color: #697386;
+      }
+      .statusbar {
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 10px;
+        border-top: 1px solid var(--line);
+        background: #0b0e14;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .btn {
+        border: 1px solid var(--line);
+        background: var(--panel-2);
+        color: var(--muted);
+        border-radius: 8px;
+        padding: 6px 9px;
+        font-size: 12px;
+      }
+      .btn.active {
+        color: var(--text);
+        border-color: rgba(122, 162, 255, 0.55);
+        background: rgba(122, 162, 255, 0.14);
+      }
+      .search {
+        width: 100%;
+        border: 1px solid var(--line);
+        color: var(--text);
+        background: #0b0e14;
+        border-radius: 9px;
+        padding: 8px 10px;
+        outline: none;
+      }
+      .mock-note {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .overlay {
+        position: fixed;
+        inset: 0;
+        display: none;
+        place-items: start center;
+        padding-top: 84px;
+        background: rgba(5, 8, 14, 0.48);
+        backdrop-filter: blur(8px);
+      }
+      .overlay.open {
+        display: grid;
+      }
+      .palette {
+        width: min(760px, calc(100vw - 40px));
+        background: rgba(21, 25, 35, 0.96);
+        border: 1px solid rgba(122, 162, 255, 0.16);
+        border-radius: 18px;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+        overflow: hidden;
+      }
+      .palette-head {
+        padding: 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .palette-input {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 13px 14px;
+        background: #0b0e14;
+        color: var(--text);
+        outline: none;
+      }
+      .palette-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .palette-body {
+        max-height: 460px;
+        overflow: auto;
+        padding: 8px 10px 12px;
+      }
+      .group-label {
+        color: #7f8aa3;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        padding: 10px 8px 6px;
+      }
+      .result {
+        display: grid;
+        grid-template-columns: 28px 1fr auto;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 12px;
+        border-radius: 12px;
+        color: var(--muted);
+        cursor: pointer;
+      }
+      .result:hover,
+      .result.active {
+        background: rgba(122, 162, 255, 0.14);
+        color: var(--text);
+      }
+      .result-path {
+        font-size: 12px;
+        color: #7f8aa3;
+      }
+      .result-shortcut {
+        font-size: 11px;
+        color: #7f8aa3;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 4px 8px;
+      }
+      .hintbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: space-between;
+        border-top: 1px solid var(--line);
+        padding: 10px 14px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .hints {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .kchip {
+        border: 1px solid var(--line);
+        background: #0b0e14;
+        border-radius: 8px;
+        padding: 4px 8px;
+        color: var(--text);
+      }
+      .dimmed {
+        filter: saturate(0.92) brightness(0.92);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app" id="appRoot">
+      <div class="topbar">
+        <div class="brand"><span class="logo"></span>Pathlens</div>
+        <span class="pathbar">pathlens ./demo --open</span>
+        <span class="pill"><span class="dot"></span>SSE connected</span>
+        <span style="margin-left: auto" class="kbd">⌘K</span>
       </div>
-    </aside>
-    <main class="main" id="mainSurface">
-      <div class="tabs">
-        <button class="tab active" data-tab>📘 README.md <span class="x">×</span></button>
-        <button class="tab" data-tab>🌐 index.html <span class="x">×</span></button>
-        <button class="tab" data-tab>⚛️ App.tsx <span class="x">×</span></button>
-        <button class="tab" data-tab>📄 architecture.md <span class="x">×</span></button>
-      </div>
-      <section class="viewer">
-        <article class="card" style="max-width:920px;margin:0 auto">
-          <div class="card-head"><span>Rendered Markdown</span><div class="toolbar"><button class="btn active">Preview</button><button class="btn">Raw</button><button class="btn" id="openPaletteBtn">Open quickly ⌘K</button></div></div>
-          <div class="card-body">
-            <h1>Classic explorer + command palette</h1>
-            <p>This mock keeps the standard file tree and tabbed main area, but adds a familiar command palette overlay for fast open, jumping to files, and action dispatch.</p>
-            <h2>How it should feel</h2>
-            <ul>
-              <li>Sidebar remains the primary spatial navigator.</li>
-              <li>Tabs represent the working set of opened files.</li>
-              <li><strong>Command+K</strong> opens a global palette without changing the underlying layout.</li>
-              <li>The palette is good for file open, recent files, renderer switching, and view actions.</li>
-            </ul>
-            <pre><code><span class="cm"># example interactions</span>
+      <div class="workbench">
+        <aside class="sidebar">
+          <div class="side-head">
+            <span>Explorer</span
+            ><span class="pill"><span class="dot"></span>live</span>
+          </div>
+          <div style="padding: 10px; border-bottom: 1px solid var(--line)">
+            <input class="search" value="/workspace/demo" />
+          </div>
+          <div class="tree">
+            <div class="node">
+              <span class="twisty">▾</span><span class="icon">📁</span
+              ><span>demo</span>
+            </div>
+            <div class="indent">
+              <div class="node">
+                <span class="twisty">▾</span><span class="icon">📁</span
+                ><span>docs</span>
+              </div>
+              <div class="indent">
+                <div class="node active">
+                  <span class="twisty"></span><span class="icon">📘</span
+                  ><span>README.md</span><span class="badge">open</span>
+                </div>
+                <div class="node changed">
+                  <span class="twisty"></span><span class="icon">📄</span
+                  ><span>architecture.md</span>
+                </div>
+              </div>
+              <div class="node">
+                <span class="twisty">▾</span><span class="icon">📁</span
+                ><span>public</span>
+              </div>
+              <div class="indent">
+                <div class="node">
+                  <span class="twisty"></span><span class="icon">🌐</span
+                  ><span>index.html</span>
+                </div>
+                <div class="node">
+                  <span class="twisty"></span><span class="icon">🖼️</span
+                  ><span>hero.png</span>
+                </div>
+              </div>
+              <div class="node">
+                <span class="twisty">▾</span><span class="icon">📁</span
+                ><span>src</span>
+              </div>
+              <div class="indent">
+                <div class="node">
+                  <span class="twisty"></span><span class="icon">⚛️</span
+                  ><span>App.tsx</span>
+                </div>
+                <div class="node">
+                  <span class="twisty"></span><span class="icon">{} </span
+                  ><span>tree.ts</span>
+                </div>
+              </div>
+              <div class="node">
+                <span class="twisty"></span><span class="icon">⚙️</span
+                ><span>package.json</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+        <main class="main" id="mainSurface">
+          <div class="tabs">
+            <button class="tab active" data-tab>
+              📘 README.md <span class="x">×</span>
+            </button>
+            <button class="tab" data-tab>
+              🌐 index.html <span class="x">×</span>
+            </button>
+            <button class="tab" data-tab>
+              ⚛️ App.tsx <span class="x">×</span>
+            </button>
+            <button class="tab" data-tab>
+              📄 architecture.md <span class="x">×</span>
+            </button>
+          </div>
+          <section class="viewer">
+            <article class="card" style="max-width: 920px; margin: 0 auto">
+              <div class="card-head">
+                <span>Rendered Markdown</span>
+                <div class="toolbar">
+                  <button class="btn active">Preview</button
+                  ><button class="btn">Raw</button
+                  ><button class="btn" id="openPaletteBtn">
+                    Open quickly ⌘K
+                  </button>
+                </div>
+              </div>
+              <div class="card-body">
+                <h1>Classic explorer + command palette</h1>
+                <p>
+                  This mock keeps the standard file tree and tabbed main area,
+                  but adds a familiar command palette overlay for fast open,
+                  jumping to files, and action dispatch.
+                </p>
+                <h2>How it should feel</h2>
+                <ul>
+                  <li>Sidebar remains the primary spatial navigator.</li>
+                  <li>Tabs represent the working set of opened files.</li>
+                  <li>
+                    <strong>Command+K</strong> opens a global palette without
+                    changing the underlying layout.
+                  </li>
+                  <li>
+                    The palette is good for file open, recent files, renderer
+                    switching, and view actions.
+                  </li>
+                </ul>
+                <pre><code><span class="cm"># example interactions</span>
 ⌘K → "open read"     → open README.md tab
 ⌘K → "html preview"  → switch viewer mode for index.html
 ⌘K → "toggle raw"    → change markdown/code viewer state</code></pre>
-            <p class="mock-note">This is the direction you described: classic as the base, command palette as a lightweight universal launcher.</p>
+                <p class="mock-note">
+                  This is the direction you described: classic as the base,
+                  command palette as a lightweight universal launcher.
+                </p>
+              </div>
+            </article>
+          </section>
+        </main>
+      </div>
+      <div class="statusbar">
+        <span>4 tabs · 1 changed file · 128 watched files</span
+        ><span>localhost:4177</span>
+      </div>
+    </div>
+
+    <div class="overlay open" id="paletteOverlay" aria-hidden="false">
+      <div class="palette" role="dialog" aria-label="Command palette">
+        <div class="palette-head">
+          <input class="palette-input" id="paletteInput" value="read" />
+          <div class="palette-meta">
+            <span>Search files, recent tabs, or commands</span>
+            <span>Open file · Switch tab · Toggle view mode</span>
           </div>
-        </article>
-      </section>
-    </main>
-  </div>
-  <div class="statusbar"><span>4 tabs · 1 changed file · 128 watched files</span><span>localhost:4177</span></div>
-</div>
+        </div>
+        <div class="palette-body">
+          <div class="group-label">Open files</div>
+          <div class="result active">
+            <span>📘</span>
+            <div>
+              <div>README.md</div>
+              <div class="result-path">docs/README.md</div>
+            </div>
+            <span class="result-shortcut">↵ open</span>
+          </div>
+          <div class="result">
+            <span>📄</span>
+            <div>
+              <div>architecture.md</div>
+              <div class="result-path">docs/architecture.md</div>
+            </div>
+            <span class="result-shortcut">⌘1 recent</span>
+          </div>
+          <div class="result">
+            <span>🌐</span>
+            <div>
+              <div>index.html</div>
+              <div class="result-path">public/index.html</div>
+            </div>
+            <span class="result-shortcut">⌘2 tab</span>
+          </div>
 
-<div class="overlay open" id="paletteOverlay" aria-hidden="false">
-  <div class="palette" role="dialog" aria-label="Command palette">
-    <div class="palette-head">
-      <input class="palette-input" id="paletteInput" value="read" />
-      <div class="palette-meta">
-        <span>Search files, recent tabs, or commands</span>
-        <span>Open file · Switch tab · Toggle view mode</span>
+          <div class="group-label">Commands</div>
+          <div class="result">
+            <span>⇄</span>
+            <div>
+              <div>Switch active viewer to Raw source</div>
+              <div class="result-path">for current markdown/html file</div>
+            </div>
+            <span class="result-shortcut">action</span>
+          </div>
+          <div class="result">
+            <span>👁</span>
+            <div>
+              <div>Focus Explorer sidebar</div>
+              <div class="result-path">move keyboard focus to file tree</div>
+            </div>
+            <span class="result-shortcut">action</span>
+          </div>
+          <div class="result">
+            <span>🕘</span>
+            <div>
+              <div>Reopen last closed tab</div>
+              <div class="result-path">working set management</div>
+            </div>
+            <span class="result-shortcut">action</span>
+          </div>
+        </div>
+        <div class="hintbar">
+          <div class="hints">
+            <span class="kchip">↑↓ move</span>
+            <span class="kchip">↵ open</span>
+            <span class="kchip">esc close</span>
+            <span class="kchip">⌘1 recent</span>
+          </div>
+          <span>Common shape: Spotlight / VS Code style quick launcher</span>
+        </div>
       </div>
     </div>
-    <div class="palette-body">
-      <div class="group-label">Open files</div>
-      <div class="result active"><span>📘</span><div><div>README.md</div><div class="result-path">docs/README.md</div></div><span class="result-shortcut">↵ open</span></div>
-      <div class="result"><span>📄</span><div><div>architecture.md</div><div class="result-path">docs/architecture.md</div></div><span class="result-shortcut">⌘1 recent</span></div>
-      <div class="result"><span>🌐</span><div><div>index.html</div><div class="result-path">public/index.html</div></div><span class="result-shortcut">⌘2 tab</span></div>
 
-      <div class="group-label">Commands</div>
-      <div class="result"><span>⇄</span><div><div>Switch active viewer to Raw source</div><div class="result-path">for current markdown/html file</div></div><span class="result-shortcut">action</span></div>
-      <div class="result"><span>👁</span><div><div>Focus Explorer sidebar</div><div class="result-path">move keyboard focus to file tree</div></div><span class="result-shortcut">action</span></div>
-      <div class="result"><span>🕘</span><div><div>Reopen last closed tab</div><div class="result-path">working set management</div></div><span class="result-shortcut">action</span></div>
-    </div>
-    <div class="hintbar">
-      <div class="hints">
-        <span class="kchip">↑↓ move</span>
-        <span class="kchip">↵ open</span>
-        <span class="kchip">esc close</span>
-        <span class="kchip">⌘1 recent</span>
-      </div>
-      <span>Common shape: Spotlight / VS Code style quick launcher</span>
-    </div>
-  </div>
-</div>
-
-<script>
-  const overlay = document.getElementById('paletteOverlay');
-  const input = document.getElementById('paletteInput');
-  const openBtn = document.getElementById('openPaletteBtn');
-  const mainSurface = document.getElementById('mainSurface');
-  function openPalette() {
-    overlay.classList.add('open');
-    overlay.setAttribute('aria-hidden', 'false');
-    mainSurface.classList.add('dimmed');
-    setTimeout(() => input.focus(), 0);
-  }
-  function closePalette() {
-    overlay.classList.remove('open');
-    overlay.setAttribute('aria-hidden', 'true');
-    mainSurface.classList.remove('dimmed');
-  }
-  document.addEventListener('keydown', (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-      e.preventDefault();
-      if (overlay.classList.contains('open')) closePalette(); else openPalette();
-    }
-    if (e.key === 'Escape') closePalette();
-  });
-  openBtn.addEventListener('click', openPalette);
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) closePalette(); });
-  document.querySelectorAll('[data-tab]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      btn.classList.add('active');
-    });
-  });
-  document.querySelectorAll('.node').forEach(node => {
-    node.addEventListener('click', () => {
-      document.querySelectorAll('.node').forEach(n => n.classList.remove('active'));
-      node.classList.add('active');
-    });
-  });
-</script>
-</body>
+    <script>
+      const overlay = document.getElementById("paletteOverlay");
+      const input = document.getElementById("paletteInput");
+      const openBtn = document.getElementById("openPaletteBtn");
+      const mainSurface = document.getElementById("mainSurface");
+      function openPalette() {
+        overlay.classList.add("open");
+        overlay.setAttribute("aria-hidden", "false");
+        mainSurface.classList.add("dimmed");
+        setTimeout(() => input.focus(), 0);
+      }
+      function closePalette() {
+        overlay.classList.remove("open");
+        overlay.setAttribute("aria-hidden", "true");
+        mainSurface.classList.remove("dimmed");
+      }
+      document.addEventListener("keydown", (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+          e.preventDefault();
+          if (overlay.classList.contains("open")) closePalette();
+          else openPalette();
+        }
+        if (e.key === "Escape") closePalette();
+      });
+      openBtn.addEventListener("click", openPalette);
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) closePalette();
+      });
+      document.querySelectorAll("[data-tab]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document
+            .querySelectorAll(".tab")
+            .forEach((t) => t.classList.remove("active"));
+          btn.classList.add("active");
+        });
+      });
+      document.querySelectorAll(".node").forEach((node) => {
+        node.addEventListener("click", () => {
+          document
+            .querySelectorAll(".node")
+            .forEach((n) => n.classList.remove("active"));
+          node.classList.add("active");
+        });
+      });
+    </script>
+  </body>
 </html>

@@ -5,8 +5,15 @@
 A filesystem node represented with normalized relative paths.
 
 ```ts
-type NodeKind = 'file' | 'directory';
-type ViewerKind = 'markdown' | 'html' | 'code' | 'text' | 'image' | 'json' | 'unsupported';
+type NodeKind = "file" | "directory";
+type ViewerKind =
+  | "markdown"
+  | "html"
+  | "code"
+  | "text"
+  | "image"
+  | "json"
+  | "unsupported";
 
 interface FsNode {
   id: string;

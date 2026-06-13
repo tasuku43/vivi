@@ -1,265 +1,843 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>06 Classic reader + Command K - Pathlens mock</title>
-  <style>
-:root {
-  --bg: #0f1117;
-  --panel: #151923;
-  --panel-2: #1b2130;
-  --panel-3: #222a3b;
-  --text: #e6e8ef;
-  --muted: #9ba4b5;
-  --line: #2a3346;
-  --accent: #7aa2ff;
-  --accent-2: #9ece6a;
-  --warn: #e0af68;
-  --danger: #f7768e;
-  --code: #0b0e14;
-  --shadow: 0 20px 80px rgba(0,0,0,.45);
-  --radius: 12px;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-* { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); }
-body { overflow: hidden; }
-button, input { font: inherit; }
-.app { height: 100vh; display: grid; grid-template-rows: 44px 1fr 28px; }
-.topbar { height: 44px; display:flex; align-items:center; gap:12px; padding:0 14px; border-bottom:1px solid var(--line); background:rgba(15,17,23,.92); backdrop-filter: blur(10px); }
-.brand { display:flex; align-items:center; gap:9px; font-weight:700; letter-spacing:.2px; }
-.logo { width:22px; height:22px; border-radius:7px; background:linear-gradient(135deg,var(--accent),#c099ff); box-shadow:0 0 24px rgba(122,162,255,.45); }
-.pathbar { color:var(--muted); font-size:12px; padding:6px 10px; border:1px solid var(--line); border-radius:999px; background:var(--panel); }
-.pill { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border:1px solid var(--line); border-radius:999px; color:var(--muted); font-size:12px; background:rgba(255,255,255,.02); }
-.dot { width:7px; height:7px; border-radius:999px; background:var(--accent-2); }
-.kbd { color: var(--text); background:#0b0e14; border:1px solid var(--line); border-bottom-color:#44506a; padding:2px 7px; border-radius:7px; font-size:12px; box-shadow:inset 0 -1px 0 rgba(255,255,255,.05); }
-.workbench { min-height:0; display:grid; grid-template-columns: 280px minmax(420px, 1fr) 280px; }
-.sidebar { background:var(--panel); border-right:1px solid var(--line); min-width:0; overflow:hidden; display:flex; flex-direction:column; }
-.side-head { height:42px; display:flex; align-items:center; justify-content:space-between; padding:0 12px; border-bottom:1px solid var(--line); color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.08em; }
-.tree { padding:8px; overflow:auto; }
-.node { display:flex; align-items:center; gap:7px; min-height:27px; padding:4px 8px; border-radius:8px; color:var(--muted); font-size:13px; white-space:nowrap; cursor:default; }
-.node.active { background:rgba(122,162,255,.16); color:var(--text); }
-.node.changed { color:var(--warn); }
-.node:hover { background:rgba(255,255,255,.04); color:var(--text); }
-.node .twisty { width:12px; color:#697386; }
-.node .icon { width:18px; text-align:center; opacity:.92; }
-.node .badge { margin-left:auto; font-size:10px; color:var(--accent-2); }
-.indent { margin-left:18px; }
-.search { width:100%; border:1px solid var(--line); color:var(--text); background:#0b0e14; border-radius:9px; padding:8px 10px; outline:none; }
-.main { min-width:0; min-height:0; display:flex; flex-direction:column; background:var(--bg); }
-.tabs { height:39px; display:flex; align-items:end; gap:2px; padding:0 8px; border-bottom:1px solid var(--line); background:var(--panel-2); overflow-x:auto; }
-.tab { display:flex; align-items:center; gap:8px; height:32px; padding:0 12px; border:1px solid transparent; border-bottom:0; border-radius:9px 9px 0 0; color:var(--muted); font-size:13px; background:transparent; white-space:nowrap; }
-.tab.active { color:var(--text); background:var(--bg); border-color:var(--line); }
-.tab.changed::after { content:""; width:7px; height:7px; border-radius:50%; background:var(--warn); box-shadow:0 0 14px rgba(224,175,104,.5); }
-.tab .x { color:#697386; font-size:14px; }
-.viewer { min-height:0; overflow:auto; padding:22px; background:radial-gradient(circle at 75% 5%, rgba(122,162,255,.08), transparent 34%), var(--bg); }
-.card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
-.reader { max-width:860px; margin:0 auto; }
-.card-head { height:42px; display:flex; align-items:center; justify-content:space-between; padding:0 14px; border-bottom:1px solid var(--line); color:var(--muted); font-size:12px; }
-.card-body { padding:24px 28px 30px; }
-h1,h2,h3 { margin:0 0 12px; line-height:1.25; }
-h1 { font-size:30px; letter-spacing:-.02em; }
-h2 { margin-top:26px; font-size:20px; }
-p { color:#c9d1df; line-height:1.7; }
-ul { color:#c9d1df; line-height:1.85; padding-left:22px; }
-pre { margin:18px 0 0; padding:16px; border-radius:10px; background:var(--code); border:1px solid var(--line); overflow:auto; color:#c0caf5; line-height:1.55; }
-code { font-family:"SFMono-Regular", Consolas, ui-monospace, monospace; font-size:12.5px; }
-.k { color:#bb9af7; } .s { color:#9ece6a; } .fn { color:#7aa2ff; } .cm { color:#697386; } .num { color:#ff9e64; }
-.toolbar { display:flex; align-items:center; gap:8px; }
-.btn { border:1px solid var(--line); background:var(--panel-2); color:var(--muted); border-radius:8px; padding:6px 9px; font-size:12px; }
-.btn.active { color:var(--text); border-color:rgba(122,162,255,.55); background:rgba(122,162,255,.14); }
-.inspector { background:var(--panel); border-left:1px solid var(--line); min-width:0; overflow:auto; }
-.inspect-body { padding:15px; }
-.kv { display:grid; grid-template-columns:78px 1fr; gap:8px; padding:9px 0; border-bottom:1px solid rgba(255,255,255,.06); color:var(--muted); font-size:12px; }
-.kv strong { color:var(--text); font-weight:600; overflow:hidden; text-overflow:ellipsis; }
-.section-title { margin:22px 0 8px; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
-.outline { border-left:1px solid var(--line); margin-left:4px; }
-.outline a { display:block; color:var(--muted); text-decoration:none; padding:7px 0 7px 13px; font-size:13px; border-left:2px solid transparent; margin-left:-1px; }
-.outline a.h2 { padding-left:25px; font-size:12.5px; }
-.outline a.active { color:var(--accent); border-left-color:var(--accent); background:linear-gradient(90deg, rgba(122,162,255,.12), transparent); }
-.event { display:flex; gap:8px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,.06); color:var(--muted); font-size:12px; }
-.event b { color:var(--text); font-weight:600; }
-.statusbar { height:28px; display:flex; align-items:center; justify-content:space-between; padding:0 10px; border-top:1px solid var(--line); background:#0b0e14; color:var(--muted); font-size:12px; }
-.overlay { position:fixed; inset:0; display:none; align-items:flex-start; justify-content:center; padding-top:86px; background:rgba(5,8,13,.56); backdrop-filter:blur(8px); z-index:20; }
-.overlay.open { display:flex; }
-.palette { width:min(760px, calc(100vw - 40px)); border:1px solid rgba(122,162,255,.34); border-radius:18px; background:rgba(21,25,35,.98); box-shadow:0 30px 110px rgba(0,0,0,.62); overflow:hidden; }
-.palette-top { padding:14px; border-bottom:1px solid var(--line); }
-.palette-input { width:100%; border:0; outline:none; background:#0b0e14; color:var(--text); border-radius:12px; padding:13px 14px; box-shadow: inset 0 0 0 1px var(--line); font-size:15px; }
-.palette-body { display:grid; grid-template-columns: 1fr 220px; min-height: 360px; }
-.results { padding:8px; border-right:1px solid var(--line); }
-.result { display:grid; grid-template-columns:28px 1fr auto; align-items:center; gap:9px; padding:9px 10px; border-radius:11px; color:var(--muted); font-size:13px; }
-.result.active { background:rgba(122,162,255,.16); color:var(--text); }
-.result small { display:block; color:#697386; margin-top:2px; }
-.result .type { font-size:11px; color:var(--muted); }
-.palette-aside { padding:14px; }
-.palette-aside p { font-size:12px; color:var(--muted); margin:0 0 12px; line-height:1.55; }
-.hotkey-row { display:flex; justify-content:space-between; gap:12px; border-bottom:1px solid rgba(255,255,255,.06); padding:8px 0; font-size:12px; color:var(--muted); }
-@media (max-width: 1040px) {
-  .workbench { grid-template-columns:260px 1fr; }
-  .inspector { display:none; }
-}
-  </style>
-</head>
-<body>
-<div class="app">
-  <div class="topbar">
-    <div class="brand"><span class="logo"></span>Pathlens</div>
-    <span class="pathbar">pathlens ./demo --open</span>
-    <span class="pill"><span class="dot"></span>SSE connected</span>
-    <span class="pill">Open command palette <span class="kbd">Cmd K</span></span>
-  </div>
-
-  <div class="workbench">
-    <aside class="sidebar">
-      <div class="side-head"><span>Explorer</span><span class="pill"><span class="dot"></span>live</span></div>
-      <div style="padding:10px;border-bottom:1px solid var(--line)"><input class="search" value="/workspace/demo" /></div>
-      <div class="tree">
-        <div class="node"><span class="twisty">▾</span><span class="icon">📁</span><span>demo</span></div>
-        <div class="indent">
-          <div class="node"><span class="twisty">▾</span><span class="icon">📁</span><span>docs</span></div>
-          <div class="indent">
-            <div class="node active"><span class="twisty"></span><span class="icon">📘</span><span>README.md</span><span class="badge">open</span></div>
-            <div class="node changed"><span class="twisty"></span><span class="icon">📄</span><span>architecture.md</span></div>
-            <div class="node"><span class="twisty"></span><span class="icon">📄</span><span>security.md</span></div>
-          </div>
-          <div class="node"><span class="twisty">▾</span><span class="icon">📁</span><span>public</span></div>
-          <div class="indent">
-            <div class="node"><span class="twisty"></span><span class="icon">🌐</span><span>index.html</span></div>
-            <div class="node"><span class="twisty"></span><span class="icon">🖼️</span><span>hero.png</span></div>
-          </div>
-          <div class="node"><span class="twisty">▾</span><span class="icon">📁</span><span>src</span></div>
-          <div class="indent">
-            <div class="node"><span class="twisty"></span><span class="icon">⚛️</span><span>App.tsx</span></div>
-            <div class="node"><span class="twisty"></span><span class="icon">{} </span><span>tree.ts</span></div>
-            <div class="node"><span class="twisty"></span><span class="icon">{} </span><span>watcher.ts</span></div>
-          </div>
-          <div class="node"><span class="twisty"></span><span class="icon">⚙️</span><span>package.json</span></div>
-        </div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>06 Classic reader + Command K - Pathlens mock</title>
+    <style>
+      :root {
+        --bg: #0f1117;
+        --panel: #151923;
+        --panel-2: #1b2130;
+        --panel-3: #222a3b;
+        --text: #e6e8ef;
+        --muted: #9ba4b5;
+        --line: #2a3346;
+        --accent: #7aa2ff;
+        --accent-2: #9ece6a;
+        --warn: #e0af68;
+        --danger: #f7768e;
+        --code: #0b0e14;
+        --shadow: 0 20px 80px rgba(0, 0, 0, 0.45);
+        --radius: 12px;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+      }
+      body {
+        overflow: hidden;
+      }
+      button,
+      input {
+        font: inherit;
+      }
+      .app {
+        height: 100vh;
+        display: grid;
+        grid-template-rows: 44px 1fr 28px;
+      }
+      .topbar {
+        height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(15, 17, 23, 0.92);
+        backdrop-filter: blur(10px);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+      }
+      .logo {
+        width: 22px;
+        height: 22px;
+        border-radius: 7px;
+        background: linear-gradient(135deg, var(--accent), #c099ff);
+        box-shadow: 0 0 24px rgba(122, 162, 255, 0.45);
+      }
+      .pathbar {
+        color: var(--muted);
+        font-size: 12px;
+        padding: 6px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--panel);
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 12px;
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: var(--accent-2);
+      }
+      .kbd {
+        color: var(--text);
+        background: #0b0e14;
+        border: 1px solid var(--line);
+        border-bottom-color: #44506a;
+        padding: 2px 7px;
+        border-radius: 7px;
+        font-size: 12px;
+        box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+      }
+      .workbench {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 280px minmax(420px, 1fr) 280px;
+      }
+      .sidebar {
+        background: var(--panel);
+        border-right: 1px solid var(--line);
+        min-width: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .side-head {
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .tree {
+        padding: 8px;
+        overflow: auto;
+      }
+      .node {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 27px;
+        padding: 4px 8px;
+        border-radius: 8px;
+        color: var(--muted);
+        font-size: 13px;
+        white-space: nowrap;
+        cursor: default;
+      }
+      .node.active {
+        background: rgba(122, 162, 255, 0.16);
+        color: var(--text);
+      }
+      .node.changed {
+        color: var(--warn);
+      }
+      .node:hover {
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text);
+      }
+      .node .twisty {
+        width: 12px;
+        color: #697386;
+      }
+      .node .icon {
+        width: 18px;
+        text-align: center;
+        opacity: 0.92;
+      }
+      .node .badge {
+        margin-left: auto;
+        font-size: 10px;
+        color: var(--accent-2);
+      }
+      .indent {
+        margin-left: 18px;
+      }
+      .search {
+        width: 100%;
+        border: 1px solid var(--line);
+        color: var(--text);
+        background: #0b0e14;
+        border-radius: 9px;
+        padding: 8px 10px;
+        outline: none;
+      }
+      .main {
+        min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg);
+      }
+      .tabs {
+        height: 39px;
+        display: flex;
+        align-items: end;
+        gap: 2px;
+        padding: 0 8px;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel-2);
+        overflow-x: auto;
+      }
+      .tab {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 32px;
+        padding: 0 12px;
+        border: 1px solid transparent;
+        border-bottom: 0;
+        border-radius: 9px 9px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        background: transparent;
+        white-space: nowrap;
+      }
+      .tab.active {
+        color: var(--text);
+        background: var(--bg);
+        border-color: var(--line);
+      }
+      .tab.changed::after {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--warn);
+        box-shadow: 0 0 14px rgba(224, 175, 104, 0.5);
+      }
+      .tab .x {
+        color: #697386;
+        font-size: 14px;
+      }
+      .viewer {
+        min-height: 0;
+        overflow: auto;
+        padding: 22px;
+        background:
+          radial-gradient(
+            circle at 75% 5%,
+            rgba(122, 162, 255, 0.08),
+            transparent 34%
+          ),
+          var(--bg);
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+      }
+      .reader {
+        max-width: 860px;
+        margin: 0 auto;
+      }
+      .card-head {
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .card-body {
+        padding: 24px 28px 30px;
+      }
+      h1,
+      h2,
+      h3 {
+        margin: 0 0 12px;
+        line-height: 1.25;
+      }
+      h1 {
+        font-size: 30px;
+        letter-spacing: -0.02em;
+      }
+      h2 {
+        margin-top: 26px;
+        font-size: 20px;
+      }
+      p {
+        color: #c9d1df;
+        line-height: 1.7;
+      }
+      ul {
+        color: #c9d1df;
+        line-height: 1.85;
+        padding-left: 22px;
+      }
+      pre {
+        margin: 18px 0 0;
+        padding: 16px;
+        border-radius: 10px;
+        background: var(--code);
+        border: 1px solid var(--line);
+        overflow: auto;
+        color: #c0caf5;
+        line-height: 1.55;
+      }
+      code {
+        font-family: "SFMono-Regular", Consolas, ui-monospace, monospace;
+        font-size: 12.5px;
+      }
+      .k {
+        color: #bb9af7;
+      }
+      .s {
+        color: #9ece6a;
+      }
+      .fn {
+        color: #7aa2ff;
+      }
+      .cm {
+        color: #697386;
+      }
+      .num {
+        color: #ff9e64;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .btn {
+        border: 1px solid var(--line);
+        background: var(--panel-2);
+        color: var(--muted);
+        border-radius: 8px;
+        padding: 6px 9px;
+        font-size: 12px;
+      }
+      .btn.active {
+        color: var(--text);
+        border-color: rgba(122, 162, 255, 0.55);
+        background: rgba(122, 162, 255, 0.14);
+      }
+      .inspector {
+        background: var(--panel);
+        border-left: 1px solid var(--line);
+        min-width: 0;
+        overflow: auto;
+      }
+      .inspect-body {
+        padding: 15px;
+      }
+      .kv {
+        display: grid;
+        grid-template-columns: 78px 1fr;
+        gap: 8px;
+        padding: 9px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .kv strong {
+        color: var(--text);
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .section-title {
+        margin: 22px 0 8px;
+        font-size: 12px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .outline {
+        border-left: 1px solid var(--line);
+        margin-left: 4px;
+      }
+      .outline a {
+        display: block;
+        color: var(--muted);
+        text-decoration: none;
+        padding: 7px 0 7px 13px;
+        font-size: 13px;
+        border-left: 2px solid transparent;
+        margin-left: -1px;
+      }
+      .outline a.h2 {
+        padding-left: 25px;
+        font-size: 12.5px;
+      }
+      .outline a.active {
+        color: var(--accent);
+        border-left-color: var(--accent);
+        background: linear-gradient(
+          90deg,
+          rgba(122, 162, 255, 0.12),
+          transparent
+        );
+      }
+      .event {
+        display: flex;
+        gap: 8px;
+        padding: 7px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .event b {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .statusbar {
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 10px;
+        border-top: 1px solid var(--line);
+        background: #0b0e14;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .overlay {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 86px;
+        background: rgba(5, 8, 13, 0.56);
+        backdrop-filter: blur(8px);
+        z-index: 20;
+      }
+      .overlay.open {
+        display: flex;
+      }
+      .palette {
+        width: min(760px, calc(100vw - 40px));
+        border: 1px solid rgba(122, 162, 255, 0.34);
+        border-radius: 18px;
+        background: rgba(21, 25, 35, 0.98);
+        box-shadow: 0 30px 110px rgba(0, 0, 0, 0.62);
+        overflow: hidden;
+      }
+      .palette-top {
+        padding: 14px;
+        border-bottom: 1px solid var(--line);
+      }
+      .palette-input {
+        width: 100%;
+        border: 0;
+        outline: none;
+        background: #0b0e14;
+        color: var(--text);
+        border-radius: 12px;
+        padding: 13px 14px;
+        box-shadow: inset 0 0 0 1px var(--line);
+        font-size: 15px;
+      }
+      .palette-body {
+        display: grid;
+        grid-template-columns: 1fr 220px;
+        min-height: 360px;
+      }
+      .results {
+        padding: 8px;
+        border-right: 1px solid var(--line);
+      }
+      .result {
+        display: grid;
+        grid-template-columns: 28px 1fr auto;
+        align-items: center;
+        gap: 9px;
+        padding: 9px 10px;
+        border-radius: 11px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .result.active {
+        background: rgba(122, 162, 255, 0.16);
+        color: var(--text);
+      }
+      .result small {
+        display: block;
+        color: #697386;
+        margin-top: 2px;
+      }
+      .result .type {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .palette-aside {
+        padding: 14px;
+      }
+      .palette-aside p {
+        font-size: 12px;
+        color: var(--muted);
+        margin: 0 0 12px;
+        line-height: 1.55;
+      }
+      .hotkey-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        padding: 8px 0;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      @media (max-width: 1040px) {
+        .workbench {
+          grid-template-columns: 260px 1fr;
+        }
+        .inspector {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="topbar">
+        <div class="brand"><span class="logo"></span>Pathlens</div>
+        <span class="pathbar">pathlens ./demo --open</span>
+        <span class="pill"><span class="dot"></span>SSE connected</span>
+        <span class="pill"
+          >Open command palette <span class="kbd">Cmd K</span></span
+        >
       </div>
-    </aside>
 
-    <main class="main">
-      <div class="tabs">
-        <button class="tab active" data-tab>📘 README.md <span class="x">×</span></button>
-        <button class="tab" data-tab>🌐 index.html <span class="x">×</span></button>
-        <button class="tab" data-tab>⚛️ App.tsx <span class="x">×</span></button>
-        <button class="tab changed" data-tab>📄 architecture.md <span class="x">×</span></button>
-      </div>
-
-      <section class="viewer">
-        <article class="card reader">
-          <div class="card-head">
-            <span>docs/README.md</span>
-            <div class="toolbar"><button class="btn active">Rendered</button><button class="btn">Source</button><button class="btn">Copy path</button></div>
+      <div class="workbench">
+        <aside class="sidebar">
+          <div class="side-head">
+            <span>Explorer</span
+            ><span class="pill"><span class="dot"></span>live</span>
           </div>
-          <div class="card-body">
-            <h1>Live local workspace viewer</h1>
-            <p>Pathlens opens a local directory as a live browser-based workspace. The file tree remains visible, several files can stay open as tabs, and the active viewer updates without a full page refresh.</p>
-            <h2>Primary workflow</h2>
-            <p>Run the CLI in a directory, open the generated local URL, and browse Markdown, HTML, code, text, and image files from one interface.</p>
-            <ul>
-              <li>The sidebar is the stable spatial map of the directory.</li>
-              <li>Tabs preserve working context across Markdown, HTML, and source files.</li>
-              <li>The right outline makes long Markdown documents navigable.</li>
-              <li>Command K is the fast path for keyboard-heavy file switching.</li>
-            </ul>
-            <h2>Live update model</h2>
-            <p>The backend watches filesystem events and streams semantic updates to the SPA. File additions and removals update the tree. Changes to the active file refresh only the viewer body.</p>
-            <pre><code><span class="cm"># start the viewer</span>
+          <div style="padding: 10px; border-bottom: 1px solid var(--line)">
+            <input class="search" value="/workspace/demo" />
+          </div>
+          <div class="tree">
+            <div class="node">
+              <span class="twisty">▾</span><span class="icon">📁</span
+              ><span>demo</span>
+            </div>
+            <div class="indent">
+              <div class="node">
+                <span class="twisty">▾</span><span class="icon">📁</span
+                ><span>docs</span>
+              </div>
+              <div class="indent">
+                <div class="node active">
+                  <span class="twisty"></span><span class="icon">📘</span
+                  ><span>README.md</span><span class="badge">open</span>
+                </div>
+                <div class="node changed">
+                  <span class="twisty"></span><span class="icon">📄</span
+                  ><span>architecture.md</span>
+                </div>
+                <div class="node">
+                  <span class="twisty"></span><span class="icon">📄</span
+                  ><span>security.md</span>
+                </div>
+              </div>
+              <div class="node">
+                <span class="twisty">▾</span><span class="icon">📁</span
+                ><span>public</span>
+              </div>
+              <div class="indent">
+                <div class="node">
+                  <span class="twisty"></span><span class="icon">🌐</span
+                  ><span>index.html</span>
+                </div>
+                <div class="node">
+                  <span class="twisty"></span><span class="icon">🖼️</span
+                  ><span>hero.png</span>
+                </div>
+              </div>
+              <div class="node">
+                <span class="twisty">▾</span><span class="icon">📁</span
+                ><span>src</span>
+              </div>
+              <div class="indent">
+                <div class="node">
+                  <span class="twisty"></span><span class="icon">⚛️</span
+                  ><span>App.tsx</span>
+                </div>
+                <div class="node">
+                  <span class="twisty"></span><span class="icon">{} </span
+                  ><span>tree.ts</span>
+                </div>
+                <div class="node">
+                  <span class="twisty"></span><span class="icon">{} </span
+                  ><span>watcher.ts</span>
+                </div>
+              </div>
+              <div class="node">
+                <span class="twisty"></span><span class="icon">⚙️</span
+                ><span>package.json</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <main class="main">
+          <div class="tabs">
+            <button class="tab active" data-tab>
+              📘 README.md <span class="x">×</span>
+            </button>
+            <button class="tab" data-tab>
+              🌐 index.html <span class="x">×</span>
+            </button>
+            <button class="tab" data-tab>
+              ⚛️ App.tsx <span class="x">×</span>
+            </button>
+            <button class="tab changed" data-tab>
+              📄 architecture.md <span class="x">×</span>
+            </button>
+          </div>
+
+          <section class="viewer">
+            <article class="card reader">
+              <div class="card-head">
+                <span>docs/README.md</span>
+                <div class="toolbar">
+                  <button class="btn active">Rendered</button
+                  ><button class="btn">Source</button
+                  ><button class="btn">Copy path</button>
+                </div>
+              </div>
+              <div class="card-body">
+                <h1>Live local workspace viewer</h1>
+                <p>
+                  Pathlens opens a local directory as a live browser-based
+                  workspace. The file tree remains visible, several files can
+                  stay open as tabs, and the active viewer updates without a
+                  full page refresh.
+                </p>
+                <h2>Primary workflow</h2>
+                <p>
+                  Run the CLI in a directory, open the generated local URL, and
+                  browse Markdown, HTML, code, text, and image files from one
+                  interface.
+                </p>
+                <ul>
+                  <li>
+                    The sidebar is the stable spatial map of the directory.
+                  </li>
+                  <li>
+                    Tabs preserve working context across Markdown, HTML, and
+                    source files.
+                  </li>
+                  <li>
+                    The right outline makes long Markdown documents navigable.
+                  </li>
+                  <li>
+                    Command K is the fast path for keyboard-heavy file
+                    switching.
+                  </li>
+                </ul>
+                <h2>Live update model</h2>
+                <p>
+                  The backend watches filesystem events and streams semantic
+                  updates to the SPA. File additions and removals update the
+                  tree. Changes to the active file refresh only the viewer body.
+                </p>
+                <pre><code><span class="cm"># start the viewer</span>
 pathlens . --open
 
 <span class="cm"># preview generated artifacts</span>
 pathlens ./dist --include md,html,ts,tsx,json,png</code></pre>
-            <h2>Viewer strategy</h2>
-            <p>Markdown renders as a readable document. HTML opens in a sandboxed preview with a source toggle. Code files use syntax highlighting. Large or unsupported files degrade to a safe raw/download view.</p>
+                <h2>Viewer strategy</h2>
+                <p>
+                  Markdown renders as a readable document. HTML opens in a
+                  sandboxed preview with a source toggle. Code files use syntax
+                  highlighting. Large or unsupported files degrade to a safe
+                  raw/download view.
+                </p>
+              </div>
+            </article>
+          </section>
+        </main>
+
+        <aside class="inspector">
+          <div class="side-head">
+            <span>Outline</span><span class="pill">H1/H2</span>
           </div>
-        </article>
-      </section>
-    </main>
-
-    <aside class="inspector">
-      <div class="side-head"><span>Outline</span><span class="pill">H1/H2</span></div>
-      <div class="inspect-body">
-        <div class="kv"><span>Type</span><strong>Markdown</strong></div>
-        <div class="kv"><span>Path</span><strong>docs/README.md</strong></div>
-        <div class="kv"><span>Status</span><strong style="color:var(--accent-2)">Watching</strong></div>
-        <div class="kv"><span>Updated</span><strong>2 seconds ago</strong></div>
-        <h3 class="section-title">Document outline</h3>
-        <nav class="outline">
-          <a class="active" href="#">Live local workspace viewer</a>
-          <a class="h2" href="#">Primary workflow</a>
-          <a class="h2" href="#">Live update model</a>
-          <a class="h2" href="#">Viewer strategy</a>
-        </nav>
-        <h3 class="section-title">Recent file events</h3>
-        <div class="event"><b>change</b><span>docs/architecture.md</span></div>
-        <div class="event"><b>add</b><span>docs/security.md</span></div>
-        <div class="event"><b>change</b><span>public/index.html</span></div>
+          <div class="inspect-body">
+            <div class="kv"><span>Type</span><strong>Markdown</strong></div>
+            <div class="kv">
+              <span>Path</span><strong>docs/README.md</strong>
+            </div>
+            <div class="kv">
+              <span>Status</span
+              ><strong style="color: var(--accent-2)">Watching</strong>
+            </div>
+            <div class="kv">
+              <span>Updated</span><strong>2 seconds ago</strong>
+            </div>
+            <h3 class="section-title">Document outline</h3>
+            <nav class="outline">
+              <a class="active" href="#">Live local workspace viewer</a>
+              <a class="h2" href="#">Primary workflow</a>
+              <a class="h2" href="#">Live update model</a>
+              <a class="h2" href="#">Viewer strategy</a>
+            </nav>
+            <h3 class="section-title">Recent file events</h3>
+            <div class="event">
+              <b>change</b><span>docs/architecture.md</span>
+            </div>
+            <div class="event"><b>add</b><span>docs/security.md</span></div>
+            <div class="event"><b>change</b><span>public/index.html</span></div>
+          </div>
+        </aside>
       </div>
-    </aside>
-  </div>
 
-  <div class="statusbar"><span>4 tabs · 1 changed file · 132 watched files</span><span>localhost:4177</span></div>
-</div>
-
-<div class="overlay open" id="paletteOverlay" aria-label="Command palette mock">
-  <div class="palette">
-    <div class="palette-top"><input class="palette-input" id="paletteInput" value="Open file: arch" /></div>
-    <div class="palette-body">
-      <div class="results">
-        <div class="result active"><span>📄</span><span><strong>docs/architecture.md</strong><small>Open changed Markdown document in current tab group</small></span><span class="type">Markdown</span></div>
-        <div class="result"><span>⚛️</span><span><strong>src/tree/architecture.ts</strong><small>Syntax-highlighted TypeScript source</small></span><span class="type">TypeScript</span></div>
-        <div class="result"><span>🌐</span><span><strong>public/architecture.html</strong><small>Sandboxed HTML preview</small></span><span class="type">HTML</span></div>
-        <div class="result"><span>🔎</span><span><strong>Search within current document</strong><small>Find headings, text, or code snippets</small></span><span class="type">Action</span></div>
-        <div class="result"><span>🧭</span><span><strong>Focus outline</strong><small>Jump to the H1/H2 navigation panel</small></span><span class="type">Action</span></div>
+      <div class="statusbar">
+        <span>4 tabs · 1 changed file · 132 watched files</span
+        ><span>localhost:4177</span>
       </div>
-      <aside class="palette-aside">
-        <p><strong>Command K is modal, not a layout.</strong> The normal workspace stays classic: sidebar, tabs, main viewer, right outline.</p>
-        <div class="hotkey-row"><span>Open file</span><span class="kbd">Enter</span></div>
-        <div class="hotkey-row"><span>New tab</span><span class="kbd">Cmd Enter</span></div>
-        <div class="hotkey-row"><span>Close</span><span class="kbd">Esc</span></div>
-        <div class="hotkey-row"><span>Toggle palette</span><span class="kbd">Cmd K</span></div>
-      </aside>
     </div>
-  </div>
-</div>
 
-<script>
-  const overlay = document.getElementById('paletteOverlay');
-  const input = document.getElementById('paletteInput');
+    <div
+      class="overlay open"
+      id="paletteOverlay"
+      aria-label="Command palette mock"
+    >
+      <div class="palette">
+        <div class="palette-top">
+          <input
+            class="palette-input"
+            id="paletteInput"
+            value="Open file: arch"
+          />
+        </div>
+        <div class="palette-body">
+          <div class="results">
+            <div class="result active">
+              <span>📄</span
+              ><span
+                ><strong>docs/architecture.md</strong
+                ><small
+                  >Open changed Markdown document in current tab group</small
+                ></span
+              ><span class="type">Markdown</span>
+            </div>
+            <div class="result">
+              <span>⚛️</span
+              ><span
+                ><strong>src/tree/architecture.ts</strong
+                ><small>Syntax-highlighted TypeScript source</small></span
+              ><span class="type">TypeScript</span>
+            </div>
+            <div class="result">
+              <span>🌐</span
+              ><span
+                ><strong>public/architecture.html</strong
+                ><small>Sandboxed HTML preview</small></span
+              ><span class="type">HTML</span>
+            </div>
+            <div class="result">
+              <span>🔎</span
+              ><span
+                ><strong>Search within current document</strong
+                ><small>Find headings, text, or code snippets</small></span
+              ><span class="type">Action</span>
+            </div>
+            <div class="result">
+              <span>🧭</span
+              ><span
+                ><strong>Focus outline</strong
+                ><small>Jump to the H1/H2 navigation panel</small></span
+              ><span class="type">Action</span>
+            </div>
+          </div>
+          <aside class="palette-aside">
+            <p>
+              <strong>Command K is modal, not a layout.</strong> The normal
+              workspace stays classic: sidebar, tabs, main viewer, right
+              outline.
+            </p>
+            <div class="hotkey-row">
+              <span>Open file</span><span class="kbd">Enter</span>
+            </div>
+            <div class="hotkey-row">
+              <span>New tab</span><span class="kbd">Cmd Enter</span>
+            </div>
+            <div class="hotkey-row">
+              <span>Close</span><span class="kbd">Esc</span>
+            </div>
+            <div class="hotkey-row">
+              <span>Toggle palette</span><span class="kbd">Cmd K</span>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
 
-  function togglePalette(force) {
-    const open = typeof force === 'boolean' ? force : !overlay.classList.contains('open');
-    overlay.classList.toggle('open', open);
-    if (open) setTimeout(() => input.focus(), 0);
-  }
+    <script>
+      const overlay = document.getElementById("paletteOverlay");
+      const input = document.getElementById("paletteInput");
 
-  document.addEventListener('keydown', (event) => {
-    const isK = event.key.toLowerCase() === 'k';
-    if ((event.metaKey || event.ctrlKey) && isK) {
-      event.preventDefault();
-      togglePalette();
-    }
-    if (event.key === 'Escape') togglePalette(false);
-  });
+      function togglePalette(force) {
+        const open =
+          typeof force === "boolean"
+            ? force
+            : !overlay.classList.contains("open");
+        overlay.classList.toggle("open", open);
+        if (open) setTimeout(() => input.focus(), 0);
+      }
 
-  overlay.addEventListener('click', (event) => {
-    if (event.target === overlay) togglePalette(false);
-  });
+      document.addEventListener("keydown", (event) => {
+        const isK = event.key.toLowerCase() === "k";
+        if ((event.metaKey || event.ctrlKey) && isK) {
+          event.preventDefault();
+          togglePalette();
+        }
+        if (event.key === "Escape") togglePalette(false);
+      });
 
-  document.querySelectorAll('[data-tab]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      btn.classList.add('active');
-    });
-  });
-  document.querySelectorAll('.node').forEach(node => {
-    node.addEventListener('click', () => {
-      document.querySelectorAll('.node').forEach(n => n.classList.remove('active'));
-      node.classList.add('active');
-    });
-  });
-</script>
-</body>
+      overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) togglePalette(false);
+      });
+
+      document.querySelectorAll("[data-tab]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document
+            .querySelectorAll(".tab")
+            .forEach((t) => t.classList.remove("active"));
+          btn.classList.add("active");
+        });
+      });
+      document.querySelectorAll(".node").forEach((node) => {
+        node.addEventListener("click", () => {
+          document
+            .querySelectorAll(".node")
+            .forEach((n) => n.classList.remove("active"));
+          node.classList.add("active");
+        });
+      });
+    </script>
+  </body>
 </html>

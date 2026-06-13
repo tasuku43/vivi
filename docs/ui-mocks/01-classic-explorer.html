@@ -1,164 +1,530 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>01 Classic explorer - Pathlens mock</title>
-  <style>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>01 Classic explorer - Pathlens mock</title>
+    <style>
+      :root {
+        --bg: #0f1117;
+        --panel: #151923;
+        --panel-2: #1b2130;
+        --panel-3: #222a3b;
+        --text: #e6e8ef;
+        --muted: #9ba4b5;
+        --line: #2a3346;
+        --accent: #7aa2ff;
+        --accent-2: #9ece6a;
+        --warn: #e0af68;
+        --danger: #f7768e;
+        --code: #0b0e14;
+        --shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+        --radius: 12px;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+      }
+      body {
+        overflow: hidden;
+      }
+      button,
+      input {
+        font: inherit;
+      }
+      .app {
+        height: 100vh;
+        display: grid;
+      }
+      .topbar {
+        height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(15, 17, 23, 0.92);
+        backdrop-filter: blur(10px);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+      }
+      .logo {
+        width: 22px;
+        height: 22px;
+        border-radius: 7px;
+        background: linear-gradient(135deg, var(--accent), #c099ff);
+        box-shadow: 0 0 24px rgba(122, 162, 255, 0.45);
+      }
+      .pathbar {
+        color: var(--muted);
+        font-size: 12px;
+        padding: 6px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--panel);
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 12px;
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: var(--accent-2);
+      }
+      .sidebar {
+        background: var(--panel);
+        border-right: 1px solid var(--line);
+        min-width: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .side-head {
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .tree {
+        padding: 8px;
+        overflow: auto;
+      }
+      .node {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 27px;
+        padding: 4px 8px;
+        border-radius: 8px;
+        color: var(--muted);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      .node.active {
+        background: rgba(122, 162, 255, 0.16);
+        color: var(--text);
+      }
+      .node.changed {
+        color: var(--warn);
+      }
+      .node .twisty {
+        width: 12px;
+        color: #697386;
+      }
+      .node .icon {
+        width: 18px;
+        text-align: center;
+        opacity: 0.92;
+      }
+      .node .badge {
+        margin-left: auto;
+        font-size: 10px;
+        color: var(--accent-2);
+      }
+      .indent {
+        margin-left: 18px;
+      }
+      .tabs {
+        height: 39px;
+        display: flex;
+        align-items: end;
+        gap: 2px;
+        padding: 0 8px;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel-2);
+        overflow-x: auto;
+      }
+      .tab {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 32px;
+        padding: 0 12px;
+        border: 1px solid transparent;
+        border-bottom: 0;
+        border-radius: 9px 9px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        background: transparent;
+        white-space: nowrap;
+      }
+      .tab.active {
+        color: var(--text);
+        background: var(--bg);
+        border-color: var(--line);
+      }
+      .tab .x {
+        color: #697386;
+        font-size: 14px;
+      }
+      .main {
+        min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg);
+      }
+      .viewer {
+        min-height: 0;
+        overflow: auto;
+        padding: 22px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+      }
+      .card-head {
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .card-body {
+        padding: 18px;
+      }
+      h1,
+      h2,
+      h3 {
+        margin: 0 0 12px;
+        line-height: 1.25;
+      }
+      p {
+        color: #c9d1df;
+        line-height: 1.65;
+      }
+      pre {
+        margin: 0;
+        padding: 16px;
+        border-radius: 10px;
+        background: var(--code);
+        border: 1px solid var(--line);
+        overflow: auto;
+        color: #c0caf5;
+        line-height: 1.55;
+      }
+      code {
+        font-family: "SFMono-Regular", Consolas, ui-monospace, monospace;
+        font-size: 12.5px;
+      }
+      .k {
+        color: #bb9af7;
+      }
+      .s {
+        color: #9ece6a;
+      }
+      .fn {
+        color: #7aa2ff;
+      }
+      .cm {
+        color: #697386;
+      }
+      .num {
+        color: #ff9e64;
+      }
+      .statusbar {
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 10px;
+        border-top: 1px solid var(--line);
+        background: #0b0e14;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .btn {
+        border: 1px solid var(--line);
+        background: var(--panel-2);
+        color: var(--muted);
+        border-radius: 8px;
+        padding: 6px 9px;
+        font-size: 12px;
+      }
+      .btn.active {
+        color: var(--text);
+        border-color: rgba(122, 162, 255, 0.55);
+        background: rgba(122, 162, 255, 0.14);
+      }
+      .search {
+        width: 100%;
+        border: 1px solid var(--line);
+        color: var(--text);
+        background: #0b0e14;
+        border-radius: 9px;
+        padding: 8px 10px;
+        outline: none;
+      }
+      .mock-note {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .fake-frame {
+        height: 310px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #f6f8fb;
+        color: #1e2430;
+        overflow: hidden;
+      }
+      .fake-frame .browser {
+        height: 34px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 10px;
+        background: #e8edf5;
+        border-bottom: 1px solid #ccd5e3;
+      }
+      .fake-frame .lightdot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: #c4cedd;
+      }
+      .fake-frame .page {
+        padding: 24px;
+        font-family: ui-sans-serif, system-ui;
+      }
+      .fake-frame h2 {
+        color: #182033;
+      }
+      .fake-frame p {
+        color: #465268;
+      }
+      .event {
+        display: flex;
+        gap: 8px;
+        padding: 7px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .event b {
+        color: var(--text);
+        font-weight: 600;
+      }
 
-:root {
-  --bg: #0f1117;
-  --panel: #151923;
-  --panel-2: #1b2130;
-  --panel-3: #222a3b;
-  --text: #e6e8ef;
-  --muted: #9ba4b5;
-  --line: #2a3346;
-  --accent: #7aa2ff;
-  --accent-2: #9ece6a;
-  --warn: #e0af68;
-  --danger: #f7768e;
-  --code: #0b0e14;
-  --shadow: 0 16px 48px rgba(0,0,0,.35);
-  --radius: 12px;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-* { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); }
-body { overflow: hidden; }
-button, input { font: inherit; }
-.app { height: 100vh; display: grid; }
-.topbar { height: 44px; display:flex; align-items:center; gap:12px; padding:0 14px; border-bottom:1px solid var(--line); background:rgba(15,17,23,.92); backdrop-filter: blur(10px); }
-.brand { display:flex; align-items:center; gap:9px; font-weight:700; letter-spacing:.2px; }
-.logo { width:22px; height:22px; border-radius:7px; background:linear-gradient(135deg,var(--accent),#c099ff); box-shadow:0 0 24px rgba(122,162,255,.45); }
-.pathbar { color:var(--muted); font-size:12px; padding:6px 10px; border:1px solid var(--line); border-radius:999px; background:var(--panel); }
-.pill { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border:1px solid var(--line); border-radius:999px; color:var(--muted); font-size:12px; background:rgba(255,255,255,.02); }
-.dot { width:7px; height:7px; border-radius:999px; background:var(--accent-2); }
-.sidebar { background:var(--panel); border-right:1px solid var(--line); min-width:0; overflow:hidden; display:flex; flex-direction:column; }
-.side-head { height:42px; display:flex; align-items:center; justify-content:space-between; padding:0 12px; border-bottom:1px solid var(--line); color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.08em; }
-.tree { padding:8px; overflow:auto; }
-.node { display:flex; align-items:center; gap:7px; min-height:27px; padding:4px 8px; border-radius:8px; color:var(--muted); font-size:13px; white-space:nowrap; }
-.node.active { background:rgba(122,162,255,.16); color:var(--text); }
-.node.changed { color:var(--warn); }
-.node .twisty { width:12px; color:#697386; }
-.node .icon { width:18px; text-align:center; opacity:.92; }
-.node .badge { margin-left:auto; font-size:10px; color:var(--accent-2); }
-.indent { margin-left:18px; }
-.tabs { height:39px; display:flex; align-items:end; gap:2px; padding:0 8px; border-bottom:1px solid var(--line); background:var(--panel-2); overflow-x:auto; }
-.tab { display:flex; align-items:center; gap:8px; height:32px; padding:0 12px; border:1px solid transparent; border-bottom:0; border-radius:9px 9px 0 0; color:var(--muted); font-size:13px; background:transparent; white-space:nowrap; }
-.tab.active { color:var(--text); background:var(--bg); border-color:var(--line); }
-.tab .x { color:#697386; font-size:14px; }
-.main { min-width:0; min-height:0; display:flex; flex-direction:column; background:var(--bg); }
-.viewer { min-height:0; overflow:auto; padding:22px; }
-.card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
-.card-head { height:42px; display:flex; align-items:center; justify-content:space-between; padding:0 14px; border-bottom:1px solid var(--line); color:var(--muted); font-size:12px; }
-.card-body { padding:18px; }
-h1,h2,h3 { margin:0 0 12px; line-height:1.25; }
-p { color:#c9d1df; line-height:1.65; }
-pre { margin:0; padding:16px; border-radius:10px; background:var(--code); border:1px solid var(--line); overflow:auto; color:#c0caf5; line-height:1.55; }
-code { font-family:"SFMono-Regular", Consolas, ui-monospace, monospace; font-size:12.5px; }
-.k { color:#bb9af7; } .s { color:#9ece6a; } .fn { color:#7aa2ff; } .cm { color:#697386; } .num { color:#ff9e64; }
-.statusbar { height:28px; display:flex; align-items:center; justify-content:space-between; padding:0 10px; border-top:1px solid var(--line); background:#0b0e14; color:var(--muted); font-size:12px; }
-.toolbar { display:flex; align-items:center; gap:8px; }
-.btn { border:1px solid var(--line); background:var(--panel-2); color:var(--muted); border-radius:8px; padding:6px 9px; font-size:12px; }
-.btn.active { color:var(--text); border-color:rgba(122,162,255,.55); background:rgba(122,162,255,.14); }
-.search { width:100%; border:1px solid var(--line); color:var(--text); background:#0b0e14; border-radius:9px; padding:8px 10px; outline:none; }
-.mock-note { color:var(--muted); font-size:12px; line-height:1.5; }
-.fake-frame { height:310px; border:1px solid var(--line); border-radius:12px; background:#f6f8fb; color:#1e2430; overflow:hidden; }
-.fake-frame .browser { height:34px; display:flex; align-items:center; gap:6px; padding:0 10px; background:#e8edf5; border-bottom:1px solid #ccd5e3; }
-.fake-frame .lightdot { width:10px; height:10px; border-radius:999px; background:#c4cedd; }
-.fake-frame .page { padding:24px; font-family: ui-sans-serif, system-ui; }
-.fake-frame h2 { color:#182033; }
-.fake-frame p { color:#465268; }
-.event { display:flex; gap:8px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,.06); color:var(--muted); font-size:12px; }
-.event b { color:var(--text); font-weight:600; }
-
-
-.app { grid-template-rows:44px 1fr 28px; }
-.workbench { min-height:0; display:grid; grid-template-columns:280px 1fr; }
-.viewer { background:radial-gradient(circle at 80% 10%, rgba(122,162,255,.08), transparent 34%), var(--bg); }
-.markdown { max-width:880px; margin:0 auto; }
-.markdown ul { color:#c9d1df; line-height:1.8; }
-
-  </style>
-</head>
-<body>
-
-<div class="app">
-  <div class="topbar"><div class="brand"><span class="logo"></span>Pathlens</div><span class="pathbar">pathlens ./demo --open</span><span class="pill"><span class="dot"></span>SSE connected</span></div>
-  <div class="workbench">
-    <aside class="sidebar">
-  <div class="side-head"><span>Explorer</span><span class="pill"><span class="dot"></span>live</span></div>
-  <div style="padding:10px;border-bottom:1px solid var(--line)"><input class="search" value="/workspace/demo" /></div>
-  <div class="tree">
-    <div class="node"><span class="twisty">▾</span><span class="icon">📁</span><span>demo</span></div>
-    <div class="indent">
-      <div class="node"><span class="twisty">▾</span><span class="icon">📁</span><span>docs</span></div>
-      <div class="indent">
-        <div class="node active"><span class="twisty"></span><span class="icon">📘</span><span>README.md</span><span class="badge">open</span></div>
-        <div class="node changed"><span class="twisty"></span><span class="icon">📄</span><span>architecture.md</span></div>
+      .app {
+        grid-template-rows: 44px 1fr 28px;
+      }
+      .workbench {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 280px 1fr;
+      }
+      .viewer {
+        background:
+          radial-gradient(
+            circle at 80% 10%,
+            rgba(122, 162, 255, 0.08),
+            transparent 34%
+          ),
+          var(--bg);
+      }
+      .markdown {
+        max-width: 880px;
+        margin: 0 auto;
+      }
+      .markdown ul {
+        color: #c9d1df;
+        line-height: 1.8;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="topbar">
+        <div class="brand"><span class="logo"></span>Pathlens</div>
+        <span class="pathbar">pathlens ./demo --open</span
+        ><span class="pill"><span class="dot"></span>SSE connected</span>
       </div>
-      <div class="node"><span class="twisty">▾</span><span class="icon">📁</span><span>public</span></div>
-      <div class="indent">
-        <div class="node"><span class="twisty"></span><span class="icon">🌐</span><span>index.html</span></div>
-        <div class="node"><span class="twisty"></span><span class="icon">🖼️</span><span>hero.png</span></div>
-      </div>
-      <div class="node"><span class="twisty">▾</span><span class="icon">📁</span><span>src</span></div>
-      <div class="indent">
-        <div class="node"><span class="twisty"></span><span class="icon">⚛️</span><span>App.tsx</span></div>
-        <div class="node"><span class="twisty"></span><span class="icon">{} </span><span>tree.ts</span></div>
-      </div>
-      <div class="node"><span class="twisty"></span><span class="icon">⚙️</span><span>package.json</span></div>
-    </div>
-  </div>
-</aside>
-    <main class="main">
-  <div class="tabs">
-    <button class="tab active" data-tab>📘 README.md <span class="x">×</span></button>
-    <button class="tab" data-tab>🌐 index.html <span class="x">×</span></button>
-    <button class="tab" data-tab>⚛️ App.tsx <span class="x">×</span></button>
-    <button class="tab" data-tab>📄 architecture.md <span class="x">×</span></button>
-  </div>
+      <div class="workbench">
+        <aside class="sidebar">
+          <div class="side-head">
+            <span>Explorer</span
+            ><span class="pill"><span class="dot"></span>live</span>
+          </div>
+          <div style="padding: 10px; border-bottom: 1px solid var(--line)">
+            <input class="search" value="/workspace/demo" />
+          </div>
+          <div class="tree">
+            <div class="node">
+              <span class="twisty">▾</span><span class="icon">📁</span
+              ><span>demo</span>
+            </div>
+            <div class="indent">
+              <div class="node">
+                <span class="twisty">▾</span><span class="icon">📁</span
+                ><span>docs</span>
+              </div>
+              <div class="indent">
+                <div class="node active">
+                  <span class="twisty"></span><span class="icon">📘</span
+                  ><span>README.md</span><span class="badge">open</span>
+                </div>
+                <div class="node changed">
+                  <span class="twisty"></span><span class="icon">📄</span
+                  ><span>architecture.md</span>
+                </div>
+              </div>
+              <div class="node">
+                <span class="twisty">▾</span><span class="icon">📁</span
+                ><span>public</span>
+              </div>
+              <div class="indent">
+                <div class="node">
+                  <span class="twisty"></span><span class="icon">🌐</span
+                  ><span>index.html</span>
+                </div>
+                <div class="node">
+                  <span class="twisty"></span><span class="icon">🖼️</span
+                  ><span>hero.png</span>
+                </div>
+              </div>
+              <div class="node">
+                <span class="twisty">▾</span><span class="icon">📁</span
+                ><span>src</span>
+              </div>
+              <div class="indent">
+                <div class="node">
+                  <span class="twisty"></span><span class="icon">⚛️</span
+                  ><span>App.tsx</span>
+                </div>
+                <div class="node">
+                  <span class="twisty"></span><span class="icon">{} </span
+                  ><span>tree.ts</span>
+                </div>
+              </div>
+              <div class="node">
+                <span class="twisty"></span><span class="icon">⚙️</span
+                ><span>package.json</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+        <main class="main">
+          <div class="tabs">
+            <button class="tab active" data-tab>
+              📘 README.md <span class="x">×</span>
+            </button>
+            <button class="tab" data-tab>
+              🌐 index.html <span class="x">×</span>
+            </button>
+            <button class="tab" data-tab>
+              ⚛️ App.tsx <span class="x">×</span>
+            </button>
+            <button class="tab" data-tab>
+              📄 architecture.md <span class="x">×</span>
+            </button>
+          </div>
 
-      <section class="viewer">
-        <article class="card markdown">
-          <div class="card-head"><span>Rendered Markdown</span><div class="toolbar"><button class="btn active">Preview</button><button class="btn">Raw</button></div></div>
-          <div class="card-body">
-            <h1>Pathlens</h1>
-            <p>A live local viewer for Markdown, HTML, code, and assets. The sidebar reflects filesystem changes without a full browser refresh.</p>
-            <h2>Core workflow</h2>
-            <ul>
-              <li>Run the CLI against a local directory.</li>
-              <li>Open Markdown, HTML, code, text, and images from the tree.</li>
-              <li>Keep several files open as tabs while the active viewer updates live.</li>
-            </ul>
-            <pre><code><span class="cm"># start the viewer</span>
+          <section class="viewer">
+            <article class="card markdown">
+              <div class="card-head">
+                <span>Rendered Markdown</span>
+                <div class="toolbar">
+                  <button class="btn active">Preview</button
+                  ><button class="btn">Raw</button>
+                </div>
+              </div>
+              <div class="card-body">
+                <h1>Pathlens</h1>
+                <p>
+                  A live local viewer for Markdown, HTML, code, and assets. The
+                  sidebar reflects filesystem changes without a full browser
+                  refresh.
+                </p>
+                <h2>Core workflow</h2>
+                <ul>
+                  <li>Run the CLI against a local directory.</li>
+                  <li>
+                    Open Markdown, HTML, code, text, and images from the tree.
+                  </li>
+                  <li>
+                    Keep several files open as tabs while the active viewer
+                    updates live.
+                  </li>
+                </ul>
+                <pre><code><span class="cm"># start the viewer</span>
 pathlens . --open
 
 <span class="cm"># include generated artifacts</span>
 pathlens ./dist --include md,html,ts,tsx,json,png</code></pre>
-          </div>
-        </article>
-      </section>
-    </main>
-  </div>
-  <div class="statusbar"><span>4 tabs · 1 changed file · 128 watched files</span><span>localhost:4177</span></div>
-</div>
+              </div>
+            </article>
+          </section>
+        </main>
+      </div>
+      <div class="statusbar">
+        <span>4 tabs · 1 changed file · 128 watched files</span
+        ><span>localhost:4177</span>
+      </div>
+    </div>
 
-<script>
-  document.querySelectorAll('[data-tab]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const group = btn.closest('.tabs') || document;
-      group.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      btn.classList.add('active');
-    });
-  });
-  document.querySelectorAll('.node').forEach(node => {
-    node.addEventListener('click', () => {
-      document.querySelectorAll('.node').forEach(n => n.classList.remove('active'));
-      node.classList.add('active');
-    });
-  });
-</script>
-</body>
+    <script>
+      document.querySelectorAll("[data-tab]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const group = btn.closest(".tabs") || document;
+          group
+            .querySelectorAll(".tab")
+            .forEach((t) => t.classList.remove("active"));
+          btn.classList.add("active");
+        });
+      });
+      document.querySelectorAll(".node").forEach((node) => {
+        node.addEventListener("click", () => {
+          document
+            .querySelectorAll(".node")
+            .forEach((n) => n.classList.remove("active"));
+          node.classList.add("active");
+        });
+      });
+    </script>
+  </body>
 </html>

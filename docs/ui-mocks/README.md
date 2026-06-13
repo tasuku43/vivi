@@ -42,4 +42,3 @@ Early implementation should prioritize:
 4. Right outline for Markdown H1/H2 headings and file metadata.
 5. Cmd/Ctrl + K command palette for file open and actions.
 6. SSE-driven live updates without full page refresh.
-
