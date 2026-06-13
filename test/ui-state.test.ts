@@ -18,6 +18,12 @@ import {
   moveOpenTab,
   upsertOpenTab,
 } from "../src/ui/state/tabs.js";
+import {
+  isThemePreference,
+  nextThemePreference,
+  resolveThemePreference,
+  themePreferenceLabel,
+} from "../src/ui/state/theme.js";
 import { inspectorTargetLabel } from "../src/ui/components/Inspector.js";
 
 it("opens, updates, and marks tabs by path", () => {
@@ -195,4 +201,20 @@ it("moves command palette selection with keyboard wrapping", () => {
   expect(movePaletteSelection(2, 3, 1)).toBe(0);
   expect(movePaletteSelection(0, 3, -1)).toBe(2);
   expect(movePaletteSelection(-1, 3, 1)).toBe(1);
+});
+
+it("resolves theme preference from system or explicit choices", () => {
+  expect(resolveThemePreference("system", "light")).toBe("light");
+  expect(resolveThemePreference("system", "dark")).toBe("dark");
+  expect(resolveThemePreference("light", "dark")).toBe("light");
+  expect(resolveThemePreference("dark", "light")).toBe("dark");
+});
+
+it("cycles theme preference while keeping system as the default option", () => {
+  expect(nextThemePreference("system")).toBe("light");
+  expect(nextThemePreference("light")).toBe("dark");
+  expect(nextThemePreference("dark")).toBe("system");
+  expect(themePreferenceLabel("system")).toBe("System");
+  expect(isThemePreference("sepia")).toBe(false);
+  expect(isThemePreference("dark")).toBe(true);
 });

@@ -34,6 +34,15 @@ import {
   type SplitDirection,
   type SplitEdge,
 } from "./state/editor-layout.js";
+import {
+  isThemePreference,
+  nextThemePreference,
+  resolveThemePreference,
+  themePreferenceLabel,
+  themeStorageKey,
+  type ResolvedTheme,
+  type ThemePreference,
+} from "./state/theme.js";
 
 export function App() {
   const [tree, setTree] = useState<TreeSnapshot | null>(null);
@@ -51,6 +60,11 @@ export function App() {
     paneId: string;
     edge: SplitEdge;
   } | null>(null);
+  const [themePreference, setThemePreference] =
+    useState<ThemePreference>(readStoredThemePreference);
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(
+    readSystemTheme,
+  );
   const [inspectorTargetVisible, setInspectorTargetVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,6 +87,7 @@ export function App() {
     panes.find((pane) => pane.id === layout.activePaneId) ?? panes[0];
   const selectedPath = activePane?.activePath ?? null;
   const file = selectedPath ? (files[selectedPath] ?? null) : null;
+  const resolvedTheme = resolveThemePreference(themePreference, systemTheme);
 
   async function loadFile(path: string, paneId = layout.activePaneId) {
     setLayout((current) => setPaneActivePath(current, paneId, path));
@@ -206,6 +221,21 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    const query = window.matchMedia("(prefers-color-scheme: light)");
+    const updateSystemTheme = () =>
+      setSystemTheme(query.matches ? "light" : "dark");
+    updateSystemTheme();
+    query.addEventListener("change", updateSystemTheme);
+    return () => query.removeEventListener("change", updateSystemTheme);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = resolvedTheme;
+    document.documentElement.style.colorScheme = resolvedTheme;
+    window.localStorage.setItem(themeStorageKey, themePreference);
+  }, [resolvedTheme, themePreference]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -259,6 +289,16 @@ export function App() {
         <span className="pathbar">
           {config?.root ?? "local workspace viewer"}
         </span>
+        <button
+          className="theme-button"
+          aria-label={`Theme: ${themePreferenceLabel(themePreference)}`}
+          title={`Theme: ${themePreferenceLabel(themePreference)}`}
+          onClick={() =>
+            setThemePreference((current) => nextThemePreference(current))
+          }
+        >
+          {themePreferenceLabel(themePreference)}
+        </button>
         <button className="command-button" onClick={() => setPaletteOpen(true)}>
           Cmd/Ctrl K
         </button>
@@ -377,6 +417,7 @@ export function App() {
             <FileViewer
               file={paneFile}
               allowHtmlScripts={config?.allowHtmlScripts ?? false}
+              theme={resolvedTheme}
             />
           )}
         </div>
@@ -441,4 +482,17 @@ function edgeForPoint(
   if (x < 0.25) return "left";
   if (x > 0.75) return "right";
   return y < 0.5 ? "top" : "bottom";
+}
+
+function readStoredThemePreference(): ThemePreference {
+  if (typeof window === "undefined") return "system";
+  const stored = window.localStorage.getItem(themeStorageKey);
+  return isThemePreference(stored) ? stored : "system";
+}
+
+function readSystemTheme(): ResolvedTheme {
+  if (typeof window === "undefined") return "dark";
+  return window.matchMedia("(prefers-color-scheme: light)").matches
+    ? "light"
+    : "dark";
 }

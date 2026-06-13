@@ -1,6 +1,7 @@
 import { createHighlighterCore, type HighlighterCore } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 import githubDark from "@shikijs/themes/github-dark";
+import githubLight from "@shikijs/themes/github-light";
 import bash from "@shikijs/langs/bash";
 import css from "@shikijs/langs/css";
 import go from "@shikijs/langs/go";
@@ -18,6 +19,7 @@ import tsx from "@shikijs/langs/tsx";
 import typescript from "@shikijs/langs/typescript";
 import xml from "@shikijs/langs/xml";
 import yaml from "@shikijs/langs/yaml";
+import type { ResolvedTheme } from "./theme.js";
 
 const supportedLanguages = new Set([
   "bash",
@@ -44,18 +46,19 @@ let highlighterPromise: Promise<HighlighterCore> | null = null;
 export async function highlightCode(
   code: string,
   language: string,
+  theme: ResolvedTheme,
 ): Promise<string> {
   const highlighter = await getHighlighter();
   const lang = supportedLanguages.has(language) ? language : "text";
   return highlighter.codeToHtml(code, {
     lang,
-    theme: "github-dark",
+    theme: theme === "light" ? "github-light" : "github-dark",
   });
 }
 
 function getHighlighter(): Promise<HighlighterCore> {
   highlighterPromise ??= createHighlighterCore({
-    themes: [githubDark],
+    themes: [githubDark, githubLight],
     langs: [
       bash,
       css,
