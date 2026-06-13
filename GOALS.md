@@ -22,7 +22,7 @@ and use the browser UI to inspect a mixed directory without refreshing the page 
 4. Watch a directory tree update during build or generation workflows.
 5. Open a file from the sidebar and keep the sidebar selection state stable across content updates.
 6. Select code lines or ranges and copy stable local references while staying in read-only mode.
-7. Review recent filesystem changes from a compact queue without adding Git or IDE workflows.
+7. Review recent filesystem changes and uncommitted Git working-tree changes from a compact queue without adding staging, editing, or IDE workflows.
 
 ## Evaluation criteria
 
@@ -43,6 +43,7 @@ and use the browser UI to inspect a mixed directory without refreshing the page 
 - Command palette actions for changed files, reveal in tree, source/rendered toggles, local URLs, outline focus, inspector visibility, split right, close/reopen tab, recent files, shortcuts, and context export.
 - Generated-review target surfacing for common output directories such as reports, coverage, screenshots, docs, dist, and build.
 - SSE-driven recent event queue, active-file refresh markers, inactive changed-tab markers, and tree refresh on add/remove events.
+- Read-only Git working-tree review for uncommitted added/modified/deleted/renamed files, with bounded text diffs against `HEAD`.
 - Fixture eval coverage for mixed file opening and code references.
 
 ## Deferred extensions
@@ -52,8 +53,8 @@ and use the browser UI to inspect a mixed directory without refreshing the page 
 - Full Mermaid rendering in Markdown.
 - Fuzzy file picker.
 - First-class rename events beyond add/remove watcher semantics.
-- Lightweight before/after text diffs in the review queue.
 - Multi-pane viewing.
+- Rich side-by-side diff review and arbitrary commit comparison.
 - Pluggable viewer registry.
 
 ## Explicit non-goals

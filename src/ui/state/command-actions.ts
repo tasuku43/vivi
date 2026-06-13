@@ -3,6 +3,7 @@ import { fuzzyFileResults } from "./files.js";
 
 export type CommandActionId =
   | "open-changed-file"
+  | "show-diff"
   | "reveal-in-tree"
   | "toggle-source-rendered"
   | "copy-local-url"

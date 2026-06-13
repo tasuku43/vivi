@@ -94,6 +94,20 @@ it("renders code metadata and actionable review events in the inspector", () => 
           receivedAt: 10,
         },
       ]}
+      gitReview={{
+        available: true,
+        changes: [{ path: "src/app.ts", status: "modified" }],
+      }}
+      reviewChanges={[
+        { path: "src/app.ts", status: "modified", source: "git" },
+      ]}
+      activeDiff={{
+        path: "src/app.ts",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content: "-old\n+new",
+      }}
       selectedCodeRange={{ start: 2, end: 2 }}
       activePaneId="main"
       reviewTargets={[
@@ -109,6 +123,7 @@ it("renders code metadata and actionable review events in the inspector", () => 
       onOutlineSelect={() => undefined}
       onOpenEventPath={() => undefined}
       onOpenAllChanged={() => undefined}
+      onShowDiff={() => undefined}
       onTargetHoverChange={() => undefined}
       onRevealTarget={() => undefined}
     />,
@@ -118,7 +133,10 @@ it("renders code metadata and actionable review events in the inspector", () => 
   expect(html).toContain("src/app.ts:2");
   expect(html).toContain("export");
   expect(html).toContain("start");
-  expect(html).toContain("Review queue");
+  expect(html).toContain("Changed files");
+  expect(html).toContain("Git working tree");
+  expect(html).toContain("-old");
+  expect(html).toContain("Recent events");
   expect(html).toContain("Changed");
   expect(html).toContain("Review targets");
   expect(html).toContain("reports/index.html");

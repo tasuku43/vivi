@@ -1211,6 +1211,71 @@ kbd {
   fill: var(--accent);
 }
 
+.change-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.change-open,
+.diff-button {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 8px;
+}
+.change-open {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 4px 8px;
+  padding: 8px;
+  text-align: left;
+}
+.change-open b {
+  color: var(--accent);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.change-open span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.change-open small {
+  grid-column: 2;
+  color: var(--subtle);
+}
+.diff-button {
+  padding: 0 9px;
+  font-size: 12px;
+}
+.diff-button:disabled,
+.change-open:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.diff-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 10px;
+}
+.diff-preview {
+  max-height: 320px;
+  overflow: auto;
+  margin: 8px 0 0;
+  border-radius: 7px;
+  background: var(--code);
+  color: var(--text);
+  padding: 10px;
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: pre;
+}
+
 @media (max-width: 1040px) {
   .workbench {
     grid-template-columns: 260px 1fr;

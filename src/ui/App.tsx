@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import type { TextDiff } from "../domain/change-review.js";
 import type {
   FilePayload,
   FsEvent,
@@ -43,6 +44,10 @@ import {
 } from "./state/editor-layout.js";
 import { filterTreeToPaths, reviewArtifactResults } from "./state/files.js";
 import {
+  mergeReviewChanges,
+  type GitChangeReviewState,
+} from "./state/git-review.js";
+import {
   isThemePreference,
   nextThemePreference,
   resolveThemePreference,
@@ -80,6 +85,8 @@ export function App() {
   const [closedTabs, setClosedTabs] = useState<OpenTab[]>([]);
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [recentEvents, setRecentEvents] = useState<ReviewEvent[]>([]);
+  const [gitReview, setGitReview] = useState<GitChangeReviewState | null>(null);
+  const [activeDiff, setActiveDiff] = useState<TextDiff | null>(null);
   const [viewerModes, setViewerModes] = useState<Record<string, ViewerMode>>(
     {},
   );
@@ -123,6 +130,20 @@ export function App() {
     setConfig(await response.json());
   }
 
+  async function loadGitReview() {
+    const response = await fetch("/api/changes");
+    if (!response.ok)
+      throw new Error(`changes request failed: ${response.status}`);
+    setGitReview((await response.json()) as GitChangeReviewState);
+  }
+
+  async function showDiff(path: string) {
+    const response = await fetch(`/api/diff?path=${encodeURIComponent(path)}`);
+    if (!response.ok)
+      throw new Error(`diff request failed: ${response.status}`);
+    setActiveDiff((await response.json()) as TextDiff);
+  }
+
   const panes = useMemo(() => flattenPanes(layout), [layout]);
   const activePane =
     panes.find((pane) => pane.id === layout.activePaneId) ?? panes[0];
@@ -133,12 +154,20 @@ export function App() {
     () => summarizeReviewEvents(recentEvents),
     [recentEvents],
   );
+  const reviewChanges = useMemo(
+    () => mergeReviewChanges(reviewState, gitReview),
+    [gitReview, reviewState],
+  );
+  const changedPathSet = useMemo(
+    () => new Set(reviewChanges.map((change) => change.path)),
+    [reviewChanges],
+  );
   const sidebarNodes = useMemo(
     () =>
       treeChangedOnly && tree
-        ? filterTreeToPaths(tree.nodes, reviewState.changedPaths)
+        ? filterTreeToPaths(tree.nodes, changedPathSet)
         : (tree?.nodes ?? []),
-    [reviewState.changedPaths, tree, treeChangedOnly],
+    [changedPathSet, tree, treeChangedOnly],
   );
   const reviewTargets = useMemo(
     () => reviewArtifactResults(tree?.nodes ?? []),
@@ -224,7 +253,8 @@ export function App() {
   }
 
   function openAllChangedFiles() {
-    for (const path of reviewState.changedPaths) {
+    for (const { path, status } of reviewChanges) {
+      if (status === "deleted") continue;
       void loadFile(path).catch((err) => setError(String(err)));
     }
   }
@@ -236,7 +266,9 @@ export function App() {
           (item.event.type === "add" && item.event.kind === "file")) &&
         reviewState.changedPaths.has(item.event.path),
     )?.event.path;
-    const path = firstRecentChanged ?? [...reviewState.changedPaths][0];
+    const path =
+      firstRecentChanged ??
+      reviewChanges.find((change) => change.status !== "deleted")?.path;
     if (path) void loadFile(path).catch((err) => setError(String(err)));
   }
 
@@ -291,12 +323,20 @@ export function App() {
           .map((item) => `${item.event.type}:${item.event.path}`)
           .join(", ") || "none"
       }`,
+      `git changes: ${
+        reviewChanges
+          .slice(0, 12)
+          .map((item) => `${item.status}:${item.path}`)
+          .join(", ") || "none"
+      }`,
     ].join("\n");
     await copyToClipboard(context);
   }
 
   function runCommandAction(id: CommandActionId) {
     if (id === "open-changed-file") openFirstChangedFile();
+    else if (id === "show-diff" && selectedPath)
+      void showDiff(selectedPath).catch((err) => setError(String(err)));
     else if (id === "reveal-in-tree") revealActiveInTree();
     else if (id === "toggle-source-rendered") toggleActiveViewerMode();
     else if (id === "copy-local-url")
@@ -366,9 +406,18 @@ export function App() {
       {
         id: "open-changed-file" as const,
         label: "Open changed file",
-        detail: `${reviewState.changedPaths.size} changed files`,
+        detail: `${reviewChanges.length} changed files`,
         keywords: ["review", "changed", "recent", "open"],
-        disabled: reviewState.changedPaths.size === 0,
+        disabled: reviewChanges.length === 0,
+      },
+      {
+        id: "show-diff" as const,
+        label: "Show diff",
+        detail: selectedPath ?? "No active file",
+        keywords: ["review", "diff", "change", "git"],
+        disabled:
+          !selectedPath ||
+          !reviewChanges.some((change) => change.path === selectedPath),
       },
       {
         id: "reveal-in-tree" as const,
@@ -456,7 +505,7 @@ export function App() {
       outline.length,
       recentEvents,
       recentFiles,
-      reviewState.changedPaths,
+      reviewChanges,
       selectedPath,
     ],
   );
@@ -508,6 +557,7 @@ export function App() {
   useEffect(() => {
     loadConfig().catch((err) => setError(String(err)));
     loadTree().catch((err) => setError(String(err)));
+    loadGitReview().catch((err) => setError(String(err)));
   }, []);
 
   useEffect(() => {
@@ -601,6 +651,7 @@ export function App() {
       if (event.type === "add" || event.type === "unlink") {
         loadTree().catch((err) => setError(String(err)));
       }
+      loadGitReview().catch((err) => setError(String(err)));
     });
     return () => events.close();
   }, [selectedPath, layout.activePaneId]);
@@ -661,7 +712,7 @@ export function App() {
             <TreeSidebar
               nodes={sidebarNodes}
               selectedPath={selectedPath}
-              changedPaths={reviewState.changedPaths}
+              changedPaths={changedPathSet}
               removedPaths={reviewState.removedPaths}
               onSelect={(path) =>
                 void loadFile(path).catch((err) => setError(String(err)))
@@ -683,6 +734,9 @@ export function App() {
             file={file}
             outline={outline}
             events={recentEvents}
+            gitReview={gitReview}
+            reviewChanges={reviewChanges}
+            activeDiff={activeDiff}
             reviewTargets={reviewTargets}
             selectedCodeRange={
               file?.path ? (codeSelections[file.path] ?? null) : null
@@ -694,6 +748,9 @@ export function App() {
               void loadFile(path).catch((err) => setError(String(err)))
             }
             onOpenAllChanged={openAllChangedFiles}
+            onShowDiff={(path) =>
+              void showDiff(path).catch((err) => setError(String(err)))
+            }
             onTargetHoverChange={setInspectorTargetVisible}
             onRevealTarget={revealInspectorTarget}
           />
@@ -703,7 +760,8 @@ export function App() {
       <footer className="statusbar">
         <span>
           {openTabs.length} tabs · {recentEvents.length} recent events ·{" "}
-          {tree?.nodes.length ?? 0} root entries
+          {reviewChanges.length} changed · {tree?.nodes.length ?? 0} root
+          entries
         </span>
         <span>localhost</span>
       </footer>

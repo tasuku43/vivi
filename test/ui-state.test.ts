@@ -11,6 +11,11 @@ import {
   reviewArtifactResults,
 } from "../src/ui/state/files.js";
 import {
+  changeStatusLabel,
+  diffStatusLabel,
+  mergeReviewChanges,
+} from "../src/ui/state/git-review.js";
+import {
   buildPaletteItems,
   filterCommandActions,
   type CommandAction,
@@ -47,6 +52,7 @@ import {
   nextViewerMode,
   supportsSourceToggle,
 } from "../src/ui/state/viewer-mode.js";
+import { summarizeReviewEvents } from "../src/ui/state/review-events.js";
 import { inspectorTargetLabel } from "../src/ui/components/Inspector.js";
 
 it("opens, updates, and marks tabs by path", () => {
@@ -224,6 +230,46 @@ it("moves command palette selection with keyboard wrapping", () => {
   expect(movePaletteSelection(2, 3, 1)).toBe(0);
   expect(movePaletteSelection(0, 3, -1)).toBe(2);
   expect(movePaletteSelection(-1, 3, 1)).toBe(1);
+});
+
+it("merges Git working tree changes with live review events", () => {
+  const reviewEvents = [
+    {
+      id: "1",
+      event: { type: "change" as const, path: "README.md", version: 2 },
+      receivedAt: 100,
+    },
+    {
+      id: "2",
+      event: {
+        type: "unlink" as const,
+        path: "old.log",
+        kind: "file" as const,
+        version: 3,
+      },
+      receivedAt: 101,
+    },
+  ];
+  const merged = mergeReviewChanges(summarizeReviewEvents(reviewEvents), {
+    available: true,
+    changes: [{ path: "reports/new.csv", status: "added" }],
+  });
+
+  expect(merged).toEqual([
+    { path: "old.log", status: "deleted", source: "watcher" },
+    { path: "README.md", status: "modified", source: "watcher" },
+    { path: "reports/new.csv", status: "added", source: "git" },
+  ]);
+  expect(changeStatusLabel("renamed")).toBe("Renamed");
+  expect(
+    diffStatusLabel({
+      path: "README.md",
+      status: "available",
+      baseLabel: "HEAD",
+      compareLabel: "working tree",
+      content: "diff",
+    }),
+  ).toBe("HEAD -> working tree");
 });
 
 it("resolves theme preference from system or explicit choices", () => {

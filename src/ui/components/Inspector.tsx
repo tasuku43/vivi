@@ -1,6 +1,13 @@
+import type { TextDiff } from "../../domain/change-review.js";
 import type { FilePayload, FsNode } from "../../domain/fs-node.js";
 import { buildCodeMetadata, type LineRange } from "../state/code-viewer.js";
 import { iconForPath } from "../state/file-icons.js";
+import {
+  changeStatusLabel,
+  diffStatusLabel,
+  type GitChangeReviewState,
+  type ReviewChangeItem,
+} from "../state/git-review.js";
 import type { OutlineHeading } from "../state/outline.js";
 import { eventLabel, type ReviewEvent } from "../state/review-events.js";
 
@@ -8,6 +15,9 @@ interface Props {
   file: FilePayload | null;
   outline: OutlineHeading[];
   events: ReviewEvent[];
+  gitReview: GitChangeReviewState | null;
+  reviewChanges: ReviewChangeItem[];
+  activeDiff: TextDiff | null;
   reviewTargets: FsNode[];
   selectedCodeRange: LineRange | null;
   refreshedAt?: number;
@@ -15,6 +25,7 @@ interface Props {
   onOutlineSelect: (id: string) => void;
   onOpenEventPath: (path: string) => void;
   onOpenAllChanged: () => void;
+  onShowDiff: (path: string) => void;
   onTargetHoverChange: (hovering: boolean) => void;
   onRevealTarget: () => void;
 }
@@ -23,6 +34,9 @@ export function Inspector({
   file,
   outline,
   events,
+  gitReview,
+  reviewChanges,
+  activeDiff,
   reviewTargets,
   selectedCodeRange,
   refreshedAt,
@@ -30,6 +44,7 @@ export function Inspector({
   onOutlineSelect,
   onOpenEventPath,
   onOpenAllChanged,
+  onShowDiff,
   onTargetHoverChange,
   onRevealTarget,
 }: Props) {
@@ -185,7 +200,73 @@ export function Inspector({
         )}
 
         <div className="section-title with-action">
-          <span>Review queue</span>
+          <span>Changed files</span>
+          {reviewChanges.length ? (
+            <button type="button" onClick={onOpenAllChanged}>
+              Open changed
+            </button>
+          ) : null}
+        </div>
+        {gitReview && !gitReview.available ? (
+          <p className="muted">
+            {gitReview.reason ?? "Git changes unavailable."}
+          </p>
+        ) : null}
+        {reviewChanges.length ? (
+          reviewChanges.slice(0, 10).map((change) => (
+            <div className="change-row" key={`${change.source}:${change.path}`}>
+              <button
+                className="change-open"
+                disabled={change.status === "deleted"}
+                onClick={() => onOpenEventPath(change.path)}
+                type="button"
+              >
+                <b>{changeStatusLabel(change.status)}</b>
+                <span>{change.path}</span>
+                <small>
+                  {change.source === "git" ? "Git working tree" : "Live event"}
+                </small>
+              </button>
+              <button
+                className="diff-button"
+                disabled={change.source !== "git"}
+                onClick={() => onShowDiff(change.path)}
+                title={
+                  change.source === "git"
+                    ? "Show uncommitted text diff"
+                    : "Diff available after Git sees this file"
+                }
+                type="button"
+              >
+                Diff
+              </button>
+            </div>
+          ))
+        ) : (
+          <p className="muted">No changed files detected yet.</p>
+        )}
+
+        <h3 className="section-title">Diff preview</h3>
+        <div className="diff-card">
+          <div className="kv">
+            <span>Status</span>
+            <strong>{diffStatusLabel(activeDiff)}</strong>
+          </div>
+          {activeDiff?.reason ? (
+            <p className="muted">{activeDiff.reason}</p>
+          ) : null}
+          {activeDiff?.status === "available" ? (
+            <pre
+              className="diff-preview"
+              aria-label={`Diff for ${activeDiff.path}`}
+            >
+              {activeDiff.content}
+            </pre>
+          ) : null}
+        </div>
+
+        <div className="section-title with-action">
+          <span>Recent events</span>
           {changedFileEvents.length ? (
             <button type="button" onClick={onOpenAllChanged}>
               Open changed

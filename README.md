@@ -33,10 +33,11 @@ Expected user experience:
 11. File additions, deletions, and rename-like add/remove pairs update the sidebar tree dynamically.
 12. Recent filesystem events appear in a compact review queue so changed files can be opened quickly, and the tree can be filtered to changed files only.
 13. Generated-review targets under directories such as `dist/`, `build/`, `reports/`, `coverage/`, `screenshots/`, and `docs/` are surfaced in the inspector.
+14. In Git worktrees, uncommitted added, modified, deleted, and renamed files appear in the changed-file review list, with a lightweight text diff for small files.
 
 ## What pathlens is not
 
-`pathlens` is not an IDE, editor, Git staging tool, remote file browser, cloud sync service, static-site generator, hosted documentation platform, or LLM product. It focuses on reading, comparing, checking, and following local output as it changes.
+`pathlens` is not an IDE, editor, Git staging tool, Git history browser, remote file browser, cloud sync service, static-site generator, hosted documentation platform, or LLM product. It focuses on reading, comparing, checking, and following local output as it changes.
 
 ## Run With Docker
 
@@ -122,7 +123,7 @@ When scripts are allowed, the UI shows `scripts on` in the HTML toolbar and the 
 - `Cmd/Ctrl+K`: open the command palette.
 - `Enter`: open the selected file or run the selected command.
 - `Esc`: close the palette.
-- Palette commands include open changed file, reveal in tree, toggle source/rendered, copy local URL, focus outline, toggle inspector, split right, close tab, reopen last closed tab, open recent file, show keyboard shortcuts, and export current context.
+- Palette commands include open changed file, show diff, reveal in tree, toggle source/rendered, copy local URL, focus outline, toggle inspector, split right, close tab, reopen last closed tab, open recent file, show keyboard shortcuts, and export current context.
 - In code viewers, click a line number to select a line; shift-click extends the selected range.
 
 ## Release Images
@@ -144,7 +145,7 @@ Manual workflow runs are available for validation builds. Provide a `release_tag
 
 ## Current product status
 
-This repository is an active implementation of the local read-only viewer. It includes the CLI/server boundary, live tree and SSE plumbing, multi-file tabs, viewer dispatch, a polished code inspection surface, contextual inspector, fixture-driven evals, and server/UI tests. It is still intentionally scoped as a local viewer rather than an editor, IDE, Git client, hosted service, or LLM product.
+This repository is an active implementation of the local read-only viewer. It includes the CLI/server boundary, live tree and SSE plumbing, Git working-tree review for uncommitted changes, multi-file tabs, viewer dispatch, a polished code inspection surface, contextual inspector, fixture-driven evals, and server/UI tests. It is still intentionally scoped as a local viewer rather than an editor, IDE, Git client, hosted service, or LLM product.
 
 ## Technical direction
 
@@ -197,7 +198,7 @@ docs/          product, architecture, requirements, and agent context
 
 ## Product boundary
 
-`pathlens` is a local read-only viewer, not an IDE, not a static-site generator, not a Git client, not a remote file browser, not an LLM product, and not a hosted documentation platform. It should remain fast to start, local-first, and safe by default.
+`pathlens` is a local read-only viewer, not an IDE, not a static-site generator, not a Git staging or history client, not a remote file browser, not an LLM product, and not a hosted documentation platform. It should remain fast to start, local-first, and safe by default.
 
 ## Viewer behavior
 
@@ -211,7 +212,7 @@ docs/          product, architecture, requirements, and agent context
 - Images/SVG: fit-to-screen and actual-size preview modes with size metadata; SVG renders as an image so scripts stay inactive.
 - Large or unsupported files: safe fallback that explains why a richer preview is unavailable.
 
-Recent filesystem events are shown as a compact review queue. Change events refresh the active file and mark inactive tabs/changed tree rows; add/remove events refresh the tree. Rename is currently represented by watcher add/remove semantics when the underlying platform reports it that way.
+Recent filesystem events are shown as a compact review queue. Change events refresh the active file and mark inactive tabs/changed tree rows; add/remove events refresh the tree. In Git worktrees, `pathlens` also reads uncommitted working-tree status and can show a bounded text diff against `HEAD` for small files. Rename is currently represented by watcher add/remove semantics when the underlying platform reports it that way, while Git status can surface renamed files in the changed-file list.
 
 ## Adding a Viewer
 
@@ -220,7 +221,7 @@ Viewer selection starts in `src/domain/viewer-kind.ts`. Add or adjust an extensi
 ## Known Limitations
 
 - The Mermaid preview intentionally supports only simple flowchart arrows; source mode remains the fallback.
-- The review queue is based on filesystem watcher events, not a full Git history browser.
+- Git integration is read-only and limited to uncommitted working-tree status plus small text diffs against `HEAD`; it does not stage, commit, or browse full history.
 - Large files are capped by the preview size limit and shown with a safe explanation.
 - Tree virtualization and rich text diffs are deferred.
 

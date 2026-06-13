@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { ViewerService } from "../../src/app/viewer-service.js";
-import type { WatcherPort } from "../../src/app/contracts.js";
+import type { ChangeReviewPort, WatcherPort } from "../../src/app/contracts.js";
 import type { FsEvent } from "../../src/domain/fs-node.js";
 import { NodeFileSystem } from "../../src/infra/node-file-system.js";
 import { startHttpServer } from "../../src/server/http-server.js";
@@ -30,6 +30,7 @@ afterEach(async () => {
 it("serves tree, config, file, preview, and path-safety API responses", async () => {
   const service = new ViewerService({
     fileSystem: new NodeFileSystem({ rootDir: dir }),
+    changeReview: new StaticChangeReview(),
   });
   server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
 
@@ -46,6 +47,16 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   );
   expect(file.viewerKind).toBe("markdown");
   expect(file.content).toBe("# E2E");
+
+  const changes = await fetch(`${server.url}/api/changes`).then((res) =>
+    res.json(),
+  );
+  expect(changes.changes).toEqual([{ path: "README.md", status: "modified" }]);
+
+  const diff = await fetch(`${server.url}/api/diff?path=README.md`).then(
+    (res) => res.json(),
+  );
+  expect(diff.content).toContain("+# E2E");
 
   const rejected = await fetch(
     `${server.url}/api/file?path=${encodeURIComponent("../secret.txt")}`,
@@ -172,5 +183,24 @@ class ManualWatcher implements WatcherPort {
 
   emit(event: FsEvent): void {
     this.listener?.(event);
+  }
+}
+
+class StaticChangeReview implements ChangeReviewPort {
+  async readChanges() {
+    return {
+      available: true,
+      changes: [{ path: "README.md", status: "modified" as const }],
+    };
+  }
+
+  async readDiff(relativePath: string) {
+    return {
+      path: relativePath,
+      status: "available" as const,
+      baseLabel: "HEAD",
+      compareLabel: "working tree",
+      content: "diff --git a/README.md b/README.md\n+# E2E",
+    };
   }
 }

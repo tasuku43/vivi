@@ -93,9 +93,10 @@ Requirements:
 - The active heading should be highlightable later as the user scrolls.
 - The inspector should show file type, path, watch status, and last update information.
 - Recent file events can be shown as a compact diagnostic/status feed.
+- In Git worktrees, uncommitted working-tree changes can appear beside watcher events, with small text diffs shown read-only against `HEAD`.
 - For non-Markdown files, the inspector can show file metadata and related actions instead of an outline.
 - For code files, the inspector shows language, line count, selected range, lightweight symbols, and recent filesystem events.
-- The review queue is a live filesystem review surface, not a Git UI. Rename may appear as add/remove when that is the watcher signal available.
+- The review queue is a live filesystem review surface with a read-only Git working-tree supplement. It is not a staging UI or a full history browser. Rename may appear as add/remove when that is the watcher signal available, while Git status can surface renamed files in the changed-file list.
 
 ## Command palette
 
@@ -105,6 +106,7 @@ Initial commands:
 
 - Open file by fuzzy path search.
 - Open changed file from the review queue.
+- Show diff for a changed file.
 - Reveal active file in the tree.
 - Toggle rendered/source mode when supported.
 - Copy a local raw preview URL.
@@ -118,7 +120,7 @@ Initial commands:
 
 The palette should close on Escape and preserve the current workspace state.
 
-Palette commands stay read-only. They move focus, change viewing mode, copy local context, and arrange panes; they do not edit, stage, commit, or mutate files.
+Palette commands stay read-only. They move focus, show diffs, change viewing mode, copy local context, and arrange panes; they do not edit, stage, commit, or mutate files.
 
 ## Product intent
 

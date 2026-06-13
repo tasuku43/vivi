@@ -73,6 +73,43 @@ Returns viewer configuration needed by the SPA.
 }
 ```
 
+### `GET /api/changes`
+
+Returns read-only Git working-tree review status when the selected root is inside a Git repository. This is a viewer aid, not a staging or history API. If Git is unavailable or the root is not a worktree, the endpoint returns `available: false` with a reason.
+
+```json
+{
+  "available": true,
+  "changes": [
+    { "path": "README.md", "status": "modified" },
+    { "path": "reports/new.csv", "status": "added" },
+    {
+      "path": "docs/new-name.md",
+      "status": "renamed",
+      "originalPath": "docs/old-name.md"
+    }
+  ]
+}
+```
+
+Statuses are `added`, `modified`, `deleted`, or `renamed`.
+
+### `GET /api/diff?path=<relative-path>`
+
+Returns a bounded read-only text diff for a changed file. The comparison is `HEAD` to the current working tree. Large and binary diffs are not returned; the response explains why.
+
+```json
+{
+  "path": "README.md",
+  "status": "available",
+  "baseLabel": "HEAD",
+  "compareLabel": "working tree",
+  "content": "diff --git a/README.md b/README.md\n..."
+}
+```
+
+Diff statuses are `available`, `too-large`, `binary`, or `unavailable`.
+
 ### `GET /preview/html?path=<relative-path>`
 
 Returns HTML for iframe preview. The server must validate the path and send conservative headers.

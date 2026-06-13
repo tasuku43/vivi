@@ -78,6 +78,17 @@ async function routeRequest(
     return;
   }
 
+  if (url.pathname === "/api/changes") {
+    sendJson(res, 200, await options.service.readChanges());
+    return;
+  }
+
+  if (url.pathname === "/api/diff") {
+    const requestedPath = url.searchParams.get("path") ?? "";
+    sendJson(res, 200, await options.service.readDiff(requestedPath));
+    return;
+  }
+
   if (url.pathname === "/api/file") {
     const requestedPath = url.searchParams.get("path") ?? "";
     sendJson(res, 200, await options.service.readFile(requestedPath));
