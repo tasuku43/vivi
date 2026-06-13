@@ -30,7 +30,7 @@ Expected user experience:
 8. Images preview with fit-to-screen and actual-size modes.
 9. JSON uses an expandable tree/source viewer; CSV/TSV uses a table/source viewer; Mermaid uses a lightweight safe preview/source viewer, including simple Mermaid fences inside Markdown.
 10. File changes update the currently open viewer without a full page reload and mark inactive tabs as changed.
-11. File additions, deletions, and rename-like add/remove pairs update the sidebar tree dynamically.
+11. File additions, deletions, and rename-like add/remove pairs update the sidebar tree dynamically and are grouped as likely renames when safe.
 12. Recent filesystem events appear in a compact review queue so changed files can be opened quickly, and the tree can be filtered to changed files only.
 13. Generated-review targets under directories such as `dist/`, `build/`, `reports/`, `coverage/`, `screenshots/`, and `docs/` are surfaced in the inspector.
 14. In Git worktrees, uncommitted added, modified, deleted, and renamed files appear in the changed-file review list, with a bounded side-by-side text diff for small files.
@@ -213,7 +213,7 @@ docs/          product, architecture, requirements, and agent context
 - Images/SVG: fit-to-screen and actual-size preview modes with size metadata; SVG renders as an image so scripts stay inactive.
 - Large or unsupported files: safe fallback that explains why a richer preview is unavailable.
 
-Recent filesystem events are shown as a compact review queue. Change events refresh the active file and mark inactive tabs/changed tree rows; add/remove events refresh the tree. In Git worktrees, `pathlens` also reads uncommitted working-tree status and can show a bounded side-by-side text diff from `HEAD` or another recent allowed commit base to the working tree. Rename is currently represented by watcher add/remove semantics when the underlying platform reports it that way, while Git status can surface renamed files in the changed-file list.
+Recent filesystem events are shown as a compact review queue. Change events refresh the active file and mark inactive tabs/changed tree rows; add/remove events refresh the tree. Close add/remove file pairs with the same parent and extension are grouped as likely renames in the review list. In Git worktrees, `pathlens` also reads uncommitted working-tree status and can show a bounded side-by-side text diff from `HEAD` or another recent allowed commit base to the working tree. Git status can surface explicit renamed files in the changed-file list.
 
 The sidebar avoids expanding every descendant in very large trees on first render and avoids mounting every visible row after a large folder is expanded. It auto-expands within a row budget, keeps selected and changed paths revealable by expanding their ancestors, keeps important rows rendered beyond the normal cap, and shows a small note when collapsed or omitted rows are hiding additional entries.
 

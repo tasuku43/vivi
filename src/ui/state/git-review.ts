@@ -53,6 +53,16 @@ export function mergeReviewChanges(
     byPath.set(change.path, { ...change, source: "git" });
   }
 
+  for (const pair of watcherState.renamePairs) {
+    if (byPath.has(pair.toPath)) continue;
+    byPath.set(pair.toPath, {
+      path: pair.toPath,
+      originalPath: pair.fromPath,
+      status: "renamed",
+      source: "watcher",
+    });
+  }
+
   for (const path of watcherState.changedPaths) {
     if (byPath.has(path)) continue;
     const latest = watcherState.latestByPath.get(path);

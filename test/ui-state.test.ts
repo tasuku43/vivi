@@ -258,6 +258,26 @@ it("merges Git working tree changes with live review events", () => {
       },
       receivedAt: 101,
     },
+    {
+      id: "3",
+      event: {
+        type: "unlink" as const,
+        path: "docs/old.md",
+        kind: "file" as const,
+        version: 4,
+      },
+      receivedAt: 200,
+    },
+    {
+      id: "4",
+      event: {
+        type: "add" as const,
+        path: "docs/new.md",
+        kind: "file" as const,
+        version: 5,
+      },
+      receivedAt: 700,
+    },
   ];
   const merged = mergeReviewChanges(summarizeReviewEvents(reviewEvents), {
     available: true,
@@ -265,6 +285,12 @@ it("merges Git working tree changes with live review events", () => {
   });
 
   expect(merged).toEqual([
+    {
+      originalPath: "docs/old.md",
+      path: "docs/new.md",
+      status: "renamed",
+      source: "watcher",
+    },
     { path: "old.log", status: "deleted", source: "watcher" },
     { path: "README.md", status: "modified", source: "watcher" },
     { path: "reports/new.csv", status: "added", source: "git" },

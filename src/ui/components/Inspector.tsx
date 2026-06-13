@@ -237,7 +237,11 @@ export function Inspector({
                 type="button"
               >
                 <b>{changeStatusLabel(change.status)}</b>
-                <span>{change.path}</span>
+                <span>
+                  {change.status === "renamed" && change.originalPath
+                    ? `${change.originalPath} -> ${change.path}`
+                    : change.path}
+                </span>
                 <small>
                   {change.source === "git" ? "Git working tree" : "Live event"}
                 </small>

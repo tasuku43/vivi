@@ -44,6 +44,7 @@ and use the browser UI to inspect a mixed directory without refreshing the page 
 - Generated-review target surfacing for common output directories such as reports, coverage, screenshots, docs, dist, and build.
 - SSE-driven recent event queue, active-file refresh markers, inactive changed-tab markers, and tree refresh on add/remove events.
 - Read-only Git working-tree review for uncommitted added/modified/deleted/renamed files, with bounded side-by-side text diffs from `HEAD` or another recent commit base.
+- Rename-like watcher add/remove file pairs grouped as likely renames when parent, extension, and timing make the match safe.
 - Bounded initial tree expansion and bounded visible tree rendering for large workspaces, with selected and changed paths kept revealable.
 - Fixture eval coverage for mixed file opening and code references.
 
@@ -52,7 +53,6 @@ and use the browser UI to inspect a mixed directory without refreshing the page 
 - Full virtualized tree with smooth scrolling for very large workspaces.
 - Text diff patching for very large open files.
 - Fuzzy file picker.
-- First-class rename events beyond add/remove watcher semantics.
 - Multi-pane viewing.
 - Arbitrary commit comparison beyond recent allowed bases.
 - Pluggable viewer registry.

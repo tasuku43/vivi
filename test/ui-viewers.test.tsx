@@ -110,6 +110,12 @@ it("renders code metadata and actionable review events in the inspector", () => 
       activeDiffBase="HEAD"
       reviewChanges={[
         { path: "src/app.ts", status: "modified", source: "git" },
+        {
+          path: "docs/new.md",
+          originalPath: "docs/old.md",
+          status: "renamed",
+          source: "watcher",
+        },
       ]}
       activeDiff={{
         path: "src/app.ts",
@@ -146,6 +152,7 @@ it("renders code metadata and actionable review events in the inspector", () => 
   expect(html).toContain("start");
   expect(html).toContain("Changed files");
   expect(html).toContain("Git working tree");
+  expect(html).toContain("docs/old.md -&gt; docs/new.md");
   expect(html).toContain("diff-split-row changed");
   expect(html).toContain(">old</code>");
   expect(html).toContain(">new</code>");

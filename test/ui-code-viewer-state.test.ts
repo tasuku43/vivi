@@ -101,7 +101,41 @@ it("records and summarizes recent review events by file path", () => {
   expect([...summary.changedPaths].sort()).toEqual(["README.md", "src/new.ts"]);
   expect([...summary.removedPaths]).toEqual(["old.txt"]);
   expect(summary.latestByPath.get("src/new.ts")?.event.type).toBe("add");
+  expect(summary.renamePairs).toEqual([]);
   expect(eventLabel(events[0])).toBe("Changed");
   expect(eventLabel(events[1])).toBe("Added");
   expect(eventLabel(events[2])).toBe("Removed");
+});
+
+it("summarizes close add and unlink file events as a possible rename", () => {
+  const reviewEvents = [
+    {
+      id: "1",
+      event: {
+        type: "unlink" as const,
+        path: "docs/old.md",
+        kind: "file" as const,
+        version: 4,
+      },
+      receivedAt: 100,
+    },
+    {
+      id: "2",
+      event: {
+        type: "add" as const,
+        path: "docs/new.md",
+        kind: "file" as const,
+        version: 5,
+      },
+      receivedAt: 900,
+    },
+  ];
+
+  const summary = summarizeReviewEvents(reviewEvents);
+
+  expect(summary.renamePairs).toEqual([
+    { fromPath: "docs/old.md", toPath: "docs/new.md", receivedAt: 900 },
+  ]);
+  expect([...summary.removedPaths]).toEqual([]);
+  expect([...summary.changedPaths]).toContain("docs/new.md");
 });
