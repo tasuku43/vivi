@@ -1,48 +1,123 @@
-export interface OpenTab {
+import type { OpenTab } from "../state/tabs.js";
+import { iconForPath } from "../state/file-icons.js";
+
+export type { OpenTab };
+export interface DraggedTabPayload {
   path: string;
-  viewerKind: string;
-  changed?: boolean;
+  paneId: string;
 }
 
 interface Props {
   tabs: OpenTab[];
   activePath: string | null;
+  paneId: string;
   onActivate: (path: string) => void;
   onClose: (path: string) => void;
+  onDropTab: (
+    path: string,
+    fromPaneId: string,
+    paneId: string,
+    beforePath: string | null,
+  ) => void;
+  onDragStateChange: (dragging: boolean) => void;
+  onManualDragStart: (payload: DraggedTabPayload) => void;
 }
 
-export function OpenTabs({ tabs, activePath, onActivate, onClose }: Props) {
+export function OpenTabs({
+  tabs,
+  activePath,
+  paneId,
+  onActivate,
+  onClose,
+  onDropTab,
+  onDragStateChange,
+  onManualDragStart,
+}: Props) {
   return (
-    <div className="tabs">
-      {tabs.map((tab) => (
-        <button key={tab.path} className={`tab ${tab.path === activePath ? 'active' : ''} ${tab.changed ? 'changed' : ''}`} onClick={() => onActivate(tab.path)}>
-          <span>{labelFor(tab.viewerKind)}</span>
-          <span>{basename(tab.path)}</span>
-          <span
-            className="tab-close"
-            role="button"
-            tabIndex={0}
-            onClick={(event) => {
+    <div
+      className="tabs"
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={(event) => {
+        event.preventDefault();
+        const tab = readDraggedTab(event.dataTransfer);
+        if (tab) onDropTab(tab.path, tab.paneId, paneId, null);
+      }}
+    >
+      <div className="tab-strip">
+        {tabs.map((tab) => (
+          <button
+            key={tab.path}
+            className={`tab ${tab.path === activePath ? "active" : ""} ${tab.changed ? "changed" : ""}`}
+            draggable
+            onClick={() => onActivate(tab.path)}
+            onMouseDown={(event) => {
+              if (event.button === 0)
+                onManualDragStart({ path: tab.path, paneId });
+            }}
+            onDragStart={(event) => {
+              writeDraggedTab(event.dataTransfer, { path: tab.path, paneId });
+              event.dataTransfer.effectAllowed = "move";
+              onDragStateChange(true);
+              onManualDragStart({ path: tab.path, paneId });
+            }}
+            onDragEnd={() => onDragStateChange(false)}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
               event.stopPropagation();
-              onClose(tab.path);
+              const dragged = readDraggedTab(event.dataTransfer);
+              if (dragged)
+                onDropTab(dragged.path, dragged.paneId, paneId, tab.path);
             }}
           >
-            x
-          </span>
-        </button>
-      ))}
+            <span className="file-icon">
+              {iconForPath(tab.path, tab.viewerKind)}
+            </span>
+            <span>{basename(tab.path)}</span>
+            <span
+              className="tab-close"
+              role="button"
+              tabIndex={0}
+              onClick={(event) => {
+                event.stopPropagation();
+                onClose(tab.path);
+              }}
+            >
+              x
+            </span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
 
 function basename(path: string): string {
-  return path.split('/').filter(Boolean).at(-1) ?? path;
+  return path.split("/").filter(Boolean).at(-1) ?? path;
 }
 
-function labelFor(kind: string): string {
-  if (kind === 'markdown') return 'MD';
-  if (kind === 'html') return 'HTML';
-  if (kind === 'image') return 'IMG';
-  if (kind === 'code' || kind === 'json') return '{}';
-  return 'FILE';
+export function readDraggedTab(
+  dataTransfer: DataTransfer,
+): DraggedTabPayload | null {
+  const raw =
+    dataTransfer.getData("application/x-pathlens-tab") ||
+    dataTransfer.getData("text/plain");
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<DraggedTabPayload>;
+    if (typeof parsed.path === "string" && typeof parsed.paneId === "string")
+      return { path: parsed.path, paneId: parsed.paneId };
+  } catch {
+    return { path: raw, paneId: "main" };
+  }
+  return null;
+}
+
+function writeDraggedTab(
+  dataTransfer: DataTransfer,
+  payload: DraggedTabPayload,
+) {
+  const raw = JSON.stringify(payload);
+  dataTransfer.setData("application/x-pathlens-tab", raw);
+  dataTransfer.setData("text/plain", raw);
 }
