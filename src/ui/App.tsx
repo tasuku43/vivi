@@ -45,6 +45,7 @@ import {
 import { filterTreeToPaths } from "./state/files.js";
 import {
   mergeReviewChanges,
+  nextReviewQueuePath,
   type GitChangeReviewState,
 } from "./state/git-review.js";
 import {
@@ -300,16 +301,8 @@ export function App() {
     }
   }
 
-  function openFirstChangedFile() {
-    const firstRecentChanged = recentEvents.find(
-      (item) =>
-        (item.event.type === "change" ||
-          (item.event.type === "add" && item.event.kind === "file")) &&
-        reviewState.changedPaths.has(item.event.path),
-    )?.event.path;
-    const path =
-      firstRecentChanged ??
-      reviewChanges.find((change) => change.status !== "deleted")?.path;
+  function openReviewQueueFile(direction: "next" | "previous") {
+    const path = nextReviewQueuePath(reviewChanges, selectedPath, direction);
     if (path) void loadFile(path).catch((err) => setError(String(err)));
   }
 
@@ -358,13 +351,13 @@ export function App() {
       `root: ${config?.root ?? "unknown"}`,
       `active: ${selectedPath ?? "none"}`,
       `tabs: ${openTabs.map((tab) => `${tab.paneId}:${tab.path}`).join(", ") || "none"}`,
-      `recent events: ${
+      `review signals: ${
         recentEvents
           .slice(0, 8)
           .map((item) => `${item.event.type}:${item.event.path}`)
           .join(", ") || "none"
       }`,
-      `git changes: ${
+      `review queue: ${
         reviewChanges
           .slice(0, 12)
           .map((item) => `${item.status}:${item.path}`)
@@ -375,7 +368,9 @@ export function App() {
   }
 
   function runCommandAction(id: CommandActionId) {
-    if (id === "open-changed-file") openFirstChangedFile();
+    if (id === "open-changed-file") openReviewQueueFile("next");
+    else if (id === "open-previous-changed-file")
+      openReviewQueueFile("previous");
     else if (id === "show-diff" && selectedPath) toggleHeadDiff(selectedPath);
     else if (id === "reveal-in-tree") revealActiveInTree();
     else if (id === "toggle-source-rendered") toggleActiveViewerMode();
@@ -445,10 +440,17 @@ export function App() {
     () => [
       {
         id: "open-changed-file" as const,
-        label: "Open changed file",
-        detail: `${reviewChanges.length} changed files`,
-        keywords: ["review", "changed", "recent", "open"],
-        disabled: reviewChanges.length === 0,
+        label: "Open next",
+        detail: `${reviewChanges.length} files to review`,
+        keywords: ["review", "changed", "queue", "next", "open"],
+        disabled: !nextReviewQueuePath(reviewChanges, selectedPath, "next"),
+      },
+      {
+        id: "open-previous-changed-file" as const,
+        label: "Open previous",
+        detail: `${reviewChanges.length} files to review`,
+        keywords: ["review", "changed", "queue", "previous", "open"],
+        disabled: !nextReviewQueuePath(reviewChanges, selectedPath, "previous"),
       },
       {
         id: "show-diff" as const,
@@ -534,7 +536,7 @@ export function App() {
       {
         id: "export-current-context" as const,
         label: "Export current context",
-        detail: "Copy root, active file, tabs, and recent events",
+        detail: "Copy root, active file, tabs, and review queue",
         keywords: ["copy", "context", "export", "review"],
       },
     ],
@@ -784,7 +786,6 @@ export function App() {
           <Inspector
             file={file}
             outline={outline}
-            events={recentEvents}
             reviewChanges={reviewChanges}
             selectedCodeRange={
               file?.path ? (codeSelections[file.path] ?? null) : null
@@ -795,6 +796,8 @@ export function App() {
             onOpenEventPath={(path) =>
               void loadFile(path).catch((err) => setError(String(err)))
             }
+            onOpenNextChanged={() => openReviewQueueFile("next")}
+            onOpenPreviousChanged={() => openReviewQueueFile("previous")}
             onOpenAllChanged={openAllChangedFiles}
             onTargetHoverChange={setInspectorTargetVisible}
             onRevealTarget={revealInspectorTarget}
@@ -804,9 +807,8 @@ export function App() {
 
       <footer className="statusbar">
         <span>
-          {openTabs.length} tabs · {recentEvents.length} recent events ·{" "}
-          {reviewChanges.length} changed · {tree?.nodes.length ?? 0} root
-          entries
+          {openTabs.length} tabs · {reviewChanges.length} to review ·{" "}
+          {tree?.nodes.length ?? 0} root entries
         </span>
         <span>localhost</span>
       </footer>

@@ -943,11 +943,67 @@ button.pill {
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
+.section-title.primary-section {
+  margin-top: 0;
+}
 .section-title.with-action {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+.queue-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+.queue-actions button,
+.secondary-action {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 5px 7px;
+}
+.queue-actions button:hover,
+.queue-actions button:focus-visible,
+.secondary-action:hover,
+.secondary-action:focus-visible {
+  border-color: var(--accent);
+  color: var(--text);
+  outline: none;
+}
+.active-file-line {
+  margin: 12px 0 0;
+  color: var(--subtle);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.active-file-line span {
+  color: var(--muted);
+}
+.compact-empty {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+.file-details {
+  margin-top: 18px;
+  border-top: 1px solid var(--soft-line);
+  padding-top: 10px;
+}
+.file-details summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+.file-details .focus-target {
+  margin-top: 10px;
+}
+.secondary-action {
+  width: 100%;
+  margin-top: 10px;
+  text-align: center;
 }
 .outline {
   border-left: 1px solid var(--line);
@@ -1291,8 +1347,12 @@ kbd {
   padding: 12px;
 }
 
-.change-row {
-  margin-bottom: 6px;
+.review-queue {
+  display: grid;
+  gap: 6px;
+  max-height: min(340px, 42vh);
+  overflow: auto;
+  padding-right: 2px;
 }
 .change-open {
   border: 1px solid var(--line);

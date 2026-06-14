@@ -15,7 +15,9 @@ import {
   changeStatusLabel,
   diffStatusLabel,
   mergeReviewChanges,
+  nextReviewQueuePath,
   parseUnifiedDiff,
+  reviewQueueSourceLabel,
 } from "../src/ui/state/git-review.js";
 import {
   buildPaletteItems,
@@ -241,7 +243,7 @@ it("moves command palette selection with keyboard wrapping", () => {
   expect(movePaletteSelection(-1, 3, 1)).toBe(1);
 });
 
-it("merges Git working tree changes with live review events", () => {
+it("uses HEAD changes as the Review Queue when Git is available", () => {
   const reviewEvents = [
     {
       id: "1",
@@ -281,21 +283,18 @@ it("merges Git working tree changes with live review events", () => {
   ];
   const merged = mergeReviewChanges(summarizeReviewEvents(reviewEvents), {
     available: true,
-    changes: [{ path: "reports/new.csv", status: "added" }],
+    changes: [
+      { path: "README.md", status: "modified" },
+      { path: "reports/new.csv", status: "added" },
+    ],
   });
 
   expect(merged).toEqual([
-    {
-      originalPath: "docs/old.md",
-      path: "docs/new.md",
-      status: "renamed",
-      source: "watcher",
-    },
-    { path: "old.log", status: "deleted", source: "watcher" },
-    { path: "README.md", status: "modified", source: "watcher" },
+    { path: "README.md", status: "modified", source: "git" },
     { path: "reports/new.csv", status: "added", source: "git" },
   ]);
-  expect(changeStatusLabel("renamed")).toBe("Renamed");
+  expect(changeStatusLabel("renamed")).toBe("renamed");
+  expect(reviewQueueSourceLabel("git")).toBe("HEAD diff");
   expect(
     diffStatusLabel({
       path: "README.md",
@@ -305,6 +304,69 @@ it("merges Git working tree changes with live review events", () => {
       content: "diff",
     }),
   ).toBe("HEAD -> working tree");
+});
+
+it("falls back to deduplicated watcher paths when Git review is unavailable", () => {
+  const reviewEvents = [
+    {
+      id: "1",
+      event: { type: "change" as const, path: "README.md", version: 2 },
+      receivedAt: 100,
+    },
+    {
+      id: "2",
+      event: { type: "change" as const, path: "README.md", version: 3 },
+      receivedAt: 200,
+    },
+    {
+      id: "3",
+      event: {
+        type: "add" as const,
+        path: "src/new.ts",
+        kind: "file" as const,
+        version: 4,
+      },
+      receivedAt: 300,
+    },
+  ];
+
+  expect(mergeReviewChanges(summarizeReviewEvents(reviewEvents), null)).toEqual(
+    [
+      { path: "README.md", status: "modified", source: "watcher" },
+      { path: "src/new.ts", status: "added", source: "watcher" },
+    ],
+  );
+  expect(reviewQueueSourceLabel("watcher")).toBe("local change");
+});
+
+it("clears watcher-backed Review Queue items once Git reports no changes", () => {
+  const reviewEvents = [
+    {
+      id: "1",
+      event: { type: "change" as const, path: "README.md", version: 2 },
+      receivedAt: 100,
+    },
+  ];
+
+  expect(
+    mergeReviewChanges(summarizeReviewEvents(reviewEvents), {
+      available: true,
+      changes: [],
+    }),
+  ).toEqual([]);
+});
+
+it("selects next and previous Review Queue paths without opening deletions", () => {
+  const changes = [
+    { path: "a.md", status: "modified" as const, source: "git" as const },
+    { path: "b.md", status: "deleted" as const, source: "git" as const },
+    { path: "c.md", status: "added" as const, source: "git" as const },
+  ];
+
+  expect(nextReviewQueuePath(changes, null, "next")).toBe("a.md");
+  expect(nextReviewQueuePath(changes, "a.md", "next")).toBe("c.md");
+  expect(nextReviewQueuePath(changes, "a.md", "previous")).toBe("c.md");
+  expect(nextReviewQueuePath(changes, "missing.md", "previous")).toBe("c.md");
 });
 
 it("parses unified diff lines for review rendering", () => {

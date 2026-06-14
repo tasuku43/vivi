@@ -142,18 +142,11 @@ it("dispatches JSON files through a tree view with source fallback", () => {
   expect(html).toContain("items");
 });
 
-it("renders code metadata and actionable review events in the inspector", () => {
+it("renders the Review Queue before secondary file helpers in the inspector", () => {
   const html = renderToStaticMarkup(
     <Inspector
       file={codeFile}
       outline={[]}
-      events={[
-        {
-          id: "2:change:src/app.ts:10",
-          event: { type: "change", path: "src/app.ts", version: 2 },
-          receivedAt: 10,
-        },
-      ]}
       reviewChanges={[
         { path: "src/app.ts", status: "modified", source: "git" },
         {
@@ -167,25 +160,64 @@ it("renders code metadata and actionable review events in the inspector", () => 
       activePaneId="main"
       onOutlineSelect={() => undefined}
       onOpenEventPath={() => undefined}
+      onOpenNextChanged={() => undefined}
+      onOpenPreviousChanged={() => undefined}
       onOpenAllChanged={() => undefined}
       onTargetHoverChange={() => undefined}
       onRevealTarget={() => undefined}
     />,
   );
 
-  expect(html).toContain("Code inspector");
+  expect(html).toContain("Review Queue");
+  expect(html.indexOf("Review Queue")).toBeLessThan(
+    html.indexOf("In this file"),
+  );
+  expect(html).toContain("Open next");
+  expect(html).toContain("Open previous");
   expect(html).toContain("src/app.ts:2");
   expect(html).toContain("export");
   expect(html).toContain("start");
-  expect(html).toContain("Recent events");
   expect(html).toContain("HEAD diff");
-  expect(html).toContain("docs/old.md -&gt; docs/new.md");
-  expect(html).toContain("Modified");
-  expect(html).toContain("Renamed");
+  expect(html).toContain("local change");
+  expect(html).toContain("docs/old.md → docs/new.md");
+  expect(html).toContain("modified");
+  expect(html).toContain("renamed");
+  expect(html).toContain("Details");
+  expect(html.indexOf("Review Queue")).toBeLessThan(html.indexOf("Details"));
+  expect(html).toContain("Open all changed files as tabs");
+  expect(html).not.toContain("Recent events");
   expect(html).not.toContain("Diff</button>");
   expect(html).not.toContain("Review targets");
   expect(html).not.toContain("Changed files");
   expect(html).not.toContain("Diff preview");
+});
+
+it("keeps Markdown and HTML outline available as In this file", () => {
+  const html = renderToStaticMarkup(
+    <Inspector
+      file={{ ...codeFile, path: "README.md", viewerKind: "markdown" }}
+      outline={[
+        { id: "title", level: 1, text: "Title" },
+        { id: "setup", level: 2, text: "Setup" },
+      ]}
+      reviewChanges={[]}
+      selectedCodeRange={null}
+      activePaneId="main"
+      onOutlineSelect={() => undefined}
+      onOpenEventPath={() => undefined}
+      onOpenNextChanged={() => undefined}
+      onOpenPreviousChanged={() => undefined}
+      onOpenAllChanged={() => undefined}
+      onTargetHoverChange={() => undefined}
+      onRevealTarget={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("No files to review.");
+  expect(html).toContain("In this file");
+  expect(html).toContain("Title");
+  expect(html).toContain("Setup");
+  expect(html).not.toContain("Document outline");
 });
 
 it("renders HEAD diffs inside the file viewer surface", () => {
