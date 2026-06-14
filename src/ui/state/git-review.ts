@@ -47,11 +47,13 @@ export function mergeReviewChanges(
   watcherState: FileReviewState,
   gitState: GitChangeReviewState | null,
 ): ReviewChangeItem[] {
-  const byPath = new Map<string, ReviewChangeItem>();
-
-  for (const change of gitState?.changes ?? []) {
-    byPath.set(change.path, { ...change, source: "git" });
+  if (gitState?.available) {
+    return gitState.changes
+      .map((change) => ({ ...change, source: "git" as const }))
+      .sort((a, b) => a.path.localeCompare(b.path));
   }
+
+  const byPath = new Map<string, ReviewChangeItem>();
 
   for (const pair of watcherState.renamePairs) {
     if (byPath.has(pair.toPath)) continue;
@@ -81,11 +83,38 @@ export function mergeReviewChanges(
   return [...byPath.values()].sort((a, b) => a.path.localeCompare(b.path));
 }
 
+export function reviewQueueSourceLabel(source: ReviewChangeItem["source"]) {
+  return source === "git" ? "HEAD diff" : "local change";
+}
+
+export function nextReviewQueuePath(
+  changes: ReviewChangeItem[],
+  currentPath: string | null,
+  direction: "next" | "previous",
+): string | null {
+  const reviewable = changes
+    .filter((change) => change.status !== "deleted")
+    .map((change) => change.path);
+  if (!reviewable.length) return null;
+
+  const currentIndex = currentPath ? reviewable.indexOf(currentPath) : -1;
+  if (currentIndex < 0) {
+    return direction === "previous"
+      ? reviewable[reviewable.length - 1]!
+      : reviewable[0]!;
+  }
+
+  const offset = direction === "previous" ? -1 : 1;
+  return reviewable[
+    (currentIndex + offset + reviewable.length) % reviewable.length
+  ]!;
+}
+
 export function changeStatusLabel(status: GitChange["status"]): string {
-  if (status === "added") return "Added";
-  if (status === "deleted") return "Deleted";
-  if (status === "renamed") return "Renamed";
-  return "Modified";
+  if (status === "added") return "added";
+  if (status === "deleted") return "deleted";
+  if (status === "renamed") return "renamed";
+  return "modified";
 }
 
 export function diffStatusLabel(diff: TextDiff | null): string {

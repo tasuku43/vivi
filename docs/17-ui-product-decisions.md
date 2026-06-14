@@ -85,19 +85,19 @@ The implementation intentionally avoids editable textareas, project-wide indexin
 
 ## Right inspector and outline
 
-The right inspector is useful for long Markdown files and for making live file state visible without cluttering the main viewer.
+The right inspector is primarily a review navigation surface. It should answer which files need review against `HEAD` before it offers per-file helpers.
 
 Requirements:
 
-- Markdown documents should expose an H1/H2 outline in the inspector.
+- The top section should be Review Queue: a deduplicated file list, primarily from Git working-tree changes against `HEAD` when Git is available.
+- Watcher events may feed the queue when Git status is unavailable, but they should be collapsed by file path instead of shown as raw event history.
+- Markdown and HTML documents should expose an H1/H2 outline under "In this file" below the Review Queue.
 - The active heading should be highlightable later as the user scrolls.
-- The inspector should show file type, path, watch status, and last update information.
-- Recent events are the compact review queue. A file appears there when it had a live filesystem event within the recent window or when Git reports a working-tree diff from `HEAD`, regardless of staging state.
+- File type, path, watch status, size, and last update information should be minimized or kept behind a lightweight details disclosure.
 - In Git worktrees, diff viewing is an independent `Diff from HEAD` toggle on the open file surface, not a right-inspector preview and not part of the rendered/source segmented control. The toggle should also be available with Cmd/Ctrl + D.
 - Markdown and HTML diffs should follow the current viewer surface: rendered/preview mode shows rendered visual diff panes, while source mode shows source diff rows. Source/code files use a read-only inline line diff with removed and added rows highlighted in-place.
-- For non-Markdown files, the inspector can show file metadata and related actions instead of an outline.
-- For code files, the inspector shows language, line count, selected range, lightweight symbols, and recent filesystem events.
-- The review queue is a live filesystem review surface with a read-only Git working-tree supplement. It is not a staging UI or a full history browser. Rename-like watcher add/remove pairs are grouped as likely renames when they are close in time and share parent and extension, while Git status can surface explicit renamed files in the changed-file list.
+- For non-Markdown files, the inspector can show a compact empty state or lightweight symbols under "In this file."
+- The Review Queue is not a staging UI or a full history browser. Rename-like watcher add/remove pairs are grouped as likely renames when they are close in time and share parent and extension, while Git status can surface explicit renamed files in the changed-file list.
 
 ## Command palette
 
@@ -106,7 +106,7 @@ Cmd/Ctrl + K should open a modal command palette on top of the normal workspace.
 Initial commands:
 
 - Open file by fuzzy path search.
-- Open changed file from the review queue.
+- Open next or previous file from the Review Queue.
 - Toggle diff from `HEAD` for the active or selected changed file.
 - Reveal active file in the tree.
 - Toggle rendered/source mode when supported.
