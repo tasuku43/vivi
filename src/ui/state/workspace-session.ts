@@ -38,6 +38,7 @@ type StoredWorkspaceSessionInputV1 = Omit<
 export const workspaceSessionStorageKey = "pathlens.workspaceSession.v1";
 export const workspaceSessionTtlMs = 30 * 24 * 60 * 60 * 1000;
 export const maxRecentFiles = 20;
+export const restorePromptTabThreshold = 8;
 
 export function workspaceSessionStorageKeyForRoot(root: string): string {
   return `${workspaceSessionStorageKey}:${encodeURIComponent(root)}`;
@@ -61,16 +62,17 @@ export function buildWorkspaceSession(
   state: WorkspaceSessionState,
   now = Date.now(),
 ): StoredWorkspaceSessionV1 {
+  const persistentTabs = state.openTabs.filter((tab) => !tab.isPreview);
   return {
     version: 1,
     root,
     updatedAt: now,
-    openTabs: state.openTabs.map(({ path, viewerKind, paneId }) => ({
+    openTabs: persistentTabs.map(({ path, viewerKind, paneId }) => ({
       path,
       viewerKind,
       paneId,
     })),
-    layout: state.openTabs.length > 0 ? state.layout : initialEditorLayout,
+    layout: persistentTabs.length > 0 ? state.layout : initialEditorLayout,
     recentFiles: trimRecentFiles(state.recentFiles),
     inspectorVisible: state.inspectorVisible,
     diffFocusByPath: state.diffFocusByPath ?? {},
@@ -121,6 +123,37 @@ export function restoreWorkspaceSession(
     recentFiles,
     inspectorVisible: stored.inspectorVisible,
     diffFocusByPath,
+  };
+}
+
+export function shouldPromptForWorkspaceSessionRestore(
+  state: WorkspaceSessionState | null,
+  threshold = restorePromptTabThreshold,
+): boolean {
+  return Boolean(state && state.openTabs.length >= threshold);
+}
+
+export function restoreOnlyActiveWorkspaceTab(
+  state: WorkspaceSessionState,
+): WorkspaceSessionState {
+  const panes = flattenPanes(state.layout);
+  const activePane =
+    panes.find((pane) => pane.id === state.layout.activePaneId) ?? panes[0];
+  const activeTab = state.openTabs.find(
+    (tab) =>
+      tab.paneId === activePane?.id && tab.path === activePane?.activePath,
+  );
+  if (!activeTab) {
+    return {
+      ...state,
+      openTabs: [],
+      layout: initialEditorLayout,
+    };
+  }
+  return {
+    ...state,
+    openTabs: [{ ...activeTab, paneId: "main" }],
+    layout: setInitialLayoutActivePath(activeTab.path),
   };
 }
 
@@ -194,6 +227,19 @@ function layoutFromTabs(openTabs: OpenTab[]): EditorLayout {
   };
 }
 
+function setInitialLayoutActivePath(path: string): EditorLayout {
+  return {
+    ...initialEditorLayout,
+    root: {
+      kind: "pane",
+      pane: {
+        id: "main",
+        activePath: path,
+      },
+    },
+  };
+}
+
 function nextPaneNumberFor(panes: { id: string }[]): number {
   return (
     panes.reduce((next, pane) => {
@@ -244,7 +290,8 @@ function isOpenTab(value: unknown): value is OpenTab {
     isRecord(value) &&
     typeof value.path === "string" &&
     typeof value.viewerKind === "string" &&
-    typeof value.paneId === "string"
+    typeof value.paneId === "string" &&
+    (typeof value.isPreview === "boolean" || value.isPreview === undefined)
   );
 }
 

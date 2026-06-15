@@ -13,6 +13,11 @@ interface Props {
   paneId: string;
   onActivate: (path: string) => void;
   onClose: (path: string) => void;
+  onPromote: (path: string) => void;
+  onCloseOtherTabs: () => void;
+  onCloseTabsToRight: () => void;
+  onCloseUnchangedTabs: () => void;
+  onClosePreviewTabs: () => void;
   onDropTab: (
     path: string,
     fromPaneId: string,
@@ -29,10 +34,16 @@ export function OpenTabs({
   paneId,
   onActivate,
   onClose,
+  onPromote,
+  onCloseOtherTabs,
+  onCloseTabsToRight,
+  onCloseUnchangedTabs,
+  onClosePreviewTabs,
   onDropTab,
   onDragStateChange,
   onManualDragStart,
 }: Props) {
+  const activeTab = tabs.find((tab) => tab.path === activePath);
   return (
     <div
       className="tabs"
@@ -47,7 +58,7 @@ export function OpenTabs({
         {tabs.map((tab) => (
           <button
             key={tab.path}
-            className={`tab ${tab.path === activePath ? "active" : ""} ${tab.changed ? "changed" : ""}`}
+            className={`tab ${tab.path === activePath ? "active" : ""} ${tab.changed ? "changed" : ""} ${tab.isPreview ? "preview" : ""}`}
             draggable
             onClick={() => onActivate(tab.path)}
             onMouseDown={(event) => {
@@ -73,7 +84,12 @@ export function OpenTabs({
             <span className="file-icon">
               {iconForPath(tab.path, tab.viewerKind)}
             </span>
-            <span>{basename(tab.path)}</span>
+            <span className="tab-title">{basename(tab.path)}</span>
+            {tab.isPreview ? (
+              <span className="tab-preview-mark" title="Preview tab">
+                preview
+              </span>
+            ) : null}
             <span
               className="tab-close"
               role="button"
@@ -87,6 +103,41 @@ export function OpenTabs({
             </span>
           </button>
         ))}
+      </div>
+      <div className="tab-actions" aria-label="Tab actions">
+        <button
+          disabled={!activeTab?.isPreview}
+          onClick={() => {
+            if (activePath) onPromote(activePath);
+          }}
+          type="button"
+        >
+          Keep
+        </button>
+        <button disabled={!activePath} onClick={onCloseOtherTabs} type="button">
+          Others
+        </button>
+        <button
+          disabled={!activePath}
+          onClick={onCloseTabsToRight}
+          type="button"
+        >
+          Right
+        </button>
+        <button
+          disabled={!tabs.some((tab) => !tab.changed)}
+          onClick={onCloseUnchangedTabs}
+          type="button"
+        >
+          Clean
+        </button>
+        <button
+          disabled={!tabs.some((tab) => tab.isPreview)}
+          onClick={onClosePreviewTabs}
+          type="button"
+        >
+          Previews
+        </button>
       </div>
     </div>
   );

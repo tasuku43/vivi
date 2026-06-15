@@ -30,9 +30,14 @@ import {
   splitEditorPane,
 } from "../src/ui/state/editor-layout.js";
 import {
+  closeOtherOpenTabs,
   closeOpenTab,
+  closePreviewTabs,
+  closeTabsToRight,
+  closeUnchangedTabs,
   markTabChanged,
   moveOpenTab,
+  promoteOpenTab,
   upsertOpenTab,
 } from "../src/ui/state/tabs.js";
 import {
@@ -46,7 +51,10 @@ import {
   collectFilePaths,
   parseWorkspaceSession,
   recordRecentFile,
+  restoreOnlyActiveWorkspaceTab,
+  restorePromptTabThreshold,
   restoreWorkspaceSession,
+  shouldPromptForWorkspaceSessionRestore,
   workspaceSessionStorageKeyForRoot,
   workspaceSessionTtlMs,
 } from "../src/ui/state/workspace-session.js";
@@ -108,6 +116,74 @@ it("can show the same file in two split panes", () => {
   ]);
 });
 
+it("reuses one preview tab per pane while preserving normal tabs", () => {
+  const first: FilePayload = {
+    path: "README.md",
+    viewerKind: "markdown",
+    encoding: "utf8",
+    content: "# Hello",
+    etag: "sha256:a",
+    size: 7,
+    mtimeMs: 1,
+  };
+  const second: FilePayload = {
+    ...first,
+    path: "docs/guide.md",
+    etag: "sha256:b",
+  };
+  const normal: FilePayload = {
+    ...first,
+    path: "src/app.ts",
+    viewerKind: "code",
+    etag: "sha256:c",
+  };
+
+  const tabs = upsertOpenTab(
+    upsertOpenTab(
+      upsertOpenTab([], normal, "main", "normal"),
+      first,
+      "main",
+      "preview",
+    ),
+    second,
+    "main",
+    "preview",
+  );
+
+  expect(tabs).toEqual([
+    { path: "src/app.ts", viewerKind: "code", paneId: "main" },
+    {
+      path: "docs/guide.md",
+      viewerKind: "markdown",
+      paneId: "main",
+      isPreview: true,
+    },
+  ]);
+});
+
+it("promotes a preview tab into a stable normal tab", () => {
+  const tabs = promoteOpenTab(
+    [
+      {
+        path: "README.md",
+        viewerKind: "markdown",
+        paneId: "main",
+        isPreview: true,
+      },
+    ],
+    "README.md",
+  );
+
+  expect(tabs).toEqual([
+    {
+      path: "README.md",
+      viewerKind: "markdown",
+      paneId: "main",
+      isPreview: false,
+    },
+  ]);
+});
+
 it("maps common file paths to IDE-style icons and highlight languages", () => {
   expect(iconForPath("config.yaml", "code")).toBe("YAML");
   expect(languageForPath("config.yaml", "code")).toBe("yaml");
@@ -147,6 +223,90 @@ it("selects a neighboring tab when the active tab closes", () => {
 
   expect(result.tabs.map((tab) => tab.path)).toEqual(["a.md", "c.ts"]);
   expect(result.nextActivePath).toBe("a.md");
+});
+
+it("closes other tabs while keeping the active tab in the pane", () => {
+  const result = closeOtherOpenTabs(
+    [
+      { path: "a.md", viewerKind: "markdown", paneId: "main" },
+      { path: "b.html", viewerKind: "html", paneId: "main" },
+      { path: "c.ts", viewerKind: "code", paneId: "main" },
+      { path: "side.md", viewerKind: "markdown", paneId: "side" },
+    ],
+    "b.html",
+  );
+
+  expect(result.tabs).toEqual([
+    { path: "b.html", viewerKind: "html", paneId: "main" },
+    { path: "side.md", viewerKind: "markdown", paneId: "side" },
+  ]);
+  expect(result.nextActivePath).toBe("b.html");
+});
+
+it("closes tabs to the right of the active tab in the pane", () => {
+  const result = closeTabsToRight(
+    [
+      { path: "a.md", viewerKind: "markdown", paneId: "main" },
+      { path: "b.html", viewerKind: "html", paneId: "main" },
+      { path: "c.ts", viewerKind: "code", paneId: "main" },
+      { path: "side.md", viewerKind: "markdown", paneId: "side" },
+    ],
+    "b.html",
+  );
+
+  expect(result.tabs).toEqual([
+    { path: "a.md", viewerKind: "markdown", paneId: "main" },
+    { path: "b.html", viewerKind: "html", paneId: "main" },
+    { path: "side.md", viewerKind: "markdown", paneId: "side" },
+  ]);
+});
+
+it("closes unchanged tabs without closing changed tabs", () => {
+  const result = closeUnchangedTabs(
+    [
+      { path: "a.md", viewerKind: "markdown", paneId: "main" },
+      { path: "b.html", viewerKind: "html", paneId: "main", changed: true },
+      { path: "c.ts", viewerKind: "code", paneId: "main" },
+    ],
+    "a.md",
+  );
+
+  expect(result.tabs).toEqual([
+    { path: "b.html", viewerKind: "html", paneId: "main", changed: true },
+  ]);
+  expect(result.nextActivePath).toBe("b.html");
+});
+
+it("closes only preview tabs in the active pane", () => {
+  const result = closePreviewTabs(
+    [
+      {
+        path: "a.md",
+        viewerKind: "markdown",
+        paneId: "main",
+        isPreview: true,
+      },
+      { path: "b.html", viewerKind: "html", paneId: "main" },
+      {
+        path: "side.md",
+        viewerKind: "markdown",
+        paneId: "side",
+        isPreview: true,
+      },
+    ],
+    "a.md",
+  );
+
+  expect(result.tabs).toEqual([
+    { path: "b.html", viewerKind: "html", paneId: "main" },
+    {
+      path: "side.md",
+      viewerKind: "markdown",
+      paneId: "side",
+      isPreview: true,
+    },
+  ]);
+  expect(result.nextActivePath).toBe("b.html");
 });
 
 it("moves tabs between editor panes", () => {
@@ -548,6 +708,82 @@ it("resets persisted layout when the last tab is closed but keeps recents", () =
   expect(stored.layout).toEqual(initialEditorLayout);
   expect(stored.recentFiles).toEqual([
     { path: "README.md", viewerKind: "markdown", lastOpenedAt: now },
+  ]);
+});
+
+it("does not persist preview tabs in workspace sessions", () => {
+  const stored = buildWorkspaceSession(
+    "/workspace",
+    {
+      openTabs: [
+        {
+          path: "scratch.md",
+          viewerKind: "markdown",
+          paneId: "main",
+          isPreview: true,
+        },
+        { path: "README.md", viewerKind: "markdown", paneId: "main" },
+      ],
+      layout: setPaneActivePath(initialEditorLayout, "main", "scratch.md"),
+      recentFiles: [],
+      inspectorVisible: true,
+    },
+    300_000,
+  );
+
+  expect(stored.openTabs).toEqual([
+    { path: "README.md", viewerKind: "markdown", paneId: "main" },
+  ]);
+});
+
+it("prompts before restoring sessions at the tab threshold only", () => {
+  const baseState = {
+    openTabs: Array.from(
+      { length: restorePromptTabThreshold - 1 },
+      (_, index) => ({
+        path: `file-${index}.md`,
+        viewerKind: "markdown",
+        paneId: "main",
+      }),
+    ),
+    layout: setPaneActivePath(initialEditorLayout, "main", "file-0.md"),
+    recentFiles: [],
+    inspectorVisible: true,
+  };
+
+  expect(shouldPromptForWorkspaceSessionRestore(baseState)).toBe(false);
+  expect(
+    shouldPromptForWorkspaceSessionRestore({
+      ...baseState,
+      openTabs: [
+        ...baseState.openTabs,
+        {
+          path: "file-7.md",
+          viewerKind: "markdown",
+          paneId: "main",
+        },
+      ],
+    }),
+  ).toBe(true);
+});
+
+it("can reduce a large restored session to only the active tab", () => {
+  const layout = setPaneActivePath(initialEditorLayout, "main", "file-2.md");
+  const restored = restoreOnlyActiveWorkspaceTab({
+    openTabs: [
+      { path: "file-1.md", viewerKind: "markdown", paneId: "main" },
+      { path: "file-2.md", viewerKind: "markdown", paneId: "main" },
+    ],
+    layout,
+    recentFiles: [],
+    inspectorVisible: true,
+  });
+
+  expect(restored.openTabs).toEqual([
+    { path: "file-2.md", viewerKind: "markdown", paneId: "main" },
+  ]);
+  expect(flattenPanes(restored.layout)).toEqual([
+    { id: "main", activePath: "file-2.md" },
   ]);
 });
 

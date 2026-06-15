@@ -26,10 +26,16 @@ import {
   type ReviewEvent,
 } from "./state/review-events.js";
 import {
+  closeOtherOpenTabs,
   closeOpenTab,
+  closePreviewTabs,
+  closeTabsToRight,
+  closeUnchangedTabs,
   markTabChanged,
   moveOpenTab,
+  promoteOpenTab,
   upsertOpenTab,
+  type OpenTabMode,
 } from "./state/tabs.js";
 import {
   closePaneIfEmpty,
@@ -62,12 +68,15 @@ import {
   collectFilePaths,
   parseWorkspaceSession,
   recordRecentFile,
+  restoreOnlyActiveWorkspaceTab,
   restoreWorkspaceSession,
+  shouldPromptForWorkspaceSessionRestore,
   workspaceSessionStorageKey,
   workspaceSessionStorageKeyForRoot,
   workspaceSessionTtlMs,
   type RecentFile,
   type StoredWorkspaceSessionV1,
+  type WorkspaceSessionState,
 } from "./state/workspace-session.js";
 import {
   defaultViewerMode,
@@ -123,6 +132,8 @@ export function App() {
   const [treeChangedOnly, setTreeChangedOnly] = useState(false);
   const [inspectorTargetVisible, setInspectorTargetVisible] = useState(false);
   const [workspaceSessionReady, setWorkspaceSessionReady] = useState(false);
+  const [pendingRestoreSession, setPendingRestoreSession] =
+    useState<WorkspaceSessionState | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function loadTree() {
@@ -205,18 +216,19 @@ export function App() {
   async function loadFile(
     path: string,
     paneId = layout.activePaneId,
+    mode: OpenTabMode = "preview",
   ): Promise<FilePayload> {
     setLayout((current) => setPaneActivePath(current, paneId, path));
     setError(null);
     const payload = await fetchFilePayload(path);
     setFiles((items) => ({ ...items, [payload.path]: payload }));
-    setOpenTabs((tabs) => upsertOpenTab(tabs, payload, paneId));
+    setOpenTabs((tabs) => upsertOpenTab(tabs, payload, paneId, mode));
     setRecentFiles((items) => recordRecentFile(items, payload));
     return payload;
   }
 
   async function openHeadDiff(path: string, paneId = layout.activePaneId) {
-    const payload = await loadFile(path, paneId);
+    const payload = await loadFile(path, paneId, "preview");
     if (!supportsDiffMode(payload)) return;
     setDiffEnabled((items) => ({ ...items, [path]: true }));
     await loadHeadDiff(path);
@@ -264,7 +276,7 @@ export function App() {
         );
       });
       if (result.nextActivePath && !files[result.nextActivePath]) {
-        void loadFile(result.nextActivePath, paneId).catch((err) =>
+        void loadFile(result.nextActivePath, paneId, "preserve").catch((err) =>
           setError(String(err)),
         );
       }
@@ -272,10 +284,14 @@ export function App() {
     });
   }
 
-  function openFromPalette(path: string) {
+  function openFromPalette(path: string, preview: boolean) {
     setPaletteOpen(false);
     setPaletteQuery("");
-    void loadFile(path).catch((err) => setError(String(err)));
+    void loadFile(
+      path,
+      layout.activePaneId,
+      preview ? "preview" : "normal",
+    ).catch((err) => setError(String(err)));
   }
 
   function openPalette(mode: SearchPaletteMode) {
@@ -287,14 +303,52 @@ export function App() {
   function openAllChangedFiles() {
     for (const { path, status } of reviewChanges) {
       if (status === "deleted") continue;
-      void loadFile(path).catch((err) => setError(String(err)));
+      void loadFile(path, layout.activePaneId, "normal").catch((err) =>
+        setError(String(err)),
+      );
     }
   }
 
   function openReviewQueueFile(direction: "next" | "previous") {
     const path = nextReviewQueuePath(reviewChanges, selectedPath, direction);
-    if (path) void loadFile(path).catch((err) => setError(String(err)));
+    if (path)
+      void loadFile(path, layout.activePaneId, "preview").catch((err) =>
+        setError(String(err)),
+      );
   }
+
+  function promoteTab(path: string, paneId = layout.activePaneId) {
+    setOpenTabs((tabs) => promoteOpenTab(tabs, path, paneId));
+  }
+
+  function applyTabCleanup(
+    cleanup: (
+      tabs: OpenTab[],
+      activePath: string | null,
+      paneId: string,
+    ) => { tabs: OpenTab[]; nextActivePath: string | null },
+    paneId = layout.activePaneId,
+  ) {
+    const pane = panes.find((item) => item.id === paneId);
+    setOpenTabs((tabs) => {
+      const result = cleanup(tabs, pane?.activePath ?? null, paneId);
+      setLayout((current) => {
+        const next = setPaneActivePath(current, paneId, result.nextActivePath);
+        return closePaneIfEmpty(
+          next,
+          paneId,
+          result.tabs.some((tab) => tab.paneId === paneId),
+        );
+      });
+      if (result.nextActivePath && !files[result.nextActivePath]) {
+        void loadFile(result.nextActivePath, paneId, "preserve").catch((err) =>
+          setError(String(err)),
+        );
+      }
+      return result.tabs;
+    });
+  }
+
   function moveTab(
     path: string,
     fromPaneId: string,
@@ -306,7 +360,9 @@ export function App() {
     );
     setLayout((current) => setPaneActivePath(current, toPaneId, path));
     if (!files[path])
-      void loadFile(path, toPaneId).catch((err) => setError(String(err)));
+      void loadFile(path, toPaneId, "preserve").catch((err) =>
+        setError(String(err)),
+      );
   }
 
   function splitTab(
@@ -326,9 +382,13 @@ export function App() {
     });
 
     if (cached) {
-      setOpenTabs((tabs) => upsertOpenTab(tabs, cached, targetPaneId));
+      setOpenTabs((tabs) =>
+        upsertOpenTab(tabs, cached, targetPaneId, "normal"),
+      );
     } else {
-      void loadFile(path, targetPaneId).catch((err) => setError(String(err)));
+      void loadFile(path, targetPaneId, "normal").catch((err) =>
+        setError(String(err)),
+      );
     }
   }
 
@@ -400,21 +460,18 @@ export function App() {
     );
 
     if (restored) {
-      setOpenTabs(restored.openTabs);
-      setLayout(restored.layout);
-      setRecentFiles(restored.recentFiles);
-      setInspectorVisible(restored.inspectorVisible);
-      setDiffFocusByPath(restored.diffFocusByPath ?? {});
-      void hydrateRestoredFiles(restored.layout.root).catch((err) =>
-        setError(String(err)),
-      );
+      if (shouldPromptForWorkspaceSessionRestore(restored)) {
+        setPendingRestoreSession(restored);
+      } else {
+        applyWorkspaceSession(restored);
+      }
     }
 
     setWorkspaceSessionReady(true);
   }, [config, tree, workspaceSessionReady]);
 
   useEffect(() => {
-    if (!config || !workspaceSessionReady) return;
+    if (!config || !workspaceSessionReady || pendingRestoreSession) return;
     writeStoredWorkspaceSession(
       buildWorkspaceSession(config.root, {
         openTabs,
@@ -432,6 +489,7 @@ export function App() {
     recentFiles,
     inspectorVisible,
     diffFocusByPath,
+    pendingRestoreSession,
   ]);
 
   useEffect(() => {
@@ -520,7 +578,7 @@ export function App() {
       setRecentEvents((items) => recordReviewEvent(items, event));
 
       if (event.type === "change" && event.path === selectedPath) {
-        loadFile(event.path, layout.activePaneId)
+        loadFile(event.path, layout.activePaneId, "preserve")
           .then(() =>
             setRefreshedFiles((items) => ({
               ...items,
@@ -607,7 +665,14 @@ export function App() {
               changedPaths={changedPathSet}
               removedPaths={reviewState.removedPaths}
               onSelect={(path) =>
-                void loadFile(path).catch((err) => setError(String(err)))
+                void loadFile(path, layout.activePaneId, "preview").catch(
+                  (err) => setError(String(err)),
+                )
+              }
+              onOpen={(path) =>
+                void loadFile(path, layout.activePaneId, "normal").catch(
+                  (err) => setError(String(err)),
+                )
               }
             />
           ) : (
@@ -633,7 +698,9 @@ export function App() {
             activePaneId={layout.activePaneId}
             onOutlineSelect={jumpToOutline}
             onOpenEventPath={(path) =>
-              void loadFile(path).catch((err) => setError(String(err)))
+              void loadFile(path, layout.activePaneId, "preview").catch((err) =>
+                setError(String(err)),
+              )
             }
             onOpenNextChanged={() => openReviewQueueFile("next")}
             onOpenPreviousChanged={() => openReviewQueueFile("previous")}
@@ -667,8 +734,35 @@ export function App() {
         onClose={() => setPaletteOpen(false)}
         onOpenPath={openFromPalette}
       />
+      {pendingRestoreSession ? (
+        <RestoreSessionPrompt
+          tabCount={pendingRestoreSession.openTabs.length}
+          onRestoreAll={() => {
+            applyWorkspaceSession(pendingRestoreSession);
+            setPendingRestoreSession(null);
+          }}
+          onRestoreActive={() => {
+            applyWorkspaceSession(
+              restoreOnlyActiveWorkspaceTab(pendingRestoreSession),
+            );
+            setPendingRestoreSession(null);
+          }}
+          onSkip={() => setPendingRestoreSession(null)}
+        />
+      ) : null}
     </div>
   );
+
+  function applyWorkspaceSession(restored: WorkspaceSessionState) {
+    setOpenTabs(restored.openTabs);
+    setLayout(restored.layout);
+    setRecentFiles(restored.recentFiles);
+    setInspectorVisible(restored.inspectorVisible);
+    setDiffFocusByPath(restored.diffFocusByPath ?? {});
+    void hydrateRestoredFiles(restored.layout.root).catch((err) =>
+      setError(String(err)),
+    );
+  }
 
   function renderLayoutNode(node: EditorLayoutNode): ReactNode {
     if (node.kind === "split") {
@@ -708,9 +802,18 @@ export function App() {
           activePath={pane.activePath}
           paneId={pane.id}
           onActivate={(path) =>
-            void loadFile(path, pane.id).catch((err) => setError(String(err)))
+            void loadFile(path, pane.id, "preserve").catch((err) =>
+              setError(String(err)),
+            )
           }
           onClose={(path) => closeTab(path, pane.id)}
+          onPromote={(path) => promoteTab(path, pane.id)}
+          onCloseOtherTabs={() => applyTabCleanup(closeOtherOpenTabs, pane.id)}
+          onCloseTabsToRight={() => applyTabCleanup(closeTabsToRight, pane.id)}
+          onCloseUnchangedTabs={() =>
+            applyTabCleanup(closeUnchangedTabs, pane.id)
+          }
+          onClosePreviewTabs={() => applyTabCleanup(closePreviewTabs, pane.id)}
           onDropTab={moveTab}
           onDragStateChange={setDraggingTab}
           onManualDragStart={(payload) => {
@@ -826,6 +929,45 @@ export function App() {
       </section>
     );
   }
+}
+
+function RestoreSessionPrompt({
+  tabCount,
+  onRestoreAll,
+  onRestoreActive,
+  onSkip,
+}: {
+  tabCount: number;
+  onRestoreAll: () => void;
+  onRestoreActive: () => void;
+  onSkip: () => void;
+}) {
+  return (
+    <div className="restore-overlay" role="presentation">
+      <section
+        aria-label="Restore previous tabs"
+        className="restore-prompt"
+        role="dialog"
+      >
+        <strong>Restore previous tabs?</strong>
+        <p>
+          The last session had {tabCount} tabs. Choose how much of that
+          workspace to bring back.
+        </p>
+        <div className="restore-actions">
+          <button onClick={onRestoreAll} type="button">
+            Restore all tabs
+          </button>
+          <button onClick={onRestoreActive} type="button">
+            Restore active tab
+          </button>
+          <button onClick={onSkip} type="button">
+            Start without tabs
+          </button>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 function edgeForPoint(

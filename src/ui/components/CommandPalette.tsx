@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FsNode } from "../../domain/fs-node.js";
-import type {
-  SearchPaletteItem,
-  SearchPaletteMode,
-} from "../state/search-palette.js";
+import type { SearchPaletteMode } from "../state/search-palette.js";
 import {
   buildFileSearchItems,
   buildTextSearchItems,
@@ -25,7 +22,7 @@ interface Props {
   onQueryChange: (query: string) => void;
   onModeChange: (mode: SearchPaletteMode) => void;
   onClose: () => void;
-  onOpenPath: (path: string) => void;
+  onOpenPath: (path: string, preview: boolean) => void;
 }
 
 export function CommandPalette({
@@ -117,7 +114,10 @@ export function CommandPalette({
                 return;
               }
               if (event.key === "Enter" && activeIndex >= 0) {
-                onOpenPath(results[activeIndex].path);
+                onOpenPath(
+                  results[activeIndex].path,
+                  !(event.metaKey || event.ctrlKey),
+                );
               }
             }}
           />
@@ -135,7 +135,7 @@ export function CommandPalette({
                     : "palette-result"
                 }
                 aria-selected={index === activeIndex}
-                onClick={() => onOpenPath(item.path)}
+                onClick={() => onOpenPath(item.path, true)}
                 onMouseEnter={() => setSelectedIndex(index)}
               >
                 <span className="file-icon">
@@ -161,8 +161,12 @@ export function CommandPalette({
           </div>
           <aside className="palette-help">
             <div>
-              <span>Open file</span>
+              <span>Preview</span>
               <kbd>Enter</kbd>
+            </div>
+            <div>
+              <span>Keep open</span>
+              <kbd>Cmd Enter</kbd>
             </div>
             <div>
               <span>Quick open</span>

@@ -514,6 +514,7 @@ it("renders a bounded tree with a large-workspace hint", () => {
       ]}
       selectedPath="src/file-999.ts"
       onSelect={() => undefined}
+      onOpen={() => undefined}
     />,
   );
 

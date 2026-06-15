@@ -14,6 +14,7 @@ interface Props {
   changedPaths?: Set<string>;
   removedPaths?: Set<string>;
   onSelect: (path: string) => void;
+  onOpen: (path: string) => void;
 }
 
 export function TreeSidebar({
@@ -22,6 +23,7 @@ export function TreeSidebar({
   changedPaths = new Set(),
   removedPaths = new Set(),
   onSelect,
+  onOpen,
 }: Props) {
   const forceVisiblePaths = useMemo(
     () =>
@@ -78,6 +80,7 @@ export function TreeSidebar({
               setExpandedPaths((current) => togglePath(current, path))
             }
             onSelect={onSelect}
+            onOpen={onOpen}
           />
         ))}
       </div>
@@ -94,6 +97,7 @@ function TreeRow({
   removedPaths,
   onToggleDirectory,
   onSelect,
+  onOpen,
 }: {
   node: FsNode;
   depth: number;
@@ -103,6 +107,7 @@ function TreeRow({
   removedPaths: Set<string>;
   onToggleDirectory: (path: string) => void;
   onSelect: (path: string) => void;
+  onOpen: (path: string) => void;
 }) {
   const indent = { paddingLeft: `${8 + depth * 14}px` };
   if (node.kind === "directory") {
@@ -131,6 +136,7 @@ function TreeRow({
         .filter(Boolean)
         .join(" ")}
       onClick={() => onSelect(node.path)}
+      onDoubleClick={() => onOpen(node.path)}
       style={indent}
     >
       <span className="tree-twisty" />
