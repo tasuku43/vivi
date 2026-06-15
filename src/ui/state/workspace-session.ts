@@ -18,6 +18,7 @@ export interface WorkspaceSessionState {
   layout: EditorLayout;
   recentFiles: RecentFile[];
   inspectorVisible: boolean;
+  diffEnabled?: boolean;
   diffFocusByPath?: Record<string, boolean>;
 }
 
@@ -29,8 +30,9 @@ export interface StoredWorkspaceSessionV1 extends WorkspaceSessionState {
 
 type StoredWorkspaceSessionInputV1 = Omit<
   StoredWorkspaceSessionV1,
-  "diffFocusByPath" | "inspectorVisible"
+  "diffEnabled" | "diffFocusByPath" | "inspectorVisible"
 > & {
+  diffEnabled?: boolean;
   diffFocusByPath?: Record<string, boolean>;
   inspectorVisible?: boolean;
 };
@@ -75,6 +77,7 @@ export function buildWorkspaceSession(
     layout: persistentTabs.length > 0 ? state.layout : initialEditorLayout,
     recentFiles: trimRecentFiles(state.recentFiles),
     inspectorVisible: state.inspectorVisible,
+    diffEnabled: state.diffEnabled ?? false,
     diffFocusByPath: state.diffFocusByPath ?? {},
   };
 }
@@ -88,6 +91,7 @@ export function parseWorkspaceSession(
     if (!isStoredWorkspaceSession(value)) return null;
     return {
       ...value,
+      diffEnabled: value.diffEnabled ?? false,
       diffFocusByPath: value.diffFocusByPath ?? {},
       inspectorVisible: value.inspectorVisible ?? true,
     };
@@ -123,6 +127,7 @@ export function restoreWorkspaceSession(
     layout,
     recentFiles,
     inspectorVisible: stored.inspectorVisible,
+    diffEnabled: stored.diffEnabled,
     diffFocusByPath,
   };
 }
@@ -270,6 +275,8 @@ function isStoredWorkspaceSession(
     isEditorLayout(value.layout) &&
     Array.isArray(value.recentFiles) &&
     value.recentFiles.every(isRecentFile) &&
+    (typeof value.diffEnabled === "boolean" ||
+      value.diffEnabled === undefined) &&
     (value.diffFocusByPath === undefined ||
       isBooleanRecord(value.diffFocusByPath)) &&
     (typeof value.inspectorVisible === "boolean" ||

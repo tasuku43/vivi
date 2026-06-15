@@ -804,6 +804,7 @@ it("restores workspace tabs and layout only for the current root and tree", () =
         { path: "missing.md", viewerKind: "markdown", lastOpenedAt: now },
       ],
       inspectorVisible: false,
+      diffEnabled: true,
     },
     now,
   );
@@ -827,6 +828,7 @@ it("restores workspace tabs and layout only for the current root and tree", () =
   ]);
   expect(restored?.layout.activePaneId).toBe("pane-1");
   expect(restored?.inspectorVisible).toBe(false);
+  expect(restored?.diffEnabled).toBe(true);
   expect(restoreWorkspaceSession(stored, "/other", new Set(), now)).toBeNull();
   expect(
     restoreWorkspaceSession(
@@ -971,6 +973,32 @@ it("persists focused diff settings by file path in workspace sessions", () => {
   expect(restored?.diffFocusByPath).toEqual({ "README.md": true });
 });
 
+it("persists diff mode as workspace state rather than per-file state", () => {
+  const stored = buildWorkspaceSession(
+    "/workspace",
+    {
+      openTabs: [
+        { path: "README.md", viewerKind: "markdown", paneId: "main" },
+        { path: "src/app.ts", viewerKind: "code", paneId: "main" },
+      ],
+      layout: setPaneActivePath(initialEditorLayout, "main", "README.md"),
+      recentFiles: [],
+      inspectorVisible: true,
+      diffEnabled: true,
+    },
+    260_000,
+  );
+  const restored = restoreWorkspaceSession(
+    stored,
+    "/workspace",
+    new Set(["README.md", "src/app.ts"]),
+    260_000,
+  );
+
+  expect(stored.diffEnabled).toBe(true);
+  expect(restored?.diffEnabled).toBe(true);
+});
+
 it("tracks recently opened files independently from restored tabs", () => {
   const recent = recordRecentFile(
     [
@@ -1051,6 +1079,7 @@ it("restores older workspace sessions with inspector visible by default", () => 
   });
 
   expect(parseWorkspaceSession(raw)?.inspectorVisible).toBe(true);
+  expect(parseWorkspaceSession(raw)?.diffEnabled).toBe(false);
   expect(parseWorkspaceSession(raw)?.diffFocusByPath).toEqual({});
 });
 

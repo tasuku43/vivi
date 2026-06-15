@@ -121,7 +121,7 @@ export function App() {
   const [gitReview, setGitReview] = useState<GitChangeReviewState | null>(null);
   const [diffs, setDiffs] = useState<Record<string, TextDiff>>({});
   const [loadingDiffs, setLoadingDiffs] = useState<Record<string, boolean>>({});
-  const [diffEnabled, setDiffEnabled] = useState<Record<string, boolean>>({});
+  const [diffEnabled, setDiffEnabled] = useState(false);
   const [diffFocusByPath, setDiffFocusByPath] = useState<
     Record<string, boolean>
   >({});
@@ -322,13 +322,16 @@ export function App() {
     setOpenTabs((tabs) => upsertOpenTab(tabs, payload, paneId, mode));
     setRecentFiles((items) => recordRecentFile(items, payload));
     markReviewPathRead(payload.path);
+    if (diffEnabled && supportsDiffMode(payload)) {
+      void loadHeadDiff(payload.path).catch((err) => setError(String(err)));
+    }
     return payload;
   }
 
   async function openHeadDiff(path: string, paneId = layout.activePaneId) {
     const payload = await loadFile(path, paneId, "preview");
     if (!supportsDiffMode(payload)) return;
-    setDiffEnabled((items) => ({ ...items, [path]: true }));
+    setDiffEnabled(true);
     await loadHeadDiff(path);
   }
 
@@ -391,17 +394,19 @@ export function App() {
   }
 
   function toggleHeadDiff(path = selectedPath) {
-    if (!path) return;
-    const target = files[path];
-    if (target && !supportsDiffMode(target)) return;
-    const nextEnabled = !diffEnabled[path];
-    setDiffEnabled((items) => ({ ...items, [path]: nextEnabled }));
-    if (nextEnabled) {
+    const nextEnabled = !diffEnabled;
+    setDiffEnabled(nextEnabled);
+    if (nextEnabled && path) {
+      const target = files[path];
+      if (target && !supportsDiffMode(target)) return;
       void loadHeadDiff(path).catch((err) => setError(String(err)));
     }
   }
 
-  async function hydrateRestoredFiles(restoredLayout: EditorLayoutNode) {
+  async function hydrateRestoredFiles(
+    restoredLayout: EditorLayoutNode,
+    restoredDiffEnabled = false,
+  ) {
     const activePaths = [
       ...new Set(
         flattenPanes({
@@ -417,6 +422,13 @@ export function App() {
       for (const payload of payloads) next[payload.path] = payload;
       return next;
     });
+    if (restoredDiffEnabled) {
+      for (const payload of payloads) {
+        if (supportsDiffMode(payload)) {
+          void loadHeadDiff(payload.path).catch((err) => setError(String(err)));
+        }
+      }
+    }
   }
 
   function closeTab(path: string, paneId = layout.activePaneId) {
@@ -653,6 +665,7 @@ export function App() {
         layout,
         recentFiles,
         inspectorVisible,
+        diffEnabled,
         diffFocusByPath,
       }),
     );
@@ -663,6 +676,7 @@ export function App() {
     layout,
     recentFiles,
     inspectorVisible,
+    diffEnabled,
     diffFocusByPath,
     pendingRestoreSession,
   ]);
@@ -857,7 +871,7 @@ export function App() {
         refresh.catch((err) => setError(String(err)));
       }
       scheduleGitReviewRefresh();
-      if (diffEnabled[event.path]) {
+      if (diffEnabled) {
         scheduleDiffRefresh(event.path);
       }
     });
@@ -1052,10 +1066,12 @@ export function App() {
     setLayout(restored.layout);
     setRecentFiles(restored.recentFiles);
     setInspectorVisible(restored.inspectorVisible);
+    setDiffEnabled(restored.diffEnabled ?? false);
     setDiffFocusByPath(restored.diffFocusByPath ?? {});
-    void hydrateRestoredFiles(restored.layout.root).catch((err) =>
-      setError(String(err)),
-    );
+    void hydrateRestoredFiles(
+      restored.layout.root,
+      restored.diffEnabled ?? false,
+    ).catch((err) => setError(String(err)));
   }
 
   function renderLayoutNode(node: EditorLayoutNode): ReactNode {
@@ -1140,7 +1156,7 @@ export function App() {
                 paneFile?.path ? Boolean(loadingDiffs[paneFile.path]) : false
               }
               diffEnabled={
-                paneFile?.path ? Boolean(diffEnabled[paneFile.path]) : false
+                paneFile ? diffEnabled && supportsDiffMode(paneFile) : false
               }
               diffFocusChanges={
                 paneFile?.path ? Boolean(diffFocusByPath[paneFile.path]) : false

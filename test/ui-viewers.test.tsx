@@ -212,6 +212,9 @@ it("opens Review Queue rows as preview on click and stable tabs on double click"
     reviewChanges: [
       { path: "src/app.ts", status: "modified", source: "git" },
     ],
+    reviewDiffStats: {},
+    loadingReviewDiffs: {},
+    unreadReviewPaths: new Set(),
     selectedCodeRange: null,
     activePaneId: "main",
     onOutlineSelect: () => undefined,
