@@ -123,6 +123,22 @@ it("reads HEAD diffs without a Git executable for tracked loose objects", async 
   expect(diff.content).toContain("+# After");
 });
 
+it("explains Docker linked-worktree mounts when Git metadata is outside the root", async () => {
+  const missingGitDir = path.join(tmpdir(), "pathlens-missing-gitdir");
+  await rm(path.join(dir, ".git"), { recursive: true, force: true });
+  await writeFile(path.join(dir, ".git"), `gitdir: ${missingGitDir}\n`);
+
+  const review = new GitChangeReview({ rootDir: dir });
+
+  await expect(review.readChanges()).resolves.toMatchObject({
+    available: false,
+    reason: expect.stringContaining(
+      "Git metadata is referenced outside the served root",
+    ),
+    changes: [],
+  });
+});
+
 it("does not expose raw spawn ENOENT errors", () => {
   expect(
     gitErrorReason(

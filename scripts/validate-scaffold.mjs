@@ -75,6 +75,23 @@ if (existsSync(releaseWorkflowPath)) {
   }
 }
 
+const dockerfilePath = path.join(root, "Dockerfile");
+if (existsSync(dockerfilePath)) {
+  const dockerfile = readFileSync(dockerfilePath, "utf8");
+  const requiredDockerSnippets = [
+    "GIT_OPTIONAL_LOCKS=0",
+    "GIT_CONFIG_KEY_0=safe.directory",
+    "GIT_CONFIG_VALUE_0=*",
+    "apk add --no-cache git tini",
+  ];
+
+  for (const snippet of requiredDockerSnippets) {
+    if (!dockerfile.includes(snippet)) {
+      errors.push(`Dockerfile missing review-queue runtime support: ${snippet}`);
+    }
+  }
+}
+
 for (const file of walk(root)) {
   const rel = path.relative(root, file).split(path.sep).join("/");
   if (rel.startsWith(".git/") || rel.startsWith("node_modules/")) continue;

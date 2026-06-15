@@ -46,11 +46,20 @@ export class GitChangeReview implements ChangeReviewPort {
 
   async readChanges(): Promise<ChangeReviewSummary> {
     const repo = await this.git(["rev-parse", "--show-toplevel"]);
-    if (!repo.ok) return { available: false, reason: repo.reason, changes: [] };
+    if (!repo.ok)
+      return {
+        available: false,
+        reason: await this.explainGitFailure(repo.reason),
+        changes: [],
+      };
 
     const status = await this.git(["status", "--porcelain=v1", "-z", "--"]);
     if (!status.ok)
-      return { available: false, reason: status.reason, changes: [] };
+      return {
+        available: false,
+        reason: await this.explainGitFailure(status.reason),
+        changes: [],
+      };
 
     return {
       available: true,
@@ -62,14 +71,24 @@ export class GitChangeReview implements ChangeReviewPort {
 
   async readDiffBases(): Promise<DiffBaseSummary> {
     const repo = await this.git(["rev-parse", "--show-toplevel"]);
-    if (!repo.ok) return { available: false, reason: repo.reason, options: [] };
+    if (!repo.ok)
+      return {
+        available: false,
+        reason: await this.explainGitFailure(repo.reason),
+        options: [],
+      };
 
     const log = await this.git([
       "log",
       "--max-count=8",
       "--format=%H%x00%h%x00%s%x00",
     ]);
-    if (!log.ok) return { available: false, reason: log.reason, options: [] };
+    if (!log.ok)
+      return {
+        available: false,
+        reason: await this.explainGitFailure(log.reason),
+        options: [],
+      };
 
     const commits = parseDiffBaseLog(log.stdout);
     return {
@@ -352,6 +371,21 @@ export class GitChangeReview implements ChangeReviewPort {
       ),
     };
   }
+
+  private async explainGitFailure(reason: string): Promise<string> {
+    if (
+      !reason.includes("not a git repository") &&
+      !reason.includes("not a Git repository")
+    ) {
+      return reason;
+    }
+    const externalGitDir = await findUnreadableExternalGitDir(this.rootDir);
+    if (!externalGitDir) return reason;
+    return [
+      `Git metadata is referenced outside the served root at ${externalGitDir}, but that path is not mounted or readable.`,
+      "If this is a Docker run from a linked Git worktree, also mount the output of `git rev-parse --path-format=absolute --git-common-dir` at the same absolute path.",
+    ].join(" ");
+  }
 }
 
 function unavailable(pathname: string, reason: string): TextDiff {
@@ -407,6 +441,32 @@ function isCommandNotFound(error: unknown): boolean {
 
 function isGitExecutableMissingReason(reason?: string): boolean {
   return reason?.startsWith("Git executable was not found.") ?? false;
+}
+
+async function findUnreadableExternalGitDir(
+  rootDir: string,
+): Promise<string | null> {
+  const dotGit = path.join(rootDir, ".git");
+  try {
+    const stat = await fs.stat(dotGit);
+    if (!stat.isFile()) return null;
+    const content = await fs.readFile(dotGit, "utf8");
+    const gitDir = /^gitdir:\s*(.+)$/m.exec(content)?.[1]?.trim();
+    if (!gitDir) return null;
+    const absoluteGitDir = path.resolve(rootDir, gitDir);
+    const relativeToRoot = path.relative(rootDir, absoluteGitDir);
+    if (!relativeToRoot.startsWith("..") && !path.isAbsolute(relativeToRoot)) {
+      return null;
+    }
+    try {
+      await fs.access(absoluteGitDir);
+      return null;
+    } catch {
+      return absoluteGitDir;
+    }
+  } catch {
+    return null;
+  }
 }
 
 const defaultGitCommands = [

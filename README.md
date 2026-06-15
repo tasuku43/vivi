@@ -60,6 +60,19 @@ http://127.0.0.1:4317
 
 The Docker image defaults to serving `/workspace` and binding `0.0.0.0` inside the container so the published port works from the host. The CLI default outside Docker remains `127.0.0.1`.
 
+The image includes Git and runs it with read-only-safe defaults so the Review Queue can list uncommitted working-tree changes from a read-only bind mount.
+
+If `git rev-parse --git-dir` points outside the directory you are mounting, as it does in a linked Git worktree, also mount the common Git metadata directory at the same absolute path:
+
+```bash
+git_common_dir="$(git rev-parse --path-format=absolute --git-common-dir)"
+docker run --rm -it \
+  -p 4317:4317 \
+  -v "$PWD:/workspace:ro" \
+  -v "$git_common_dir:$git_common_dir:ro" \
+  pathlens:local
+```
+
 Because the mount is read-only, pathlens can still restore browser UI state: open tabs, split panes, recent files, and inspector visibility are stored in browser `localStorage`, scoped by the absolute served root and pruned after 30 days. File contents are never stored in the session.
 
 ### Build The Docker Image Locally
