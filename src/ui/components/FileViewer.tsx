@@ -1,17 +1,48 @@
+import { lazy, Suspense } from "react";
+import type { ReactNode } from "react";
 import type { TextDiff } from "../../domain/change-review.js";
 import type { FilePayload } from "../../domain/fs-node.js";
-import { MarkdownViewer } from "../viewers/MarkdownViewer.js";
-import { HtmlViewer } from "../viewers/HtmlViewer.js";
-import { CodeViewer } from "../viewers/CodeViewer.js";
 import { CsvViewer, isDelimitedPath } from "../viewers/CsvViewer.js";
-import { ImageViewer } from "../viewers/ImageViewer.js";
-import { JsonViewer } from "../viewers/JsonViewer.js";
 import { LargeTextPreview } from "../viewers/LargeTextPreview.js";
-import { MermaidViewer } from "../viewers/MermaidViewer.js";
-import { TextViewer } from "../viewers/TextViewer.js";
 import type { LineRange } from "../state/code-viewer.js";
 import type { ResolvedTheme } from "../state/theme.js";
 import type { ViewerMode } from "../state/viewer-mode.js";
+
+const MarkdownViewer = lazy(() =>
+  import("../viewers/MarkdownViewer.js").then((module) => ({
+    default: module.MarkdownViewer,
+  })),
+);
+const HtmlViewer = lazy(() =>
+  import("../viewers/HtmlViewer.js").then((module) => ({
+    default: module.HtmlViewer,
+  })),
+);
+const CodeViewer = lazy(() =>
+  import("../viewers/CodeViewer.js").then((module) => ({
+    default: module.CodeViewer,
+  })),
+);
+const ImageViewer = lazy(() =>
+  import("../viewers/ImageViewer.js").then((module) => ({
+    default: module.ImageViewer,
+  })),
+);
+const JsonViewer = lazy(() =>
+  import("../viewers/JsonViewer.js").then((module) => ({
+    default: module.JsonViewer,
+  })),
+);
+const MermaidViewer = lazy(() =>
+  import("../viewers/MermaidViewer.js").then((module) => ({
+    default: module.MermaidViewer,
+  })),
+);
+const TextViewer = lazy(() =>
+  import("../viewers/TextViewer.js").then((module) => ({
+    default: module.TextViewer,
+  })),
+);
 
 export function FileViewer({
   file,
@@ -63,64 +94,109 @@ export function FileViewer({
 
   if (file.viewerKind === "markdown")
     return (
-      <MarkdownViewer
-        file={file}
-        mode={viewerMode}
-        diff={diff}
-        diffLoading={diffLoading}
-        diffEnabled={diffEnabled}
-        diffFocusChanges={diffFocusChanges}
-        theme={theme}
-        onModeChange={onViewerModeChange}
-        onDiffToggle={onDiffToggle}
-        onDiffFocusChange={onDiffFocusChange}
-      />
+      <LazyViewerFallback path={file.path}>
+        <MarkdownViewer
+          file={file}
+          mode={viewerMode}
+          diff={diff}
+          diffLoading={diffLoading}
+          diffEnabled={diffEnabled}
+          diffFocusChanges={diffFocusChanges}
+          theme={theme}
+          onModeChange={onViewerModeChange}
+          onDiffToggle={onDiffToggle}
+          onDiffFocusChange={onDiffFocusChange}
+        />
+      </LazyViewerFallback>
     );
   if (file.viewerKind === "html")
     return (
-      <HtmlViewer
-        file={file}
-        allowHtmlScripts={allowHtmlScripts}
-        mode={viewerMode}
-        diff={diff}
-        diffLoading={diffLoading}
-        diffEnabled={diffEnabled}
-        diffFocusChanges={diffFocusChanges}
-        theme={theme}
-        onModeChange={onViewerModeChange}
-        onDiffToggle={onDiffToggle}
-        onDiffFocusChange={onDiffFocusChange}
-      />
+      <LazyViewerFallback path={file.path}>
+        <HtmlViewer
+          file={file}
+          allowHtmlScripts={allowHtmlScripts}
+          mode={viewerMode}
+          diff={diff}
+          diffLoading={diffLoading}
+          diffEnabled={diffEnabled}
+          diffFocusChanges={diffFocusChanges}
+          theme={theme}
+          onModeChange={onViewerModeChange}
+          onDiffToggle={onDiffToggle}
+          onDiffFocusChange={onDiffFocusChange}
+        />
+      </LazyViewerFallback>
     );
-  if (file.viewerKind === "json") return <JsonViewer file={file} />;
+  if (file.viewerKind === "json")
+    return (
+      <LazyViewerFallback path={file.path}>
+        <JsonViewer file={file} />
+      </LazyViewerFallback>
+    );
   if (file.viewerKind === "mermaid")
-    return <MermaidViewer file={file} theme={theme} />;
+    return (
+      <LazyViewerFallback path={file.path}>
+        <MermaidViewer file={file} theme={theme} />
+      </LazyViewerFallback>
+    );
   if (file.viewerKind === "code")
     return (
-      <CodeViewer
-        file={file}
-        theme={theme}
-        selectedRange={selectedCodeRange}
-        refreshedAt={refreshedAt}
-        diff={diff}
-        diffLoading={diffLoading}
-        diffEnabled={diffEnabled}
-        diffFocusChanges={diffFocusChanges}
-        onSelectionChange={onCodeSelectionChange}
-        onDiffToggle={onDiffToggle}
-        onDiffFocusChange={onDiffFocusChange}
-      />
+      <LazyViewerFallback path={file.path}>
+        <CodeViewer
+          file={file}
+          theme={theme}
+          selectedRange={selectedCodeRange}
+          refreshedAt={refreshedAt}
+          diff={diff}
+          diffLoading={diffLoading}
+          diffEnabled={diffEnabled}
+          diffFocusChanges={diffFocusChanges}
+          onSelectionChange={onCodeSelectionChange}
+          onDiffToggle={onDiffToggle}
+          onDiffFocusChange={onDiffFocusChange}
+        />
+      </LazyViewerFallback>
     );
   if (file.viewerKind === "text" && isDelimitedPath(file.path))
     return <CsvViewer file={file} />;
-  if (file.viewerKind === "image") return <ImageViewer file={file} />;
-  if (file.viewerKind === "text") return <TextViewer file={file} />;
+  if (file.viewerKind === "image")
+    return (
+      <LazyViewerFallback path={file.path}>
+        <ImageViewer file={file} />
+      </LazyViewerFallback>
+    );
+  if (file.viewerKind === "text")
+    return (
+      <LazyViewerFallback path={file.path}>
+        <TextViewer file={file} />
+      </LazyViewerFallback>
+    );
 
   return (
     <div className="unsupported">
       <h2>{file.path}</h2>
       <p>This file type is not supported yet.</p>
     </div>
+  );
+}
+
+function LazyViewerFallback({
+  children,
+  path,
+}: {
+  children: ReactNode;
+  path: string;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="empty-viewer" aria-live="polite">
+          Loading preview for {path}...
+        </div>
+      }
+    >
+      {children}
+    </Suspense>
   );
 }
 

@@ -14,6 +14,12 @@ export default defineConfig({
   build: {
     outDir: "dist/ui",
     emptyOutDir: false,
+    chunkSizeWarningLimit: 650,
+    rolldownOptions: {
+      output: {
+        codeSplitting: true,
+      },
+    },
   },
   server: {
     host: "127.0.0.1",
