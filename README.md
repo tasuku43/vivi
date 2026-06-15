@@ -93,7 +93,19 @@ docker build -t pathlens:local .
 docker run --rm -it -p 4317:4317 -v "$PWD:/workspace:ro" pathlens:local
 ```
 
-You can override the image tag, served directory, or host port:
+To validate a multi-architecture build locally with Docker Buildx:
+
+```bash
+task docker:buildx IMAGE=ghcr.io/tasuku43/pathlens TAG=dev
+```
+
+The local Buildx task targets `linux/amd64,linux/arm64` by default. Override the target platforms when needed:
+
+```bash
+task docker:buildx PLATFORMS=linux/arm64 IMAGE=pathlens TAG=arm64
+```
+
+You can override the image tag, served directory, host port, or Buildx target platforms:
 
 ```bash
 task docker:build IMAGE=pathlens TAG=dev
@@ -164,7 +176,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-Manual workflow runs are available for validation builds. Provide a `release_tag` value matching `vMAJOR.MINOR.PATCH` only when intentionally publishing that tag; otherwise the workflow publishes a `sha-...` image tag.
+Release images are multi-architecture manifests for `linux/amd64` and `linux/arm64`. Manual workflow runs are available for validation builds. Provide a `release_tag` value matching `vMAJOR.MINOR.PATCH` only when intentionally publishing that tag; otherwise the workflow publishes a `sha-...` image tag.
 
 ## Current product status
 

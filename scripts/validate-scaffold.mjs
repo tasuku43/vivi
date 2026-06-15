@@ -64,6 +64,7 @@ if (existsSync(releaseWorkflowPath)) {
     "^v[0-9]+\\.[0-9]+\\.[0-9]+$",
     "type=raw,value=${{ env.RELEASE_TAG }}",
     "type=raw,value=latest",
+    "platforms: linux/amd64,linux/arm64",
   ];
 
   for (const snippet of requiredReleaseSnippets) {

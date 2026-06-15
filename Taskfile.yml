@@ -5,6 +5,7 @@ vars:
   TAG: '{{.TAG | default "local"}}'
   PORT: '{{.PORT | default "4317"}}'
   ROOT: "{{.ROOT | default .USER_WORKING_DIR}}"
+  PLATFORMS: '{{.PLATFORMS | default "linux/amd64,linux/arm64"}}'
 
 tasks:
   default:
@@ -55,6 +56,11 @@ tasks:
     desc: Build the local Docker image
     cmds:
       - docker build -t {{.IMAGE}}:{{.TAG}} .
+
+  docker:buildx:
+    desc: Build a multi-architecture Docker image with buildx
+    cmds:
+      - docker buildx build --platform {{.PLATFORMS}} -t {{.IMAGE}}:{{.TAG}} .
 
   docker:run:
     desc: Run pathlens from the local Docker image
