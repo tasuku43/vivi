@@ -73,6 +73,35 @@ it("keeps the Mermaid example workspace usable across mmd, markdown, and html pr
   expect(lightHtml).toContain('data-pathlens-html-theme="light"');
   expect(lightHtml).toContain("background:#fbfaf7");
   expect(lightHtml).toContain('"primaryTextColor":"#172426"');
+
+  await server.close();
+  server = null;
+
+  const scriptsEnabledService = new ViewerService({
+    fileSystem: new NodeFileSystem({
+      rootDir,
+      allowHtmlScripts: true,
+    }),
+  });
+  server = await startHttpServer({
+    host: "127.0.0.1",
+    port: 0,
+    service: scriptsEnabledService,
+    allowHtmlScripts: true,
+  });
+
+  const scriptsEnabledPreview = await fetch(
+    `${server.url}/preview/html?path=${encodeURIComponent("public/embedded.html")}`,
+  );
+  expect(scriptsEnabledPreview.status).toBe(200);
+  expect(scriptsEnabledPreview.headers.get("content-security-policy")).toContain(
+    "script-src 'self' 'unsafe-inline'",
+  );
+  const scriptsEnabledHtml = await scriptsEnabledPreview.text();
+  expect(scriptsEnabledHtml).toContain("data-pathlens-html-mermaid");
+  expect(scriptsEnabledHtml).toContain("Mermaid preview · user scripts active");
+  expect(scriptsEnabledHtml).toContain("/pathlens/vendor/mermaid.min.js");
+  expect(scriptsEnabledHtml).toContain("Render with official Mermaid");
 });
 
 function flattenFiles(nodes: FsNode[]): FsNode[] {

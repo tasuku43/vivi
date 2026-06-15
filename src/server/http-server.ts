@@ -145,7 +145,8 @@ async function routeRequest(
     const previewHtml = renderEmbeddedMermaidPreviewHtml(
       addHtmlHeadingIds(withPreviewBase(html, requestedPath)),
       {
-        enabled: !allowHtmlScripts,
+        enabled: true,
+        allowHtmlScripts,
         nonce,
         theme,
       },
@@ -346,7 +347,12 @@ function addHtmlHeadingIds(html: string): string {
 
 function renderEmbeddedMermaidPreviewHtml(
   html: string,
-  options: { enabled: boolean; nonce: string; theme: MermaidPreviewTheme },
+  options: {
+    enabled: boolean;
+    allowHtmlScripts: boolean;
+    nonce: string;
+    theme: MermaidPreviewTheme;
+  },
 ): string {
   let index = 0;
   const rendered = options.enabled
@@ -358,7 +364,10 @@ function renderEmbeddedMermaidPreviewHtml(
           if (!source) return match;
           const id = `pathlens-html-mermaid-${index}`;
           index += 1;
-          return `<figure class="html-mermaid" id="${id}" data-pathlens-html-mermaid data-mermaid-status="pending" data-mermaid-custom-style="${hasCustomMermaidStyle(source) ? "true" : "false"}" data-mermaid-source="${escapeAttribute(source)}"><figcaption>Mermaid preview · user scripts inactive</figcaption><div class="mermaid-render-target" aria-live="polite"></div><div class="markdown-mermaid-fallback unsupported"><p>Mermaid preview is loading. Source is shown below if rendering fails.</p><details class="markdown-mermaid-source"><summary>Mermaid source</summary><pre><code>${escapeHtml(source)}</code></pre></details></div></figure>`;
+          const scriptStatus = options.allowHtmlScripts
+            ? "user scripts active"
+            : "user scripts inactive";
+          return `<figure class="html-mermaid" id="${id}" data-pathlens-html-mermaid data-mermaid-status="pending" data-mermaid-custom-style="${hasCustomMermaidStyle(source) ? "true" : "false"}" data-mermaid-source="${escapeAttribute(source)}"><figcaption>Mermaid preview · ${scriptStatus}</figcaption><div class="mermaid-render-target" aria-live="polite"></div><div class="markdown-mermaid-fallback unsupported"><p>Mermaid preview is loading. Source is shown below if rendering fails.</p><details class="markdown-mermaid-source"><summary>Mermaid source</summary><pre><code>${escapeHtml(source)}</code></pre></details></div></figure>`;
         },
       )
     : html;
