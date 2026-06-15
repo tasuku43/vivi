@@ -1,0 +1,7 @@
+sequenceDiagram
+  participant Author
+  participant Pathlens
+  participant Browser
+  Author->>Pathlens: Open docs/flow.mmd
+  Pathlens->>Browser: Render Mermaid SVG
+  Browser-->>Author: Diagram is visible

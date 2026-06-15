@@ -88,8 +88,10 @@ export function HtmlViewer({
         <iframe
           className="html-frame"
           title={file.path}
-          sandbox={allowHtmlScripts ? "allow-scripts allow-same-origin" : ""}
-          src={`/preview/html?path=${encodeURIComponent(file.path)}`}
+          sandbox={
+            allowHtmlScripts ? "allow-scripts allow-same-origin" : "allow-scripts"
+          }
+          src={`/preview/html?path=${encodeURIComponent(file.path)}&theme=${theme}`}
         />
       ) : (
         <pre className="markdown-source">{file.content}</pre>

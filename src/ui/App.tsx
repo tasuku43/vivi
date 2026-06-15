@@ -1043,6 +1043,7 @@ export function App() {
             <div className="error">{error}</div>
           ) : (
             <FileViewer
+              key={paneFile?.path ?? "empty"}
               file={paneFile}
               allowHtmlScripts={config?.allowHtmlScripts ?? false}
               theme={resolvedTheme}

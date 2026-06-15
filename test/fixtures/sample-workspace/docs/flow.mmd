@@ -1,2 +1,5 @@
-graph TD
-  Build[Build output] --> Review[Review in pathlens]
+sequenceDiagram
+  participant Build
+  participant Review
+  Build->>Review: Open output in pathlens
+  Review-->>Build: Confirm rendered Mermaid

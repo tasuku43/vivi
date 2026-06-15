@@ -1,27 +1,33 @@
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { FilePayload } from "../../domain/fs-node.js";
+import { pathlensMermaidThemeVariables } from "../../domain/mermaid-theme.js";
+import { hasCustomMermaidStyle } from "../../domain/mermaid-preview.js";
+import type { ResolvedTheme } from "../state/theme.js";
 
-interface MermaidEdge {
-  from: string;
-  to: string;
-  label?: string;
-}
+export { hasCustomMermaidStyle } from "../../domain/mermaid-preview.js";
 
-interface MermaidRenderOptions {
-  idPrefix?: string;
-  title?: string;
-}
+type MermaidRenderStatus = "loading" | "rendered" | "fallback" | "error";
 
-export function MermaidViewer({ file }: { file: FilePayload }) {
+export function MermaidViewer({
+  file,
+  theme = "dark",
+}: {
+  file: FilePayload;
+  theme?: ResolvedTheme;
+}) {
   const [mode, setMode] = useState<"preview" | "source">("preview");
-  const edges = parseMermaidEdges(file.content);
+  const { containerRef, error, status } = useMermaidRender(
+    file.content,
+    `${useId()}-${slugForMarker(file.path)}`,
+    theme,
+  );
 
   return (
     <section className="mermaid-viewer">
       <div className="viewer-toolbar">
         <strong>{file.path}</strong>
         <span className="sandbox-status">
-          Safe Mermaid preview · scripts inactive
+          Mermaid preview · strict security
         </span>
         <div className="segmented-control" aria-label="Mermaid view mode">
           <button
@@ -40,22 +46,30 @@ export function MermaidViewer({ file }: { file: FilePayload }) {
           </button>
         </div>
       </div>
-      {mode === "preview" && edges.length ? (
-        <div
-          dangerouslySetInnerHTML={{
-            __html: renderMermaidPreviewHtml(file.content, {
-              idPrefix: `pathlens-${slugForMarker(file.path)}`,
-              title: file.path,
-            }),
-          }}
-        />
-      ) : mode === "preview" ? (
-        <div className="unsupported">
-          <h2>{file.path}</h2>
-          <p>
-            This Mermaid file is readable as source, but the lightweight preview
-            only supports simple flowchart arrows.
-          </p>
+      {mode === "preview" ? (
+        <div className="mermaid-render-surface">
+          <div
+            className={`mermaid-render-target ${status}`}
+            ref={containerRef}
+          />
+          {status === "loading" ? (
+            <p className="muted">Rendering Mermaid diagram...</p>
+          ) : null}
+          {status === "error" ? (
+            <div className="unsupported">
+              <h2>{file.path}</h2>
+              <p>{error ?? "Mermaid could not render this diagram."}</p>
+            </div>
+          ) : null}
+          {status === "fallback" ? (
+            <div className="unsupported">
+              <h2>{file.path}</h2>
+              <p>
+                Mermaid could not render this diagram. The source view is still
+                available.
+              </p>
+            </div>
+          ) : null}
         </div>
       ) : (
         <pre className="markdown-source">{file.content}</pre>
@@ -64,81 +78,148 @@ export function MermaidViewer({ file }: { file: FilePayload }) {
   );
 }
 
-export function parseMermaidEdges(content: string): MermaidEdge[] {
-  const lines = content.split(/\r?\n/);
-  const firstMeaningfulLine = lines.find((line) => line.trim());
-  if (
-    !firstMeaningfulLine ||
-    !/^(graph|flowchart)\b/i.test(firstMeaningfulLine.trim())
-  )
-    return [];
+export function useMermaidRender(
+  source: string,
+  id: string,
+  theme: ResolvedTheme,
+) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [status, setStatus] = useState<MermaidRenderStatus>("loading");
+  const [error, setError] = useState<string | null>(null);
 
-  return lines
-    .flatMap((line) => {
-      const normalized = line.trim().replace(/;$/, "");
-      if (!normalized || /^(graph|flowchart)\b/i.test(normalized)) return [];
-      const match = /^(.+?)\s*-{1,2}>(?:\|(.+?)\|)?\s*(.+)$/.exec(normalized);
-      if (!match) return [];
-      return [
-        {
-          from: cleanMermaidNode(match[1]),
-          label: match[2]?.trim(),
-          to: cleanMermaidNode(match[3]),
-        },
-      ];
-    })
-    .filter((edge) => edge.from && edge.to);
+  useEffect(() => {
+    let cancelled = false;
+    const container = containerRef.current;
+    if (!container) return;
+
+    setStatus("loading");
+    setError(null);
+    container.replaceChildren();
+
+    renderMermaidSvg(source, `${id}-${hashString(source)}`, theme)
+      .then((svg) => {
+        if (cancelled) return;
+        container.innerHTML = svg;
+        setStatus("rendered");
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(errorMessage(err));
+        setStatus("error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, source, theme]);
+
+  return { containerRef, error, status };
 }
 
-export function renderMermaidPreviewHtml(
-  content: string,
-  options: MermaidRenderOptions = {},
-): string {
-  const edges = parseMermaidEdges(content);
-  if (!edges.length) return "";
-  const nodes = [...new Set(edges.flatMap((edge) => [edge.from, edge.to]))];
-  const markerId = `${options.idPrefix ?? "pathlens-mermaid"}-arrow`;
-  const height = Math.max(180, nodes.length * 82);
-  const title = escapeHtml(options.title ?? "Mermaid preview");
-  const edgeHtml = edges
-    .map((edge, index) => {
-      const fromIndex = nodes.indexOf(edge.from);
-      const toIndex = nodes.indexOf(edge.to);
-      const y1 = 48 + fromIndex * 78;
-      const y2 = 48 + toIndex * 78;
-      const midY = (y1 + y2) / 2;
-      const label = edge.label
-        ? `<text class="mermaid-label" x="382" y="${midY - 6}">${escapeHtml(edge.label)}</text>`
-        : "";
-      return `<g data-edge="${index}"><path class="mermaid-edge" marker-end="url(#${markerId})" d="M250 ${y1} C390 ${y1}, 390 ${y2}, 510 ${y2}"></path>${label}</g>`;
-    })
-    .join("");
-  const nodeHtml = nodes
-    .map((node, index) => {
-      const y = 28 + index * 78;
-      return `<g class="mermaid-node"><rect x="38" y="${y}" width="210" height="42" rx="8"></rect><text x="58" y="${y + 27}">${escapeHtml(node)}</text></g>`;
-    })
-    .join("");
-
-  return `<div class="mermaid-stage"><svg class="mermaid-svg" role="img" aria-label="${title}" viewBox="0 0 760 ${height}"><defs><marker id="${markerId}" markerHeight="8" markerWidth="8" orient="auto" refX="7" refY="4"><path d="M0,0 L8,4 L0,8 Z"></path></marker></defs>${edgeHtml}${nodeHtml}</svg></div>`;
+export async function renderMermaidSvg(
+  source: string,
+  id: string,
+  theme: ResolvedTheme,
+): Promise<string> {
+  const mermaid = (await import("mermaid")).default;
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: "strict",
+    theme: hasCustomMermaidStyle(source)
+      ? theme === "dark"
+        ? "dark"
+        : "default"
+      : "base",
+    themeVariables: hasCustomMermaidStyle(source)
+      ? undefined
+      : pathlensMermaidThemeVariables(theme),
+    flowchart: {
+      htmlLabels: false,
+    },
+  });
+  const { svg } = await mermaid.render(`pathlens-${slugForMarker(id)}`, source);
+  return sanitizeMermaidSvg(svg);
 }
 
-function cleanMermaidNode(value: string): string {
-  return value
-    .trim()
-    .replace(/^[A-Za-z0-9_]+\[/, "")
-    .replace(/\]$/, "")
-    .replace(/^["']|["']$/g, "");
+export function renderMermaidBlocks(
+  root: HTMLElement,
+  theme: ResolvedTheme,
+): void {
+  const blocks = Array.from(
+    root.querySelectorAll<HTMLElement>("[data-mermaid-source]"),
+  );
+
+  for (const [index, block] of blocks.entries()) {
+    const source = block.dataset.mermaidSource;
+    const target = block.querySelector<HTMLElement>(".mermaid-render-target");
+    if (!source || !target) continue;
+    if (block.dataset.mermaidStatus === "loading") continue;
+    if (
+      block.dataset.mermaidStatus === "rendered" &&
+      block.dataset.mermaidTheme === theme
+    ) {
+      continue;
+    }
+
+    block.dataset.mermaidStatus = "loading";
+    block.dataset.mermaidTheme = theme;
+    target.replaceChildren();
+    renderMermaidSvg(
+      source,
+      `${block.id || "markdown-mermaid"}-${index}-${hashString(source)}`,
+      theme,
+    )
+      .then((svg) => {
+        target.innerHTML = svg;
+        block.dataset.mermaidStatus = "rendered";
+      })
+      .catch(() => {
+        block.dataset.mermaidStatus = "fallback";
+      });
+  }
 }
 
 function slugForMarker(value: string): string {
-  return value.replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "");
+  const slug = value.replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "");
+  return slug || "diagram";
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+function hashString(value: string): string {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "string" && error) return error;
+  return "Mermaid could not render this diagram.";
+}
+
+function sanitizeMermaidSvg(svg: string): string {
+  const parser = new DOMParser();
+  const document = parser.parseFromString(svg, "image/svg+xml");
+  for (const node of Array.from(document.querySelectorAll("script"))) {
+    node.remove();
+  }
+  for (const node of Array.from(document.querySelectorAll("foreignObject"))) {
+    node.remove();
+  }
+  for (const element of Array.from(document.querySelectorAll("*"))) {
+    for (const attribute of Array.from(element.attributes)) {
+      const name = attribute.name.toLowerCase();
+      const value = attribute.value.trim().toLowerCase();
+      if (name.startsWith("on")) element.removeAttribute(attribute.name);
+      if (
+        (name === "href" || name.endsWith(":href")) &&
+        value.startsWith("javascript:")
+      ) {
+        element.removeAttribute(attribute.name);
+      }
+    }
+  }
+  return new XMLSerializer().serializeToString(document.documentElement);
 }

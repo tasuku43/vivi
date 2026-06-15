@@ -1416,32 +1416,40 @@ kbd {
   background: var(--panel);
   padding: 14px;
 }
-.mermaid-svg {
-  width: 100%;
-  min-width: 620px;
+.mermaid-render-surface {
+  display: grid;
+  gap: 10px;
+}
+.mermaid-render-target.rendered,
+.markdown-mermaid[data-mermaid-status="rendered"] .mermaid-render-target {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 14px;
+}
+.mermaid-render-target svg,
+.markdown-mermaid .mermaid-render-target svg {
+  display: block;
+  max-width: 100%;
   height: auto;
 }
-.mermaid-node rect {
-  fill: var(--panel-2);
-  stroke: var(--accent-line);
+.markdown-mermaid[data-mermaid-status="rendered"] .markdown-mermaid-fallback {
+  display: none;
 }
-.mermaid-node text,
-.mermaid-label {
-  fill: var(--text);
-  font-size: 13px;
+.markdown-mermaid[data-mermaid-status="loading"] .markdown-mermaid-fallback {
+  opacity: 0.7;
 }
-.mermaid-edge {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 2;
+.mermaid-fallback {
+  display: grid;
+  gap: 10px;
 }
-.mermaid-svg marker path {
-  fill: var(--accent);
-}
-.markdown-mermaid {
+.markdown-mermaid,
+.html-mermaid {
   margin: 18px 0;
 }
 .markdown-mermaid figcaption,
+.html-mermaid figcaption,
 .markdown-mermaid-source summary {
   color: var(--muted);
   font-size: 12px;
@@ -1455,7 +1463,8 @@ kbd {
 .markdown-mermaid-source pre {
   margin: 8px 0 0;
 }
-.markdown-mermaid.unsupported {
+.markdown-mermaid.unsupported,
+.html-mermaid.unsupported {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);

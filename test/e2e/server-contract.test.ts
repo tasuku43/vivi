@@ -111,11 +111,16 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
     "style-src 'self' 'unsafe-inline'",
   );
   expect(preview.headers.get("content-security-policy")).toContain(
-    "script-src 'none'",
+    "script-src 'nonce-",
+  );
+  expect(preview.headers.get("content-security-policy")).not.toContain(
+    "script-src 'self' 'unsafe-inline'",
   );
   const previewHtml = await preview.text();
   expect(previewHtml).toContain('<base href="/preview/raw/">');
   expect(previewHtml).toContain('<h1 id="hello">Hello</h1>');
+  expect(previewHtml).toContain('data-pathlens-html-theme="dark"');
+  expect(previewHtml).toContain("background:#0e1316");
 
   const css = await fetch(`${server.url}/preview/raw/style.css`);
   expect(css.status).toBe(200);

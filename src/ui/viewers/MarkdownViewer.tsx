@@ -1,7 +1,14 @@
-import { useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { marked } from "marked";
 import type { TextDiff } from "../../domain/change-review.js";
 import type { FilePayload } from "../../domain/fs-node.js";
+import { escapeAttribute } from "../../domain/mermaid-preview.js";
 import {
   extractMarkdownOutline,
   renderMarkdownHtmlWithHeadingIds,
@@ -9,7 +16,7 @@ import {
 import type { ResolvedTheme } from "../state/theme.js";
 import type { ViewerMode } from "../state/viewer-mode.js";
 import { DiffViewer } from "./DiffViewer.js";
-import { renderMermaidPreviewHtml } from "./MermaidViewer.js";
+import { renderMermaidBlocks } from "./MermaidViewer.js";
 
 export function MarkdownViewer({
   file,
@@ -40,10 +47,37 @@ export function MarkdownViewer({
       ? controlledMode
       : localMode;
   const html = renderMarkdownDocumentHtml(file.content);
+  const markdownRef = useRef<HTMLElement | null>(null);
   const setMode = (nextMode: ViewerMode) => {
     setLocalMode(nextMode);
     onModeChange?.(nextMode);
   };
+  const renderPendingMermaid = useCallback(() => {
+    if (mode !== "rendered" || diffEnabled) return;
+    const markdown = markdownRef.current;
+    if (!markdown) return;
+    renderMermaidBlocks(markdown, theme);
+  }, [diffEnabled, mode, theme]);
+  const attachMarkdownRef = useCallback(
+    (node: HTMLElement | null) => {
+      markdownRef.current = node;
+      if (!node) return;
+      window.requestAnimationFrame(() => {
+        if (markdownRef.current === node) renderPendingMermaid();
+      });
+    },
+    [html, renderPendingMermaid],
+  );
+
+  useLayoutEffect(() => {
+    renderPendingMermaid();
+  });
+
+  useEffect(() => {
+    renderPendingMermaid();
+    const timeout = window.setTimeout(renderPendingMermaid, 0);
+    return () => window.clearTimeout(timeout);
+  });
 
   return (
     <section className="document-viewer">
@@ -89,6 +123,7 @@ export function MarkdownViewer({
       ) : mode === "rendered" ? (
         <article
           className="markdown markdown-document"
+          ref={attachMarkdownRef}
           dangerouslySetInnerHTML={{ __html: html }}
         />
       ) : (
@@ -112,16 +147,10 @@ export function injectMermaidPreviewBlocks(markdown: string): string {
   return markdown.replace(
     /```(?:mermaid|mmd)\s*\n([\s\S]*?)```/gi,
     (_match, diagram: string) => {
-      const preview = renderMermaidPreviewHtml(diagram, {
-        idPrefix: `pathlens-md-mermaid-${index}`,
-        title: `Mermaid diagram ${index + 1}`,
-      });
       const source = `<details class="markdown-mermaid-source"><summary>Mermaid source</summary><pre><code>${escapeHtml(diagram.trim())}</code></pre></details>`;
+      const sourceAttribute = escapeAttribute(diagram.trim());
       index += 1;
-      if (!preview) {
-        return `<div class="markdown-mermaid unsupported"><p>Mermaid preview supports simple flowchart arrows. Source is shown below.</p>${source}</div>`;
-      }
-      return `<figure class="markdown-mermaid"><figcaption>Safe Mermaid preview · scripts inactive</figcaption>${preview}${source}</figure>`;
+      return `<figure class="markdown-mermaid" data-mermaid-status="pending" data-mermaid-source="${sourceAttribute}"><figcaption>Mermaid preview · strict security</figcaption><div class="mermaid-render-target"></div><div class="markdown-mermaid-fallback unsupported"><p>Mermaid preview is loading. Source is shown below if rendering fails.</p>${source}</div></figure>`;
     },
   );
 }

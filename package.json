@@ -28,21 +28,22 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
+    "marked": "latest",
+    "mermaid": "^11.15.0",
     "react": "latest",
     "react-dom": "latest",
     "shiki": "latest",
-    "marked": "latest"
+    "vite": "latest"
   },
   "devDependencies": {
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "typescript": "latest",
-    "tsx": "latest",
-    "vitest": "latest",
     "eslint": "latest",
-    "prettier": "latest"
+    "prettier": "latest",
+    "tsx": "latest",
+    "typescript": "latest",
+    "vitest": "latest"
   },
   "engines": {
     "node": ">=20"

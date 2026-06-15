@@ -93,7 +93,8 @@ export function FileViewer({
       />
     );
   if (file.viewerKind === "json") return <JsonViewer file={file} />;
-  if (file.viewerKind === "mermaid") return <MermaidViewer file={file} />;
+  if (file.viewerKind === "mermaid")
+    return <MermaidViewer file={file} theme={theme} />;
   if (file.viewerKind === "code")
     return (
       <CodeViewer

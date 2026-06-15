@@ -36,8 +36,9 @@ A[Start] -->|ok| B[Done]
 \`\`\`
 `);
 
-    expect(html).toContain("Safe Mermaid preview · scripts inactive");
-    expect(html).toContain('class="mermaid-svg"');
+    expect(html).toContain("Mermaid preview · strict security");
+    expect(html).toContain("data-mermaid-source=");
+    expect(html).toContain('class="mermaid-render-target"');
     expect(html).toContain("Start");
     expect(html).toContain("Done");
     expect(html).toContain("<summary>Mermaid source</summary>");
@@ -49,7 +50,8 @@ sequenceDiagram
 Alice->>Bob: <script>alert(1)</script>
 \`\`\``);
 
-    expect(html).toContain("Mermaid preview supports simple flowchart arrows");
+    expect(html).toContain("Mermaid preview is loading");
+    expect(html).toContain("data-mermaid-source=");
     expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
     expect(html).not.toContain("<script>alert(1)</script>");
   });

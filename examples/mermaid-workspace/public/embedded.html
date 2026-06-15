@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Embedded Mermaid</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>HTML Mermaid</h1>
+    <p>
+      This HTML page keeps user preview scripts disabled. pathlens renders this
+      Mermaid block with the official Mermaid runtime inside the sandboxed
+      preview.
+    </p>
+    <pre class="mermaid">
+graph TD
+  Open[Open embedded.html] --> Scan[Find class mermaid block]
+  Scan -->|flowchart source| Render[Render with official Mermaid]
+  Scan -->|not supported| Source[Show readable source fallback]
+  Render --> Style[Apply preview-safe CSS]
+  Style --> Sandbox[Serve sandboxed iframe]
+  Sandbox --> Safe[Scripts stay off]
+  Sandbox --> Inspect[Diagram remains inspectable]
+  Source --> Inspect
+    </pre>
+  </body>
+</html>

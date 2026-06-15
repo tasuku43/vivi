@@ -17,6 +17,10 @@ beforeEach(async () => {
   await mkdir(path.join(dir, "assets"), { recursive: true });
 
   await writeFile(path.join(dir, "README.md"), "# Readme\n\n## Start");
+  await writeFile(
+    path.join(dir, "docs", "flow.mmd"),
+    "sequenceDiagram\n  Alice->>Bob: Hello from Mermaid\n",
+  );
   await writeFile(path.join(dir, "docs", "notes.txt"), "plain text");
   await writeFile(path.join(dir, "index.html"), "<h1>Preview</h1>");
   await writeFile(path.join(dir, "src", "app.ts"), "export const ok = true;\n");
@@ -54,6 +58,7 @@ it("opens every file returned by the tree API", async () => {
     "assets/logo.svg",
     "config.yaml",
     "data.json",
+    "docs/flow.mmd",
     "docs/notes.txt",
     "index.html",
     "src/app.ts",
@@ -69,6 +74,14 @@ it("opens every file returned by the tree API", async () => {
     expect(payload.viewerKind).toBe(file.viewerKind);
     expect(payload.size).toBeGreaterThanOrEqual(0);
   }
+
+  const mermaid = await fetch(
+    `${server.url}/api/file?path=${encodeURIComponent("docs/flow.mmd")}`,
+  );
+  expect(mermaid.status).toBe(200);
+  const mermaidPayload = await mermaid.json();
+  expect(mermaidPayload.viewerKind).toBe("mermaid");
+  expect(mermaidPayload.content).toContain("sequenceDiagram");
 
   const preview = await fetch(`${server.url}/preview/html?path=index.html`);
   expect(preview.status).toBe(200);

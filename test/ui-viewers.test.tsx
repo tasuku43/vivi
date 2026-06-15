@@ -22,9 +22,8 @@ import {
 import { HtmlViewer } from "../src/ui/viewers/HtmlViewer.js";
 import { JsonViewer } from "../src/ui/viewers/JsonViewer.js";
 import {
+  hasCustomMermaidStyle,
   MermaidViewer,
-  parseMermaidEdges,
-  renderMermaidPreviewHtml,
 } from "../src/ui/viewers/MermaidViewer.js";
 
 const codeFile: FilePayload = {
@@ -123,8 +122,9 @@ it("keeps the HTML viewer sandboxed and exposes source mode controls", () => {
   expect(html).toContain("sandboxed · scripts off");
   expect(html).toContain("Preview");
   expect(html).toContain("Source");
-  expect(html).toContain('sandbox=""');
+  expect(html).toContain('sandbox="allow-scripts"');
   expect(html).toContain("/preview/html?path=index.html");
+  expect(html).toContain("theme=dark");
 });
 
 it("dispatches JSON files through a tree view with source fallback", () => {
@@ -602,15 +602,8 @@ it("renders a bounded tree with a large-workspace hint", () => {
   expect(html).not.toContain("file-998.ts");
 });
 
-it("renders simple Mermaid flowcharts without script execution", () => {
-  expect(parseMermaidEdges("graph TD\nA[Start] -->|ok| B[Done]")).toEqual([
-    { from: "Start", label: "ok", to: "Done" },
-  ]);
-  expect(
-    renderMermaidPreviewHtml('graph TD\nA["<Start>"] -->|<ok>| B[Done]', {
-      idPrefix: "test",
-    }),
-  ).toContain("&lt;Start&gt;");
+it("renders Mermaid diagrams with the official Mermaid runtime", () => {
+  expect(hasCustomMermaidStyle("graph TD\nclassDef hot fill:#f00")).toBe(true);
 
   const html = renderToStaticMarkup(
     <MermaidViewer
@@ -623,7 +616,8 @@ it("renders simple Mermaid flowcharts without script execution", () => {
     />,
   );
 
-  expect(html).toContain("Safe Mermaid preview");
-  expect(html).toContain("Start");
-  expect(html).toContain("Done");
+  expect(html).toContain("Mermaid preview");
+  expect(html).toContain("Rendering Mermaid diagram");
+  expect(html).toContain("mermaid-render-target");
+  expect(html).not.toContain("mermaid-svg");
 });

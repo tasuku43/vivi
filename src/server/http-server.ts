@@ -3,12 +3,22 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
+import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import type { AddressInfo, Socket } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ViewerService } from "../app/viewer-service.js";
+import {
+  pathlensMermaidThemeVariables,
+  type MermaidPreviewTheme,
+} from "../domain/mermaid-theme.js";
+import {
+  escapeHtml,
+  hasCustomMermaidStyle,
+} from "../domain/mermaid-preview.js";
 
 export interface ServerOptions {
   host: string;
@@ -128,17 +138,36 @@ async function routeRequest(
   if (url.pathname === "/preview/html") {
     const requestedPath = url.searchParams.get("path") ?? "";
     const html = await options.service.readHtmlPreview(requestedPath);
-    const previewHtml = addHtmlHeadingIds(withPreviewBase(html, requestedPath));
+    const allowHtmlScripts =
+      options.allowHtmlScripts ?? options.service.getConfig().allowHtmlScripts;
+    const theme = parseHtmlPreviewTheme(url.searchParams.get("theme"));
+    const nonce = randomBytes(16).toString("base64");
+    const previewHtml = renderEmbeddedMermaidPreviewHtml(
+      addHtmlHeadingIds(withPreviewBase(html, requestedPath)),
+      {
+        enabled: !allowHtmlScripts,
+        nonce,
+        theme,
+      },
+    );
     res.writeHead(200, {
       "content-type": "text/html; charset=utf-8",
       "x-content-type-options": "nosniff",
       "cache-control": "no-store",
-      "content-security-policy": htmlPreviewCsp(
-        options.allowHtmlScripts ??
-          options.service.getConfig().allowHtmlScripts,
-      ),
+      "content-security-policy": htmlPreviewCsp(allowHtmlScripts, nonce),
     });
     res.end(previewHtml);
+    return;
+  }
+
+  if (url.pathname === "/pathlens/vendor/mermaid.min.js") {
+    const content = await readFile(mermaidBrowserBundlePath());
+    res.writeHead(200, {
+      "content-type": "text/javascript; charset=utf-8",
+      "x-content-type-options": "nosniff",
+      "cache-control": "no-store",
+    });
+    res.end(content);
     return;
   }
 
@@ -260,7 +289,7 @@ function isInside(root: string, target: string): boolean {
   );
 }
 
-function htmlPreviewCsp(allowHtmlScripts: boolean): string {
+function htmlPreviewCsp(allowHtmlScripts: boolean, nonce: string): string {
   const base = [
     "default-src 'self' data: blob:",
     "object-src 'none'",
@@ -270,7 +299,7 @@ function htmlPreviewCsp(allowHtmlScripts: boolean): string {
   base.push(
     allowHtmlScripts
       ? "script-src 'self' 'unsafe-inline'"
-      : "script-src 'none'",
+      : `script-src 'nonce-${nonce}'`,
   );
   return base.join("; ");
 }
@@ -313,6 +342,163 @@ function addHtmlHeadingIds(html: string): string {
       return `<h${rawLevel}${rawAttributes} id="${escapeAttribute(id)}">${innerHtml}</h${rawLevel}>`;
     },
   );
+}
+
+function renderEmbeddedMermaidPreviewHtml(
+  html: string,
+  options: { enabled: boolean; nonce: string; theme: MermaidPreviewTheme },
+): string {
+  let index = 0;
+  const rendered = options.enabled
+    ? html.replace(
+        /<(pre|div|code)(\s[^>]*)?>([\s\S]*?)<\/\1>/gi,
+        (match, tagName: string, rawAttributes = "", innerHtml: string) => {
+          if (!hasMermaidClass(rawAttributes)) return match;
+          const source = htmlToText(innerHtml).trim();
+          if (!source) return match;
+          const id = `pathlens-html-mermaid-${index}`;
+          index += 1;
+          return `<figure class="html-mermaid" id="${id}" data-pathlens-html-mermaid data-mermaid-status="pending" data-mermaid-custom-style="${hasCustomMermaidStyle(source) ? "true" : "false"}" data-mermaid-source="${escapeAttribute(source)}"><figcaption>Mermaid preview · user scripts inactive</figcaption><div class="mermaid-render-target" aria-live="polite"></div><div class="markdown-mermaid-fallback unsupported"><p>Mermaid preview is loading. Source is shown below if rendering fails.</p><details class="markdown-mermaid-source"><summary>Mermaid source</summary><pre><code>${escapeHtml(source)}</code></pre></details></div></figure>`;
+        },
+      )
+    : html;
+  return injectHtmlPreviewRuntime(rendered, {
+    includeMermaidRuntime: options.enabled && index > 0,
+    nonce: options.nonce,
+    theme: options.theme,
+  });
+}
+
+function hasMermaidClass(attributes: string): boolean {
+  const match = /\sclass\s*=\s*(["'])(.*?)\1/i.exec(attributes);
+  return Boolean(match?.[2].split(/\s+/).includes("mermaid"));
+}
+
+function htmlToText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}
+
+function injectHtmlPreviewRuntime(
+  html: string,
+  options: {
+    includeMermaidRuntime: boolean;
+    nonce: string;
+    theme: MermaidPreviewTheme;
+  },
+): string {
+  if (/data-pathlens-mermaid-preview/i.test(html)) return html;
+  const palette = htmlPreviewPalette(options.theme);
+  const styles = `<style data-pathlens-mermaid-preview data-pathlens-html-theme="${options.theme}">
+html{color-scheme:${options.theme};background:${palette.background};}
+body{background:${palette.background};color:${palette.text};}
+body:not([data-pathlens-preserve-spacing]){font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
+a{color:${palette.accent};}
+hr{border-color:${palette.line};}
+blockquote{border-left:3px solid ${palette.line};color:${palette.muted};margin-left:0;padding-left:14px;}
+pre,code{background:${palette.codeBackground};color:${palette.codeText};}
+pre{border:1px solid ${palette.line};border-radius:8px;padding:12px;overflow:auto;}
+table{border-collapse:collapse;}
+th,td{border:1px solid ${palette.line};padding:6px 8px;}
+.html-mermaid{margin:18px 0;}
+.html-mermaid figcaption,.markdown-mermaid-source summary{color:${palette.muted};font-size:12px;}
+.mermaid-render-target{overflow:auto;border:1px solid ${palette.line};border-radius:8px;background:${palette.panel};padding:14px;}
+.mermaid-render-target svg{display:block;max-width:100%;height:auto;}
+.html-mermaid[data-mermaid-status="rendered"] .markdown-mermaid-fallback{display:none;}
+.markdown-mermaid-source{margin-top:10px;}
+.markdown-mermaid-source summary{cursor:pointer;}
+.markdown-mermaid-source pre{overflow:auto;border:1px solid ${palette.line};border-radius:8px;background:${palette.codeBackground};color:${palette.codeText};padding:10px;}
+.html-mermaid.unsupported{border:1px solid ${palette.line};border-radius:8px;background:${palette.panel};padding:12px;}
+</style>`;
+  const scripts = options.includeMermaidRuntime
+    ? `<script nonce="${escapeAttribute(options.nonce)}" src="/pathlens/vendor/mermaid.min.js"></script><script nonce="${escapeAttribute(options.nonce)}">
+(() => {
+  const previewTheme = ${JSON.stringify(options.theme)};
+  const themeVariables = ${JSON.stringify(pathlensMermaidThemeVariables(options.theme))};
+  const renderBlocks = async () => {
+    const mermaid = globalThis.mermaid;
+    if (!mermaid) return;
+    const blocks = Array.from(document.querySelectorAll("[data-pathlens-html-mermaid]"));
+    for (const [index, block] of blocks.entries()) {
+      const source = block.dataset.mermaidSource;
+      const target = block.querySelector(".mermaid-render-target");
+      if (!source || !target || block.dataset.mermaidStatus === "rendered") continue;
+      try {
+        const hasCustomStyle = block.dataset.mermaidCustomStyle === "true";
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: "strict",
+          theme: hasCustomStyle ? (previewTheme === "dark" ? "dark" : "default") : "base",
+          themeVariables: hasCustomStyle ? undefined : themeVariables,
+          flowchart: { htmlLabels: false }
+        });
+        const result = await mermaid.render(\`pathlens-html-mermaid-\${index}-\${Date.now()}\`, source);
+        target.innerHTML = result.svg;
+        block.dataset.mermaidStatus = "rendered";
+      } catch (error) {
+        block.dataset.mermaidStatus = "error";
+        target.textContent = error instanceof Error ? error.message : "Mermaid could not render this diagram.";
+      }
+    }
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", renderBlocks, { once: true });
+  } else {
+    renderBlocks();
+  }
+})();
+</script>`
+    : "";
+  if (/<\/head>/i.test(html))
+    return html.replace(/<\/head>/i, `${styles}${scripts}</head>`);
+  if (/<body(\s[^>]*)?>/i.test(html))
+    return html.replace(
+      /<body(\s[^>]*)?>/i,
+      (match) => `${styles}${scripts}${match}`,
+    );
+  return `${styles}${scripts}${html}`;
+}
+
+function mermaidBrowserBundlePath(): string {
+  const require = createRequire(import.meta.url);
+  return require.resolve("mermaid/dist/mermaid.min.js");
+}
+
+function parseHtmlPreviewTheme(value: string | null): MermaidPreviewTheme {
+  return value === "light" ? "light" : "dark";
+}
+
+function htmlPreviewPalette(theme: MermaidPreviewTheme) {
+  if (theme === "light") {
+    return {
+      accent: "#2f6f73",
+      background: "#fbfaf7",
+      codeBackground: "#f2f0ea",
+      codeText: "#172426",
+      line: "#d4c9b8",
+      muted: "#66736f",
+      panel: "#ffffff",
+      text: "#172426",
+    };
+  }
+
+  return {
+    accent: "#7dd3c7",
+    background: "#0e1316",
+    codeBackground: "#11191d",
+    codeText: "#edf7f5",
+    line: "#34474d",
+    muted: "#96aaa9",
+    panel: "#152126",
+    text: "#edf7f5",
+  };
 }
 
 function slugify(value: string): string {
