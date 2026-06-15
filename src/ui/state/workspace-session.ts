@@ -1,5 +1,9 @@
 import type { FsNode } from "../../domain/fs-node.js";
 import {
+  clampInspectorWidth,
+  clampSidebarWidth,
+} from "./workbench-layout.js";
+import {
   flattenPanes,
   initialEditorLayout,
   type EditorLayout,
@@ -18,6 +22,8 @@ export interface WorkspaceSessionState {
   layout: EditorLayout;
   recentFiles: RecentFile[];
   inspectorVisible: boolean;
+  sidebarWidth?: number;
+  inspectorWidth?: number;
   diffEnabled?: boolean;
   diffFocusByPath?: Record<string, boolean>;
 }
@@ -30,11 +36,17 @@ export interface StoredWorkspaceSessionV1 extends WorkspaceSessionState {
 
 type StoredWorkspaceSessionInputV1 = Omit<
   StoredWorkspaceSessionV1,
-  "diffEnabled" | "diffFocusByPath" | "inspectorVisible"
+  | "diffEnabled"
+  | "diffFocusByPath"
+  | "inspectorVisible"
+  | "sidebarWidth"
+  | "inspectorWidth"
 > & {
   diffEnabled?: boolean;
   diffFocusByPath?: Record<string, boolean>;
   inspectorVisible?: boolean;
+  sidebarWidth?: number;
+  inspectorWidth?: number;
 };
 
 export const workspaceSessionStorageKey = "pathlens.workspaceSession.v1";
@@ -77,6 +89,14 @@ export function buildWorkspaceSession(
     layout: persistentTabs.length > 0 ? state.layout : initialEditorLayout,
     recentFiles: trimRecentFiles(state.recentFiles),
     inspectorVisible: state.inspectorVisible,
+    sidebarWidth:
+      state.sidebarWidth === undefined
+        ? undefined
+        : clampSidebarWidth(state.sidebarWidth),
+    inspectorWidth:
+      state.inspectorWidth === undefined
+        ? undefined
+        : clampInspectorWidth(state.inspectorWidth),
     diffEnabled: state.diffEnabled ?? false,
     diffFocusByPath: state.diffFocusByPath ?? {},
   };
@@ -94,6 +114,14 @@ export function parseWorkspaceSession(
       diffEnabled: value.diffEnabled ?? false,
       diffFocusByPath: value.diffFocusByPath ?? {},
       inspectorVisible: value.inspectorVisible ?? true,
+      sidebarWidth:
+        value.sidebarWidth === undefined
+          ? undefined
+          : clampSidebarWidth(value.sidebarWidth),
+      inspectorWidth:
+        value.inspectorWidth === undefined
+          ? undefined
+          : clampInspectorWidth(value.inspectorWidth),
     };
   } catch {
     return null;
@@ -127,6 +155,8 @@ export function restoreWorkspaceSession(
     layout,
     recentFiles,
     inspectorVisible: stored.inspectorVisible,
+    sidebarWidth: stored.sidebarWidth,
+    inspectorWidth: stored.inspectorWidth,
     diffEnabled: stored.diffEnabled,
     diffFocusByPath,
   };
@@ -280,7 +310,11 @@ function isStoredWorkspaceSession(
     (value.diffFocusByPath === undefined ||
       isBooleanRecord(value.diffFocusByPath)) &&
     (typeof value.inspectorVisible === "boolean" ||
-      value.inspectorVisible === undefined)
+      value.inspectorVisible === undefined) &&
+    (typeof value.sidebarWidth === "number" ||
+      value.sidebarWidth === undefined) &&
+    (typeof value.inspectorWidth === "number" ||
+      value.inspectorWidth === undefined)
   );
 }
 

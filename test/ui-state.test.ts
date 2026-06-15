@@ -53,6 +53,16 @@ import {
   themePreferenceLabel,
 } from "../src/ui/state/theme.js";
 import {
+  clampInspectorWidth,
+  clampSidebarWidth,
+  defaultInspectorWidth,
+  defaultSidebarWidth,
+  maxInspectorWidth,
+  maxSidebarWidth,
+  minInspectorWidth,
+  minSidebarWidth,
+} from "../src/ui/state/workbench-layout.js";
+import {
   buildWorkspaceSession,
   collectFilePaths,
   parseWorkspaceSession,
@@ -779,6 +789,17 @@ it("cycles theme preference while keeping system as the default option", () => {
   expect(isThemePreference("dark")).toBe(true);
 });
 
+it("clamps side widths for draggable workbench layout", () => {
+  expect(clampSidebarWidth(320.4)).toBe(320);
+  expect(clampSidebarWidth(minSidebarWidth - 1)).toBe(minSidebarWidth);
+  expect(clampSidebarWidth(maxSidebarWidth + 1)).toBe(maxSidebarWidth);
+  expect(clampSidebarWidth(Number.NaN)).toBe(defaultSidebarWidth);
+  expect(clampInspectorWidth(340.6)).toBe(341);
+  expect(clampInspectorWidth(minInspectorWidth - 1)).toBe(minInspectorWidth);
+  expect(clampInspectorWidth(maxInspectorWidth + 1)).toBe(maxInspectorWidth);
+  expect(clampInspectorWidth(Number.NaN)).toBe(defaultInspectorWidth);
+});
+
 it("restores workspace tabs and layout only for the current root and tree", () => {
   const now = 100_000;
   const layout = splitEditorPane(
@@ -804,6 +825,8 @@ it("restores workspace tabs and layout only for the current root and tree", () =
         { path: "missing.md", viewerKind: "markdown", lastOpenedAt: now },
       ],
       inspectorVisible: false,
+      sidebarWidth: 640,
+      inspectorWidth: 120,
       diffEnabled: true,
     },
     now,
@@ -828,6 +851,8 @@ it("restores workspace tabs and layout only for the current root and tree", () =
   ]);
   expect(restored?.layout.activePaneId).toBe("pane-1");
   expect(restored?.inspectorVisible).toBe(false);
+  expect(restored?.sidebarWidth).toBe(maxSidebarWidth);
+  expect(restored?.inspectorWidth).toBe(minInspectorWidth);
   expect(restored?.diffEnabled).toBe(true);
   expect(restoreWorkspaceSession(stored, "/other", new Set(), now)).toBeNull();
   expect(

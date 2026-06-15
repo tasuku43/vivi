@@ -142,12 +142,15 @@ button.pill {
 }
 
 .workbench {
+  position: relative;
   min-height: 0;
   display: grid;
-  grid-template-columns: 280px minmax(420px, 1fr) 280px;
+  grid-template-columns:
+    var(--sidebar-width, 280px) minmax(420px, 1fr)
+    var(--inspector-width, 280px);
 }
 .workbench.inspector-hidden {
-  grid-template-columns: 280px minmax(420px, 1fr);
+  grid-template-columns: var(--sidebar-width, 280px) minmax(420px, 1fr);
 }
 
 .sidebar,
@@ -158,6 +161,42 @@ button.pill {
 }
 .sidebar {
   border-right: 1px solid var(--line);
+}
+.workbench-resizer {
+  position: absolute;
+  top: 0;
+  z-index: 4;
+  width: 8px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  cursor: col-resize;
+}
+.sidebar-resizer {
+  left: calc(var(--sidebar-width, 280px) - 4px);
+}
+.inspector-resizer {
+  left: calc(100% - var(--inspector-width, 280px) - 4px);
+}
+.workbench-resizer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 3px;
+  width: 2px;
+  height: 100%;
+  background: transparent;
+}
+.workbench-resizer:hover::after,
+.workbench-resizer:focus-visible::after,
+body.resizing-workbench-pane .workbench-resizer::after {
+  background: var(--accent);
+}
+body.resizing-workbench-pane {
+  cursor: col-resize;
+  user-select: none;
 }
 .inspector {
   border-left: 1px solid var(--line);
@@ -2050,9 +2089,12 @@ kbd {
 
 @media (max-width: 1040px) {
   .workbench {
-    grid-template-columns: 260px 1fr;
+    grid-template-columns: var(--sidebar-width, 260px) 1fr;
   }
   .inspector {
+    display: none;
+  }
+  .inspector-resizer {
     display: none;
   }
   .markdown h1 {

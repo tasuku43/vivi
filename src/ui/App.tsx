@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { TextDiff } from "../domain/change-review.js";
 import type {
   FilePayload,
@@ -69,6 +69,12 @@ import {
   type ResolvedTheme,
   type ThemePreference,
 } from "./state/theme.js";
+import {
+  clampInspectorWidth,
+  clampSidebarWidth,
+  defaultInspectorWidth,
+  defaultSidebarWidth,
+} from "./state/workbench-layout.js";
 import {
   buildWorkspaceSession,
   parseWorkspaceSession,
@@ -161,6 +167,11 @@ export function App() {
   const [systemTheme, setSystemTheme] =
     useState<ResolvedTheme>(readSystemTheme);
   const [inspectorVisible, setInspectorVisible] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(defaultSidebarWidth);
+  const [inspectorWidth, setInspectorWidth] = useState(defaultInspectorWidth);
+  const [resizingWorkbenchPane, setResizingWorkbenchPane] = useState<
+    "sidebar" | "inspector" | null
+  >(null);
   const [treeChangedOnly, setTreeChangedOnly] = useState(false);
   const [inspectorTargetVisible, setInspectorTargetVisible] = useState(false);
   const [workspaceSessionReady, setWorkspaceSessionReady] = useState(false);
@@ -665,6 +676,8 @@ export function App() {
         layout,
         recentFiles,
         inspectorVisible,
+        sidebarWidth,
+        inspectorWidth,
         diffEnabled,
         diffFocusByPath,
       }),
@@ -676,6 +689,8 @@ export function App() {
     layout,
     recentFiles,
     inspectorVisible,
+    sidebarWidth,
+    inspectorWidth,
     diffEnabled,
     diffFocusByPath,
     pendingRestoreSession,
@@ -695,6 +710,31 @@ export function App() {
     document.documentElement.style.colorScheme = resolvedTheme;
     window.localStorage.setItem(themeStorageKey, themePreference);
   }, [resolvedTheme, themePreference]);
+
+  useEffect(() => {
+    if (!resizingWorkbenchPane) return;
+
+    const resize = (event: PointerEvent) => {
+      if (resizingWorkbenchPane === "sidebar") {
+        setSidebarWidth(clampSidebarWidth(event.clientX));
+      } else {
+        setInspectorWidth(clampInspectorWidth(window.innerWidth - event.clientX));
+      }
+    };
+    const stopResize = () => setResizingWorkbenchPane(null);
+
+    window.addEventListener("pointermove", resize);
+    window.addEventListener("pointerup", stopResize);
+    window.addEventListener("pointercancel", stopResize);
+    document.body.classList.add("resizing-workbench-pane");
+
+    return () => {
+      window.removeEventListener("pointermove", resize);
+      window.removeEventListener("pointerup", stopResize);
+      window.removeEventListener("pointercancel", stopResize);
+      document.body.classList.remove("resizing-workbench-pane");
+    };
+  }, [resizingWorkbenchPane]);
 
   useEffect(() => {
     if (!paletteOpen || paletteMode !== "file") {
@@ -928,7 +968,24 @@ export function App() {
         className={
           inspectorVisible ? "workbench" : "workbench inspector-hidden"
         }
+        style={
+          {
+            "--sidebar-width": `${sidebarWidth}px`,
+            "--inspector-width": `${inspectorWidth}px`,
+          } as CSSProperties
+        }
       >
+        <button
+          className="workbench-resizer sidebar-resizer"
+          type="button"
+          aria-label="Resize sidebar"
+          title="Resize sidebar"
+          onPointerDown={(event) => {
+            event.preventDefault();
+            setResizingWorkbenchPane("sidebar");
+          }}
+          onDoubleClick={() => setSidebarWidth(defaultSidebarWidth)}
+        />
         <aside className="sidebar">
           <div className="panel-title">
             <span>Explorer</span>
@@ -971,35 +1028,48 @@ export function App() {
         </main>
 
         {inspectorVisible ? (
-          <Inspector
-            file={file}
-            outline={outline}
-            reviewChanges={reviewChanges}
-            reviewDiffStats={reviewDiffStats}
-            loadingReviewDiffs={loadingDiffs}
-            unreadReviewPaths={unreadReviewPathSet}
-            selectedCodeRange={
-              file?.path ? (codeSelections[file.path] ?? null) : null
-            }
-            refreshedAt={file?.path ? refreshedFiles[file.path] : undefined}
-            activePaneId={layout.activePaneId}
-            onOutlineSelect={jumpToOutline}
-            onOpenEventPath={(path) =>
-              void loadFile(path, layout.activePaneId, "preview").catch((err) =>
-                setError(String(err)),
-              )
-            }
-            onConfirmEventPath={(path) =>
-              void loadFile(path, layout.activePaneId, "normal").catch((err) =>
-                setError(String(err)),
-              )
-            }
-            onOpenNextChanged={() => openReviewQueueFile("next")}
-            onOpenPreviousChanged={() => openReviewQueueFile("previous")}
-            onOpenAllChanged={openAllChangedFiles}
-            onTargetHoverChange={setInspectorTargetVisible}
-            onRevealTarget={revealInspectorTarget}
-          />
+          <>
+            <button
+              className="workbench-resizer inspector-resizer"
+              type="button"
+              aria-label="Resize inspector"
+              title="Resize inspector"
+              onPointerDown={(event) => {
+                event.preventDefault();
+                setResizingWorkbenchPane("inspector");
+              }}
+              onDoubleClick={() => setInspectorWidth(defaultInspectorWidth)}
+            />
+            <Inspector
+              file={file}
+              outline={outline}
+              reviewChanges={reviewChanges}
+              reviewDiffStats={reviewDiffStats}
+              loadingReviewDiffs={loadingDiffs}
+              unreadReviewPaths={unreadReviewPathSet}
+              selectedCodeRange={
+                file?.path ? (codeSelections[file.path] ?? null) : null
+              }
+              refreshedAt={file?.path ? refreshedFiles[file.path] : undefined}
+              activePaneId={layout.activePaneId}
+              onOutlineSelect={jumpToOutline}
+              onOpenEventPath={(path) =>
+                void loadFile(path, layout.activePaneId, "preview").catch(
+                  (err) => setError(String(err)),
+                )
+              }
+              onConfirmEventPath={(path) =>
+                void loadFile(path, layout.activePaneId, "normal").catch(
+                  (err) => setError(String(err)),
+                )
+              }
+              onOpenNextChanged={() => openReviewQueueFile("next")}
+              onOpenPreviousChanged={() => openReviewQueueFile("previous")}
+              onOpenAllChanged={openAllChangedFiles}
+              onTargetHoverChange={setInspectorTargetVisible}
+              onRevealTarget={revealInspectorTarget}
+            />
+          </>
         ) : null}
       </div>
 
@@ -1066,6 +1136,10 @@ export function App() {
     setLayout(restored.layout);
     setRecentFiles(restored.recentFiles);
     setInspectorVisible(restored.inspectorVisible);
+    setSidebarWidth(clampSidebarWidth(restored.sidebarWidth ?? sidebarWidth));
+    setInspectorWidth(
+      clampInspectorWidth(restored.inspectorWidth ?? inspectorWidth),
+    );
     setDiffEnabled(restored.diffEnabled ?? false);
     setDiffFocusByPath(restored.diffFocusByPath ?? {});
     void hydrateRestoredFiles(
