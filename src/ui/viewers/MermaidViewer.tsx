@@ -3,7 +3,15 @@ import type { TextDiff } from "../../domain/change-review.js";
 import type { FilePayload } from "../../domain/fs-node.js";
 import { pathlensMermaidThemeVariables } from "../../domain/mermaid-theme.js";
 import { hasCustomMermaidStyle } from "../../domain/mermaid-preview.js";
+import {
+  lineRangeForQuote,
+  scheduleSelectionCommentUpdate,
+  selectionCommentTargetInElement,
+  sourceCommentDraft,
+  type CommentDraft,
+} from "../state/comments.js";
 import type { ResolvedTheme } from "../state/theme.js";
+import { SelectionCommentPopover } from "../components/SelectionCommentPopover.js";
 import { DiffViewer } from "./DiffViewer.js";
 
 export { hasCustomMermaidStyle } from "../../domain/mermaid-preview.js";
@@ -19,6 +27,7 @@ export function MermaidViewer({
   diffFocusChanges,
   onDiffToggle,
   onDiffFocusChange,
+  onCreateComment,
 }: {
   file: FilePayload;
   theme?: ResolvedTheme;
@@ -28,13 +37,36 @@ export function MermaidViewer({
   diffFocusChanges?: boolean;
   onDiffToggle?: () => void;
   onDiffFocusChange?: (focusChanges: boolean) => void;
+  onCreateComment?: (draft: CommentDraft) => void;
 }) {
   const [mode, setMode] = useState<"preview" | "source">("preview");
+  const [selectionComment, setSelectionComment] = useState<{
+    draft: CommentDraft;
+    left: number;
+    top: number;
+  } | null>(null);
+  const sourceRef = useRef<HTMLPreElement | null>(null);
   const { containerRef, error, status } = useMermaidRender(
     file.content,
     `${useId()}-${slugForMarker(file.path)}`,
     theme,
   );
+  const updateSourceSelectionComment = () => {
+    const selection = selectionCommentTargetInElement(sourceRef.current);
+    if (!selection) {
+      setSelectionComment(null);
+      return;
+    }
+    setSelectionComment({
+      draft: sourceCommentDraft(
+        file,
+        lineRangeForQuote(file.content, selection.text),
+        selection.text,
+      ),
+      left: selection.rect.left + selection.rect.width / 2,
+      top: selection.rect.top,
+    });
+  };
 
   return (
     <section className="mermaid-viewer">
@@ -77,6 +109,8 @@ export function MermaidViewer({
           renderKind="source"
           theme={theme}
           onFocusChangesChange={onDiffFocusChange}
+          file={file}
+          onCreateComment={onCreateComment}
         />
       ) : mode === "preview" ? (
         <div className="mermaid-render-surface">
@@ -104,8 +138,24 @@ export function MermaidViewer({
           ) : null}
         </div>
       ) : (
-        <pre className="markdown-source">{file.content}</pre>
+        <pre
+          className="markdown-source"
+          ref={sourceRef}
+          onMouseUp={() =>
+            scheduleSelectionCommentUpdate(updateSourceSelectionComment)
+          }
+          onKeyUp={updateSourceSelectionComment}
+        >
+          {file.content}
+        </pre>
       )}
+      <SelectionCommentPopover
+        draft={selectionComment?.draft ?? null}
+        left={selectionComment?.left ?? 0}
+        top={selectionComment?.top ?? 0}
+        onCreateComment={onCreateComment}
+        onDismiss={() => setSelectionComment(null)}
+      />
     </section>
   );
 }

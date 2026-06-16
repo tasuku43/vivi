@@ -146,6 +146,78 @@ Returns viewer configuration needed by the SPA.
 }
 ```
 
+### `GET /api/v1/meta`
+
+Returns versioned API metadata for comment clients.
+
+```json
+{
+  "version": "v1",
+  "comments": {
+    "statuses": ["open", "resolved", "archived"],
+    "surfaces": ["source", "rendered", "diff"],
+    "exportFormats": ["jsonl"]
+  }
+}
+```
+
+### `GET /api/v1/comments?path=<relative-path>&status=open`
+
+Returns persisted comments. `path` and `status` filters are optional. Status is
+one of `open`, `resolved`, or `archived`.
+
+Each comment has one shared identity and body across source, rendered, and diff
+views. The canonical source anchor is the primary location. Rendered and diff
+anchors are auxiliary view anchors that map back to that source anchor when
+available.
+
+### `POST /api/v1/comments`
+
+Creates a comment. The request must be JSON and is intended for local-server use.
+The server validates Host/Origin headers where practical. Diff comments are only
+accepted for `side: "current"` and `changeKind: "context"` or `"added"`.
+
+```json
+{
+  "path": "README.md",
+  "viewerKind": "markdown",
+  "body": "Clarify this paragraph.",
+  "anchor": {
+    "surface": "rendered",
+    "canonical": {
+      "path": "README.md",
+      "lineStart": 12,
+      "lineEnd": 12,
+      "quote": "Rendered selected text",
+      "fileHash": "sha256:..."
+    },
+    "rendered": {
+      "kind": "markdown",
+      "selector": "p:nth-of-type(3)",
+      "textQuote": "Rendered selected text",
+      "sourceLineStart": 12,
+      "sourceLineEnd": 12
+    }
+  }
+}
+```
+
+### `PATCH /api/v1/comments/:id`
+
+Updates a comment body or status.
+
+```json
+{
+  "status": "resolved"
+}
+```
+
+### `GET /api/v1/comments/export?status=open&format=jsonl`
+
+Exports comments as JSONL for coding agents. `format=jsonl` is required. Each
+line includes the comment id, path, source line range when known, selected quote
+when known, body, status, and any rendered or diff anchor metadata.
+
 ### `GET /api/changes`
 
 Returns read-only Git working-tree review status when the selected root is inside a Git repository. This is a viewer aid, not a staging or history API. If Git is unavailable or the root is not a worktree, the endpoint returns `available: false` with a reason.

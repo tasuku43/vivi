@@ -13,8 +13,17 @@ import {
   extractMarkdownOutline,
   renderMarkdownHtmlWithHeadingIds,
 } from "../state/outline.js";
+import {
+  lineRangeForQuote,
+  renderedCommentDraft,
+  scheduleSelectionCommentUpdate,
+  selectionCommentTargetInElement,
+  sourceCommentDraft,
+  type CommentDraft,
+} from "../state/comments.js";
 import type { ResolvedTheme } from "../state/theme.js";
 import type { ViewerMode } from "../state/viewer-mode.js";
+import { SelectionCommentPopover } from "../components/SelectionCommentPopover.js";
 import { DiffViewer } from "./DiffViewer.js";
 import { renderMermaidBlocks } from "./MermaidViewer.js";
 
@@ -29,6 +38,7 @@ export function MarkdownViewer({
   onModeChange,
   onDiffToggle,
   onDiffFocusChange,
+  onCreateComment,
 }: {
   file: FilePayload;
   mode?: ViewerMode;
@@ -40,15 +50,23 @@ export function MarkdownViewer({
   onModeChange?: (mode: ViewerMode) => void;
   onDiffToggle?: () => void;
   onDiffFocusChange?: (focusChanges: boolean) => void;
+  onCreateComment?: (draft: CommentDraft) => void;
 }) {
   const [localMode, setLocalMode] = useState<ViewerMode>("rendered");
+  const [selectionComment, setSelectionComment] = useState<{
+    draft: CommentDraft;
+    left: number;
+    top: number;
+  } | null>(null);
   const mode =
     controlledMode === "source" || controlledMode === "rendered"
       ? controlledMode
       : localMode;
   const html = renderMarkdownDocumentHtml(file.content);
   const markdownRef = useRef<HTMLElement | null>(null);
+  const sourceRef = useRef<HTMLPreElement | null>(null);
   const setMode = (nextMode: ViewerMode) => {
+    setSelectionComment(null);
     setLocalMode(nextMode);
     onModeChange?.(nextMode);
   };
@@ -68,6 +86,39 @@ export function MarkdownViewer({
     },
     [html, renderPendingMermaid],
   );
+  const updateRenderedSelectionComment = () => {
+    const selection = selectionCommentTargetInElement(markdownRef.current);
+    if (!selection) {
+      setSelectionComment(null);
+      return;
+    }
+    const range = lineRangeForQuote(file.content, selection.text);
+    setSelectionComment({
+      draft: renderedCommentDraft(file, "markdown", {
+        text: selection.text,
+        sourceLineStart: range?.start,
+        sourceLineEnd: range?.end,
+      }),
+      left: selection.rect.left + selection.rect.width / 2,
+      top: selection.rect.top,
+    });
+  };
+  const updateSourceSelectionComment = () => {
+    const selection = selectionCommentTargetInElement(sourceRef.current);
+    if (!selection) {
+      setSelectionComment(null);
+      return;
+    }
+    setSelectionComment({
+      draft: sourceCommentDraft(
+        file,
+        lineRangeForQuote(file.content, selection.text),
+        selection.text,
+      ),
+      left: selection.rect.left + selection.rect.width / 2,
+      top: selection.rect.top,
+    });
+  };
 
   useLayoutEffect(() => {
     renderPendingMermaid();
@@ -119,16 +170,38 @@ export function MarkdownViewer({
           renderKind={mode === "source" ? "source" : "markdown"}
           theme={theme}
           onFocusChangesChange={onDiffFocusChange}
+          onCreateComment={onCreateComment}
+          file={file}
         />
       ) : mode === "rendered" ? (
         <article
           className="markdown markdown-document"
           ref={attachMarkdownRef}
+          onMouseUp={() =>
+            scheduleSelectionCommentUpdate(updateRenderedSelectionComment)
+          }
+          onKeyUp={updateRenderedSelectionComment}
           dangerouslySetInnerHTML={{ __html: html }}
         />
       ) : (
-        <pre className="markdown-source">{file.content}</pre>
+        <pre
+          className="markdown-source"
+          ref={sourceRef}
+          onMouseUp={() =>
+            scheduleSelectionCommentUpdate(updateSourceSelectionComment)
+          }
+          onKeyUp={updateSourceSelectionComment}
+        >
+          {file.content}
+        </pre>
       )}
+      <SelectionCommentPopover
+        draft={selectionComment?.draft ?? null}
+        left={selectionComment?.left ?? 0}
+        top={selectionComment?.top ?? 0}
+        onCreateComment={onCreateComment}
+        onDismiss={() => setSelectionComment(null)}
+      />
     </section>
   );
 }

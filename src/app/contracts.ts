@@ -14,6 +14,10 @@ import type {
   SearchStats,
   TextSearchResult,
 } from "../domain/search.js";
+import type {
+  CommentListFilters,
+  PathlensComment,
+} from "../domain/comments.js";
 
 export interface FileSystemPort {
   readTree(): Promise<TreeSnapshot>;
@@ -57,8 +61,16 @@ export interface ChangeReviewPort {
   readDiffBases?(): Promise<DiffBaseSummary>;
 }
 
+export interface CommentStorePort {
+  listComments(filters?: CommentListFilters): Promise<PathlensComment[]>;
+  createComment(comment: PathlensComment): Promise<PathlensComment>;
+  updateComment(comment: PathlensComment): Promise<PathlensComment>;
+  getComment(id: string): Promise<PathlensComment | null>;
+}
+
 export interface ViewerServiceOptions {
   fileSystem: FileSystemPort;
   watcher?: WatcherPort;
   changeReview?: ChangeReviewPort;
+  commentStore?: CommentStorePort;
 }

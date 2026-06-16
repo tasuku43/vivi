@@ -35,7 +35,8 @@ Expected user experience:
 12. Recent filesystem events appear in a compact review queue so changed files can be opened quickly, and the tree can be filtered to changed files only.
 13. Generated-review targets under directories such as `dist/`, `build/`, `reports/`, `coverage/`, `screenshots/`, and `docs/` are surfaced in the inspector.
 14. In Git worktrees, uncommitted added, modified, deleted, and renamed files appear in the changed-file review list, with a bounded side-by-side text diff for small files.
-15. Large trees start with a bounded auto-expanded view and cap rendered visible rows, while selected or changed files remain easy to reveal.
+15. Comments can be attached to files from source selections, rendered Markdown/HTML selections, and current-file diff lines. Comment status can be open, resolved, or archived.
+16. Large trees start with a bounded auto-expanded view and cap rendered visible rows, while selected or changed files remain easy to reveal.
 
 ## What pathlens is not
 
@@ -49,6 +50,7 @@ Docker is the recommended way to run `pathlens` locally because it keeps the Nod
 docker run --rm -it \
   -p 4317:4317 \
   -v "$PWD:/workspace:ro" \
+  -v pathlens-data:/data \
   ghcr.io/tasuku43/pathlens:latest
 ```
 
@@ -61,6 +63,11 @@ http://127.0.0.1:4317
 The Docker image defaults to serving `/workspace` and binding `0.0.0.0` inside the container so the published port works from the host. The CLI default outside Docker remains `127.0.0.1`.
 
 The image includes Git and runs it with read-only-safe defaults so the Review Queue can list uncommitted working-tree changes from a read-only bind mount.
+
+Comments are persisted outside the viewed workspace. In Docker, the image uses
+`/data/comments.jsonl`; mount `/data` as a volume when you want comments to
+survive container removal. Outside Docker, set `PATHLENS_DATA_DIR` to choose the
+data directory explicitly.
 
 If `git rev-parse --git-dir` points outside the directory you are mounting, as it does in a linked Git worktree, also mount the common Git metadata directory at the same absolute path:
 
@@ -90,7 +97,7 @@ Equivalent Docker commands:
 
 ```bash
 docker build -t pathlens:local .
-docker run --rm -it -p 4317:4317 -v "$PWD:/workspace:ro" pathlens:local
+docker run --rm -it -p 4317:4317 -v "$PWD:/workspace:ro" -v pathlens-data:/data pathlens:local
 ```
 
 To validate a multi-architecture build locally with Docker Buildx:
@@ -160,6 +167,9 @@ pathlens ./reports --open --max-file-size 2097152
 - `Enter`: open the selected file.
 - `Esc`: close the search palette.
 - In code viewers, click a line number to select a line; shift-click extends the selected range.
+- Drag-select text in source/rendered viewers, then use the inline `Comment`
+  action to attach a comment without modifying the workspace. In diff mode, use
+  `Comment` on current-file context or added rows.
 
 ## Release Images
 
@@ -248,6 +258,12 @@ docs/          product, architecture, requirements, and agent context
 - Large or unsupported files: safe fallback that explains why a richer preview is unavailable; large text-like files show a bounded leading chunk as an explicit partial preview.
 
 Recent filesystem events are shown as a compact review queue. Change events refresh the active file and mark inactive tabs/changed tree rows; add/remove events refresh the tree. Close add/remove file pairs with the same parent and extension are grouped as likely renames in the review list. In Git worktrees, `pathlens` also reads uncommitted working-tree status and can show a bounded side-by-side text diff from `HEAD` or another recent allowed commit base to the working tree. Git status can surface explicit renamed files in the changed-file list.
+
+Comments are local Pathlens metadata, not edits to the workspace. They are stored
+as one record per comment with a canonical source anchor and optional rendered or
+diff anchor metadata. Diff comments can target context and added lines because
+they exist in the current file; deleted lines from the old file are not
+commentable.
 
 The sidebar avoids expanding every descendant in very large trees on first render and avoids mounting every visible row after a large folder is expanded. It auto-expands within a row budget, keeps selected and changed paths revealable by expanding their ancestors, keeps important rows rendered beyond the normal cap, and shows a small note when collapsed or omitted rows are hiding additional entries.
 

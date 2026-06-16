@@ -16,8 +16,9 @@ ENV NODE_ENV=production
 ENV GIT_OPTIONAL_LOCKS=0 \
     GIT_CONFIG_COUNT=1 \
     GIT_CONFIG_KEY_0=safe.directory \
-    GIT_CONFIG_VALUE_0=*
-RUN apk add --no-cache git tini
+    GIT_CONFIG_VALUE_0=* \
+    PATHLENS_DATA_DIR=/data
+RUN apk add --no-cache git tini && mkdir -p /data
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/dist ./dist
 

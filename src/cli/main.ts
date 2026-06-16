@@ -3,6 +3,7 @@ import path from "node:path";
 import { ViewerService } from "../app/viewer-service.js";
 import { openBrowser } from "../infra/browser-open.js";
 import { GitChangeReview } from "../infra/git-change-review.js";
+import { NodeCommentStore } from "../infra/node-comment-store.js";
 import { NodeFileSystem } from "../infra/node-file-system.js";
 import { NodeWatcher } from "../infra/node-watcher.js";
 import { startHttpServer } from "../server/http-server.js";
@@ -79,7 +80,13 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   });
   const watcher = new NodeWatcher({ rootDir });
   const changeReview = new GitChangeReview({ rootDir });
-  const service = new ViewerService({ fileSystem, watcher, changeReview });
+  const commentStore = new NodeCommentStore();
+  const service = new ViewerService({
+    fileSystem,
+    watcher,
+    changeReview,
+    commentStore,
+  });
   const server = await startHttpServer({
     host: options.host,
     port: options.port,

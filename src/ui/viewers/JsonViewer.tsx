@@ -1,7 +1,15 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { TextDiff } from "../../domain/change-review.js";
 import type { FilePayload } from "../../domain/fs-node.js";
+import {
+  lineRangeForQuote,
+  scheduleSelectionCommentUpdate,
+  selectionCommentTargetInElement,
+  sourceCommentDraft,
+  type CommentDraft,
+} from "../state/comments.js";
 import type { ResolvedTheme } from "../state/theme.js";
+import { SelectionCommentPopover } from "../components/SelectionCommentPopover.js";
 import { DiffViewer } from "./DiffViewer.js";
 
 export function JsonViewer({
@@ -13,6 +21,7 @@ export function JsonViewer({
   diffFocusChanges,
   onDiffToggle,
   onDiffFocusChange,
+  onCreateComment,
 }: {
   file: FilePayload;
   theme?: ResolvedTheme;
@@ -22,12 +31,35 @@ export function JsonViewer({
   diffFocusChanges?: boolean;
   onDiffToggle?: () => void;
   onDiffFocusChange?: (focusChanges: boolean) => void;
+  onCreateComment?: (draft: CommentDraft) => void;
 }) {
   const [mode, setMode] = useState<"tree" | "source">("tree");
+  const [selectionComment, setSelectionComment] = useState<{
+    draft: CommentDraft;
+    left: number;
+    top: number;
+  } | null>(null);
+  const sourceRef = useRef<HTMLPreElement | null>(null);
   const parsed = useMemo(() => parseJson(file.content), [file.content]);
   const source = parsed.ok
     ? `${JSON.stringify(parsed.value, null, 2)}\n`
     : file.content;
+  const updateSourceSelectionComment = () => {
+    const selection = selectionCommentTargetInElement(sourceRef.current);
+    if (!selection) {
+      setSelectionComment(null);
+      return;
+    }
+    setSelectionComment({
+      draft: sourceCommentDraft(
+        file,
+        lineRangeForQuote(source, selection.text),
+        selection.text,
+      ),
+      left: selection.rect.left + selection.rect.width / 2,
+      top: selection.rect.top,
+    });
+  };
 
   return (
     <section className="json-viewer">
@@ -70,14 +102,32 @@ export function JsonViewer({
           renderKind="source"
           theme={theme}
           onFocusChangesChange={onDiffFocusChange}
+          file={file}
+          onCreateComment={onCreateComment}
         />
       ) : mode === "tree" && parsed.ok ? (
         <div className="json-tree">
           <JsonNode name={file.path} value={parsed.value} depth={0} />
         </div>
       ) : (
-        <pre className="markdown-source">{source}</pre>
+        <pre
+          className="markdown-source"
+          ref={sourceRef}
+          onMouseUp={() =>
+            scheduleSelectionCommentUpdate(updateSourceSelectionComment)
+          }
+          onKeyUp={updateSourceSelectionComment}
+        >
+          {source}
+        </pre>
       )}
+      <SelectionCommentPopover
+        draft={selectionComment?.draft ?? null}
+        left={selectionComment?.left ?? 0}
+        top={selectionComment?.top ?? 0}
+        onCreateComment={onCreateComment}
+        onDismiss={() => setSelectionComment(null)}
+      />
     </section>
   );
 }

@@ -1262,6 +1262,148 @@ body.resizing-workbench-pane {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.comment-list {
+  display: grid;
+  gap: 8px;
+}
+
+.comment-card {
+  border: 1px solid var(--soft-line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  padding: 10px;
+}
+
+.comment-card p {
+  margin: 8px 0;
+  line-height: 1.45;
+}
+
+.comment-card blockquote {
+  margin: 8px 0;
+  border-left: 2px solid var(--line);
+  padding-left: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.comment-card-top,
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.comment-card-top {
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.comment-status {
+  border-radius: 999px;
+  border: 1px solid var(--soft-line);
+  padding: 2px 7px;
+}
+
+.comment-status.open {
+  color: var(--accent);
+}
+
+.comment-status.resolved {
+  color: var(--warn);
+}
+
+.comment-status.archived {
+  color: var(--muted);
+}
+
+.comment-actions button,
+.diff-comment-button {
+  border: 1px solid var(--soft-line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 7px;
+}
+
+.comment-actions button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.diff-comment-button {
+  margin: 3px 6px;
+}
+
+.diff-comment-button.rendered {
+  margin: 6px 0;
+}
+
+.selection-comment-popover {
+  position: fixed;
+  z-index: 80;
+  transform: translate(-50%, calc(-100% - 8px));
+  border: 1px solid var(--accent-line);
+  border-radius: 8px;
+  background: var(--palette);
+  box-shadow: 0 12px 32px var(--shadow);
+  padding: 5px;
+}
+
+.selection-comment-popover button {
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+.comment-composer {
+  position: fixed;
+  inset: auto 24px 36px auto;
+  z-index: 90;
+  width: min(360px, calc(100vw - 32px));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--palette);
+  box-shadow: 0 18px 48px var(--shadow);
+  padding: 12px;
+}
+
+.comment-composer label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.comment-composer textarea {
+  min-height: 92px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--code);
+  color: var(--text);
+  font: inherit;
+  padding: 9px;
+}
+
+.comment-composer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 .section-title {
   margin: 22px 0 8px;
   font-size: 12px;

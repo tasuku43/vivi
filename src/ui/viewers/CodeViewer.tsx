@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TextDiff } from "../../domain/change-review.js";
 import type { FilePayload } from "../../domain/fs-node.js";
 import {
@@ -11,8 +11,16 @@ import {
   splitCodeLines,
   type LineRange,
 } from "../state/code-viewer.js";
+import {
+  lineRangeForQuote,
+  scheduleSelectionCommentUpdate,
+  selectionCommentTargetInElement,
+  sourceCommentDraft,
+  type CommentDraft,
+} from "../state/comments.js";
 import { iconForPath, languageForPath } from "../state/file-icons.js";
 import type { ResolvedTheme } from "../state/theme.js";
+import { SelectionCommentPopover } from "../components/SelectionCommentPopover.js";
 import { DiffViewer } from "./DiffViewer.js";
 
 export function CodeViewer({
@@ -27,6 +35,7 @@ export function CodeViewer({
   onSelectionChange,
   onDiffToggle,
   onDiffFocusChange,
+  onCreateComment,
 }: {
   file: FilePayload;
   theme: ResolvedTheme;
@@ -39,10 +48,17 @@ export function CodeViewer({
   onSelectionChange: (range: LineRange | null) => void;
   onDiffToggle?: () => void;
   onDiffFocusChange?: (focusChanges: boolean) => void;
+  onCreateComment?: (draft: CommentDraft) => void;
 }) {
   const [html, setHtml] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [anchorLine, setAnchorLine] = useState<number | null>(null);
+  const [selectionComment, setSelectionComment] = useState<{
+    draft: CommentDraft;
+    left: number;
+    top: number;
+  } | null>(null);
+  const codeLinesRef = useRef<HTMLDivElement | null>(null);
   const language = languageForPath(file.path, file.viewerKind);
   const lines = splitCodeLines(file.content);
   const highlightedLines = html ? extractHighlightedLines(html) : null;
@@ -89,6 +105,23 @@ export function CodeViewer({
     } catch {
       setCopyStatus("Copy failed");
     }
+  }
+
+  function updateSelectionComment() {
+    const selection = selectionCommentTargetInElement(codeLinesRef.current);
+    if (!selection) {
+      setSelectionComment(null);
+      return;
+    }
+    setSelectionComment({
+      draft: sourceCommentDraft(
+        file,
+        lineRangeForQuote(file.content, selection.text),
+        selection.text,
+      ),
+      left: selection.rect.left + selection.rect.width / 2,
+      top: selection.rect.top,
+    });
   }
 
   return (
@@ -171,9 +204,19 @@ export function CodeViewer({
           focusChanges={diffFocusChanges}
           renderKind="source"
           onFocusChangesChange={onDiffFocusChange}
+          file={file}
+          onCreateComment={onCreateComment}
         />
       ) : (
-        <div className="code-lines" role="list">
+        <div
+          className="code-lines"
+          role="list"
+          ref={codeLinesRef}
+          onMouseUp={() =>
+            scheduleSelectionCommentUpdate(updateSelectionComment)
+          }
+          onKeyUp={updateSelectionComment}
+        >
           {lines.map((line, index) => {
             const lineNumber = index + 1;
             const selectedLine = lineInRange(lineNumber, selected);
@@ -208,6 +251,13 @@ export function CodeViewer({
           })}
         </div>
       )}
+      <SelectionCommentPopover
+        draft={selectionComment?.draft ?? null}
+        left={selectionComment?.left ?? 0}
+        top={selectionComment?.top ?? 0}
+        onCreateComment={onCreateComment}
+        onDismiss={() => setSelectionComment(null)}
+      />
     </section>
   );
 }

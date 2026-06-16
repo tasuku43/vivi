@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import type { TextDiff } from "../domain/change-review.js";
+import type { CommentStatus, PathlensComment } from "../domain/comments.js";
 import type {
   FilePayload,
   FsEvent,
@@ -64,6 +65,7 @@ import {
   nextReviewQueuePath,
   type GitChangeReviewState,
 } from "./state/git-review.js";
+import type { CommentDraft } from "./state/comments.js";
 import {
   isThemePreference,
   nextThemePreference,
@@ -138,6 +140,11 @@ export function App() {
   const [diffFocusByPath, setDiffFocusByPath] = useState<
     Record<string, boolean>
   >({});
+  const [comments, setComments] = useState<PathlensComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [pendingCommentDraft, setPendingCommentDraft] =
+    useState<CommentDraft | null>(null);
+  const [commentBody, setCommentBody] = useState("");
   const [viewerModes, setViewerModes] = useState<Record<string, ViewerMode>>(
     {},
   );
@@ -222,11 +229,7 @@ export function App() {
         return {
           ...current,
           version: snapshot.version,
-          nodes: replaceDirectoryChildren(
-            current.nodes,
-            path,
-            snapshot.nodes,
-          ),
+          nodes: replaceDirectoryChildren(current.nodes, path, snapshot.nodes),
         };
       });
     } finally {
@@ -287,6 +290,55 @@ export function App() {
     }
   }
 
+  async function loadComments(path: string | null = selectedPath) {
+    setCommentsLoading(true);
+    const params = new URLSearchParams();
+    if (path) params.set("path", path);
+    try {
+      const response = await fetch(`/api/v1/comments?${params.toString()}`);
+      if (!response.ok)
+        throw new Error(`comments request failed: ${response.status}`);
+      const loaded = (await response.json()) as PathlensComment[];
+      setComments((items) => mergeComments(items, loaded, path));
+    } finally {
+      setCommentsLoading(false);
+    }
+  }
+
+  function beginCommentDraft(draft: CommentDraft) {
+    setPendingCommentDraft(draft);
+    setCommentBody("");
+  }
+
+  async function submitPendingComment() {
+    const draft = pendingCommentDraft;
+    const body = commentBody.trim();
+    if (!draft || !body) return;
+    const response = await fetch("/api/v1/comments", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...draft, body }),
+    });
+    if (!response.ok)
+      throw new Error(`create comment failed: ${response.status}`);
+    const comment = (await response.json()) as PathlensComment;
+    setComments((items) => mergeComments(items, [comment], null));
+    setPendingCommentDraft(null);
+    setCommentBody("");
+  }
+
+  async function updateCommentStatus(id: string, status: CommentStatus) {
+    const response = await fetch(`/api/v1/comments/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (!response.ok)
+      throw new Error(`update comment failed: ${response.status}`);
+    const comment = (await response.json()) as PathlensComment;
+    setComments((items) => mergeComments(items, [comment], null));
+  }
+
   const panes = useMemo(() => flattenPanes(layout), [layout]);
   const activePane =
     panes.find((pane) => pane.id === layout.activePaneId) ?? panes[0];
@@ -298,6 +350,13 @@ export function App() {
           tab.path === selectedPath && tab.paneId === layout.activePaneId,
       )
     : null;
+  const activeFileComments = useMemo(
+    () =>
+      selectedPath
+        ? comments.filter((comment) => comment.path === selectedPath)
+        : [],
+    [comments, selectedPath],
+  );
   const activeFileRemoved = Boolean(activeTab?.removed);
   const effectiveSidebarWidth = compactSidebarWidth(
     sidebarWidth,
@@ -324,7 +383,10 @@ export function App() {
   const reviewDiffStats = useMemo(
     () =>
       Object.fromEntries(
-        Object.entries(diffs).map(([path, diff]) => [path, buildDiffStat(diff)]),
+        Object.entries(diffs).map(([path, diff]) => [
+          path,
+          buildDiffStat(diff),
+        ]),
       ),
     [diffs],
   );
@@ -362,6 +424,7 @@ export function App() {
     setOpenTabs((tabs) => upsertOpenTab(tabs, payload, paneId, mode));
     setRecentFiles((items) => recordRecentFile(items, payload));
     markReviewPathRead(payload.path);
+    void loadComments(payload.path).catch((err) => setError(String(err)));
     if (diffEnabled && supportsDiffMode(payload)) {
       void loadHeadDiff(payload.path).catch((err) => setError(String(err)));
     }
@@ -692,6 +755,7 @@ export function App() {
     loadConfig().catch((err) => setError(String(err)));
     loadTree().catch((err) => setError(String(err)));
     loadGitReview().catch((err) => setError(String(err)));
+    loadComments(null).catch((err) => setError(String(err)));
   }, []);
 
   useEffect(() => {
@@ -773,7 +837,9 @@ export function App() {
       if (resizingWorkbenchPane === "sidebar") {
         setSidebarWidth(clampSidebarWidth(event.clientX));
       } else {
-        setInspectorWidth(clampInspectorWidth(window.innerWidth - event.clientX));
+        setInspectorWidth(
+          clampInspectorWidth(window.innerWidth - event.clientX),
+        );
       }
     };
     const stopResize = () => setResizingWorkbenchPane(null);
@@ -1121,6 +1187,8 @@ export function App() {
               reviewDiffStats={reviewDiffStats}
               loadingReviewDiffs={loadingDiffs}
               unreadReviewPaths={unreadReviewPathSet}
+              comments={activeFileComments}
+              commentsLoading={commentsLoading}
               selectedCodeRange={
                 file?.path ? (codeSelections[file.path] ?? null) : null
               }
@@ -1143,6 +1211,11 @@ export function App() {
               onTargetHoverChange={setInspectorTargetVisible}
               onRevealTarget={revealInspectorTarget}
               onRevealInTree={revealActiveFileInTree}
+              onCommentStatusChange={(id, status) =>
+                void updateCommentStatus(id, status).catch((err) =>
+                  setError(String(err)),
+                )
+              }
             />
           </>
         ) : null}
@@ -1210,14 +1283,45 @@ export function App() {
             const activeOnly = restoreOnlyActiveWorkspaceTab(
               pendingRestoreSession,
             );
-            applyWorkspaceSession(
-              activeOnly,
-            );
+            applyWorkspaceSession(activeOnly);
             setRestoreNoticeTabCount(activeOnly.openTabs.length);
             setPendingRestoreSession(null);
           }}
           onSkip={() => setPendingRestoreSession(null)}
         />
+      ) : null}
+      {pendingCommentDraft ? (
+        <form
+          className="comment-composer"
+          aria-label="New comment"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submitPendingComment().catch((err) => setError(String(err)));
+          }}
+        >
+          <label>
+            Comment on {pendingCommentDraft.path}
+            <textarea
+              autoFocus
+              value={commentBody}
+              onChange={(event) => setCommentBody(event.currentTarget.value)}
+            />
+          </label>
+          <div className="comment-composer-actions">
+            <button
+              type="button"
+              onClick={() => {
+                setPendingCommentDraft(null);
+                setCommentBody("");
+              }}
+            >
+              Cancel
+            </button>
+            <button disabled={!commentBody.trim()} type="submit">
+              Save comment
+            </button>
+          </div>
+        </form>
       ) : null}
     </div>
   );
@@ -1348,6 +1452,7 @@ export function App() {
               refreshedAt={
                 paneFile?.path ? refreshedFiles[paneFile.path] : undefined
               }
+              onCreateComment={(draft) => beginCommentDraft(draft)}
               onCodeSelectionChange={(range) => {
                 if (!paneFile?.path) return;
                 setCodeSelections((items) => ({
@@ -1539,6 +1644,22 @@ function readSystemTheme(): ResolvedTheme {
 function readViewportWidth(): number {
   if (typeof window === "undefined") return 1280;
   return window.innerWidth;
+}
+
+function mergeComments(
+  current: PathlensComment[],
+  incoming: PathlensComment[],
+  replacedPath: string | null,
+): PathlensComment[] {
+  const byId = new Map<string, PathlensComment>();
+  for (const comment of current) {
+    if (replacedPath && comment.path === replacedPath) continue;
+    byId.set(comment.id, comment);
+  }
+  for (const comment of incoming) byId.set(comment.id, comment);
+  return [...byId.values()].sort((a, b) =>
+    b.createdAt.localeCompare(a.createdAt),
+  );
 }
 
 const recentEventWindowMs = 5 * 60 * 1000;

@@ -1,5 +1,7 @@
+import type { CommentStatus, PathlensComment } from "../../domain/comments.js";
 import type { FilePayload } from "../../domain/fs-node.js";
 import { buildCodeMetadata, type LineRange } from "../state/code-viewer.js";
+import { commentLineLabel, statusLabel } from "../state/comments.js";
 import {
   changeStatusLabel,
   reviewQueueSourceLabel,
@@ -17,6 +19,8 @@ interface Props {
   reviewDiffStats: Record<string, DiffStat | null>;
   loadingReviewDiffs: Record<string, boolean>;
   unreadReviewPaths: Set<string>;
+  comments?: PathlensComment[];
+  commentsLoading?: boolean;
   selectedCodeRange: LineRange | null;
   refreshedAt?: number;
   activePaneId: string;
@@ -29,6 +33,7 @@ interface Props {
   onTargetHoverChange: (hovering: boolean) => void;
   onRevealTarget: () => void;
   onRevealInTree: () => void;
+  onCommentStatusChange?: (id: string, status: CommentStatus) => void;
 }
 
 export function Inspector({
@@ -39,6 +44,8 @@ export function Inspector({
   reviewDiffStats,
   loadingReviewDiffs,
   unreadReviewPaths,
+  comments = [],
+  commentsLoading = false,
   selectedCodeRange,
   refreshedAt,
   activePaneId,
@@ -51,6 +58,7 @@ export function Inspector({
   onTargetHoverChange,
   onRevealTarget,
   onRevealInTree,
+  onCommentStatusChange,
 }: Props) {
   const codeMetadata =
     file && (file.viewerKind === "code" || file.viewerKind === "json")
@@ -149,6 +157,63 @@ export function Inspector({
         >
           Show in Explorer
         </button>
+
+        <h3 className="section-title">Comments</h3>
+        {commentsLoading ? (
+          <p className="muted compact-empty">Loading comments...</p>
+        ) : comments.length ? (
+          <div className="comment-list">
+            {comments.map((comment) => (
+              <article
+                className={`comment-card ${comment.status}`}
+                key={comment.id}
+              >
+                <div className="comment-card-top">
+                  <span className={`comment-status ${comment.status}`}>
+                    {statusLabel(comment.status)}
+                  </span>
+                  <span>{commentLineLabel(comment)}</span>
+                </div>
+                <p>{comment.body}</p>
+                {comment.anchor.canonical.quote ? (
+                  <blockquote>{comment.anchor.canonical.quote}</blockquote>
+                ) : null}
+                <div className="comment-actions">
+                  <button
+                    disabled={comment.status === "resolved"}
+                    type="button"
+                    onClick={() =>
+                      onCommentStatusChange?.(comment.id, "resolved")
+                    }
+                  >
+                    Resolve
+                  </button>
+                  <button
+                    disabled={comment.status === "archived"}
+                    type="button"
+                    onClick={() =>
+                      onCommentStatusChange?.(comment.id, "archived")
+                    }
+                  >
+                    Archive
+                  </button>
+                  {comment.status !== "open" ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onCommentStatusChange?.(comment.id, "open")
+                      }
+                    >
+                      Reopen
+                    </button>
+                  ) : null}
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="muted compact-empty">No comments for this file.</p>
+        )}
 
         <h3 className="section-title">In this file</h3>
         {codeMetadata ? (

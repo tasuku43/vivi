@@ -6,6 +6,7 @@ import { CsvViewer, isDelimitedPath } from "../viewers/CsvViewer.js";
 import { DiffViewer } from "../viewers/DiffViewer.js";
 import { LargeTextPreview } from "../viewers/LargeTextPreview.js";
 import type { LineRange } from "../state/code-viewer.js";
+import { sourceCommentDraft, type CommentDraft } from "../state/comments.js";
 import type { ResolvedTheme } from "../state/theme.js";
 import type { ViewerMode } from "../state/viewer-mode.js";
 
@@ -61,6 +62,7 @@ export function FileViewer({
   onViewerModeChange,
   onDiffToggle,
   onDiffFocusChange,
+  onCreateComment,
   onCloseRemoved,
 }: {
   file: FilePayload | null;
@@ -78,6 +80,7 @@ export function FileViewer({
   onViewerModeChange?: (mode: ViewerMode) => void;
   onDiffToggle?: () => void;
   onDiffFocusChange?: (focusChanges: boolean) => void;
+  onCreateComment?: (draft: CommentDraft) => void;
   onCloseRemoved?: () => void;
 }) {
   if (!file)
@@ -129,6 +132,7 @@ export function FileViewer({
           onModeChange={onViewerModeChange}
           onDiffToggle={onDiffToggle}
           onDiffFocusChange={onDiffFocusChange}
+          onCreateComment={onCreateComment}
         />
       </LazyViewerFallback>
     );
@@ -147,6 +151,7 @@ export function FileViewer({
           onModeChange={onViewerModeChange}
           onDiffToggle={onDiffToggle}
           onDiffFocusChange={onDiffFocusChange}
+          onCreateComment={onCreateComment}
         />
       </LazyViewerFallback>
     );
@@ -162,6 +167,7 @@ export function FileViewer({
           diffFocusChanges={diffFocusChanges}
           onDiffToggle={onDiffToggle}
           onDiffFocusChange={onDiffFocusChange}
+          onCreateComment={onCreateComment}
         />
       </LazyViewerFallback>
     );
@@ -177,6 +183,7 @@ export function FileViewer({
           diffFocusChanges={diffFocusChanges}
           onDiffToggle={onDiffToggle}
           onDiffFocusChange={onDiffFocusChange}
+          onCreateComment={onCreateComment}
         />
       </LazyViewerFallback>
     );
@@ -195,6 +202,7 @@ export function FileViewer({
           onSelectionChange={onCodeSelectionChange}
           onDiffToggle={onDiffToggle}
           onDiffFocusChange={onDiffFocusChange}
+          onCreateComment={onCreateComment}
         />
       </LazyViewerFallback>
     );
@@ -209,6 +217,7 @@ export function FileViewer({
         diffFocusChanges={diffFocusChanges}
         onDiffToggle={onDiffToggle}
         onDiffFocusChange={onDiffFocusChange}
+        onCreateComment={onCreateComment}
       />
     );
   if (file.viewerKind === "image")
@@ -223,6 +232,7 @@ export function FileViewer({
           diffFocusChanges={diffFocusChanges}
           onDiffToggle={onDiffToggle}
           onDiffFocusChange={onDiffFocusChange}
+          onCreateComment={onCreateComment}
         />
       </LazyViewerFallback>
     );
@@ -238,6 +248,7 @@ export function FileViewer({
           diffFocusChanges={diffFocusChanges}
           onDiffToggle={onDiffToggle}
           onDiffFocusChange={onDiffFocusChange}
+          onCreateComment={onCreateComment}
         />
       </LazyViewerFallback>
     );
@@ -253,6 +264,12 @@ export function FileViewer({
       >
         Diff from HEAD
       </button>
+      <button
+        type="button"
+        onClick={() => onCreateComment?.(sourceCommentDraft(file, null))}
+      >
+        Comment file
+      </button>
       {diffEnabled ? (
         <DiffViewer
           path={file.path}
@@ -262,6 +279,8 @@ export function FileViewer({
           renderKind="source"
           theme={theme}
           onFocusChangesChange={onDiffFocusChange}
+          onCreateComment={onCreateComment}
+          file={file}
         />
       ) : (
         <p>This file type is not supported yet.</p>

@@ -11,6 +11,7 @@ import type { AddressInfo, Socket } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ViewerService } from "../app/viewer-service.js";
+import { normalizeCommentFilters } from "../domain/comments.js";
 import {
   pathlensMermaidThemeVariables,
   type MermaidPreviewTheme,
@@ -77,6 +78,73 @@ async function routeRequest(
 ): Promise<void> {
   const host = req.headers.host ?? `${options.host}:${options.port}`;
   const url = new URL(req.url ?? "/", `http://${host}`);
+
+  if (url.pathname === "/api/v1/meta") {
+    sendJson(res, 200, {
+      version: "v1",
+      comments: {
+        statuses: ["open", "resolved", "archived"],
+        surfaces: ["source", "rendered", "diff"],
+        exportFormats: ["jsonl"],
+      },
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/v1/comments" && req.method === "GET") {
+    sendJson(
+      res,
+      200,
+      await options.service.listComments(
+        normalizeCommentFilters({
+          path: url.searchParams.get("path"),
+          status: url.searchParams.get("status"),
+        }),
+      ),
+    );
+    return;
+  }
+
+  if (url.pathname === "/api/v1/comments" && req.method === "POST") {
+    assertSafeJsonWriteRequest(req, options);
+    sendJson(
+      res,
+      201,
+      await options.service.createComment(await readJson(req)),
+    );
+    return;
+  }
+
+  const commentPatchMatch = /^\/api\/v1\/comments\/([^/]+)$/.exec(url.pathname);
+  if (commentPatchMatch && req.method === "PATCH") {
+    assertSafeJsonWriteRequest(req, options);
+    sendJson(
+      res,
+      200,
+      await options.service.updateComment(
+        decodeURIComponent(commentPatchMatch[1] ?? ""),
+        await readJson(req),
+      ),
+    );
+    return;
+  }
+
+  if (url.pathname === "/api/v1/comments/export") {
+    const format = url.searchParams.get("format") ?? "jsonl";
+    if (format !== "jsonl") throw new Error("invalid comment export format");
+    const body = await options.service.exportCommentsAsJsonl(
+      normalizeCommentFilters({
+        path: url.searchParams.get("path"),
+        status: url.searchParams.get("status"),
+      }),
+    );
+    res.writeHead(200, {
+      "content-type": "application/x-ndjson; charset=utf-8",
+      "cache-control": "no-store",
+    });
+    res.end(body ? `${body}\n` : "");
+    return;
+  }
 
   if (url.pathname === "/api/tree") {
     const requestedPath = url.searchParams.get("path") ?? "";
@@ -149,6 +217,7 @@ async function routeRequest(
         allowHtmlScripts,
         nonce,
         theme,
+        path: requestedPath,
       },
     );
     res.writeHead(200, {
@@ -239,6 +308,51 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.end(JSON.stringify(body));
 }
 
+async function readJson(req: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of req) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    size += buffer.byteLength;
+    if (size > 1024 * 1024) throw new Error("request body too large");
+    chunks.push(buffer);
+  }
+  const raw = Buffer.concat(chunks).toString("utf8");
+  if (!raw.trim()) throw new Error("JSON request body is required");
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error("invalid JSON request body");
+  }
+}
+
+function assertSafeJsonWriteRequest(
+  req: IncomingMessage,
+  options: ServerOptions,
+): void {
+  const contentType = req.headers["content-type"];
+  if (
+    typeof contentType !== "string" ||
+    !contentType.toLowerCase().includes("application/json")
+  ) {
+    throw new Error("comment write APIs require application/json");
+  }
+
+  const hostHeader = req.headers.host;
+  const hostName = hostHeader?.split(":")[0]?.replace(/^\[|\]$/g, "");
+  if (!hostName || !isAllowedWriteHost(hostName, options.host)) {
+    throw new Error("invalid Host header for local write API");
+  }
+
+  const origin = req.headers.origin;
+  if (typeof origin === "string" && origin) {
+    const originUrl = new URL(origin);
+    if (originUrl.host !== hostHeader) {
+      throw new Error("invalid Origin header for local write API");
+    }
+  }
+}
+
 function parsePositiveInt(value: string | null): number | null {
   if (!value) return null;
   const parsed = Number.parseInt(value, 10);
@@ -251,7 +365,8 @@ function statusForError(message: string): number {
     message.includes("no such file") ||
     message.includes("ENOENT") ||
     message.includes("not a file") ||
-    message.includes("not an HTML file")
+    message.includes("not an HTML file") ||
+    message.includes("not found")
   ) {
     return 404;
   }
@@ -261,11 +376,25 @@ function statusForError(message: string): number {
     message.includes("root") ||
     message.includes("ignored") ||
     message.includes("excluded") ||
-    message.includes("invalid")
+    message.includes("invalid") ||
+    message.includes("required") ||
+    message.includes("must") ||
+    message.includes("only target") ||
+    message.includes("does not match")
   ) {
     return 400;
   }
   return 500;
+}
+
+function isAllowedWriteHost(hostName: string, configuredHost: string): boolean {
+  if (hostName === configuredHost) return true;
+  return (
+    hostName === "localhost" ||
+    hostName === "127.0.0.1" ||
+    hostName === "::1" ||
+    hostName === "0.0.0.0"
+  );
 }
 
 function defaultStaticDir(): string {
@@ -352,6 +481,7 @@ function renderEmbeddedMermaidPreviewHtml(
     allowHtmlScripts: boolean;
     nonce: string;
     theme: MermaidPreviewTheme;
+    path: string;
   },
 ): string {
   let index = 0;
@@ -375,6 +505,7 @@ function renderEmbeddedMermaidPreviewHtml(
     includeMermaidRuntime: options.enabled && index > 0,
     nonce: options.nonce,
     theme: options.theme,
+    path: options.path,
   });
 }
 
@@ -401,6 +532,7 @@ function injectHtmlPreviewRuntime(
     includeMermaidRuntime: boolean;
     nonce: string;
     theme: MermaidPreviewTheme;
+    path: string;
   },
 ): string {
   if (/data-pathlens-mermaid-preview/i.test(html)) return html;
@@ -426,7 +558,49 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
 .markdown-mermaid-source pre{overflow:auto;border:1px solid ${palette.line};border-radius:8px;background:${palette.codeBackground};color:${palette.codeText};padding:10px;}
 .html-mermaid.unsupported{border:1px solid ${palette.line};border-radius:8px;background:${palette.panel};padding:12px;}
 </style>`;
-  const scripts = options.includeMermaidRuntime
+  const selectionBridge = `<script nonce="${escapeAttribute(options.nonce)}">
+(() => {
+  const path = ${JSON.stringify(options.path)};
+  const cssPath = (element) => {
+    if (!element || element.nodeType !== Node.ELEMENT_NODE) return undefined;
+    if (element.id) return "#" + CSS.escape(element.id);
+    const parts = [];
+    let current = element;
+    while (current && current.nodeType === Node.ELEMENT_NODE && current !== document.body) {
+      const name = current.localName;
+      const parent = current.parentElement;
+      if (!parent) break;
+      const siblings = Array.from(parent.children).filter((item) => item.localName === name);
+      const index = siblings.indexOf(current) + 1;
+      parts.unshift(siblings.length > 1 ? \`\${name}:nth-of-type(\${index})\` : name);
+      current = parent;
+    }
+    return parts.join(">");
+  };
+  const publish = () => {
+    const selection = document.getSelection();
+    const text = selection?.toString().trim() ?? "";
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    const node = range?.commonAncestorContainer ?? null;
+    const element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
+    const rect = range?.getBoundingClientRect();
+    parent.postMessage({
+      type: "pathlens-html-selection",
+      path,
+      text,
+      selector: cssPath(element),
+      rect: rect ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height } : undefined
+    }, window.location.origin);
+  };
+  const publishSoon = () => {
+    window.requestAnimationFrame(() => window.setTimeout(publish, 0));
+  };
+  document.addEventListener("selectionchange", publish);
+  document.addEventListener("mouseup", publishSoon);
+  document.addEventListener("keyup", publishSoon);
+})();
+</script>`;
+  const mermaidScripts = options.includeMermaidRuntime
     ? `<script nonce="${escapeAttribute(options.nonce)}" src="/pathlens/vendor/mermaid.min.js"></script><script nonce="${escapeAttribute(options.nonce)}">
 (() => {
   const previewTheme = ${JSON.stringify(options.theme)};
@@ -465,6 +639,7 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
 })();
 </script>`
     : "";
+  const scripts = `${selectionBridge}${mermaidScripts}`;
   if (/<\/head>/i.test(html))
     return html.replace(/<\/head>/i, `${styles}${scripts}</head>`);
   if (/<body(\s[^>]*)?>/i.test(html))

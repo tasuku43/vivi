@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { TextDiff } from "../../domain/change-review.js";
 import type { FilePayload } from "../../domain/fs-node.js";
+import { sourceCommentDraft, type CommentDraft } from "../state/comments.js";
 import type { ResolvedTheme } from "../state/theme.js";
 import { DiffViewer } from "./DiffViewer.js";
 
@@ -13,6 +14,7 @@ export function ImageViewer({
   diffFocusChanges,
   onDiffToggle,
   onDiffFocusChange,
+  onCreateComment,
 }: {
   file: FilePayload;
   theme?: ResolvedTheme;
@@ -22,6 +24,7 @@ export function ImageViewer({
   diffFocusChanges?: boolean;
   onDiffToggle?: () => void;
   onDiffFocusChange?: (focusChanges: boolean) => void;
+  onCreateComment?: (draft: CommentDraft) => void;
 }) {
   const [fit, setFit] = useState<"fit" | "actual">("fit");
   const src =
@@ -54,6 +57,12 @@ export function ImageViewer({
         >
           Diff from HEAD
         </button>
+        <button
+          type="button"
+          onClick={() => onCreateComment?.(sourceCommentDraft(file, null))}
+        >
+          Comment file
+        </button>
         <div className="segmented-control" aria-label="Image size mode">
           <button
             className={fit === "fit" ? "active" : ""}
@@ -80,6 +89,8 @@ export function ImageViewer({
           renderKind="source"
           theme={theme}
           onFocusChangesChange={onDiffFocusChange}
+          file={file}
+          onCreateComment={onCreateComment}
         />
       ) : (
         <div

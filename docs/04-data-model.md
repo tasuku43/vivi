@@ -60,3 +60,54 @@ This avoids re-rendering the entire tree for every update and keeps expansion st
 - Content hashes or ETags validate whether content changed.
 - Directory hashes may be added later as a Merkle-style optimization.
 - Do not make recursive full-directory hashing the primary change-detection mechanism.
+
+## Comments
+
+Comments are stored outside the viewed workspace so read-only mounts remain
+compatible. The first storage adapter writes JSONL to the Pathlens data
+directory, defaulting to `/data/comments.jsonl` in Docker.
+
+The canonical comment anchor is a source file location:
+
+```ts
+type CommentStatus = "open" | "resolved" | "archived";
+type CommentSurface = "source" | "rendered" | "diff";
+
+interface PathlensComment {
+  id: string;
+  path: string;
+  anchor: {
+    surface: CommentSurface;
+    canonical: {
+      path: string;
+      lineStart?: number;
+      lineEnd?: number;
+      quote?: string;
+      fileHash?: string;
+    };
+    rendered?: {
+      kind: "markdown" | "html";
+      selector?: string;
+      textQuote?: string;
+      sourceLineStart?: number;
+      sourceLineEnd?: number;
+    };
+    diff?: {
+      path: string;
+      lineStart: number;
+      lineEnd: number;
+      side: "current";
+      changeKind?: "context" | "added";
+    };
+  };
+  body: string;
+  status: CommentStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+Rendered Markdown and HTML comments store selected rendered text and any
+best-effort source line mapping available at creation time. Diff comments only
+target current-file lines. Deleted lines from the old file are not valid comment
+anchors.

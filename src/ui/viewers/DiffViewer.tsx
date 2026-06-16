@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import type { TextDiff } from "../../domain/change-review.js";
+import type { FilePayload } from "../../domain/fs-node.js";
 import {
   diffStatusLabel,
   parseUnifiedDiff,
   type ParsedDiffLine,
 } from "../state/git-review.js";
+import { diffCommentDraft, type CommentDraft } from "../state/comments.js";
 import { languageForPath } from "../state/file-icons.js";
 import type { ResolvedTheme } from "../state/theme.js";
 import { renderMarkdownDocumentHtml } from "./MarkdownViewer.js";
@@ -26,7 +28,9 @@ export function DiffViewer({
   focusChanges: controlledFocusChanges,
   renderKind,
   theme = "dark",
+  file,
   onFocusChangesChange,
+  onCreateComment,
 }: {
   path: string;
   diff: TextDiff | null;
@@ -34,7 +38,9 @@ export function DiffViewer({
   focusChanges?: boolean;
   renderKind: RenderKind;
   theme?: ResolvedTheme;
+  file?: FilePayload;
   onFocusChangesChange?: (focusChanges: boolean) => void;
+  onCreateComment?: (draft: CommentDraft) => void;
 }) {
   const [localFocusChanges, setLocalFocusChanges] = useState(false);
   const focusChanges = controlledFocusChanges ?? localFocusChanges;
@@ -63,12 +69,20 @@ export function DiffViewer({
       {diff?.reason ? <p className="muted">{diff.reason}</p> : null}
       {diff?.status === "available" ? (
         renderKind === "source" ? (
-          <SourceDiff diff={diff} focusChanges={focusChanges} theme={theme} />
+          <SourceDiff
+            diff={diff}
+            focusChanges={focusChanges}
+            theme={theme}
+            file={file}
+            onCreateComment={onCreateComment}
+          />
         ) : (
           <RenderedDiff
             diff={diff}
             focusChanges={focusChanges}
             renderKind={renderKind}
+            file={file}
+            onCreateComment={onCreateComment}
           />
         )
       ) : null}
@@ -80,10 +94,14 @@ function SourceDiff({
   diff,
   focusChanges,
   theme,
+  file,
+  onCreateComment,
 }: {
   diff: TextDiff;
   focusChanges: boolean;
   theme: ResolvedTheme;
+  file?: FilePayload;
+  onCreateComment?: (draft: CommentDraft) => void;
 }) {
   const language = languageForPath(diff.path, "code");
   const lines = useMemo(
@@ -138,8 +156,33 @@ function SourceDiff({
               ? ""
               : line.kind === "add"
                 ? (line.newLine ?? "")
-                : (line.oldLine ?? "")}
+                : line.kind === "context"
+                  ? (line.newLine ?? "")
+                  : (line.oldLine ?? "")}
           </span>
+          {"newLine" in line &&
+          line.kind !== "remove" &&
+          line.newLine &&
+          file &&
+          onCreateComment ? (
+            <button
+              className="diff-comment-button"
+              type="button"
+              onClick={() =>
+                onCreateComment(
+                  diffCommentDraft(
+                    file,
+                    line.newLine ?? 1,
+                    line.newLine ?? 1,
+                    line.kind === "add" ? "added" : "context",
+                    line.text,
+                  ),
+                )
+              }
+            >
+              Comment
+            </button>
+          ) : null}
           <code
             dangerouslySetInnerHTML={{
               __html: highlightedLines?.[index] ?? escapeHtml(line.text || " "),
@@ -155,10 +198,14 @@ function RenderedDiff({
   diff,
   focusChanges,
   renderKind,
+  file,
+  onCreateComment,
 }: {
   diff: TextDiff;
   focusChanges: boolean;
   renderKind: Exclude<RenderKind, "source">;
+  file?: FilePayload;
+  onCreateComment?: (draft: CommentDraft) => void;
 }) {
   const rows = buildRenderedDiffRows(
     parseUnifiedDiff(diff.content),
@@ -170,12 +217,24 @@ function RenderedDiff({
   }
 
   if (renderKind === "markdown") {
-    return <RenderedMarkdownDiff diff={diff} rows={displayRows} />;
+    return (
+      <RenderedMarkdownDiff
+        diff={diff}
+        rows={displayRows}
+        file={file}
+        onCreateComment={onCreateComment}
+      />
+    );
   }
 
   if (renderKind === "html") {
     return (
-      <RenderedHtmlDiff diff={diff} rows={buildRenderedHtmlRows(displayRows)} />
+      <RenderedHtmlDiff
+        diff={diff}
+        rows={buildRenderedHtmlRows(displayRows)}
+        file={file}
+        onCreateComment={onCreateComment}
+      />
     );
   }
 
@@ -200,9 +259,13 @@ function RenderedDiff({
 function RenderedHtmlDiff({
   diff,
   rows,
+  file,
+  onCreateComment,
 }: {
   diff: TextDiff;
   rows: RenderedDiffRow[];
+  file?: FilePayload;
+  onCreateComment?: (draft: CommentDraft) => void;
 }) {
   return (
     <div
@@ -213,16 +276,33 @@ function RenderedHtmlDiff({
         <RenderedHtmlDiffBlock
           key={`${row.kind}-${index}-${row.source}`}
           row={row}
+          file={file}
+          onCreateComment={onCreateComment}
         />
       ))}
     </div>
   );
 }
 
-function RenderedHtmlDiffBlock({ row }: { row: RenderedDiffRow }) {
+function RenderedHtmlDiffBlock({
+  row,
+  file,
+  onCreateComment,
+}: {
+  row: RenderedDiffRow;
+  file?: FilePayload;
+  onCreateComment?: (draft: CommentDraft) => void;
+}) {
   if (row.kind === "gap") return <DiffGap label={row.source} />;
+  const range = currentLineRangeForRenderedRow(row);
   return (
     <div className={`rendered-html-diff-block ${row.kind}`}>
+      <RenderedDiffCommentButton
+        file={file}
+        row={row}
+        range={range}
+        onCreateComment={onCreateComment}
+      />
       <iframe
         className="rendered-html-diff-frame"
         sandbox=""
@@ -236,9 +316,13 @@ function RenderedHtmlDiffBlock({ row }: { row: RenderedDiffRow }) {
 function RenderedMarkdownDiff({
   diff,
   rows,
+  file,
+  onCreateComment,
 }: {
   diff: TextDiff;
   rows: RenderedDiffRow[];
+  file?: FilePayload;
+  onCreateComment?: (draft: CommentDraft) => void;
 }) {
   return (
     <article
@@ -249,21 +333,41 @@ function RenderedMarkdownDiff({
         <RenderedMarkdownDiffBlock
           key={`${row.kind}-${index}-${row.source}`}
           row={row}
+          file={file}
+          onCreateComment={onCreateComment}
         />
       ))}
     </article>
   );
 }
 
-function RenderedMarkdownDiffBlock({ row }: { row: RenderedDiffRow }) {
+function RenderedMarkdownDiffBlock({
+  row,
+  file,
+  onCreateComment,
+}: {
+  row: RenderedDiffRow;
+  file?: FilePayload;
+  onCreateComment?: (draft: CommentDraft) => void;
+}) {
   if (row.kind === "gap") return <DiffGap label={row.source} />;
+  const range = currentLineRangeForRenderedRow(row);
   return (
-    <div
-      className={`rendered-markdown-diff-block ${row.kind} ${markdownBlockClass(row.source)}`}
-      dangerouslySetInnerHTML={{
-        __html: row.html ?? renderMarkdownDocumentHtml(row.source),
-      }}
-    />
+    <div className={`rendered-markdown-diff-block ${row.kind}`}>
+      <RenderedDiffCommentButton
+        file={file}
+        row={row}
+        range={range}
+        onCreateComment={onCreateComment}
+      />
+      <div
+        className={markdownBlockClass(row.source)}
+        data-comment-line={range?.start}
+        dangerouslySetInnerHTML={{
+          __html: row.html ?? renderMarkdownDocumentHtml(row.source),
+        }}
+      />
+    </div>
   );
 }
 
@@ -273,6 +377,58 @@ function DiffGap({ label }: { label: string }) {
       {label}
     </div>
   );
+}
+
+function RenderedDiffCommentButton({
+  file,
+  row,
+  range,
+  onCreateComment,
+}: {
+  file?: FilePayload;
+  row: RenderedDiffRow;
+  range: { start: number; end: number } | null;
+  onCreateComment?: (draft: CommentDraft) => void;
+}) {
+  if (
+    !file ||
+    !onCreateComment ||
+    !range ||
+    (row.kind !== "context" && row.kind !== "add")
+  ) {
+    return null;
+  }
+  return (
+    <button
+      className="diff-comment-button rendered"
+      type="button"
+      onClick={() =>
+        onCreateComment(
+          diffCommentDraft(
+            file,
+            range.start,
+            range.end,
+            row.kind === "add" ? "added" : "context",
+            row.source,
+          ),
+        )
+      }
+    >
+      Comment
+    </button>
+  );
+}
+
+function currentLineRangeForRenderedRow(
+  row: RenderedDiffRow,
+): { start: number; end: number } | null {
+  if (row.kind !== "context" && row.kind !== "add") return null;
+  const match = /^(\d+)(?:-(\d+))?$/.exec(row.lineLabel);
+  if (!match) return null;
+  const start = Number(match[1]);
+  const end = Number(match[2] ?? match[1]);
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end)) return null;
+  return { start, end };
 }
 
 function markdownBlockClass(source: string): string {
@@ -607,7 +763,7 @@ function lineLabelForLines(
   lines: Array<Pick<ParsedDiffLine, "oldLine" | "newLine">>,
 ): string {
   const numbers = lines
-    .map((line) => (kind === "add" ? line.newLine : line.oldLine))
+    .map((line) => (kind === "remove" ? line.oldLine : line.newLine))
     .filter((line): line is number => typeof line === "number");
   if (!numbers.length) return "";
   const first = numbers[0];

@@ -3,6 +3,15 @@ import type {
   DiffBaseSummary,
   TextDiff,
 } from "../domain/change-review.js";
+import {
+  applyCommentUpdate,
+  exportCommentAsJsonLine,
+  normalizeCommentCreateInput,
+  normalizeCommentUpdateInput,
+  type CommentListFilters,
+  type CreateCommentInput,
+  type PathlensComment,
+} from "../domain/comments.js";
 import type {
   FilePayload,
   FsEvent,
@@ -16,17 +25,20 @@ import {
   type TextSearchResult,
 } from "../domain/search.js";
 import type { ViewerServiceOptions } from "./contracts.js";
+import { randomUUID } from "node:crypto";
 
 export class ViewerService {
   private readonly fileSystem: ViewerServiceOptions["fileSystem"];
   private readonly watcher?: ViewerServiceOptions["watcher"];
   private readonly changeReview?: ViewerServiceOptions["changeReview"];
+  private readonly commentStore?: ViewerServiceOptions["commentStore"];
   private subscribers = new Set<(event: FsEvent) => void>();
 
   constructor(options: ViewerServiceOptions) {
     this.fileSystem = options.fileSystem;
     this.watcher = options.watcher;
     this.changeReview = options.changeReview;
+    this.commentStore = options.commentStore;
   }
 
   readTree(): Promise<TreeSnapshot> {
@@ -156,6 +168,39 @@ export class ViewerService {
     );
   }
 
+  async listComments(
+    filters: CommentListFilters = {},
+  ): Promise<PathlensComment[]> {
+    return this.requireCommentStore().listComments(filters);
+  }
+
+  async createComment(input: unknown): Promise<PathlensComment> {
+    const requestedPath = pathFromCommentInput(input);
+    const file = await this.fileSystem.readFile(requestedPath);
+    const normalized = normalizeCommentCreateInput(input, {
+      resolvedPath: file.path,
+      fileHash: file.etag,
+      viewerKind: file.viewerKind,
+    });
+    return this.createNormalizedComment(normalized);
+  }
+
+  async updateComment(id: string, input: unknown): Promise<PathlensComment> {
+    if (!id.trim()) throw new Error("comment id is required");
+    const store = this.requireCommentStore();
+    const current = await store.getComment(id.trim());
+    if (!current) throw new Error("comment not found");
+    const update = normalizeCommentUpdateInput(input);
+    return store.updateComment(applyCommentUpdate(current, update, isoNow()));
+  }
+
+  async exportCommentsAsJsonl(
+    filters: CommentListFilters = {},
+  ): Promise<string> {
+    const comments = await this.listComments(filters);
+    return comments.map(exportCommentAsJsonLine).join("\n");
+  }
+
   subscribe(listener: (event: FsEvent) => void): () => void {
     this.subscribers.add(listener);
     return () => this.subscribers.delete(listener);
@@ -171,6 +216,32 @@ export class ViewerService {
     await this.watcher?.stop();
     this.subscribers.clear();
   }
+
+  private async createNormalizedComment(
+    input: CreateCommentInput,
+  ): Promise<PathlensComment> {
+    const now = isoNow();
+    const comment: PathlensComment = {
+      id: randomUUID(),
+      path: input.path,
+      viewerKind: input.viewerKind ?? "unknown",
+      anchor: input.anchor,
+      body: input.body,
+      status: input.status ?? "open",
+      createdAt: now,
+      updatedAt: now,
+      resolvedAt: input.status === "resolved" ? now : undefined,
+      archivedAt: input.status === "archived" ? now : undefined,
+    };
+    return this.requireCommentStore().createComment(comment);
+  }
+
+  private requireCommentStore() {
+    if (!this.commentStore) {
+      throw new Error("comments are not configured for this server");
+    }
+    return this.commentStore;
+  }
 }
 
 function fallbackFileScore(path: string, terms: string[]): number {
@@ -182,4 +253,19 @@ function fallbackFileScore(path: string, terms: string[]): number {
     score += 100 - index;
   }
   return score;
+}
+
+function pathFromCommentInput(input: unknown): string {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    throw new Error("invalid comment payload");
+  }
+  const path = (input as { path?: unknown }).path;
+  if (typeof path !== "string" || !path.trim()) {
+    throw new Error("path is required");
+  }
+  return path.trim();
+}
+
+function isoNow(): string {
+  return new Date().toISOString();
 }
