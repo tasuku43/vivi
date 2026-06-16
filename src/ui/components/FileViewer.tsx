@@ -47,6 +47,7 @@ const TextViewer = lazy(() =>
 
 export function FileViewer({
   file,
+  removed = false,
   allowHtmlScripts,
   theme,
   selectedCodeRange,
@@ -60,8 +61,10 @@ export function FileViewer({
   onViewerModeChange,
   onDiffToggle,
   onDiffFocusChange,
+  onCloseRemoved,
 }: {
   file: FilePayload | null;
+  removed?: boolean;
   allowHtmlScripts: boolean;
   theme: ResolvedTheme;
   selectedCodeRange: LineRange | null;
@@ -75,9 +78,28 @@ export function FileViewer({
   onViewerModeChange?: (mode: ViewerMode) => void;
   onDiffToggle?: () => void;
   onDiffFocusChange?: (focusChanges: boolean) => void;
+  onCloseRemoved?: () => void;
 }) {
   if (!file)
     return <div className="empty-viewer">Select a file from the tree.</div>;
+
+  if (removed) {
+    return (
+      <div className="removed-viewer" aria-live="polite">
+        <p className="removed-eyebrow">Removed from disk</p>
+        <h2>{file.path}</h2>
+        <p>
+          This tab is showing the last loaded content for a file that no longer
+          exists in the watched directory.
+        </p>
+        <div className="removed-actions">
+          <button type="button" onClick={onCloseRemoved}>
+            Close tab
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (file.truncated) {
     if (file.encoding === "utf8" && file.content)

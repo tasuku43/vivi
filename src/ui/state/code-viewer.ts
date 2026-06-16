@@ -129,9 +129,11 @@ export function detectCodeSymbols(path: string, content: string): CodeSymbol[] {
         trimmed,
       );
     if (functionMatch) {
+      const name = functionMatch[1] ?? functionMatch[2] ?? functionMatch[3];
+      if (isControlKeyword(name)) return;
       symbols.push({
         kind: "function",
-        name: functionMatch[1] ?? functionMatch[2] ?? functionMatch[3],
+        name,
         line: lineNumber,
       });
       return;
@@ -144,6 +146,21 @@ export function detectCodeSymbols(path: string, content: string): CodeSymbol[] {
   });
 
   return symbols.slice(0, 80);
+}
+
+function isControlKeyword(name: string): boolean {
+  return new Set([
+    "catch",
+    "do",
+    "else",
+    "finally",
+    "for",
+    "if",
+    "switch",
+    "try",
+    "while",
+    "with",
+  ]).has(name);
 }
 
 export function currentScopeForLine(

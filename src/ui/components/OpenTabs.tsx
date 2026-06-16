@@ -56,11 +56,10 @@ export function OpenTabs({
     >
       <div className="tab-strip">
         {tabs.map((tab) => (
-          <button
+          <div
             key={tab.path}
-            className={`tab ${tab.path === activePath ? "active" : ""} ${tab.changed ? "changed" : ""} ${tab.isPreview ? "preview" : ""}`}
+            className={`tab ${tab.path === activePath ? "active" : ""} ${tab.changed ? "changed" : ""} ${tab.removed ? "removed" : ""} ${tab.isPreview ? "preview" : ""}`}
             draggable
-            onClick={() => onActivate(tab.path)}
             onMouseDown={(event) => {
               if (event.button === 0)
                 onManualDragStart({ path: tab.path, paneId });
@@ -81,27 +80,39 @@ export function OpenTabs({
                 onDropTab(dragged.path, dragged.paneId, paneId, tab.path);
             }}
           >
-            <span className="file-icon">
-              {iconForPath(tab.path, tab.viewerKind)}
-            </span>
-            <span className="tab-title">{basename(tab.path)}</span>
-            {tab.isPreview ? (
-              <span className="tab-preview-mark" title="Preview tab">
-                preview
+            <button
+              className="tab-main"
+              type="button"
+              aria-label={`${tab.path}${tab.isPreview ? " preview" : ""}${tab.changed ? " changed" : ""}${tab.removed ? " removed" : ""}`}
+              onClick={() => onActivate(tab.path)}
+            >
+              <span className="file-icon">
+                {iconForPath(tab.path, tab.viewerKind)}
               </span>
-            ) : null}
-            <span
+              <span className="tab-title">{basename(tab.path)}</span>
+              {tab.isPreview ? (
+                <span className="tab-preview-mark" title="Preview tab">
+                  preview
+                </span>
+              ) : null}
+              {tab.removed ? (
+                <span className="tab-removed-mark" title="Removed from disk">
+                  removed
+                </span>
+              ) : null}
+            </button>
+            <button
               className="tab-close"
-              role="button"
-              tabIndex={0}
+              type="button"
+              aria-label={`Close ${tab.path}`}
               onClick={(event) => {
                 event.stopPropagation();
                 onClose(tab.path);
               }}
             >
               x
-            </span>
-          </button>
+            </button>
+          </div>
         ))}
       </div>
       <div className="tab-actions" aria-label="Tab actions">

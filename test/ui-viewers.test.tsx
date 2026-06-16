@@ -12,6 +12,7 @@ import {
   workspaceParentPath,
 } from "../src/ui/components/Topbar.js";
 import { TreeSidebar } from "../src/ui/components/TreeSidebar.js";
+import { WorkspaceRestoreNotice } from "../src/ui/components/WorkspaceRestoreNotice.js";
 import {
   CodeViewer,
   extractHighlightedLines,
@@ -93,6 +94,21 @@ it("renders the shortcut guide as one bundled reference", () => {
   expect(html).toContain("Command palette");
 });
 
+it("explains restored workspace tabs and offers a fresh start", () => {
+  const html = renderToStaticMarkup(
+    <WorkspaceRestoreNotice
+      tabCount={3}
+      onDismiss={() => undefined}
+      onStartFresh={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Restored 3 tabs");
+  expect(html).toContain("from your last local session");
+  expect(html).toContain("Start fresh");
+  expect(html).toContain('aria-label="Dismiss restored tabs notice"');
+});
+
 it("renders code with stable line numbers and selected ranges", () => {
   const html = renderToStaticMarkup(
     <CodeViewer
@@ -166,6 +182,25 @@ it("keeps non-text large files in the safe unsupported state", () => {
 
   expect(html).toContain("larger than the");
   expect(html).not.toContain("partial preview");
+});
+
+it("shows an explicit removed-file state instead of stale content", () => {
+  const html = renderToStaticMarkup(
+    <FileViewer
+      file={{ ...codeFile, path: "docs/deleted.md", viewerKind: "markdown" }}
+      removed={true}
+      allowHtmlScripts={false}
+      theme="dark"
+      selectedCodeRange={null}
+      onCodeSelectionChange={() => undefined}
+      onCloseRemoved={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Removed from disk");
+  expect(html).toContain("docs/deleted.md");
+  expect(html).toContain("Close tab");
+  expect(html).not.toContain("export function start");
 });
 
 it("keeps the HTML viewer sandboxed and exposes source mode controls", () => {
@@ -410,10 +445,10 @@ it("renders the Review Queue before secondary file helpers in the inspector", ()
   expect(html).toContain("-32");
   expect(html).toContain("app.ts");
   expect(html).toContain("docs/old.md -&gt; docs/new.md");
-  expect(html).not.toContain("HEAD diff");
-  expect(html).not.toContain("local change");
-  expect(html).not.toContain("modified");
-  expect(html).not.toContain("renamed");
+  expect(html).toContain("HEAD diff");
+  expect(html).toContain("local change");
+  expect(html).toContain("modified");
+  expect(html).toContain("renamed");
   expect(html).toContain("Details");
   expect(html.indexOf("Review Queue")).toBeLessThan(html.indexOf("Details"));
   expect(html).toContain("Open all changed files as tabs");

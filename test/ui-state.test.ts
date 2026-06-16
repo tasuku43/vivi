@@ -42,6 +42,7 @@ import {
   closeTabsToRight,
   closeUnchangedTabs,
   markTabChanged,
+  markTabRemoved,
   moveOpenTab,
   promoteOpenTab,
   upsertOpenTab,
@@ -55,12 +56,14 @@ import {
 import {
   clampInspectorWidth,
   clampSidebarWidth,
+  compactSidebarWidth,
   defaultInspectorWidth,
   defaultSidebarWidth,
   maxInspectorWidth,
   maxSidebarWidth,
   minInspectorWidth,
   minSidebarWidth,
+  shouldCollapseInspector,
 } from "../src/ui/state/workbench-layout.js";
 import {
   buildWorkspaceSession,
@@ -113,6 +116,16 @@ it("opens, updates, and marks tabs by path", () => {
       viewerKind: "markdown",
       paneId: "main",
       changed: true,
+      removed: false,
+    },
+  ]);
+  expect(markTabRemoved(tabs, "README.md")).toEqual([
+    {
+      path: "README.md",
+      viewerKind: "markdown",
+      paneId: "main",
+      changed: false,
+      removed: true,
     },
   ]);
 });
@@ -176,6 +189,7 @@ it("reuses one preview tab per pane while preserving normal tabs", () => {
       path: "docs/guide.md",
       viewerKind: "markdown",
       paneId: "main",
+      removed: false,
       isPreview: true,
     },
   ]);
@@ -204,6 +218,45 @@ it("promotes a preview tab into a stable normal tab", () => {
   ]);
 });
 
+it("clears stale tab flags when a file is reopened", () => {
+  const file: FilePayload = {
+    path: "README.md",
+    viewerKind: "markdown",
+    encoding: "utf8",
+    content: "# Hello",
+    etag: "sha256:test",
+    size: 7,
+    mtimeMs: 1,
+  };
+
+  expect(
+    upsertOpenTab(
+      [
+        {
+          path: "README.md",
+          viewerKind: "markdown",
+          paneId: "main",
+          changed: true,
+          removed: true,
+          isPreview: true,
+        },
+      ],
+      file,
+      "main",
+      "normal",
+    ),
+  ).toEqual([
+    {
+      path: "README.md",
+      viewerKind: "markdown",
+      paneId: "main",
+      changed: false,
+      removed: false,
+      isPreview: false,
+    },
+  ]);
+});
+
 it("maps common file paths to IDE-style icons and highlight languages", () => {
   expect(iconForPath("README.md")).toBe("📘");
   expect(iconForPath("index.html")).toBe("🌐");
@@ -217,6 +270,14 @@ it("maps common file paths to IDE-style icons and highlight languages", () => {
   expect(languageForPath("data/sample.json", "json")).toBe("json");
   expect(iconForPath("Dockerfile", "code")).toBe("DOCK");
   expect(languageForPath("Dockerfile", "code")).toBe("dockerfile");
+});
+
+it("compacts workbench panes for narrow viewports", () => {
+  expect(shouldCollapseInspector(1040)).toBe(true);
+  expect(shouldCollapseInspector(1200)).toBe(false);
+  expect(compactSidebarWidth(320, 390)).toBe(179);
+  expect(compactSidebarWidth(320, 900)).toBe(320);
+  expect(compactSidebarWidth(Number.NaN, 390)).toBe(179);
 });
 
 it("labels the inspector target with file and pane identity", () => {

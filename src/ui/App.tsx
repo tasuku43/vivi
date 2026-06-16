@@ -19,6 +19,7 @@ import {
 import { Inspector } from "./components/Inspector.js";
 import { CommandPalette } from "./components/CommandPalette.js";
 import { ShortcutHelp } from "./components/ShortcutHelp.js";
+import { WorkspaceRestoreNotice } from "./components/WorkspaceRestoreNotice.js";
 import { extractHtmlOutline, extractMarkdownOutline } from "./state/outline.js";
 import type { LineRange } from "./state/code-viewer.js";
 import type { FileSearchResult, TextSearchResult } from "../domain/search.js";
@@ -34,6 +35,7 @@ import {
   closeTabsToRight,
   closeUnchangedTabs,
   markTabChanged,
+  markTabRemoved,
   moveOpenTab,
   promoteOpenTab,
   upsertOpenTab,
@@ -73,8 +75,10 @@ import {
 import {
   clampInspectorWidth,
   clampSidebarWidth,
+  compactSidebarWidth,
   defaultInspectorWidth,
   defaultSidebarWidth,
+  shouldCollapseInspector,
 } from "./state/workbench-layout.js";
 import {
   buildWorkspaceSession,
@@ -170,6 +174,7 @@ export function App() {
   );
   const [systemTheme, setSystemTheme] =
     useState<ResolvedTheme>(readSystemTheme);
+  const [viewportWidth, setViewportWidth] = useState(readViewportWidth);
   const [inspectorVisible, setInspectorVisible] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(defaultSidebarWidth);
   const [inspectorWidth, setInspectorWidth] = useState(defaultInspectorWidth);
@@ -181,6 +186,9 @@ export function App() {
   const [workspaceSessionReady, setWorkspaceSessionReady] = useState(false);
   const [pendingRestoreSession, setPendingRestoreSession] =
     useState<WorkspaceSessionState | null>(null);
+  const [restoreNoticeTabCount, setRestoreNoticeTabCount] = useState<
+    number | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const gitRefreshTimer = useRef<number | null>(null);
   const knownReviewPaths = useRef(new Set<string>());
@@ -280,6 +288,19 @@ export function App() {
     panes.find((pane) => pane.id === layout.activePaneId) ?? panes[0];
   const selectedPath = activePane?.activePath ?? null;
   const file = selectedPath ? (files[selectedPath] ?? null) : null;
+  const activeTab = selectedPath
+    ? openTabs.find(
+        (tab) =>
+          tab.path === selectedPath && tab.paneId === layout.activePaneId,
+      )
+    : null;
+  const activeFileRemoved = Boolean(activeTab?.removed);
+  const effectiveSidebarWidth = compactSidebarWidth(
+    sidebarWidth,
+    viewportWidth,
+  );
+  const effectiveInspectorVisible =
+    inspectorVisible && !shouldCollapseInspector(viewportWidth);
   const resolvedTheme = resolveThemePreference(themePreference, systemTheme);
   const recentActivityEvents = useMemo(
     () =>
@@ -675,6 +696,7 @@ export function App() {
         setPendingRestoreSession(restored);
       } else {
         applyWorkspaceSession(restored);
+        setRestoreNoticeTabCount(restored.openTabs.length);
       }
     }
 
@@ -716,6 +738,13 @@ export function App() {
     updateSystemTheme();
     query.addEventListener("change", updateSystemTheme);
     return () => query.removeEventListener("change", updateSystemTheme);
+  }, []);
+
+  useEffect(() => {
+    const updateViewportWidth = () => setViewportWidth(readViewportWidth());
+    updateViewportWidth();
+    window.addEventListener("resize", updateViewportWidth);
+    return () => window.removeEventListener("resize", updateViewportWidth);
   }, []);
 
   useEffect(() => {
@@ -944,6 +973,10 @@ export function App() {
         setOpenTabs((tabs) => markTabChanged(tabs, event.path));
       }
 
+      if (event.type === "unlink") {
+        setOpenTabs((tabs) => markTabRemoved(tabs, event.path));
+      }
+
       if (event.type === "add" || event.type === "unlink") {
         const parentPath = parentDirectoryPath(event.path);
         const refresh = parentPath ? loadDirectory(parentPath) : loadTree();
@@ -991,11 +1024,11 @@ export function App() {
 
       <div
         className={
-          inspectorVisible ? "workbench" : "workbench inspector-hidden"
+          effectiveInspectorVisible ? "workbench" : "workbench inspector-hidden"
         }
         style={
           {
-            "--sidebar-width": `${sidebarWidth}px`,
+            "--sidebar-width": `${effectiveSidebarWidth}px`,
             "--inspector-width": `${inspectorWidth}px`,
           } as CSSProperties
         }
@@ -1052,7 +1085,7 @@ export function App() {
           </div>
         </main>
 
-        {inspectorVisible ? (
+        {effectiveInspectorVisible ? (
           <>
             <button
               className="workbench-resizer inspector-resizer"
@@ -1067,6 +1100,7 @@ export function App() {
             />
             <Inspector
               file={file}
+              fileRemoved={activeFileRemoved}
               outline={outline}
               reviewChanges={reviewChanges}
               reviewDiffStats={reviewDiffStats}
@@ -1141,17 +1175,29 @@ export function App() {
         open={shortcutHelpOpen}
         onClose={() => setShortcutHelpOpen(false)}
       />
+      {restoreNoticeTabCount ? (
+        <WorkspaceRestoreNotice
+          tabCount={restoreNoticeTabCount}
+          onDismiss={() => setRestoreNoticeTabCount(null)}
+          onStartFresh={startFreshWorkspace}
+        />
+      ) : null}
       {pendingRestoreSession ? (
         <RestoreSessionPrompt
           tabCount={pendingRestoreSession.openTabs.length}
           onRestoreAll={() => {
             applyWorkspaceSession(pendingRestoreSession);
+            setRestoreNoticeTabCount(pendingRestoreSession.openTabs.length);
             setPendingRestoreSession(null);
           }}
           onRestoreActive={() => {
-            applyWorkspaceSession(
-              restoreOnlyActiveWorkspaceTab(pendingRestoreSession),
+            const activeOnly = restoreOnlyActiveWorkspaceTab(
+              pendingRestoreSession,
             );
+            applyWorkspaceSession(
+              activeOnly,
+            );
+            setRestoreNoticeTabCount(activeOnly.openTabs.length);
             setPendingRestoreSession(null);
           }}
           onSkip={() => setPendingRestoreSession(null)}
@@ -1177,6 +1223,16 @@ export function App() {
     ).catch((err) => setError(String(err)));
   }
 
+  function startFreshWorkspace() {
+    setOpenTabs([]);
+    setFiles({});
+    setLayout(initialEditorLayout);
+    setRecentFiles([]);
+    setDiffEnabled(false);
+    setDiffFocusByPath({});
+    setRestoreNoticeTabCount(null);
+  }
+
   function renderLayoutNode(node: EditorLayoutNode): ReactNode {
     if (node.kind === "split") {
       return (
@@ -1193,6 +1249,9 @@ export function App() {
   function renderEditorPane(pane: EditorPane): ReactNode {
     const paneTabs = openTabs.filter((tab) => tab.paneId === pane.id);
     const paneFile = pane.activePath ? (files[pane.activePath] ?? null) : null;
+    const paneActiveTab = pane.activePath
+      ? paneTabs.find((tab) => tab.path === pane.activePath)
+      : null;
 
     return (
       <section
@@ -1214,11 +1273,16 @@ export function App() {
           tabs={paneTabs}
           activePath={pane.activePath}
           paneId={pane.id}
-          onActivate={(path) =>
+          onActivate={(path) => {
+            const target = paneTabs.find((tab) => tab.path === path);
+            if (target?.removed) {
+              setLayout((current) => setPaneActivePath(current, pane.id, path));
+              return;
+            }
             void loadFile(path, pane.id, "preserve").catch((err) =>
               setError(String(err)),
-            )
-          }
+            );
+          }}
           onClose={(path) => closeTab(path, pane.id)}
           onPromote={(path) => promoteTab(path, pane.id)}
           onCloseOtherTabs={() => applyTabCleanup(closeOtherOpenTabs, pane.id)}
@@ -1244,6 +1308,7 @@ export function App() {
             <FileViewer
               key={paneFile?.path ?? "empty"}
               file={paneFile}
+              removed={Boolean(paneActiveTab?.removed)}
               allowHtmlScripts={config?.allowHtmlScripts ?? false}
               theme={resolvedTheme}
               selectedCodeRange={
@@ -1291,6 +1356,9 @@ export function App() {
                   ...items,
                   [paneFile.path]: focusChanges,
                 }));
+              }}
+              onCloseRemoved={() => {
+                if (pane.activePath) closeTab(pane.activePath, pane.id);
               }}
             />
           )}
@@ -1450,6 +1518,11 @@ function readSystemTheme(): ResolvedTheme {
   return window.matchMedia("(prefers-color-scheme: light)").matches
     ? "light"
     : "dark";
+}
+
+function readViewportWidth(): number {
+  if (typeof window === "undefined") return 1280;
+  return window.innerWidth;
 }
 
 const recentEventWindowMs = 5 * 60 * 1000;

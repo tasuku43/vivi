@@ -48,6 +48,8 @@ it("detects lightweight JavaScript and TypeScript symbols", () => {
 export class ViewerService {}
 export function startServer() {}
 const localThing = () => true;
+if (ready) {}
+while (ready) {}
 `,
   );
 

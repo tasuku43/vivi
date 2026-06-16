@@ -1,11 +1,17 @@
 import type { FilePayload } from "../../domain/fs-node.js";
 import { buildCodeMetadata, type LineRange } from "../state/code-viewer.js";
-import { type DiffStat, type ReviewChangeItem } from "../state/git-review.js";
+import {
+  changeStatusLabel,
+  reviewQueueSourceLabel,
+  type DiffStat,
+  type ReviewChangeItem,
+} from "../state/git-review.js";
 import { iconForPath } from "../state/file-icons.js";
 import type { OutlineHeading } from "../state/outline.js";
 
 interface Props {
   file: FilePayload | null;
+  fileRemoved?: boolean;
   outline: OutlineHeading[];
   reviewChanges: ReviewChangeItem[];
   reviewDiffStats: Record<string, DiffStat | null>;
@@ -26,6 +32,7 @@ interface Props {
 
 export function Inspector({
   file,
+  fileRemoved = false,
   outline,
   reviewChanges,
   reviewDiffStats,
@@ -77,6 +84,7 @@ export function Inspector({
               <button
                 className="change-open"
                 disabled={change.status === "deleted"}
+                aria-label={`${changeStatusLabel(change.status)} ${change.path} from ${reviewQueueSourceLabel(change.source)}`}
                 key={`${change.source}:${change.path}`}
                 onClick={() => onOpenEventPath(change.path)}
                 onDoubleClick={() => onConfirmEventPath(change.path)}
@@ -95,8 +103,18 @@ export function Inspector({
                   {iconForPath(change.path)}
                 </span>
                 <span className="change-main">
-                  <b>{basenameForPath(change.path)}</b>
-                  <small>{reviewPathLabel(change)}</small>
+                  <span className="change-heading">
+                    <span className={`change-status ${change.status}`}>
+                      {changeStatusLabel(change.status)}
+                    </span>
+                    <b>{basenameForPath(change.path)}</b>
+                  </span>
+                  <small>
+                    {reviewPathLabel(change)}
+                    <span className="change-source">
+                      {reviewQueueSourceLabel(change.source)}
+                    </span>
+                  </small>
                 </span>
                 <DiffStatBadge
                   loading={Boolean(loadingReviewDiffs[change.path])}
@@ -114,6 +132,7 @@ export function Inspector({
           {file ? (
             <>
               <span>{file.path}</span> · {fileKindLabel}
+              {fileRemoved ? " · removed from disk" : ""}
               {activeChange ? " · in review queue" : ""}
             </>
           ) : (

@@ -133,6 +133,7 @@ export function CommandPalette({
                 id={`palette-result-${index}`}
                 key={item.id}
                 role="option"
+                aria-label={`${item.label} ${item.detail} ${item.kind === "file" ? "open file" : `line ${item.lineNumber}`}`}
                 className={
                   index === activeIndex
                     ? "palette-result active"
@@ -145,7 +146,7 @@ export function CommandPalette({
                 <span className="file-icon">
                   {iconForPath(item.path, item.viewerKind)}
                 </span>
-                <span>
+                <span className="palette-result-main">
                   <strong>{item.label}</strong>
                   <small>{item.detail}</small>
                 </span>

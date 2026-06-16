@@ -5,6 +5,7 @@ export interface OpenTab {
   viewerKind: string;
   paneId: string;
   changed?: boolean;
+  removed?: boolean;
   isPreview?: boolean;
 }
 
@@ -26,6 +27,7 @@ export function upsertOpenTab(
             ...tab,
             viewerKind: file.viewerKind,
             changed: false,
+            removed: false,
             isPreview:
               mode === "normal"
                 ? false
@@ -45,6 +47,7 @@ export function upsertOpenTab(
       path: file.path,
       viewerKind: file.viewerKind,
       paneId,
+      removed: false,
       isPreview: true,
     };
     if (previewIndex >= 0) {
@@ -72,7 +75,13 @@ export function promoteOpenTab(
 
 export function markTabChanged(tabs: OpenTab[], path: string): OpenTab[] {
   return tabs.map((tab) =>
-    tab.path === path ? { ...tab, changed: true } : tab,
+    tab.path === path ? { ...tab, changed: true, removed: false } : tab,
+  );
+}
+
+export function markTabRemoved(tabs: OpenTab[], path: string): OpenTab[] {
+  return tabs.map((tab) =>
+    tab.path === path ? { ...tab, changed: false, removed: true } : tab,
   );
 }
 
