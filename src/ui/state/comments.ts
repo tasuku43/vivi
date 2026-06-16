@@ -1,5 +1,6 @@
 import type {
   CommentAnchor,
+  SourceAnchor,
   CommentStatus,
   CommentViewerKind,
   PathlensComment,
@@ -12,6 +13,12 @@ export interface CommentDraft {
   viewerKind: CommentViewerKind;
   anchor: CommentAnchor;
 }
+
+export type CommentCreateHandler = (
+  draft: CommentDraft,
+  body: string,
+  rect?: SelectionCommentTarget["rect"],
+) => void | Promise<void>;
 
 export interface SelectionCommentTarget {
   text: string;
@@ -187,7 +194,10 @@ export function statusLabel(status: CommentStatus): string {
 }
 
 export function commentLineLabel(comment: PathlensComment): string {
-  const anchor = comment.anchor.canonical;
+  return commentLineLabelForAnchor(comment.anchor.canonical);
+}
+
+export function commentLineLabelForAnchor(anchor: SourceAnchor): string {
   if (
     anchor.lineStart &&
     anchor.lineEnd &&
@@ -197,4 +207,42 @@ export function commentLineLabel(comment: PathlensComment): string {
   }
   if (anchor.lineStart) return `L${anchor.lineStart}`;
   return "File";
+}
+
+export function commentsForLine(
+  comments: PathlensComment[],
+  line: number,
+): PathlensComment[] {
+  return comments.filter((comment) => commentContainsLine(comment, line));
+}
+
+export function commentContainsLine(
+  comment: PathlensComment,
+  line: number,
+): boolean {
+  const start = comment.anchor.canonical.lineStart;
+  if (!start) return false;
+  const end = comment.anchor.canonical.lineEnd ?? start;
+  return line >= start && line <= end;
+}
+
+export function truncateCommentPreview(
+  value: string,
+  maxLength: number,
+): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
+}
+
+export function rectLikeFromElement(
+  element: Element,
+): SelectionCommentTarget["rect"] {
+  const rect = element.getBoundingClientRect();
+  return {
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+    height: rect.height,
+  };
 }

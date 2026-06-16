@@ -9,6 +9,8 @@ import type { FilePayload } from "../../src/domain/fs-node.js";
 import { NodeCommentStore } from "../../src/infra/node-comment-store.js";
 import { NodeFileSystem } from "../../src/infra/node-file-system.js";
 import { startHttpServer } from "../../src/server/http-server.js";
+import { CommentedSourceLines } from "../../src/ui/components/CommentedSourceLines.js";
+import { CommentsPanel } from "../../src/ui/components/CommentsPanel.js";
 import { Inspector } from "../../src/ui/components/Inspector.js";
 import { renderedCommentDraft } from "../../src/ui/state/comments.js";
 
@@ -248,9 +250,37 @@ it("creates a comment from the UI anchor model and renders it after retrieval", 
   );
 
   expect(html).toContain("Comments");
-  expect(html).toContain("UI-created note from selected text");
-  expect(html).toContain("Rendered markdown text");
-  expect(html).toContain("L3");
+  expect(html).toContain("1 open comments");
+  expect(html).toContain("Open in Comments panel");
+  expect(html).not.toContain("UI-created note from selected text");
+  expect(html).not.toContain("Rendered markdown text");
+
+  const panelHtml = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={retrieved}
+      query=""
+      statusFilter="open"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+    />,
+  );
+  expect(panelHtml).toContain("UI-created note from selected text");
+  expect(panelHtml).toContain("Rendered markdown text");
+  expect(panelHtml).toContain("README.md");
+  expect(panelHtml).toContain("L3");
+
+  const sourceHtml = renderToStaticMarkup(
+    <CommentedSourceLines
+      content={file.content}
+      comments={retrieved}
+      onOpenComment={() => undefined}
+    />,
+  );
+  expect(sourceHtml).toContain("has-comment");
+  expect(sourceHtml).toContain(`data-comment-id="${created.id}"`);
 });
 
 async function fetchJson<T>(route: string): Promise<T> {

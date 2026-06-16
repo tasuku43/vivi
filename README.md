@@ -164,12 +164,15 @@ pathlens ./reports --open --max-file-size 2097152
 
 - `Cmd/Ctrl+K`: quick open by filename or path.
 - `Cmd/Ctrl+Shift+F`: search text across searchable file contents.
+- `Cmd/Ctrl+Shift+C`: open the right-aligned global Comments panel.
 - `Enter`: open the selected file.
-- `Esc`: close the search palette.
+- `Esc`: close overlays such as search, comments, and inline comment cards.
 - In code viewers, click a line number to select a line; shift-click extends the selected range.
-- Drag-select text in source/rendered viewers, then use the inline `Comment`
-  action to attach a comment without modifying the workspace. In diff mode, use
-  `Comment` on current-file context or added rows.
+- Drag-select text in source/rendered viewers to open a compact comment composer
+  near the selection. `Shift+Enter` or `Cmd/Ctrl+Enter` saves; plain `Enter`
+  inserts a newline.
+- In diff mode, drag-select current-file context or added text to comment.
+  Deleted old-file lines are not commentable and do not show comment controls.
 
 ## Release Images
 
@@ -221,6 +224,12 @@ Run the full local validation suite:
 task check
 ```
 
+Run the real-browser comment UI verification when changing the review layer:
+
+```bash
+npm run verify:comment-ui
+```
+
 The scaffold validator can run without installed dependencies:
 
 ```bash
@@ -263,7 +272,10 @@ Comments are local Pathlens metadata, not edits to the workspace. They are store
 as one record per comment with a canonical source anchor and optional rendered or
 diff anchor metadata. Diff comments can target context and added lines because
 they exist in the current file; deleted lines from the old file are not
-commentable.
+commentable. Saved source and diff comments show a subtle line highlight and
+gutter marker in the file; clicking the marker opens the inline comment card.
+Use the global Comments panel to search, filter by status, and jump to comments
+across the workspace.
 
 The sidebar avoids expanding every descendant in very large trees on first render and avoids mounting every visible row after a large folder is expanded. It auto-expands within a row budget, keeps selected and changed paths revealable by expanding their ancestors, keeps important rows rendered beyond the normal cap, and shows a small note when collapsed or omitted rows are hiding additional entries.
 

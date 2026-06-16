@@ -111,3 +111,10 @@ Rendered Markdown and HTML comments store selected rendered text and any
 best-effort source line mapping available at creation time. Diff comments only
 target current-file lines. Deleted lines from the old file are not valid comment
 anchors.
+
+The UI treats comments as one entity regardless of where they were created.
+Source, rendered, and diff views are creation contexts that feed the same stable
+comment id and canonical source anchor. Saved comments are surfaced in files as
+line-level highlights and subtle gutter markers when a line anchor is available.
+The right inspector intentionally shows only a lightweight current-file summary;
+the global Comments panel is the primary browsing and processing surface.

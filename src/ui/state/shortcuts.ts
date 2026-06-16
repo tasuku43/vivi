@@ -2,6 +2,7 @@ export type KeyboardShortcutAction =
   | "quick-open"
   | "search-text"
   | "toggle-diff"
+  | "toggle-comments"
   | "open-latest-unread"
   | "close-active-tab"
   | "toggle-shortcuts"
@@ -26,6 +27,7 @@ export function keyboardShortcutAction(
   const key = event.key.toLowerCase();
   if (!event.shiftKey && key === "k") return "quick-open";
   if (event.shiftKey && key === "f") return "search-text";
+  if (event.shiftKey && key === "c") return "toggle-comments";
   if (!event.shiftKey && key === "d") return "toggle-diff";
   if (event.shiftKey && key === "u") return "open-latest-unread";
   if (!event.shiftKey && key === "w") return "close-active-tab";

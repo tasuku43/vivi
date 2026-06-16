@@ -7,6 +7,7 @@ import {
 } from "react";
 import { marked } from "marked";
 import type { TextDiff } from "../../domain/change-review.js";
+import type { PathlensComment } from "../../domain/comments.js";
 import type { FilePayload } from "../../domain/fs-node.js";
 import { escapeAttribute } from "../../domain/mermaid-preview.js";
 import {
@@ -24,11 +25,13 @@ import {
   scheduleSelectionCommentUpdate,
   selectionCommentTargetInElement,
   sourceCommentDraft,
+  type CommentCreateHandler,
   type CommentDraft,
 } from "../state/comments.js";
 import type { ResolvedTheme } from "../state/theme.js";
 import type { ViewerMode } from "../state/viewer-mode.js";
-import { SelectionCommentPopover } from "../components/SelectionCommentPopover.js";
+import { CommentedSourceLines } from "../components/CommentedSourceLines.js";
+import { SelectionCommentComposer } from "../components/SelectionCommentComposer.js";
 import { DiffViewer } from "./DiffViewer.js";
 import { renderMermaidBlocks } from "./MermaidViewer.js";
 
@@ -44,6 +47,9 @@ export function MarkdownViewer({
   onDiffToggle,
   onDiffFocusChange,
   onCreateComment,
+  comments = [],
+  activeCommentId,
+  onOpenComment,
 }: {
   file: FilePayload;
   mode?: ViewerMode;
@@ -55,13 +61,15 @@ export function MarkdownViewer({
   onModeChange?: (mode: ViewerMode) => void;
   onDiffToggle?: () => void;
   onDiffFocusChange?: (focusChanges: boolean) => void;
-  onCreateComment?: (draft: CommentDraft) => void;
+  onCreateComment?: CommentCreateHandler;
+  comments?: PathlensComment[];
+  activeCommentId?: string | null;
+  onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
   const [localMode, setLocalMode] = useState<ViewerMode>("rendered");
   const [selectionComment, setSelectionComment] = useState<{
     draft: CommentDraft;
-    left: number;
-    top: number;
+    rect: DOMRectLike;
   } | null>(null);
   const mode =
     controlledMode === "source" || controlledMode === "rendered"
@@ -69,7 +77,7 @@ export function MarkdownViewer({
       : localMode;
   const html = renderMarkdownDocumentHtml(file.content);
   const markdownRef = useRef<HTMLElement | null>(null);
-  const sourceRef = useRef<HTMLPreElement | null>(null);
+  const sourceRef = useRef<HTMLDivElement | null>(null);
   const setMode = (nextMode: ViewerMode) => {
     setSelectionComment(null);
     setLocalMode(nextMode);
@@ -104,8 +112,7 @@ export function MarkdownViewer({
         sourceLineStart: range?.start,
         sourceLineEnd: range?.end,
       }),
-      left: selection.rect.left + selection.rect.width / 2,
-      top: selection.rect.top,
+      rect: selection.rect,
     });
   };
   const updateSourceSelectionComment = () => {
@@ -120,8 +127,7 @@ export function MarkdownViewer({
         lineRangeForQuote(file.content, selection.text),
         selection.text,
       ),
-      left: selection.rect.left + selection.rect.width / 2,
-      top: selection.rect.top,
+      rect: selection.rect,
     });
   };
 
@@ -177,6 +183,9 @@ export function MarkdownViewer({
           onFocusChangesChange={onDiffFocusChange}
           onCreateComment={onCreateComment}
           file={file}
+          comments={comments}
+          activeCommentId={activeCommentId}
+          onOpenComment={onOpenComment}
         />
       ) : mode === "rendered" ? (
         <article
@@ -189,26 +198,34 @@ export function MarkdownViewer({
           dangerouslySetInnerHTML={{ __html: html }}
         />
       ) : (
-        <pre
+        <CommentedSourceLines
+          content={file.content}
           className="markdown-source"
-          ref={sourceRef}
+          containerRef={sourceRef}
+          comments={comments}
+          activeCommentId={activeCommentId}
+          onOpenComment={onOpenComment}
           onMouseUp={() =>
             scheduleSelectionCommentUpdate(updateSourceSelectionComment)
           }
           onKeyUp={updateSourceSelectionComment}
-        >
-          {file.content}
-        </pre>
+        />
       )}
-      <SelectionCommentPopover
+      <SelectionCommentComposer
         draft={selectionComment?.draft ?? null}
-        left={selectionComment?.left ?? 0}
-        top={selectionComment?.top ?? 0}
-        onCreateComment={onCreateComment}
+        rect={selectionComment?.rect ?? null}
+        onSave={onCreateComment}
         onDismiss={() => setSelectionComment(null)}
       />
     </section>
   );
+}
+
+interface DOMRectLike {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
 }
 
 export function renderMarkdownDocumentHtml(markdown: string): string {

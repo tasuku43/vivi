@@ -1,14 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { TextDiff } from "../../domain/change-review.js";
+import type { PathlensComment } from "../../domain/comments.js";
 import type { FilePayload } from "../../domain/fs-node.js";
 import {
   diffStatusLabel,
   parseUnifiedDiff,
   type ParsedDiffLine,
 } from "../state/git-review.js";
-import { diffCommentDraft, type CommentDraft } from "../state/comments.js";
+import {
+  commentsForLine,
+  diffCommentDraft,
+  rectLikeFromElement,
+  scheduleSelectionCommentUpdate,
+  type CommentCreateHandler,
+  type CommentDraft,
+} from "../state/comments.js";
 import { languageForPath } from "../state/file-icons.js";
 import type { ResolvedTheme } from "../state/theme.js";
+import { SelectionCommentComposer } from "../components/SelectionCommentComposer.js";
 import { renderMarkdownDocumentHtml } from "./MarkdownViewer.js";
 
 type RenderKind = "source" | "markdown" | "html";
@@ -31,6 +40,9 @@ export function DiffViewer({
   file,
   onFocusChangesChange,
   onCreateComment,
+  comments = [],
+  activeCommentId,
+  onOpenComment,
 }: {
   path: string;
   diff: TextDiff | null;
@@ -40,7 +52,10 @@ export function DiffViewer({
   theme?: ResolvedTheme;
   file?: FilePayload;
   onFocusChangesChange?: (focusChanges: boolean) => void;
-  onCreateComment?: (draft: CommentDraft) => void;
+  onCreateComment?: CommentCreateHandler;
+  comments?: PathlensComment[];
+  activeCommentId?: string | null;
+  onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
   const [localFocusChanges, setLocalFocusChanges] = useState(false);
   const focusChanges = controlledFocusChanges ?? localFocusChanges;
@@ -75,6 +90,9 @@ export function DiffViewer({
             theme={theme}
             file={file}
             onCreateComment={onCreateComment}
+            comments={comments}
+            activeCommentId={activeCommentId}
+            onOpenComment={onOpenComment}
           />
         ) : (
           <RenderedDiff
@@ -83,6 +101,9 @@ export function DiffViewer({
             renderKind={renderKind}
             file={file}
             onCreateComment={onCreateComment}
+            comments={comments}
+            activeCommentId={activeCommentId}
+            onOpenComment={onOpenComment}
           />
         )
       ) : null}
@@ -96,13 +117,24 @@ function SourceDiff({
   theme,
   file,
   onCreateComment,
+  comments,
+  activeCommentId,
+  onOpenComment,
 }: {
   diff: TextDiff;
   focusChanges: boolean;
   theme: ResolvedTheme;
   file?: FilePayload;
-  onCreateComment?: (draft: CommentDraft) => void;
+  onCreateComment?: CommentCreateHandler;
+  comments: PathlensComment[];
+  activeCommentId?: string | null;
+  onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
+  const diffRef = useRef<HTMLDivElement | null>(null);
+  const [selectionComment, setSelectionComment] = useState<{
+    draft: CommentDraft;
+    rect: DOMRectLike;
+  } | null>(null);
   const language = languageForPath(diff.path, "code");
   const lines = useMemo(
     () =>
@@ -141,55 +173,150 @@ function SourceDiff({
     };
   }, [diff.content, displayLines, language, theme]);
 
+  useEffect(() => {
+    if (!activeCommentId) return;
+    const marker = diffRef.current?.querySelector<HTMLElement>(
+      `[data-comment-id="${CSS.escape(activeCommentId)}"]`,
+    );
+    if (!marker) return;
+    marker.scrollIntoView({ block: "center", behavior: "smooth" });
+    window.requestAnimationFrame(() => {
+      onOpenComment?.(activeCommentId, rectLikeFromElement(marker));
+    });
+  }, [activeCommentId, comments, onOpenComment]);
+
+  const updateSelectionComment = () => {
+    if (!file || !diffRef.current) return;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      setSelectionComment(null);
+      return;
+    }
+    const text = selection.toString().trim();
+    if (!text) {
+      setSelectionComment(null);
+      return;
+    }
+    const range = selection.getRangeAt(0);
+    if (!diffRef.current.contains(range.commonAncestorContainer)) {
+      setSelectionComment(null);
+      return;
+    }
+    const selectedRows = Array.from(
+      diffRef.current.querySelectorAll<HTMLElement>("[data-current-line]"),
+    ).filter((row) => range.intersectsNode(row));
+    if (!selectedRows.length) {
+      setSelectionComment(null);
+      return;
+    }
+    const lineNumbers = selectedRows
+      .map((row) => Number(row.dataset.currentLine))
+      .filter((line) => Number.isSafeInteger(line));
+    if (!lineNumbers.length) {
+      setSelectionComment(null);
+      return;
+    }
+    const changeKind = selectedRows.some(
+      (row) => row.dataset.changeKind === "added",
+    )
+      ? "added"
+      : "context";
+    setSelectionComment({
+      draft: diffCommentDraft(
+        file,
+        Math.min(...lineNumbers),
+        Math.max(...lineNumbers),
+        changeKind,
+        text,
+      ),
+      rect: rectFromRange(range),
+    });
+  };
+
   return (
     <div
+      ref={diffRef}
       className="diff-preview diff-inline"
       aria-label={`Diff for ${diff.path}`}
+      onMouseUp={() => scheduleSelectionCommentUpdate(updateSelectionComment)}
+      onKeyUp={updateSelectionComment}
     >
       {displayLines.map((line, index) => (
-        <div
-          className={`diff-inline-row ${line.kind}`}
+        <SourceDiffLine
           key={`${line.kind}-${index}-${"oldLine" in line ? (line.oldLine ?? "") : ""}-${"newLine" in line ? (line.newLine ?? "") : ""}-${line.text}`}
-        >
-          <span className="diff-line-no">
-            {line.kind === "gap"
-              ? ""
-              : line.kind === "add"
-                ? (line.newLine ?? "")
-                : line.kind === "context"
-                  ? (line.newLine ?? "")
-                  : (line.oldLine ?? "")}
-          </span>
-          {"newLine" in line &&
-          line.kind !== "remove" &&
-          line.newLine &&
-          file &&
-          onCreateComment ? (
-            <button
-              className="diff-comment-button"
-              type="button"
-              onClick={() =>
-                onCreateComment(
-                  diffCommentDraft(
-                    file,
-                    line.newLine ?? 1,
-                    line.newLine ?? 1,
-                    line.kind === "add" ? "added" : "context",
-                    line.text,
-                  ),
-                )
-              }
-            >
-              Comment
-            </button>
-          ) : null}
-          <code
-            dangerouslySetInnerHTML={{
-              __html: highlightedLines?.[index] ?? escapeHtml(line.text || " "),
-            }}
-          />
-        </div>
+          line={line}
+          html={highlightedLines?.[index] ?? escapeHtml(line.text || " ")}
+          comments={comments}
+          onOpenComment={onOpenComment}
+        />
       ))}
+      <SelectionCommentComposer
+        draft={selectionComment?.draft ?? null}
+        rect={selectionComment?.rect ?? null}
+        onSave={onCreateComment}
+        onDismiss={() => setSelectionComment(null)}
+      />
+    </div>
+  );
+}
+
+function SourceDiffLine({
+  line,
+  html,
+  comments,
+  onOpenComment,
+}: {
+  line: SourceDiffRow;
+  html: string;
+  comments: PathlensComment[];
+  onOpenComment?: (id: string, rect: DOMRectLike) => void;
+}) {
+  const currentLine =
+    "newLine" in line && line.kind !== "remove" ? line.newLine : null;
+  const lineComments = currentLine
+    ? commentsForLine(comments, currentLine)
+    : [];
+  const firstComment = lineComments[0];
+  return (
+    <div
+      className={`diff-inline-row ${line.kind}${lineComments.length ? " has-comment" : ""}`}
+      data-current-line={currentLine ?? undefined}
+      data-change-kind={
+        currentLine ? (line.kind === "add" ? "added" : "context") : undefined
+      }
+      onClick={(event) => {
+        if (!firstComment) return;
+        onOpenComment?.(
+          firstComment.id,
+          rectLikeFromElement(event.currentTarget),
+        );
+      }}
+    >
+      <span className="diff-line-no">
+        {line.kind === "gap"
+          ? ""
+          : line.kind === "add"
+            ? (line.newLine ?? "")
+            : line.kind === "context"
+              ? (line.newLine ?? "")
+              : (line.oldLine ?? "")}
+      </span>
+      {firstComment ? (
+        <button
+          className="comment-gutter-marker diff-comment-marker"
+          type="button"
+          data-comment-id={firstComment.id}
+          aria-label={`Open comment on line ${currentLine}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenComment?.(
+              firstComment.id,
+              rectLikeFromElement(event.currentTarget),
+            );
+          }}
+        />
+      ) : null}
+      <code dangerouslySetInnerHTML={{ __html: html }} />
     </div>
   );
 }
@@ -200,12 +327,18 @@ function RenderedDiff({
   renderKind,
   file,
   onCreateComment,
+  comments,
+  activeCommentId,
+  onOpenComment,
 }: {
   diff: TextDiff;
   focusChanges: boolean;
   renderKind: Exclude<RenderKind, "source">;
   file?: FilePayload;
-  onCreateComment?: (draft: CommentDraft) => void;
+  onCreateComment?: CommentCreateHandler;
+  comments: PathlensComment[];
+  activeCommentId?: string | null;
+  onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
   const rows = buildRenderedDiffRows(
     parseUnifiedDiff(diff.content),
@@ -223,6 +356,9 @@ function RenderedDiff({
         rows={displayRows}
         file={file}
         onCreateComment={onCreateComment}
+        comments={comments}
+        activeCommentId={activeCommentId}
+        onOpenComment={onOpenComment}
       />
     );
   }
@@ -232,8 +368,8 @@ function RenderedDiff({
       <RenderedHtmlDiff
         diff={diff}
         rows={buildRenderedHtmlRows(displayRows)}
-        file={file}
-        onCreateComment={onCreateComment}
+        comments={comments}
+        onOpenComment={onOpenComment}
       />
     );
   }
@@ -259,13 +395,13 @@ function RenderedDiff({
 function RenderedHtmlDiff({
   diff,
   rows,
-  file,
-  onCreateComment,
+  comments,
+  onOpenComment,
 }: {
   diff: TextDiff;
   rows: RenderedDiffRow[];
-  file?: FilePayload;
-  onCreateComment?: (draft: CommentDraft) => void;
+  comments: PathlensComment[];
+  onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
   return (
     <div
@@ -276,8 +412,8 @@ function RenderedHtmlDiff({
         <RenderedHtmlDiffBlock
           key={`${row.kind}-${index}-${row.source}`}
           row={row}
-          file={file}
-          onCreateComment={onCreateComment}
+          comments={comments}
+          onOpenComment={onOpenComment}
         />
       ))}
     </div>
@@ -286,23 +422,40 @@ function RenderedHtmlDiff({
 
 function RenderedHtmlDiffBlock({
   row,
-  file,
-  onCreateComment,
+  comments,
+  onOpenComment,
 }: {
   row: RenderedDiffRow;
-  file?: FilePayload;
-  onCreateComment?: (draft: CommentDraft) => void;
+  comments: PathlensComment[];
+  onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
   if (row.kind === "gap") return <DiffGap label={row.source} />;
   const range = currentLineRangeForRenderedRow(row);
+  const firstComment = range
+    ? commentsForLine(comments, range.start)[0]
+    : undefined;
   return (
-    <div className={`rendered-html-diff-block ${row.kind}`}>
-      <RenderedDiffCommentButton
-        file={file}
-        row={row}
-        range={range}
-        onCreateComment={onCreateComment}
-      />
+    <div
+      className={`rendered-html-diff-block ${row.kind}${firstComment ? " has-comment" : ""}`}
+      data-current-line={range?.start}
+      data-change-kind={
+        range ? (row.kind === "add" ? "added" : "context") : undefined
+      }
+    >
+      {firstComment ? (
+        <button
+          className="comment-gutter-marker rendered-diff-comment-marker"
+          type="button"
+          data-comment-id={firstComment.id}
+          aria-label={`Open comment on line ${range?.start}`}
+          onClick={(event) =>
+            onOpenComment?.(
+              firstComment.id,
+              rectLikeFromElement(event.currentTarget),
+            )
+          }
+        />
+      ) : null}
       <iframe
         className="rendered-html-diff-frame"
         sandbox=""
@@ -318,48 +471,139 @@ function RenderedMarkdownDiff({
   rows,
   file,
   onCreateComment,
+  comments,
+  activeCommentId,
+  onOpenComment,
 }: {
   diff: TextDiff;
   rows: RenderedDiffRow[];
   file?: FilePayload;
-  onCreateComment?: (draft: CommentDraft) => void;
+  onCreateComment?: CommentCreateHandler;
+  comments: PathlensComment[];
+  activeCommentId?: string | null;
+  onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
+  const articleRef = useRef<HTMLElement | null>(null);
+  const [selectionComment, setSelectionComment] = useState<{
+    draft: CommentDraft;
+    rect: DOMRectLike;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!activeCommentId) return;
+    const marker = articleRef.current?.querySelector<HTMLElement>(
+      `[data-comment-id="${CSS.escape(activeCommentId)}"]`,
+    );
+    if (!marker) return;
+    marker.scrollIntoView({ block: "center", behavior: "smooth" });
+    window.requestAnimationFrame(() =>
+      onOpenComment?.(activeCommentId, rectLikeFromElement(marker)),
+    );
+  }, [activeCommentId, comments, onOpenComment]);
+
+  const updateSelectionComment = () => {
+    if (!file || !articleRef.current) return;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      setSelectionComment(null);
+      return;
+    }
+    const text = selection.toString().trim();
+    if (!text) {
+      setSelectionComment(null);
+      return;
+    }
+    const range = selection.getRangeAt(0);
+    if (!articleRef.current.contains(range.commonAncestorContainer)) {
+      setSelectionComment(null);
+      return;
+    }
+    const blocks = Array.from(
+      articleRef.current.querySelectorAll<HTMLElement>("[data-current-line]"),
+    ).filter((block) => range.intersectsNode(block));
+    const lines = blocks
+      .map((block) => Number(block.dataset.currentLine))
+      .filter((line) => Number.isSafeInteger(line));
+    if (!lines.length) {
+      setSelectionComment(null);
+      return;
+    }
+    setSelectionComment({
+      draft: diffCommentDraft(
+        file,
+        Math.min(...lines),
+        Math.max(...lines),
+        blocks.some((block) => block.dataset.changeKind === "added")
+          ? "added"
+          : "context",
+        text,
+      ),
+      rect: rectFromRange(range),
+    });
+  };
+
   return (
     <article
+      ref={articleRef}
       className="markdown markdown-document rendered-markdown-diff"
       aria-label={`Rendered Markdown diff for ${diff.path}`}
+      onMouseUp={() => scheduleSelectionCommentUpdate(updateSelectionComment)}
+      onKeyUp={updateSelectionComment}
     >
       {rows.map((row, index) => (
         <RenderedMarkdownDiffBlock
           key={`${row.kind}-${index}-${row.source}`}
           row={row}
-          file={file}
-          onCreateComment={onCreateComment}
+          comments={comments}
+          onOpenComment={onOpenComment}
         />
       ))}
+      <SelectionCommentComposer
+        draft={selectionComment?.draft ?? null}
+        rect={selectionComment?.rect ?? null}
+        onSave={onCreateComment}
+        onDismiss={() => setSelectionComment(null)}
+      />
     </article>
   );
 }
 
 function RenderedMarkdownDiffBlock({
   row,
-  file,
-  onCreateComment,
+  comments,
+  onOpenComment,
 }: {
   row: RenderedDiffRow;
-  file?: FilePayload;
-  onCreateComment?: (draft: CommentDraft) => void;
+  comments: PathlensComment[];
+  onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
   if (row.kind === "gap") return <DiffGap label={row.source} />;
   const range = currentLineRangeForRenderedRow(row);
+  const firstComment = range
+    ? commentsForLine(comments, range.start)[0]
+    : undefined;
   return (
-    <div className={`rendered-markdown-diff-block ${row.kind}`}>
-      <RenderedDiffCommentButton
-        file={file}
-        row={row}
-        range={range}
-        onCreateComment={onCreateComment}
-      />
+    <div
+      className={`rendered-markdown-diff-block ${row.kind}${firstComment ? " has-comment" : ""}`}
+      data-current-line={range?.start}
+      data-change-kind={
+        range ? (row.kind === "add" ? "added" : "context") : undefined
+      }
+    >
+      {firstComment ? (
+        <button
+          className="comment-gutter-marker rendered-diff-comment-marker"
+          type="button"
+          data-comment-id={firstComment.id}
+          aria-label={`Open comment on line ${range?.start}`}
+          onClick={(event) =>
+            onOpenComment?.(
+              firstComment.id,
+              rectLikeFromElement(event.currentTarget),
+            )
+          }
+        />
+      ) : null}
       <div
         className={markdownBlockClass(row.source)}
         data-comment-line={range?.start}
@@ -379,46 +623,6 @@ function DiffGap({ label }: { label: string }) {
   );
 }
 
-function RenderedDiffCommentButton({
-  file,
-  row,
-  range,
-  onCreateComment,
-}: {
-  file?: FilePayload;
-  row: RenderedDiffRow;
-  range: { start: number; end: number } | null;
-  onCreateComment?: (draft: CommentDraft) => void;
-}) {
-  if (
-    !file ||
-    !onCreateComment ||
-    !range ||
-    (row.kind !== "context" && row.kind !== "add")
-  ) {
-    return null;
-  }
-  return (
-    <button
-      className="diff-comment-button rendered"
-      type="button"
-      onClick={() =>
-        onCreateComment(
-          diffCommentDraft(
-            file,
-            range.start,
-            range.end,
-            row.kind === "add" ? "added" : "context",
-            row.source,
-          ),
-        )
-      }
-    >
-      Comment
-    </button>
-  );
-}
-
 function currentLineRangeForRenderedRow(
   row: RenderedDiffRow,
 ): { start: number; end: number } | null {
@@ -429,6 +633,23 @@ function currentLineRangeForRenderedRow(
   const end = Number(match[2] ?? match[1]);
   if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end)) return null;
   return { start, end };
+}
+
+function rectFromRange(range: Range): DOMRectLike {
+  const rect = range.getBoundingClientRect();
+  return {
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+    height: rect.height,
+  };
+}
+
+interface DOMRectLike {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
 }
 
 function markdownBlockClass(source: string): string {

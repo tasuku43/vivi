@@ -6,6 +6,8 @@ interface TopbarProps {
   onThemeCycle: () => void;
   onQuickOpen: () => void;
   onSearchText: () => void;
+  openCommentCount?: number;
+  onOpenComments?: () => void;
   onOpenShortcuts: () => void;
 }
 
@@ -15,6 +17,8 @@ export function Topbar({
   onThemeCycle,
   onQuickOpen,
   onSearchText,
+  openCommentCount = 0,
+  onOpenComments,
   onOpenShortcuts,
 }: TopbarProps) {
   const workspaceName = workspaceDisplayName(root);
@@ -63,6 +67,15 @@ export function Topbar({
         >
           <span>Quick open</span>
           <kbd>Cmd K</kbd>
+        </button>
+        <button
+          type="button"
+          className="command-button command-button-secondary"
+          onClick={onOpenComments}
+        >
+          <span>Comments</span>
+          <span className="comment-count-badge">{openCommentCount}</span>
+          <kbd>Cmd Shift C</kbd>
         </button>
         <button
           type="button"

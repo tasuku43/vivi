@@ -18,6 +18,11 @@ import {
   type OpenTab,
 } from "./components/OpenTabs.js";
 import { Inspector } from "./components/Inspector.js";
+import {
+  CommentsPanel,
+  type CommentStatusFilter,
+} from "./components/CommentsPanel.js";
+import { InlineCommentCard } from "./components/InlineCommentCard.js";
 import { CommandPalette } from "./components/CommandPalette.js";
 import { ShortcutHelp } from "./components/ShortcutHelp.js";
 import { WorkspaceRestoreNotice } from "./components/WorkspaceRestoreNotice.js";
@@ -147,9 +152,13 @@ export function App() {
   >({});
   const [comments, setComments] = useState<PathlensComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
-  const [pendingCommentDraft, setPendingCommentDraft] =
-    useState<CommentDraft | null>(null);
-  const [commentBody, setCommentBody] = useState("");
+  const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
+  const [commentsPanelQuery, setCommentsPanelQuery] = useState("");
+  const [commentsPanelStatus, setCommentsPanelStatus] =
+    useState<CommentStatusFilter>("open");
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  const [activeCommentRect, setActiveCommentRect] =
+    useState<DOMRectLike | null>(null);
   const [viewerModes, setViewerModes] = useState<Record<string, ViewerMode>>(
     {},
   );
@@ -314,26 +323,24 @@ export function App() {
     }
   }
 
-  function beginCommentDraft(draft: CommentDraft) {
-    setPendingCommentDraft(draft);
-    setCommentBody("");
-  }
-
-  async function submitPendingComment() {
-    const draft = pendingCommentDraft;
-    const body = commentBody.trim();
-    if (!draft || !body) return;
+  async function createComment(
+    draft: CommentDraft,
+    body: string,
+    rect?: DOMRectLike,
+  ) {
+    const trimmedBody = body.trim();
+    if (!trimmedBody) return;
     const response = await fetch("/api/v1/comments", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ...draft, body }),
+      body: JSON.stringify({ ...draft, body: trimmedBody }),
     });
     if (!response.ok)
       throw new Error(`create comment failed: ${response.status}`);
     const comment = (await response.json()) as PathlensComment;
     setComments((items) => mergeComments(items, [comment], null));
-    setPendingCommentDraft(null);
-    setCommentBody("");
+    setActiveCommentId(comment.id);
+    setActiveCommentRect(rect ?? null);
   }
 
   async function updateCommentStatus(id: string, status: CommentStatus) {
@@ -346,6 +353,20 @@ export function App() {
       throw new Error(`update comment failed: ${response.status}`);
     const comment = (await response.json()) as PathlensComment;
     setComments((items) => mergeComments(items, [comment], null));
+  }
+
+  function openInlineComment(id: string, rect: DOMRectLike) {
+    setActiveCommentId(id);
+    setActiveCommentRect(rect);
+  }
+
+  async function openCommentFromPanel(comment: PathlensComment) {
+    setCommentsPanelOpen(false);
+    setDiffEnabled(false);
+    setViewerModes((items) => ({ ...items, [comment.path]: "source" }));
+    await loadFile(comment.path, layout.activePaneId, "normal");
+    setActiveCommentId(comment.id);
+    setActiveCommentRect(null);
   }
 
   const panes = useMemo(() => flattenPanes(layout), [layout]);
@@ -366,6 +387,14 @@ export function App() {
         : [],
     [comments, selectedPath],
   );
+  const activeComment = activeCommentId
+    ? (comments.find((comment) => comment.id === activeCommentId) ?? null)
+    : null;
+  const visibleActiveComment =
+    activeComment?.path === selectedPath ? activeComment : null;
+  const openCommentCount = comments.filter(
+    (comment) => comment.status === "open",
+  ).length;
   const activeFileRemoved = Boolean(activeTab?.removed);
   const effectiveSidebarWidth = compactSidebarWidth(
     sidebarWidth,
@@ -435,6 +464,8 @@ export function App() {
     paneId = layout.activePaneId,
     mode: OpenTabMode = "preview",
   ): Promise<FilePayload> {
+    setActiveCommentId(null);
+    setActiveCommentRect(null);
     setLayout((current) => setPaneActivePath(current, paneId, path));
     setError(null);
     const payload = await fetchFilePayload(path);
@@ -1034,6 +1065,9 @@ export function App() {
       if (action === "dismiss-overlays") {
         setPaletteOpen(false);
         setShortcutHelpOpen(false);
+        setCommentsPanelOpen(false);
+        setActiveCommentId(null);
+        setActiveCommentRect(null);
         return;
       }
 
@@ -1048,6 +1082,16 @@ export function App() {
         event.preventDefault();
         if (paletteOpen && paletteMode === "text") setPaletteOpen(false);
         else openPalette("text");
+        return;
+      }
+
+      if (action === "toggle-comments") {
+        event.preventDefault();
+        setPaletteOpen(false);
+        setShortcutHelpOpen(false);
+        setActiveCommentId(null);
+        setActiveCommentRect(null);
+        setCommentsPanelOpen((open) => !open);
         return;
       }
 
@@ -1091,6 +1135,7 @@ export function App() {
     diffEnabled,
     reviewChanges,
     unreadReviewPaths,
+    commentsPanelOpen,
   ]);
 
   useEffect(() => {
@@ -1161,6 +1206,14 @@ export function App() {
         }
         onQuickOpen={() => openPalette("file")}
         onSearchText={() => openPalette("text")}
+        openCommentCount={openCommentCount}
+        onOpenComments={() => {
+          setPaletteOpen(false);
+          setShortcutHelpOpen(false);
+          setActiveCommentId(null);
+          setActiveCommentRect(null);
+          setCommentsPanelOpen(true);
+        }}
         onOpenShortcuts={() => {
           setPaletteOpen(false);
           setShortcutHelpOpen(true);
@@ -1255,6 +1308,13 @@ export function App() {
               unreadReviewPaths={unreadReviewPathSet}
               comments={activeFileComments}
               commentsLoading={commentsLoading}
+              onOpenComments={() => {
+                setCommentsPanelStatus("all");
+                setCommentsPanelQuery(file?.path ?? "");
+                setActiveCommentId(null);
+                setActiveCommentRect(null);
+                setCommentsPanelOpen(true);
+              }}
               selectedCodeRange={
                 file?.path ? (codeSelections[file.path] ?? null) : null
               }
@@ -1277,11 +1337,6 @@ export function App() {
               onTargetHoverChange={setInspectorTargetVisible}
               onRevealTarget={revealInspectorTarget}
               onRevealInTree={revealActiveFileInTree}
-              onCommentStatusChange={(id, status) =>
-                void updateCommentStatus(id, status).catch((err) =>
-                  setError(String(err)),
-                )
-              }
             />
           </>
         ) : null}
@@ -1356,39 +1411,33 @@ export function App() {
           onSkip={() => setPendingRestoreSession(null)}
         />
       ) : null}
-      {pendingCommentDraft ? (
-        <form
-          className="comment-composer"
-          aria-label="New comment"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void submitPendingComment().catch((err) => setError(String(err)));
-          }}
-        >
-          <label>
-            Comment on {pendingCommentDraft.path}
-            <textarea
-              autoFocus
-              value={commentBody}
-              onChange={(event) => setCommentBody(event.currentTarget.value)}
-            />
-          </label>
-          <div className="comment-composer-actions">
-            <button
-              type="button"
-              onClick={() => {
-                setPendingCommentDraft(null);
-                setCommentBody("");
-              }}
-            >
-              Cancel
-            </button>
-            <button disabled={!commentBody.trim()} type="submit">
-              Save comment
-            </button>
-          </div>
-        </form>
-      ) : null}
+      <CommentsPanel
+        open={commentsPanelOpen}
+        comments={comments}
+        query={commentsPanelQuery}
+        statusFilter={commentsPanelStatus}
+        onQueryChange={setCommentsPanelQuery}
+        onStatusFilterChange={setCommentsPanelStatus}
+        onClose={() => setCommentsPanelOpen(false)}
+        onOpenComment={(comment) =>
+          void openCommentFromPanel(comment).catch((err) =>
+            setError(String(err)),
+          )
+        }
+      />
+      <InlineCommentCard
+        comment={commentsPanelOpen ? null : visibleActiveComment}
+        rect={activeCommentRect}
+        onClose={() => {
+          setActiveCommentId(null);
+          setActiveCommentRect(null);
+        }}
+        onStatusChange={(id, status) =>
+          void updateCommentStatus(id, status).catch((err) =>
+            setError(String(err)),
+          )
+        }
+      />
     </div>
   );
 
@@ -1518,7 +1567,18 @@ export function App() {
               refreshedAt={
                 paneFile?.path ? refreshedFiles[paneFile.path] : undefined
               }
-              onCreateComment={(draft) => beginCommentDraft(draft)}
+              onCreateComment={(draft, body, rect) =>
+                createComment(draft, body, rect).catch((err) =>
+                  setError(String(err)),
+                )
+              }
+              comments={
+                paneFile?.path
+                  ? comments.filter((comment) => comment.path === paneFile.path)
+                  : []
+              }
+              activeCommentId={activeCommentId}
+              onOpenComment={openInlineComment}
               onCodeSelectionChange={(range) => {
                 if (!paneFile?.path) return;
                 setCodeSelections((items) => ({
@@ -1726,6 +1786,13 @@ function mergeComments(
   return [...byId.values()].sort((a, b) =>
     b.createdAt.localeCompare(a.createdAt),
   );
+}
+
+interface DOMRectLike {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
 }
 
 const recentEventWindowMs = 5 * 60 * 1000;

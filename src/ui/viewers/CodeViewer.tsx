@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { TextDiff } from "../../domain/change-review.js";
+import type { PathlensComment } from "../../domain/comments.js";
 import type { FilePayload } from "../../domain/fs-node.js";
 import {
   currentScopeForLine,
@@ -12,15 +13,18 @@ import {
   type LineRange,
 } from "../state/code-viewer.js";
 import {
+  commentsForLine,
   lineRangeForQuote,
+  rectLikeFromElement,
   scheduleSelectionCommentUpdate,
   selectionCommentTargetInElement,
   sourceCommentDraft,
+  type CommentCreateHandler,
   type CommentDraft,
 } from "../state/comments.js";
 import { iconForPath, languageForPath } from "../state/file-icons.js";
 import type { ResolvedTheme } from "../state/theme.js";
-import { SelectionCommentPopover } from "../components/SelectionCommentPopover.js";
+import { SelectionCommentComposer } from "../components/SelectionCommentComposer.js";
 import { DiffViewer } from "./DiffViewer.js";
 
 export function CodeViewer({
@@ -36,6 +40,9 @@ export function CodeViewer({
   onDiffToggle,
   onDiffFocusChange,
   onCreateComment,
+  comments = [],
+  activeCommentId,
+  onOpenComment,
 }: {
   file: FilePayload;
   theme: ResolvedTheme;
@@ -48,15 +55,17 @@ export function CodeViewer({
   onSelectionChange: (range: LineRange | null) => void;
   onDiffToggle?: () => void;
   onDiffFocusChange?: (focusChanges: boolean) => void;
-  onCreateComment?: (draft: CommentDraft) => void;
+  onCreateComment?: CommentCreateHandler;
+  comments?: PathlensComment[];
+  activeCommentId?: string | null;
+  onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
   const [html, setHtml] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [anchorLine, setAnchorLine] = useState<number | null>(null);
   const [selectionComment, setSelectionComment] = useState<{
     draft: CommentDraft;
-    left: number;
-    top: number;
+    rect: DOMRectLike;
   } | null>(null);
   const codeLinesRef = useRef<HTMLDivElement | null>(null);
   const language = languageForPath(file.path, file.viewerKind);
@@ -119,10 +128,21 @@ export function CodeViewer({
         lineRangeForQuote(file.content, selection.text),
         selection.text,
       ),
-      left: selection.rect.left + selection.rect.width / 2,
-      top: selection.rect.top,
+      rect: selection.rect,
     });
   }
+
+  useEffect(() => {
+    if (!activeCommentId) return;
+    const marker = codeLinesRef.current?.querySelector<HTMLElement>(
+      `[data-comment-id="${CSS.escape(activeCommentId)}"]`,
+    );
+    if (!marker) return;
+    marker.scrollIntoView({ block: "center", behavior: "smooth" });
+    window.requestAnimationFrame(() => {
+      onOpenComment?.(activeCommentId, rectLikeFromElement(marker));
+    });
+  }, [activeCommentId, comments, onOpenComment]);
 
   return (
     <section className="code-pro" aria-label={`Code viewer for ${file.path}`}>
@@ -206,6 +226,9 @@ export function CodeViewer({
           onFocusChangesChange={onDiffFocusChange}
           file={file}
           onCreateComment={onCreateComment}
+          comments={comments}
+          activeCommentId={activeCommentId}
+          onOpenComment={onOpenComment}
         />
       ) : (
         <div
@@ -221,14 +244,40 @@ export function CodeViewer({
             const lineNumber = index + 1;
             const selectedLine = lineInRange(lineNumber, selected);
             const highlighted = highlightedLines?.[index];
+            const lineComments = commentsForLine(comments, lineNumber);
+            const firstComment = lineComments[0];
             return (
               <div
-                className={selectedLine ? "code-line selected" : "code-line"}
+                className={`${selectedLine ? "code-line selected" : "code-line"}${lineComments.length ? " has-comment" : ""}`}
                 data-line={lineNumber}
                 key={lineNumber}
                 role="listitem"
-                onClick={(event) => selectLine(lineNumber, event.shiftKey)}
+                onClick={(event) => {
+                  if (firstComment) {
+                    onOpenComment?.(
+                      firstComment.id,
+                      rectLikeFromElement(event.currentTarget),
+                    );
+                    return;
+                  }
+                  selectLine(lineNumber, event.shiftKey);
+                }}
               >
+                {firstComment ? (
+                  <button
+                    className="comment-gutter-marker code-comment-marker"
+                    type="button"
+                    aria-label={`Open comment on line ${lineNumber}`}
+                    data-comment-id={firstComment.id}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onOpenComment?.(
+                        firstComment.id,
+                        rectLikeFromElement(event.currentTarget),
+                      );
+                    }}
+                  />
+                ) : null}
                 <button
                   className="line-number"
                   type="button"
@@ -251,15 +300,21 @@ export function CodeViewer({
           })}
         </div>
       )}
-      <SelectionCommentPopover
+      <SelectionCommentComposer
         draft={selectionComment?.draft ?? null}
-        left={selectionComment?.left ?? 0}
-        top={selectionComment?.top ?? 0}
-        onCreateComment={onCreateComment}
+        rect={selectionComment?.rect ?? null}
+        onSave={onCreateComment}
         onDismiss={() => setSelectionComment(null)}
       />
     </section>
   );
+}
+
+interface DOMRectLike {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
 }
 
 export function extractHighlightedLines(html: string): string[] {

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import type { TextDiff } from "../../domain/change-review.js";
+import type { PathlensComment } from "../../domain/comments.js";
 import type { FilePayload } from "../../domain/fs-node.js";
-import { sourceCommentDraft, type CommentDraft } from "../state/comments.js";
+import type { CommentCreateHandler } from "../state/comments.js";
 import type { ResolvedTheme } from "../state/theme.js";
 import { DiffViewer } from "./DiffViewer.js";
 
@@ -15,6 +16,9 @@ export function ImageViewer({
   onDiffToggle,
   onDiffFocusChange,
   onCreateComment,
+  comments = [],
+  activeCommentId,
+  onOpenComment,
 }: {
   file: FilePayload;
   theme?: ResolvedTheme;
@@ -24,7 +28,10 @@ export function ImageViewer({
   diffFocusChanges?: boolean;
   onDiffToggle?: () => void;
   onDiffFocusChange?: (focusChanges: boolean) => void;
-  onCreateComment?: (draft: CommentDraft) => void;
+  onCreateComment?: CommentCreateHandler;
+  comments?: PathlensComment[];
+  activeCommentId?: string | null;
+  onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
   const [fit, setFit] = useState<"fit" | "actual">("fit");
   const src =
@@ -57,12 +64,6 @@ export function ImageViewer({
         >
           Diff from HEAD
         </button>
-        <button
-          type="button"
-          onClick={() => onCreateComment?.(sourceCommentDraft(file, null))}
-        >
-          Comment file
-        </button>
         <div className="segmented-control" aria-label="Image size mode">
           <button
             className={fit === "fit" ? "active" : ""}
@@ -91,6 +92,9 @@ export function ImageViewer({
           onFocusChangesChange={onDiffFocusChange}
           file={file}
           onCreateComment={onCreateComment}
+          comments={comments}
+          activeCommentId={activeCommentId}
+          onOpenComment={onOpenComment}
         />
       ) : (
         <div
@@ -101,6 +105,13 @@ export function ImageViewer({
       )}
     </section>
   );
+}
+
+interface DOMRectLike {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
 }
 
 function formatBytes(size: number): string {

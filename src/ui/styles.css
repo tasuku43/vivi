@@ -16,6 +16,10 @@
   --accent-line: rgba(122, 162, 255, 0.36);
   --accent-strong: rgba(122, 162, 255, 0.86);
   --accent-glow: rgba(122, 162, 255, 0.62);
+  --comment-tint: rgba(169, 134, 255, 0.14);
+  --comment-tint-active: rgba(169, 134, 255, 0.22);
+  --comment-line: rgba(169, 134, 255, 0.42);
+  --comment-text: #d8c7ff;
   --overlay: rgba(5, 8, 13, 0.56);
   --palette: rgba(21, 25, 35, 0.98);
   --shadow: rgba(0, 0, 0, 0.62);
@@ -48,6 +52,10 @@
   --accent-line: rgba(49, 95, 206, 0.28);
   --accent-strong: rgba(49, 95, 206, 0.64);
   --accent-glow: rgba(49, 95, 206, 0.3);
+  --comment-tint: rgba(126, 87, 194, 0.12);
+  --comment-tint-active: rgba(126, 87, 194, 0.2);
+  --comment-line: rgba(126, 87, 194, 0.35);
+  --comment-text: #5e3aa3;
   --overlay: rgba(17, 24, 39, 0.28);
   --palette: rgba(255, 255, 255, 0.98);
   --shadow: rgba(17, 24, 39, 0.2);
@@ -1265,6 +1273,7 @@ body.resizing-workbench-pane {
   tab-size: 2;
 }
 .code-line {
+  position: relative;
   display: grid;
   grid-template-columns: 64px minmax(0, 1fr);
   min-height: 23px;
@@ -1276,6 +1285,24 @@ body.resizing-workbench-pane {
 .code-line.selected {
   background: var(--accent-faint);
   box-shadow: inset 3px 0 0 var(--accent);
+}
+.code-line.has-comment,
+.commented-source-line.has-comment,
+.diff-inline-row.has-comment,
+.rendered-markdown-diff-block.has-comment,
+.rendered-html-diff-block.has-comment {
+  background: linear-gradient(
+    90deg,
+    var(--comment-tint-active),
+    color-mix(in srgb, var(--comment-tint) 52%, transparent) 56%,
+    transparent
+  );
+  box-shadow: inset 2px 0 0 var(--comment-line);
+}
+.code-line.has-comment .line-number,
+.commented-source-line.has-comment .commented-source-gutter,
+.diff-inline-row.has-comment .diff-line-no {
+  color: var(--comment-text);
 }
 .line-number {
   border: 0;
@@ -1298,6 +1325,68 @@ body.resizing-workbench-pane {
   min-width: 0;
   padding: 0 18px;
   white-space: pre;
+}
+.commented-source-lines {
+  min-width: max-content;
+  padding: 10px 0 18px;
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.62;
+  tab-size: 2;
+}
+.commented-source-line {
+  position: relative;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  min-height: 23px;
+  color: var(--text);
+}
+.commented-source-line:hover {
+  background: var(--soft-line);
+}
+.commented-source-line code {
+  display: block;
+  min-width: 0;
+  padding: 0 18px;
+  white-space: pre;
+}
+.commented-source-lines.wrap .commented-source-line code {
+  white-space: pre-wrap;
+}
+.commented-source-gutter {
+  position: relative;
+  border-right: 1px solid var(--soft-line);
+  color: var(--subtle);
+  font-size: 12px;
+  text-align: right;
+  user-select: none;
+  padding: 0 12px 0 8px;
+}
+.commented-source-gutter > span {
+  display: block;
+}
+.comment-gutter-marker {
+  position: absolute;
+  z-index: 2;
+  width: 9px;
+  height: 9px;
+  border: 1px solid color-mix(in srgb, var(--comment-line) 86%, white);
+  border-radius: 999px;
+  background: var(--comment-text);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--comment-tint) 72%, transparent),
+    0 0 14px color-mix(in srgb, var(--comment-line) 42%, transparent);
+  cursor: pointer;
+  padding: 0;
+}
+.commented-source-gutter .comment-gutter-marker {
+  left: 9px;
+  top: 7px;
+}
+.code-comment-marker {
+  left: 9px;
+  top: 7px;
 }
 .html-frame {
   width: 100%;
@@ -1385,53 +1474,18 @@ body.resizing-workbench-pane {
   text-overflow: ellipsis;
 }
 
-.comment-list {
-  display: grid;
-  gap: 8px;
-}
-
-.comment-card {
-  border: 1px solid var(--soft-line);
-  border-radius: 8px;
-  background: var(--panel-2);
-  padding: 10px;
-}
-
-.comment-card p {
-  margin: 8px 0;
-  line-height: 1.45;
-}
-
-.comment-card blockquote {
-  margin: 8px 0;
-  border-left: 2px solid var(--line);
-  padding-left: 8px;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.comment-card-top,
-.comment-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.comment-card-top {
-  justify-content: space-between;
-  color: var(--muted);
-  font-size: 12px;
-}
-
 .comment-status {
   border-radius: 999px;
   border: 1px solid var(--soft-line);
   padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 720;
 }
 
 .comment-status.open {
-  color: var(--accent);
+  border-color: var(--comment-line);
+  background: var(--comment-tint);
+  color: var(--comment-text);
 }
 
 .comment-status.resolved {
@@ -1442,88 +1496,363 @@ body.resizing-workbench-pane {
   color: var(--muted);
 }
 
-.comment-actions button,
-.diff-comment-button {
+.comment-summary {
+  display: grid;
+  gap: 6px;
   border: 1px solid var(--soft-line);
-  border-radius: 6px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel-2) 72%, transparent);
+  color: var(--muted);
+  font-size: 12px;
+  padding: 10px;
+}
+.comment-summary strong {
+  color: var(--text);
+}
+.comment-summary button {
+  justify-self: start;
+  border: 0;
+  background: transparent;
+  color: var(--comment-text);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+.comment-summary button:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.selection-comment-composer {
+  position: fixed;
+  z-index: 80;
+  width: min(384px, calc(100vw - 24px));
+  border: 1px solid var(--comment-line);
+  border-radius: 11px;
+  background: var(--palette);
+  box-shadow: 0 24px 68px var(--shadow);
+  padding: 9px;
+}
+.selection-comment-composer::before {
+  content: "";
+  position: absolute;
+  left: var(--comment-arrow-left, 24px);
+  width: 12px;
+  height: 12px;
+  background: var(--palette);
+  border-color: var(--comment-line);
+  transform: rotate(45deg);
+}
+.selection-comment-composer.below::before {
+  top: -7px;
+  border-left: 1px solid var(--comment-line);
+  border-top: 1px solid var(--comment-line);
+}
+.selection-comment-composer.above::before {
+  bottom: -7px;
+  border-right: 1px solid var(--comment-line);
+  border-bottom: 1px solid var(--comment-line);
+}
+.selection-comment-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 0 2px 7px;
+}
+.selection-comment-meta strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.selection-comment-composer textarea {
+  width: 100%;
+  min-height: 86px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--code);
+  color: var(--text);
+  font: inherit;
+  line-height: 1.55;
+  outline: 0;
+  padding: 10px;
+}
+.selection-comment-composer textarea:focus {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 2px var(--accent-faint);
+}
+.selection-comment-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--subtle);
+  font-size: 11px;
+  margin-top: 8px;
+}
+.selection-comment-footer div {
+  display: flex;
+  gap: 7px;
+}
+.selection-comment-footer button,
+.inline-comment-actions button {
+  border: 1px solid var(--soft-line);
+  border-radius: 7px;
   background: var(--panel);
   color: var(--text);
   cursor: pointer;
   font: inherit;
   font-size: 12px;
-  padding: 4px 7px;
+  padding: 6px 9px;
 }
-
-.comment-actions button:disabled {
+.selection-comment-footer button[type="submit"] {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--comment-text) 84%, white);
+  color: #11091c;
+  font-weight: 760;
+}
+.selection-comment-footer button:disabled,
+.inline-comment-actions button:disabled {
   cursor: default;
   opacity: 0.55;
 }
 
-.diff-comment-button {
-  margin: 3px 6px;
+.comment-count-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  border: 1px solid var(--comment-line);
+  border-radius: 999px;
+  background: var(--comment-tint);
+  color: var(--comment-text);
+  font-size: 11px;
+  font-weight: 780;
 }
 
-.diff-comment-button.rendered {
-  margin: 6px 0;
-}
-
-.selection-comment-popover {
+.inline-comment-card {
   position: fixed;
-  z-index: 80;
-  transform: translate(-50%, calc(-100% - 8px));
-  border: 1px solid var(--accent-line);
-  border-radius: 8px;
+  z-index: 75;
+  width: min(340px, calc(100vw - 24px));
+  border: 1px solid var(--comment-line);
+  border-radius: 12px;
   background: var(--palette);
-  box-shadow: 0 12px 32px var(--shadow);
-  padding: 5px;
-}
-
-.selection-comment-popover button {
-  border: 0;
-  border-radius: 6px;
-  background: var(--accent);
-  color: #fff;
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-  padding: 6px 10px;
-}
-
-.comment-composer {
-  position: fixed;
-  inset: auto 24px 36px auto;
-  z-index: 90;
-  width: min(360px, calc(100vw - 32px));
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--palette);
-  box-shadow: 0 18px 48px var(--shadow);
+  box-shadow: 0 24px 68px var(--shadow);
   padding: 12px;
 }
-
-.comment-composer label {
+.inline-comment-card::before {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: var(--palette);
+  transform: rotate(45deg);
+}
+.inline-comment-card.points-left::before {
+  left: -7px;
+  top: 22px;
+  border-left: 1px solid var(--comment-line);
+  border-bottom: 1px solid var(--comment-line);
+}
+.inline-comment-card.points-top::before {
+  left: 24px;
+  top: -7px;
+  border-left: 1px solid var(--comment-line);
+  border-top: 1px solid var(--comment-line);
+}
+.inline-comment-top {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.inline-comment-top div {
   display: grid;
-  gap: 8px;
+  gap: 2px;
+  min-width: 0;
+}
+.inline-comment-top strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inline-comment-top span {
   color: var(--muted);
   font-size: 12px;
 }
-
-.comment-composer textarea {
-  min-height: 92px;
-  resize: vertical;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--code);
-  color: var(--text);
+.inline-comment-top button,
+.global-comments-head button {
+  width: 30px;
+  height: 28px;
+  border: 1px solid var(--soft-line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
   font: inherit;
-  padding: 9px;
+}
+.inline-comment-card p {
+  margin: 9px 0;
+  color: var(--text);
+  line-height: 1.55;
+}
+.inline-comment-card blockquote,
+.global-comment-quote {
+  border-left: 2px solid var(--line);
+  color: var(--muted);
+}
+.inline-comment-card blockquote {
+  margin: 9px 0 10px;
+  padding-left: 9px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.inline-comment-actions {
+  display: flex;
+  gap: 7px;
 }
 
-.comment-composer-actions {
+.global-comments-panel {
+  position: fixed;
+  z-index: 70;
+  top: 56px;
+  right: 18px;
+  width: min(560px, calc(100vw - 36px));
+  max-height: calc(100vh - 92px);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, white);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--palette) 94%, var(--panel));
+  box-shadow: 0 34px 90px var(--shadow);
+}
+.global-comments-head {
   display: flex;
-  justify-content: flex-end;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  padding: 15px 16px 12px;
+}
+.global-comments-head h2 {
+  margin: 0 0 3px;
+  font-size: 16px;
+}
+.global-comments-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.global-comments-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px;
+  border-bottom: 1px solid var(--soft-line);
+  background: color-mix(in srgb, var(--panel) 54%, transparent);
+  padding: 10px 16px;
+}
+.global-comments-tools input {
+  min-width: 0;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--code);
+  color: var(--text);
+  outline: 0;
+  padding: 0 10px;
+}
+.global-comment-filters {
+  display: flex;
+  gap: 6px;
+}
+.global-comment-filters button {
+  border: 1px solid var(--soft-line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  padding: 0 9px;
+}
+.global-comment-filters button.active {
+  border-color: var(--comment-line);
+  background: var(--comment-tint);
+  color: var(--comment-text);
+}
+.global-comments-list {
+  display: grid;
   gap: 8px;
-  margin-top: 10px;
+  max-height: min(520px, calc(100vh - 230px));
+  overflow: auto;
+  padding: 12px 16px 14px;
+}
+.global-comment-row {
+  display: grid;
+  grid-template-columns: 13px minmax(0, 1fr);
+  gap: 10px;
+  width: 100%;
+  border: 1px solid var(--soft-line);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--panel-2) 64%, transparent);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  padding: 11px 10px;
+  text-align: left;
+}
+.global-comment-row:hover {
+  border-color: var(--comment-line);
+  background: var(--comment-tint);
+}
+.global-comment-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--comment-text);
+  box-shadow: 0 0 0 4px var(--comment-tint);
+  margin-top: 6px;
+}
+.global-comment-main {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.global-comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.global-comment-meta strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.global-comment-body {
+  color: var(--text);
+  font-weight: 680;
+  line-height: 1.45;
+}
+.global-comment-quote {
+  overflow: hidden;
+  padding-left: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
 }
 
 .section-title {
@@ -2430,6 +2759,7 @@ kbd {
   tab-size: 2;
 }
 .diff-inline-row {
+  position: relative;
   display: grid;
   grid-template-columns: 64px minmax(max-content, 1fr);
   width: fit-content;
@@ -2444,6 +2774,18 @@ kbd {
   overflow: visible;
   padding: 0 18px;
   white-space: pre;
+}
+.diff-comment-marker {
+  left: 9px;
+  top: 7px;
+}
+.rendered-markdown-diff-block,
+.rendered-html-diff-block {
+  position: relative;
+}
+.rendered-diff-comment-marker {
+  left: 9px;
+  top: 9px;
 }
 .diff-inline-row .diff-line-no {
   border-right: 1px solid var(--soft-line);

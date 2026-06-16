@@ -1,15 +1,18 @@
 import { useMemo, useRef, useState } from "react";
 import type { TextDiff } from "../../domain/change-review.js";
+import type { PathlensComment } from "../../domain/comments.js";
 import type { FilePayload } from "../../domain/fs-node.js";
 import {
   lineRangeForQuote,
   scheduleSelectionCommentUpdate,
   selectionCommentTargetInElement,
   sourceCommentDraft,
+  type CommentCreateHandler,
   type CommentDraft,
 } from "../state/comments.js";
 import type { ResolvedTheme } from "../state/theme.js";
-import { SelectionCommentPopover } from "../components/SelectionCommentPopover.js";
+import { CommentedSourceLines } from "../components/CommentedSourceLines.js";
+import { SelectionCommentComposer } from "../components/SelectionCommentComposer.js";
 import { DiffViewer } from "./DiffViewer.js";
 
 export function JsonViewer({
@@ -22,6 +25,9 @@ export function JsonViewer({
   onDiffToggle,
   onDiffFocusChange,
   onCreateComment,
+  comments = [],
+  activeCommentId,
+  onOpenComment,
 }: {
   file: FilePayload;
   theme?: ResolvedTheme;
@@ -31,15 +37,17 @@ export function JsonViewer({
   diffFocusChanges?: boolean;
   onDiffToggle?: () => void;
   onDiffFocusChange?: (focusChanges: boolean) => void;
-  onCreateComment?: (draft: CommentDraft) => void;
+  onCreateComment?: CommentCreateHandler;
+  comments?: PathlensComment[];
+  activeCommentId?: string | null;
+  onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
   const [mode, setMode] = useState<"tree" | "source">("tree");
   const [selectionComment, setSelectionComment] = useState<{
     draft: CommentDraft;
-    left: number;
-    top: number;
+    rect: DOMRectLike;
   } | null>(null);
-  const sourceRef = useRef<HTMLPreElement | null>(null);
+  const sourceRef = useRef<HTMLDivElement | null>(null);
   const parsed = useMemo(() => parseJson(file.content), [file.content]);
   const source = parsed.ok
     ? `${JSON.stringify(parsed.value, null, 2)}\n`
@@ -56,8 +64,7 @@ export function JsonViewer({
         lineRangeForQuote(source, selection.text),
         selection.text,
       ),
-      left: selection.rect.left + selection.rect.width / 2,
-      top: selection.rect.top,
+      rect: selection.rect,
     });
   };
 
@@ -104,32 +111,43 @@ export function JsonViewer({
           onFocusChangesChange={onDiffFocusChange}
           file={file}
           onCreateComment={onCreateComment}
+          comments={comments}
+          activeCommentId={activeCommentId}
+          onOpenComment={onOpenComment}
         />
       ) : mode === "tree" && parsed.ok ? (
         <div className="json-tree">
           <JsonNode name={file.path} value={parsed.value} depth={0} />
         </div>
       ) : (
-        <pre
+        <CommentedSourceLines
+          content={source}
           className="markdown-source"
-          ref={sourceRef}
+          containerRef={sourceRef}
+          comments={comments}
+          activeCommentId={activeCommentId}
+          onOpenComment={onOpenComment}
           onMouseUp={() =>
             scheduleSelectionCommentUpdate(updateSourceSelectionComment)
           }
           onKeyUp={updateSourceSelectionComment}
-        >
-          {source}
-        </pre>
+        />
       )}
-      <SelectionCommentPopover
+      <SelectionCommentComposer
         draft={selectionComment?.draft ?? null}
-        left={selectionComment?.left ?? 0}
-        top={selectionComment?.top ?? 0}
-        onCreateComment={onCreateComment}
+        rect={selectionComment?.rect ?? null}
+        onSave={onCreateComment}
         onDismiss={() => setSelectionComment(null)}
       />
     </section>
   );
+}
+
+interface DOMRectLike {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
 }
 
 function JsonNode({
