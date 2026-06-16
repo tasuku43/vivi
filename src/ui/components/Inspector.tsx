@@ -28,6 +28,7 @@ interface Props {
   onOpenAllChanged: () => void;
   onTargetHoverChange: (hovering: boolean) => void;
   onRevealTarget: () => void;
+  onRevealInTree: () => void;
 }
 
 export function Inspector({
@@ -49,6 +50,7 @@ export function Inspector({
   onOpenAllChanged,
   onTargetHoverChange,
   onRevealTarget,
+  onRevealInTree,
 }: Props) {
   const codeMetadata =
     file && (file.viewerKind === "code" || file.viewerKind === "json")
@@ -139,6 +141,14 @@ export function Inspector({
             "No file selected"
           )}
         </p>
+        <button
+          className="secondary-action inline-action"
+          disabled={!file}
+          onClick={() => onRevealInTree()}
+          type="button"
+        >
+          Show in Explorer
+        </button>
 
         <h3 className="section-title">In this file</h3>
         {codeMetadata ? (

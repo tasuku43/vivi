@@ -429,6 +429,7 @@ it("renders the Review Queue before secondary file helpers in the inspector", ()
       onOpenAllChanged={() => undefined}
       onTargetHoverChange={() => undefined}
       onRevealTarget={() => undefined}
+      onRevealInTree={() => undefined}
     />,
   );
 
@@ -480,6 +481,7 @@ it("opens Review Queue rows as preview on click and stable tabs on double click"
     onOpenAllChanged: () => undefined,
     onTargetHoverChange: () => undefined,
     onRevealTarget: () => undefined,
+    onRevealInTree: () => undefined,
   });
 
   const button = findElement(inspector, (element) => {
@@ -500,6 +502,42 @@ it("opens Review Queue rows as preview on click and stable tabs on double click"
 
   expect(props.title).toBe("Double-click to keep open as a tab");
   expect(calls).toEqual(["preview:src/app.ts", "normal:src/app.ts"]);
+});
+
+it("reveals the active file in the tree through an explicit inspector action", () => {
+  const calls: string[] = [];
+  const inspector = Inspector({
+    file: codeFile,
+    outline: [],
+    reviewChanges: [],
+    reviewDiffStats: {},
+    loadingReviewDiffs: {},
+    unreadReviewPaths: new Set(),
+    selectedCodeRange: null,
+    activePaneId: "main",
+    onOutlineSelect: () => undefined,
+    onOpenEventPath: () => undefined,
+    onConfirmEventPath: () => undefined,
+    onOpenNextChanged: () => undefined,
+    onOpenPreviousChanged: () => undefined,
+    onOpenAllChanged: () => undefined,
+    onTargetHoverChange: () => undefined,
+    onRevealTarget: () => undefined,
+    onRevealInTree: () => calls.push("reveal"),
+  });
+
+  const button = findElement(inspector, (element) => {
+    const props = element.props as { className?: string; children?: ReactNode };
+    return (
+      props.className === "secondary-action inline-action" &&
+      flattenText(props.children).includes("Show in Explorer")
+    );
+  });
+  const props = button.props as { onClick: () => void };
+
+  props.onClick();
+
+  expect(calls).toEqual(["reveal"]);
 });
 
 it("keeps Markdown and HTML outline available as In this file", () => {
@@ -524,6 +562,7 @@ it("keeps Markdown and HTML outline available as In this file", () => {
       onOpenAllChanged={() => undefined}
       onTargetHoverChange={() => undefined}
       onRevealTarget={() => undefined}
+      onRevealInTree={() => undefined}
     />,
   );
 
@@ -862,6 +901,8 @@ it("renders a bounded tree with a large-workspace hint", () => {
         },
       ]}
       selectedPath="src/file-999.ts"
+      revealPath="src/file-999.ts"
+      revealRevision={1}
       onSelect={() => undefined}
       onOpen={() => undefined}
     />,
@@ -870,6 +911,38 @@ it("renders a bounded tree with a large-workspace hint", () => {
   expect(html).toContain("Rendering 801 of 1001 visible rows");
   expect(html).toContain("file-999.ts");
   expect(html).not.toContain("file-998.ts");
+});
+
+it("keeps changed tree paths collapsed until explicitly revealed", () => {
+  const largeChildren = Array.from({ length: 1000 }, (_, index) => ({
+    id: `src/file-${index}.ts`,
+    path: `src/file-${index}.ts`,
+    name: `file-${index}.ts`,
+    kind: "file" as const,
+    parentPath: "src",
+    viewerKind: "code" as const,
+  }));
+  const html = renderToStaticMarkup(
+    <TreeSidebar
+      nodes={[
+        {
+          id: "src",
+          path: "src",
+          name: "src",
+          kind: "directory",
+          parentPath: null,
+          children: largeChildren,
+        },
+      ]}
+      selectedPath="src/file-999.ts"
+      changedPaths={new Set(["src/file-999.ts"])}
+      onSelect={() => undefined}
+      onOpen={() => undefined}
+    />,
+  );
+
+  expect(html).toContain('data-tree-path="src"');
+  expect(html).not.toContain("file-999.ts");
 });
 
 it("renders Mermaid diagrams with the official Mermaid runtime", () => {

@@ -182,6 +182,10 @@ export function App() {
     "sidebar" | "inspector" | null
   >(null);
   const [treeChangedOnly, setTreeChangedOnly] = useState(false);
+  const [treeReveal, setTreeReveal] = useState<{
+    path: string;
+    revision: number;
+  } | null>(null);
   const [inspectorTargetVisible, setInspectorTargetVisible] = useState(false);
   const [workspaceSessionReady, setWorkspaceSessionReady] = useState(false);
   const [pendingRestoreSession, setPendingRestoreSession] =
@@ -675,6 +679,15 @@ export function App() {
     window.setTimeout(() => setInspectorTargetVisible(false), 900);
   }
 
+  function revealActiveFileInTree(path = selectedPath) {
+    if (!path) return;
+    setTreeChangedOnly(false);
+    setTreeReveal((current) => ({
+      path,
+      revision: (current?.revision ?? 0) + 1,
+    }));
+  }
+
   useEffect(() => {
     loadConfig().catch((err) => setError(String(err)));
     loadTree().catch((err) => setError(String(err)));
@@ -1059,6 +1072,8 @@ export function App() {
             <TreeSidebar
               nodes={sidebarNodes}
               selectedPath={selectedPath}
+              revealPath={treeReveal?.path ?? null}
+              revealRevision={treeReveal?.revision ?? 0}
               changedPaths={changedPathSet}
               removedPaths={reviewState.removedPaths}
               loadingDirectoryPaths={loadingDirectoryPaths}
@@ -1127,6 +1142,7 @@ export function App() {
               onOpenAllChanged={openAllChangedFiles}
               onTargetHoverChange={setInspectorTargetVisible}
               onRevealTarget={revealInspectorTarget}
+              onRevealInTree={revealActiveFileInTree}
             />
           </>
         ) : null}

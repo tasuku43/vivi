@@ -12,6 +12,8 @@ import { unloadedAncestorDirectoryPaths } from "../state/files.js";
 interface Props {
   nodes: FsNode[];
   selectedPath: string | null;
+  revealPath?: string | null;
+  revealRevision?: number;
   changedPaths?: Set<string>;
   removedPaths?: Set<string>;
   loadingDirectoryPaths?: Set<string>;
@@ -23,6 +25,8 @@ interface Props {
 export function TreeSidebar({
   nodes,
   selectedPath,
+  revealPath = null,
+  revealRevision = 0,
   changedPaths = new Set(),
   removedPaths = new Set(),
   loadingDirectoryPaths = new Set(),
@@ -31,24 +35,35 @@ export function TreeSidebar({
   onOpen,
 }: Props) {
   const forceVisiblePaths = useMemo(
-    () =>
-      [selectedPath, ...changedPaths, ...removedPaths].filter(
-        (path): path is string => Boolean(path),
-      ),
-    [changedPaths, removedPaths, selectedPath],
+    () => (revealPath ? [revealPath] : []),
+    [revealPath],
   );
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() =>
     initialExpandedPaths(nodes, { forceVisiblePaths }),
   );
 
   useEffect(() => {
+    if (!revealPath) return;
     setExpandedPaths((current) => {
       return ensureVisibleAncestors(current, forceVisiblePaths);
     });
-  }, [forceVisiblePaths, nodes]);
+  }, [forceVisiblePaths, revealPath, revealRevision]);
 
   useEffect(() => {
-    if (!onLoadDirectory) return;
+    if (!revealPath) return;
+    window.requestAnimationFrame(() => {
+      const escapedPath =
+        typeof CSS !== "undefined" && CSS.escape
+          ? CSS.escape(revealPath)
+          : revealPath.replace(/"/g, '\\"');
+      document
+        .querySelector<HTMLElement>(`[data-tree-path="${escapedPath}"]`)
+        ?.scrollIntoView({ block: "center", behavior: "smooth" });
+    });
+  }, [revealPath, revealRevision, expandedPaths]);
+
+  useEffect(() => {
+    if (!onLoadDirectory || !revealPath) return;
     for (const path of unloadedAncestorDirectoryPaths(
       nodes,
       forceVisiblePaths,
@@ -56,7 +71,13 @@ export function TreeSidebar({
     )) {
       void onLoadDirectory(path);
     }
-  }, [forceVisiblePaths, loadingDirectoryPaths, nodes, onLoadDirectory]);
+  }, [
+    forceVisiblePaths,
+    loadingDirectoryPaths,
+    nodes,
+    onLoadDirectory,
+    revealPath,
+  ]);
 
   const totalRows = useMemo(() => countTreeNodes(nodes), [nodes]);
   const boundedRows = useMemo(

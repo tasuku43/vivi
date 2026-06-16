@@ -417,6 +417,9 @@ body.resizing-workbench-pane {
   background: var(--accent-soft);
   color: var(--text);
 }
+.tree-row.selected {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
 .tree-row.changed {
   color: var(--warn);
 }
@@ -1297,6 +1300,10 @@ body.resizing-workbench-pane {
   color: var(--text);
   outline: none;
 }
+.secondary-action:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
 .active-file-line {
   margin: 12px 0 0;
   color: var(--subtle);
@@ -1327,6 +1334,10 @@ body.resizing-workbench-pane {
   width: 100%;
   margin-top: 10px;
   text-align: center;
+}
+.secondary-action.inline-action {
+  width: auto;
+  margin-top: 8px;
 }
 .outline {
   border-left: 1px solid var(--line);
