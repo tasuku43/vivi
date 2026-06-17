@@ -17,6 +17,21 @@ describe("extractMarkdownOutline", () => {
     ]);
   });
 
+  it("builds Markdown outline from the body after front matter", () => {
+    expect(
+      extractMarkdownOutline(`---
+title: Outline Example
+---
+
+# Body Title
+
+## Body Section`),
+    ).toEqual([
+      { id: "body-title", level: 1, text: "Body Title" },
+      { id: "body-section", level: 2, text: "Body Section" },
+    ]);
+  });
+
   it("adds matching ids to rendered markdown headings", () => {
     const outline = extractMarkdownOutline("# Title\n\n## Intro");
 

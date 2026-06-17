@@ -1,3 +1,5 @@
+import { parseMarkdownFrontMatter } from "./markdown-frontmatter.js";
+
 export interface OutlineHeading {
   id: string;
   level: 1 | 2;
@@ -5,8 +7,10 @@ export interface OutlineHeading {
 }
 
 export function extractMarkdownOutline(markdown: string): OutlineHeading[] {
+  const frontMatter = parseMarkdownFrontMatter(markdown);
+  const body = frontMatter.status === "none" ? markdown : frontMatter.body;
   return extractPlainHeadingOutline(
-    markdown.split(/\r?\n/).flatMap((line) => {
+    body.split(/\r?\n/).flatMap((line) => {
       const match = /^(#{1,2})\s+(.+?)\s*$/.exec(line);
       if (!match) return [];
       return [

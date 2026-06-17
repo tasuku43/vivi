@@ -14,6 +14,11 @@ import {
   renderMarkdownHtmlWithHeadingIds,
 } from "../state/outline.js";
 import {
+  parseMarkdownFrontMatter,
+  type FrontMatterEntry,
+  type FrontMatterValue,
+} from "../state/markdown-frontmatter.js";
+import {
   lineRangeForQuote,
   renderedCommentDraft,
   scheduleSelectionCommentUpdate,
@@ -207,12 +212,16 @@ export function MarkdownViewer({
 }
 
 export function renderMarkdownDocumentHtml(markdown: string): string {
-  const markdownWithSafeDiagrams = injectMermaidPreviewBlocks(markdown);
+  const frontMatter = parseMarkdownFrontMatter(markdown);
+  const body = frontMatter.status === "none" ? markdown : frontMatter.body;
+  const markdownWithSafeDiagrams = injectMermaidPreviewBlocks(body);
   const html = renderMarkdownHtmlWithHeadingIds(
     marked.parse(markdownWithSafeDiagrams) as string,
-    extractMarkdownOutline(markdown),
+    extractMarkdownOutline(body),
   );
-  return enhanceMarkdownHtml(html);
+  const metadataHtml =
+    frontMatter.status === "none" ? "" : renderFrontMatterPanel(frontMatter);
+  return metadataHtml + enhanceMarkdownHtml(html);
 }
 
 export function injectMermaidPreviewBlocks(markdown: string): string {
@@ -253,6 +262,56 @@ function renderGitHubAlerts(html: string): string {
       return `<aside class="markdown-callout ${kind}"><p class="markdown-callout-title">${label}</p>${bodyHtml}</aside>`;
     },
   );
+}
+
+function renderFrontMatterPanel(
+  frontMatter: Exclude<
+    ReturnType<typeof parseMarkdownFrontMatter>,
+    { status: "none" }
+  >,
+): string {
+  if (frontMatter.status === "invalid") {
+    return `<aside class="markdown-frontmatter invalid" aria-label="Front matter metadata"><div class="markdown-frontmatter-heading"><span>Metadata</span><small>Could not parse</small></div><p class="markdown-frontmatter-warning">${escapeHtml(frontMatter.error)}</p><pre>${escapeHtml(frontMatter.raw.trim())}</pre></aside>`;
+  }
+
+  const rows =
+    frontMatter.entries.length > 0
+      ? frontMatter.entries.map(renderFrontMatterEntry).join("")
+      : '<div class="markdown-frontmatter-empty">No metadata values.</div>';
+  return `<aside class="markdown-frontmatter" aria-label="Front matter metadata"><div class="markdown-frontmatter-heading"><span>Metadata</span></div><dl>${rows}</dl></aside>`;
+}
+
+function renderFrontMatterEntry(entry: FrontMatterEntry): string {
+  return `<div class="markdown-frontmatter-row"><dt>${escapeHtml(entry.key)}</dt><dd>${renderFrontMatterValue(entry.value)}</dd></div>`;
+}
+
+function renderFrontMatterValue(value: FrontMatterValue): string {
+  if (Array.isArray(value)) {
+    if (value.length === 0) return '<span class="frontmatter-muted">[]</span>';
+    return `<div class="frontmatter-list">${value
+      .map((item) => `<span>${renderFrontMatterValue(item)}</span>`)
+      .join("")}</div>`;
+  }
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value);
+    if (entries.length === 0)
+      return '<span class="frontmatter-muted">{}</span>';
+    return `<dl class="frontmatter-nested">${entries
+      .map(
+        ([key, nestedValue]) =>
+          `<div><dt>${escapeHtml(key)}</dt><dd>${renderFrontMatterValue(nestedValue)}</dd></div>`,
+      )
+      .join("")}</dl>`;
+  }
+  if (typeof value === "boolean") {
+    return `<code class="frontmatter-boolean">${String(value)}</code>`;
+  }
+  if (value === null) return '<span class="frontmatter-muted">null</span>';
+  const text = String(value);
+  if (/^\d{4}-\d{2}-\d{2}(?:[T\s].*)?$/.test(text)) {
+    return `<time>${escapeHtml(text)}</time>`;
+  }
+  return escapeHtml(text);
 }
 
 function alertBodyHtml(body: string): string {
