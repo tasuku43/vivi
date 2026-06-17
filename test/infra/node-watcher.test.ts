@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
@@ -65,7 +65,7 @@ it("starts without synchronously opening the recursive watcher", async () => {
   }) as unknown as {
     start(onEvent: () => void): Promise<void>;
     stop(): Promise<void>;
-    getMetrics(): { workerRunning: boolean };
+    getMetrics(): { workerRunning: boolean; recursiveWatch: boolean | null };
   };
 
   await expect(
@@ -80,6 +80,27 @@ it("starts without synchronously opening the recursive watcher", async () => {
     ]),
   ).resolves.toBeUndefined();
   expect(watcher.getMetrics().workerRunning).toBe(true);
+  expect(watcher.getMetrics().recursiveWatch).toBe(true);
+
+  await watcher.stop();
+  await rm(dir, { recursive: true, force: true });
+});
+
+it("falls back to a non-recursive root watcher for broad workspaces", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "pathlens-wide-watcher-"));
+  for (let index = 0; index < 3; index += 1) {
+    await mkdir(path.join(dir, `dir-${index}`));
+  }
+  await writeFile(path.join(dir, "README.md"), "# Wide");
+
+  const watcher = new NodeWatcher({
+    rootDir: dir,
+    recursiveWatchEntryLimit: 2,
+    watchStartDelayMs: 10_000,
+  });
+
+  await watcher.start(() => {});
+  expect(watcher.getMetrics().recursiveWatch).toBe(false);
 
   await watcher.stop();
   await rm(dir, { recursive: true, force: true });

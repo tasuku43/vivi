@@ -21,14 +21,16 @@ import {
   normalizeRelativePath,
 } from "../domain/path-policy.js";
 
-const execFileAsync = promisify(execFile);
 const inflateAsync = promisify(inflate);
+const gitTimeoutReason = "Git command timed out while reading this workspace.";
 
 export interface GitChangeReviewOptions {
   rootDir: string;
   ignoredNames?: Set<string>;
   maxDiffBytes?: number;
   gitCommands?: string[];
+  gitTimeoutMs?: number;
+  gitTimeoutCooldownMs?: number;
 }
 
 export class GitChangeReview implements ChangeReviewPort {
@@ -36,30 +38,37 @@ export class GitChangeReview implements ChangeReviewPort {
   private readonly ignoredNames: Set<string>;
   private readonly maxDiffBytes: number;
   private readonly gitCommands: string[];
+  private readonly gitTimeoutMs: number;
+  private readonly gitTimeoutCooldownMs: number;
+  private gitSuppressedUntilMs = 0;
 
   constructor(options: GitChangeReviewOptions) {
     this.rootDir = path.resolve(options.rootDir);
     this.ignoredNames = options.ignoredNames ?? defaultIgnoredNames;
     this.maxDiffBytes = options.maxDiffBytes ?? 256 * 1024;
     this.gitCommands = options.gitCommands ?? defaultGitCommands;
+    this.gitTimeoutMs = options.gitTimeoutMs ?? 2_000;
+    this.gitTimeoutCooldownMs = options.gitTimeoutCooldownMs ?? 30_000;
   }
 
   async readChanges(): Promise<ChangeReviewSummary> {
-    const repo = await this.git(["rev-parse", "--show-toplevel"]);
-    if (!repo.ok)
+    if (this.isGitSuppressed()) {
       return {
         available: false,
-        reason: await this.explainGitFailure(repo.reason),
+        reason: gitTimeoutReason,
         changes: [],
       };
+    }
+
+    const repo = await this.git(["rev-parse", "--show-toplevel"]);
+    if (!repo.ok)
+      return this.unavailableChanges(await this.explainGitFailure(repo.reason));
 
     const status = await this.git(["status", "--porcelain=v1", "-z", "--"]);
     if (!status.ok)
-      return {
-        available: false,
-        reason: await this.explainGitFailure(status.reason),
-        changes: [],
-      };
+      return this.unavailableChanges(
+        await this.explainGitFailure(status.reason),
+      );
 
     return {
       available: true,
@@ -262,6 +271,21 @@ export class GitChangeReview implements ChangeReviewPort {
     return !isIgnoredPath(relativePath, this.ignoredNames);
   }
 
+  private unavailableChanges(reason: string): ChangeReviewSummary {
+    if (reason === gitTimeoutReason) {
+      this.gitSuppressedUntilMs = Date.now() + this.gitTimeoutCooldownMs;
+    }
+    return {
+      available: false,
+      reason,
+      changes: [],
+    };
+  }
+
+  private isGitSuppressed(): boolean {
+    return Date.now() < this.gitSuppressedUntilMs;
+  }
+
   private async git(
     args: string[],
     options: { maxBuffer?: number } = {},
@@ -286,16 +310,41 @@ export class GitChangeReview implements ChangeReviewPort {
     args: string[],
     options: { maxBuffer?: number },
   ): Promise<{ ok: true; stdout: string } | { ok: false; error: unknown }> {
-    try {
-      const result = await execFileAsync(command, args, {
-        cwd: this.rootDir,
-        encoding: "utf8",
-        maxBuffer: options.maxBuffer ?? 512 * 1024,
-      });
-      return { ok: true, stdout: result.stdout };
-    } catch (error) {
-      return { ok: false, error };
-    }
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (
+        result: { ok: true; stdout: string } | { ok: false; error: unknown },
+      ) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(result);
+      };
+
+      const timer = setTimeout(() => {
+        child.kill("SIGKILL");
+        child.unref();
+        finish({ ok: false, error: new GitCommandTimeoutError() });
+      }, this.gitTimeoutMs);
+
+      const child = execFile(
+        command,
+        args,
+        {
+          cwd: this.rootDir,
+          encoding: "utf8",
+          killSignal: "SIGKILL",
+          maxBuffer: options.maxBuffer ?? 512 * 1024,
+        },
+        (error, stdout) => {
+          if (error) {
+            finish({ ok: false, error });
+            return;
+          }
+          finish({ ok: true, stdout });
+        },
+      );
+    });
   }
 
   private async readHeadDiffWithoutGit(
@@ -426,6 +475,7 @@ export function gitErrorReason(error: unknown): string {
       ? String((error as { code?: unknown }).code)
       : "";
   const message = error instanceof Error ? error.message : String(error);
+  if (isCommandTimedOut(error)) return gitTimeoutReason;
   if (code === "ENOENT" || message.includes("ENOENT"))
     return "Git executable was not found. Install Git or start pathlens with Git on PATH.";
   if (message.includes("not a git repository"))
@@ -433,6 +483,25 @@ export function gitErrorReason(error: unknown): string {
   if (message.includes("maxBuffer"))
     return "Git output exceeded the review limit.";
   return message;
+}
+
+function isCommandTimedOut(error: unknown): boolean {
+  if (error instanceof GitCommandTimeoutError) return true;
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    Boolean((error as { killed?: unknown }).killed) &&
+    ((error as { signal?: unknown }).signal === "SIGTERM" ||
+      (error as { signal?: unknown }).signal === "SIGKILL" ||
+      (error as { code?: unknown }).code === "ETIMEDOUT")
+  );
+}
+
+class GitCommandTimeoutError extends Error {
+  constructor() {
+    super(gitTimeoutReason);
+    this.name = "GitCommandTimeoutError";
+  }
 }
 
 function isCommandNotFound(error: unknown): boolean {

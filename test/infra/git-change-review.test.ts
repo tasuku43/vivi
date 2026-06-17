@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -106,6 +106,53 @@ it("falls back when git is not available at the first command name", async () =>
   await expect(review.readDiff("README.md")).resolves.toMatchObject({
     status: "available",
   });
+});
+
+it("bounds slow Git commands so review status cannot block startup", async () => {
+  const slowGit = path.join(dir, "slow-git");
+  await writeFile(slowGit, "#!/bin/sh\nsleep 2\n");
+  await chmod(slowGit, 0o755);
+
+  const review = new GitChangeReview({
+    rootDir: dir,
+    gitCommands: [slowGit],
+    gitTimeoutMs: 50,
+  });
+
+  const startedAt = Date.now();
+  await expect(review.readChanges()).resolves.toMatchObject({
+    available: false,
+    reason: "Git command timed out while reading this workspace.",
+    changes: [],
+  });
+  expect(Date.now() - startedAt).toBeLessThan(1_000);
+});
+
+it("does not retry Git immediately after a timeout", async () => {
+  const slowGit = path.join(dir, "slow-git");
+  await writeFile(slowGit, "#!/bin/sh\nsleep 2\n");
+  await chmod(slowGit, 0o755);
+
+  const review = new GitChangeReview({
+    rootDir: dir,
+    gitCommands: [slowGit],
+    gitTimeoutMs: 200,
+    gitTimeoutCooldownMs: 10_000,
+  });
+
+  await expect(review.readChanges()).resolves.toMatchObject({
+    available: false,
+    reason: "Git command timed out while reading this workspace.",
+    changes: [],
+  });
+
+  const startedAt = Date.now();
+  await expect(review.readChanges()).resolves.toMatchObject({
+    available: false,
+    reason: "Git command timed out while reading this workspace.",
+    changes: [],
+  });
+  expect(Date.now() - startedAt).toBeLessThan(100);
 });
 
 it("reads HEAD diffs without a Git executable for tracked loose objects", async () => {

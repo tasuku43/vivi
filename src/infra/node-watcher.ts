@@ -15,6 +15,7 @@ export interface NodeWatcherOptions {
   debounceMs?: number;
   maxPendingEvents?: number;
   watchStartDelayMs?: number;
+  recursiveWatchEntryLimit?: number;
 }
 
 export interface NodeWatcherMetrics {
@@ -23,6 +24,7 @@ export interface NodeWatcherMetrics {
   emittedEvents: number;
   droppedEvents: number;
   workerRunning: boolean;
+  recursiveWatch: boolean | null;
 }
 
 export function eventFromKnownPath(
@@ -49,10 +51,12 @@ export class NodeWatcher implements WatcherPort {
   private readonly debounceMs: number;
   private readonly maxPendingEvents: number;
   private readonly watchStartDelayMs: number;
+  private readonly recursiveWatchEntryLimit: number;
   private readonly knownPaths = new Map<string, NodeKind>();
   private pending = new Map<string, NodeJS.Timeout>();
   private emittedEvents = 0;
   private droppedEvents = 0;
+  private recursiveWatch: boolean | null = null;
 
   constructor(options: string | NodeWatcherOptions) {
     if (typeof options === "string") {
@@ -61,23 +65,28 @@ export class NodeWatcher implements WatcherPort {
       this.debounceMs = 50;
       this.maxPendingEvents = 2_000;
       this.watchStartDelayMs = 2_000;
+      this.recursiveWatchEntryLimit = 64;
     } else {
       this.rootDir = path.resolve(options.rootDir);
       this.ignoredNames = options.ignoredNames ?? defaultIgnoredNames;
       this.debounceMs = options.debounceMs ?? 50;
       this.maxPendingEvents = options.maxPendingEvents ?? 2_000;
       this.watchStartDelayMs = options.watchStartDelayMs ?? 2_000;
+      this.recursiveWatchEntryLimit = options.recursiveWatchEntryLimit ?? 64;
     }
   }
 
   async start(onEvent: (event: FsEvent) => void): Promise<void> {
     this.knownPaths.clear();
+    const recursive = await this.shouldUseRecursiveWatch();
+    this.recursiveWatch = recursive;
     this.worker = new Worker(watcherWorkerSource(), {
       eval: true,
       workerData: {
         rootDir: this.rootDir,
         ignoredNames: [...this.ignoredNames],
         watchStartDelayMs: this.watchStartDelayMs,
+        recursive,
       },
     });
     this.worker.on("message", (message: unknown) => {
@@ -97,7 +106,11 @@ export class NodeWatcher implements WatcherPort {
     this.pending.clear();
     const worker = this.worker;
     this.worker = null;
-    await worker?.terminate();
+    this.recursiveWatch = null;
+    if (!worker) return;
+    worker.postMessage("stop");
+    worker.unref();
+    await Promise.race([worker.terminate(), sleep(1_000)]);
   }
 
   getMetrics(): NodeWatcherMetrics {
@@ -107,6 +120,7 @@ export class NodeWatcher implements WatcherPort {
       emittedEvents: this.emittedEvents,
       droppedEvents: this.droppedEvents,
       workerRunning: Boolean(this.worker),
+      recursiveWatch: this.recursiveWatch,
     };
   }
 
@@ -174,6 +188,27 @@ export class NodeWatcher implements WatcherPort {
       return null;
     }
   }
+
+  private async shouldUseRecursiveWatch(): Promise<boolean> {
+    try {
+      const entries = await fsPromises.readdir(this.rootDir, {
+        withFileTypes: true,
+      });
+      const visibleEntries = entries.filter(
+        (entry) => !this.ignoredNames.has(entry.name),
+      );
+      return visibleEntries.length <= this.recursiveWatchEntryLimit;
+    } catch {
+      return false;
+    }
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    timer.unref();
+  });
 }
 
 function isWatcherMessage(message: unknown): message is { path: string } {
@@ -195,7 +230,7 @@ let watcher = null;
 let startTimer = setTimeout(() => {
   startTimer = null;
   try {
-    watcher = watch(workerData.rootDir, { recursive: true }, (_eventType, filename) => {
+    watcher = watch(workerData.rootDir, { recursive: Boolean(workerData.recursive) }, (_eventType, filename) => {
       if (!filename) return;
       const normalized = normalizeRelativePath(String(filename).split(path.sep).join("/"));
       if (!normalized.ok || !normalized.relativePath) return;
