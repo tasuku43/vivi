@@ -42,11 +42,17 @@ import {
   closeTabsToRight,
   closeUnchangedTabs,
   markTabChanged,
+  markTabLoaded,
   markTabRemoved,
   moveOpenTab,
   promoteOpenTab,
   upsertOpenTab,
 } from "../src/ui/state/tabs.js";
+import {
+  activePanePaths,
+  decideLiveRefresh,
+  shouldApplyLiveRefresh,
+} from "../src/ui/state/live-refresh.js";
 import {
   isThemePreference,
   nextThemePreference,
@@ -253,6 +259,150 @@ it("clears stale tab flags when a file is reopened", () => {
       changed: false,
       removed: false,
       isPreview: false,
+    },
+  ]);
+});
+
+it("routes watcher change events to active file reloads and inactive markers", () => {
+  const activePaths = activePanePaths([
+    { id: "main", activePath: "README.md" },
+    { id: "side", activePath: "docs/guide.md" },
+  ]);
+
+  expect(
+    decideLiveRefresh(
+      { type: "change", path: "README.md", version: 2 },
+      activePaths,
+    ),
+  ).toEqual({
+    reloadPath: "README.md",
+    stalePath: null,
+    removedPath: null,
+    treeRefreshParentPath: null,
+  });
+
+  expect(
+    decideLiveRefresh(
+      { type: "change", path: "src/app.ts", version: 3 },
+      activePaths,
+    ),
+  ).toEqual({
+    reloadPath: null,
+    stalePath: "src/app.ts",
+    removedPath: null,
+    treeRefreshParentPath: null,
+  });
+});
+
+it("keeps tree refresh decisions separate from file content reloads", () => {
+  expect(
+    decideLiveRefresh(
+      { type: "add", path: "docs/new.md", kind: "file", version: 2 },
+      new Set(["README.md"]),
+    ),
+  ).toEqual({
+    reloadPath: null,
+    stalePath: null,
+    removedPath: null,
+    treeRefreshParentPath: "docs",
+  });
+
+  expect(
+    decideLiveRefresh(
+      { type: "unlink", path: "README.md", kind: "file", version: 3 },
+      new Set(["README.md"]),
+    ),
+  ).toEqual({
+    reloadPath: null,
+    stalePath: null,
+    removedPath: "README.md",
+    treeRefreshParentPath: "",
+  });
+});
+
+it("clears changed and removed tab markers after live file reload", () => {
+  const reloaded: FilePayload = {
+    path: "README.md",
+    viewerKind: "markdown",
+    encoding: "utf8",
+    content: "# Reloaded",
+    etag: "sha256:reloaded",
+    size: 10,
+    mtimeMs: 2,
+  };
+
+  expect(
+    markTabLoaded(
+      [
+        {
+          path: "README.md",
+          viewerKind: "text",
+          paneId: "main",
+          changed: true,
+          removed: true,
+        },
+        {
+          path: "README.md",
+          viewerKind: "text",
+          paneId: "side",
+          changed: true,
+        },
+        { path: "src/app.ts", viewerKind: "code", paneId: "main" },
+      ],
+      reloaded,
+    ),
+  ).toEqual([
+    {
+      path: "README.md",
+      viewerKind: "markdown",
+      paneId: "main",
+      changed: false,
+      removed: false,
+    },
+    {
+      path: "README.md",
+      viewerKind: "markdown",
+      paneId: "side",
+      changed: false,
+      removed: false,
+    },
+    { path: "src/app.ts", viewerKind: "code", paneId: "main" },
+  ]);
+});
+
+it("applies only the newest live refresh payload for rapid repeated saves", () => {
+  const versions: Record<string, number> = { "README.md": 1 };
+  const firstRequest = versions["README.md"];
+  versions["README.md"] = 2;
+  const secondRequest = versions["README.md"];
+
+  expect(
+    shouldApplyLiveRefresh(versions, "README.md", firstRequest),
+  ).toBe(false);
+  expect(
+    shouldApplyLiveRefresh(versions, "README.md", secondRequest),
+  ).toBe(true);
+});
+
+it("does not mark the active viewer stale for unrelated watcher events", () => {
+  const tabs = [
+    { path: "README.md", viewerKind: "markdown", paneId: "main" },
+    { path: "docs/guide.md", viewerKind: "markdown", paneId: "main" },
+  ];
+  const decision = decideLiveRefresh(
+    { type: "change", path: "docs/guide.md", version: 2 },
+    new Set(["README.md"]),
+  );
+
+  expect(decision.reloadPath).toBeNull();
+  expect(markTabChanged(tabs, decision.stalePath ?? "")).toEqual([
+    { path: "README.md", viewerKind: "markdown", paneId: "main" },
+    {
+      path: "docs/guide.md",
+      viewerKind: "markdown",
+      paneId: "main",
+      changed: true,
+      removed: false,
     },
   ]);
 });

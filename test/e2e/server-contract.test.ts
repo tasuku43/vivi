@@ -191,6 +191,55 @@ it("streams filesystem events over SSE for live review", async () => {
   await reader?.cancel();
 }, 10000);
 
+it("serves latest file payloads for active-viewer refetches after watcher events", async () => {
+  const watcher = new ManualWatcher();
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+    watcher,
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const opened = await fetch(`${server.url}/api/file?path=README.md`).then(
+    (res) => res.json(),
+  );
+  expect(opened.content).toBe("# E2E");
+
+  const response = await fetch(`${server.url}/events`);
+  expect(response.status).toBe(200);
+  const reader = response.body?.getReader();
+  expect(reader).toBeDefined();
+
+  await writeFile(path.join(dir, "README.md"), "# First refresh");
+  watcher.emit({ type: "change", path: "README.md", version: 2 });
+  await readUntil(reader!, '"version":2');
+
+  const refreshed = await fetch(`${server.url}/api/file?path=README.md`).then(
+    (res) => res.json(),
+  );
+  expect(refreshed.content).toBe("# First refresh");
+
+  await writeFile(path.join(dir, "README.md"), "# Intermediate refresh");
+  watcher.emit({ type: "change", path: "README.md", version: 3 });
+  await writeFile(path.join(dir, "README.md"), "# Final refresh");
+  watcher.emit({ type: "change", path: "README.md", version: 4 });
+  await readUntil(reader!, '"version":4');
+
+  const final = await fetch(`${server.url}/api/file?path=README.md`).then(
+    (res) => res.json(),
+  );
+  expect(final.content).toBe("# Final refresh");
+
+  await writeFile(path.join(dir, "docs", "guide.md"), "# Other file");
+  watcher.emit({ type: "change", path: "docs/guide.md", version: 5 });
+  await readUntil(reader!, "docs/guide.md");
+
+  const activeAfterUnrelatedEvent = await fetch(
+    `${server.url}/api/file?path=README.md`,
+  ).then((res) => res.json());
+  expect(activeAfterUnrelatedEvent.content).toBe("# Final refresh");
+  await reader?.cancel();
+}, 10000);
+
 it("keeps review and diff endpoints responsive after a burst of live events", async () => {
   const watcher = new ManualWatcher();
   const service = new ViewerService({

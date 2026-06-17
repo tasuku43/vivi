@@ -36,6 +36,7 @@ import {
   closeTabsToRight,
   closeUnchangedTabs,
   markTabChanged,
+  markTabLoaded,
   markTabRemoved,
   moveOpenTab,
   promoteOpenTab,
@@ -55,9 +56,13 @@ import {
 } from "./state/editor-layout.js";
 import {
   filterTreeToPaths,
-  parentDirectoryPath,
   replaceDirectoryChildren,
 } from "./state/files.js";
+import {
+  activePanePaths,
+  decideLiveRefresh,
+  shouldApplyLiveRefresh,
+} from "./state/live-refresh.js";
 import {
   buildDiffStat,
   latestUnreadReviewPath,
@@ -208,6 +213,10 @@ export function App() {
   const diffRefreshTimer = useRef<number | null>(null);
   const pendingDiffRefreshPaths = useRef(new Set<string>());
   const diffRequestVersions = useRef<Record<string, number>>({});
+  const activeFilePaths = useRef<Set<string>>(new Set());
+  const diffEnabledRef = useRef(diffEnabled);
+  const liveFileRefreshTimers = useRef<Record<string, number>>({});
+  const liveFileRefreshVersions = useRef<Record<string, number>>({});
 
   async function loadTree() {
     const response = await fetch("/api/tree?depth=1");
@@ -405,6 +414,15 @@ export function App() {
         : (tree?.nodes ?? []),
     [changedPathSet, tree, treeChangedOnly],
   );
+
+  useEffect(() => {
+    activeFilePaths.current = activePanePaths(panes);
+  }, [panes]);
+
+  useEffect(() => {
+    diffEnabledRef.current = diffEnabled;
+  }, [diffEnabled]);
+
   async function fetchFilePayload(path: string): Promise<FilePayload> {
     const response = await fetch(`/api/file?path=${encodeURIComponent(path)}`);
     if (!response.ok)
@@ -429,6 +447,53 @@ export function App() {
       void loadHeadDiff(payload.path).catch((err) => setError(String(err)));
     }
     return payload;
+  }
+
+  function scheduleLiveFileRefresh(path: string, delayMs = 75) {
+    const requestVersion = (liveFileRefreshVersions.current[path] ?? 0) + 1;
+    liveFileRefreshVersions.current[path] = requestVersion;
+    const existing = liveFileRefreshTimers.current[path];
+    if (existing) window.clearTimeout(existing);
+    liveFileRefreshTimers.current[path] = window.setTimeout(() => {
+      delete liveFileRefreshTimers.current[path];
+      void refreshLiveFile(path, requestVersion);
+    }, delayMs);
+  }
+
+  async function refreshLiveFile(
+    path: string,
+    requestVersion: number,
+  ): Promise<void> {
+    try {
+      const payload = await fetchFilePayload(path);
+      if (
+        !shouldApplyLiveRefresh(
+          liveFileRefreshVersions.current,
+          path,
+          requestVersion,
+        )
+      ) {
+        return;
+      }
+      setError(null);
+      setFiles((items) => ({ ...items, [payload.path]: payload }));
+      setOpenTabs((tabs) => markTabLoaded(tabs, payload));
+      setRefreshedFiles((items) => ({
+        ...items,
+        [payload.path]: Date.now(),
+      }));
+      markReviewPathRead(payload.path);
+    } catch (err) {
+      if (
+        shouldApplyLiveRefresh(
+          liveFileRefreshVersions.current,
+          path,
+          requestVersion,
+        )
+      ) {
+        setError(String(err));
+      }
+    }
   }
 
   async function openHeadDiff(path: string, paneId = layout.activePaneId) {
@@ -1032,6 +1097,7 @@ export function App() {
     const events = new EventSource("/events");
     events.addEventListener("fs", (raw) => {
       const event = JSON.parse((raw as MessageEvent).data) as FsEvent;
+      const decision = decideLiveRefresh(event, activeFilePaths.current);
       setLiveMetrics((metrics) => ({
         ...metrics,
         fsEventsReceived: metrics.fsEventsReceived + 1,
@@ -1039,30 +1105,26 @@ export function App() {
       setRecentEvents((items) => recordReviewEvent(items, event));
       markReviewPathUnread(event.path);
 
-      if (event.type === "change" && event.path === selectedPath) {
-        loadFile(event.path, layout.activePaneId, "preserve")
-          .then(() =>
-            setRefreshedFiles((items) => ({
-              ...items,
-              [event.path]: Date.now(),
-            })),
-          )
-          .catch((err) => setError(String(err)));
-      } else if (event.type === "change") {
-        setOpenTabs((tabs) => markTabChanged(tabs, event.path));
+      if (decision.reloadPath) {
+        scheduleLiveFileRefresh(decision.reloadPath);
       }
 
-      if (event.type === "unlink") {
-        setOpenTabs((tabs) => markTabRemoved(tabs, event.path));
+      if (decision.stalePath) {
+        setOpenTabs((tabs) => markTabChanged(tabs, decision.stalePath!));
       }
 
-      if (event.type === "add" || event.type === "unlink") {
-        const parentPath = parentDirectoryPath(event.path);
-        const refresh = parentPath ? loadDirectory(parentPath) : loadTree();
+      if (decision.removedPath) {
+        setOpenTabs((tabs) => markTabRemoved(tabs, decision.removedPath!));
+      }
+
+      if (decision.treeRefreshParentPath !== null) {
+        const refresh = decision.treeRefreshParentPath
+          ? loadDirectory(decision.treeRefreshParentPath)
+          : loadTree();
         refresh.catch((err) => setError(String(err)));
       }
       scheduleGitReviewRefresh();
-      if (diffEnabled) {
+      if (diffEnabledRef.current) {
         scheduleDiffRefresh(event.path);
       }
     });
@@ -1071,8 +1133,12 @@ export function App() {
       if (gitRefreshTimer.current) window.clearTimeout(gitRefreshTimer.current);
       if (diffRefreshTimer.current)
         window.clearTimeout(diffRefreshTimer.current);
+      for (const timer of Object.values(liveFileRefreshTimers.current)) {
+        window.clearTimeout(timer);
+      }
+      liveFileRefreshTimers.current = {};
     };
-  }, [selectedPath, layout.activePaneId, diffEnabled]);
+  }, []);
 
   useEffect(() => {
     if (!manualDraggedTab) return;

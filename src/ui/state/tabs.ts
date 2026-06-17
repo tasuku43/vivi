@@ -85,6 +85,19 @@ export function markTabRemoved(tabs: OpenTab[], path: string): OpenTab[] {
   );
 }
 
+export function markTabLoaded(tabs: OpenTab[], file: FilePayload): OpenTab[] {
+  return tabs.map((tab) =>
+    tab.path === file.path
+      ? {
+          ...tab,
+          viewerKind: file.viewerKind,
+          changed: false,
+          removed: false,
+        }
+      : tab,
+  );
+}
+
 export function closeOpenTab(
   tabs: OpenTab[],
   path: string,

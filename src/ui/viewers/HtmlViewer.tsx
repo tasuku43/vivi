@@ -96,7 +96,7 @@ export function HtmlViewer({
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [file.path]);
+  }, [file.content, file.path]);
 
   const updateSourceSelectionComment = () => {
     const selection = selectionCommentTargetInElement(sourceRef.current);
@@ -165,13 +165,14 @@ export function HtmlViewer({
         <iframe
           ref={iframeRef}
           className="html-frame"
+          key={file.etag}
           title={file.path}
           sandbox={
             allowHtmlScripts
               ? "allow-scripts allow-same-origin"
               : "allow-scripts"
           }
-          src={`/preview/html?path=${encodeURIComponent(file.path)}&theme=${theme}`}
+          src={`/preview/html?path=${encodeURIComponent(file.path)}&theme=${theme}&v=${encodeURIComponent(file.etag)}`}
         />
       ) : (
         <pre
