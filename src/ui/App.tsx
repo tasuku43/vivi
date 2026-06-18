@@ -75,6 +75,7 @@ import {
   nextReviewQueuePath,
   type GitChangeReviewState,
 } from "./state/git-review.js";
+import { startGitReviewPolling } from "./state/git-review-refresh.js";
 import type { CommentDraft } from "./state/comments.js";
 import {
   isThemePreference,
@@ -852,6 +853,14 @@ export function App() {
     loadTree().catch((err) => setError(String(err)));
     loadGitReview().catch((err) => setError(String(err)));
     loadComments(null).catch((err) => setError(String(err)));
+  }, []);
+
+  useEffect(() => {
+    return startGitReviewPolling({
+      timer: window,
+      visibility: document,
+      scheduleRefresh: () => scheduleGitReviewRefresh(0),
+    });
   }, []);
 
   useEffect(() => {

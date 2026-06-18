@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import type { FilePayload, FsNode } from "../src/domain/fs-node.js";
 import type { FileSearchResult } from "../src/domain/search.js";
 import { iconForPath, languageForPath } from "../src/ui/state/file-icons.js";
@@ -25,6 +25,10 @@ import {
   parseUnifiedDiff,
   reviewQueueSourceLabel,
 } from "../src/ui/state/git-review.js";
+import {
+  gitReviewPollMs,
+  startGitReviewPolling,
+} from "../src/ui/state/git-review-refresh.js";
 import {
   buildFileSearchItems,
   buildTextSearchItems,
@@ -885,6 +889,52 @@ it("falls back to deduplicated watcher paths when Git review is unavailable", ()
     ],
   );
   expect(reviewQueueSourceLabel("watcher")).toBe("local change");
+});
+
+it("polls Git review while visible so Docker mounts can recover without watcher events", () => {
+  let handler: (() => void) | null = null;
+  let cleared = false;
+  const timer = {
+    setInterval(callback: () => void, timeout: number) {
+      expect(timeout).toBe(gitReviewPollMs);
+      handler = callback;
+      return 7;
+    },
+    clearInterval(id: number) {
+      expect(id).toBe(7);
+      cleared = true;
+      handler = null;
+    },
+  };
+  const scheduleRefresh = vi.fn();
+  const visibility: { visibilityState: DocumentVisibilityState } = {
+    visibilityState: "visible",
+  };
+  const stop = startGitReviewPolling({
+    timer,
+    visibility,
+    scheduleRefresh,
+  });
+  const runPoll = () => {
+    if (!handler) throw new Error("poll handler was not registered");
+    handler();
+  };
+
+  runPoll();
+  expect(scheduleRefresh).toHaveBeenCalledTimes(1);
+
+  visibility.visibilityState = "hidden";
+  runPoll();
+  expect(scheduleRefresh).toHaveBeenCalledTimes(1);
+
+  visibility.visibilityState = "visible";
+  runPoll();
+  expect(scheduleRefresh).toHaveBeenCalledTimes(2);
+
+  stop();
+  expect(cleared).toBe(true);
+  expect(handler).toBeNull();
+  expect(scheduleRefresh).toHaveBeenCalledTimes(2);
 });
 
 it("clears watcher-backed Review Queue items once Git reports no changes", () => {
