@@ -1,6 +1,6 @@
 # Mermaid workspace
 
-This project exercises Mermaid rendering in the three places pathlens supports:
+This project exercises Mermaid rendering in the three places vivi supports:
 
 - `docs/flow.mmd` is a standalone Mermaid file.
 - `docs/notes.md` contains a fenced Mermaid block inside Markdown.

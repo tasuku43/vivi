@@ -11,6 +11,12 @@ const required = [
   "Dockerfile",
   ".dockerignore",
   "package.json",
+  "go.mod",
+  "cmd/vivi/main.go",
+  "internal/server/server.go",
+  "scripts/prepare-go-workspace.mjs",
+  "scripts/prepare-ui-assets.mjs",
+  "scripts/run-go-build.mjs",
   "src/cli/main.ts",
   "src/server/http-server.ts",
   "src/app/viewer-service.ts",
@@ -31,10 +37,17 @@ const required = [
   "docs/12-full-product-backlog.md",
   "docs/13-test-and-eval-strategy.md",
   "docs/14-architecture.md",
+  "docs/15-security-model.md",
+  "docs/20-go-backend-design.md",
+  "docs/install.md",
+  "docs/release/homebrew/vivi.rb",
+  "SECURITY.md",
   "evals/cases/basic-tree.json",
   "evals/run-evals.ts",
+  "test/e2e/api-contract.test.ts",
   "test/domain/path-policy.test.ts",
   "test/e2e/server-contract.test.ts",
+  "test/public-surface.test.ts",
   ".github/workflows/ci.yml",
   ".github/workflows/release.yml",
 ];
@@ -42,7 +55,7 @@ const required = [
 const forbiddenFileNames = [
   ["first", "prompt.md"].join("-"),
   ["docs/11", "first", "codex", "prompt.md"].join("-"),
-  [".codex/goals/pathlens", "full", "build.md"].join("-"),
+  [".codex/goals/vivi", "full", "build.md"].join("-"),
 ];
 
 const errors = [];
@@ -60,11 +73,16 @@ if (existsSync(releaseWorkflowPath)) {
   const releaseWorkflow = readFileSync(releaseWorkflowPath, "utf8");
   const requiredReleaseSnippets = [
     'tags:\n      - "v*.*.*"',
-    "RELEASE_TAG:",
+    "release_tag:",
     "^v[0-9]+\\.[0-9]+\\.[0-9]+$",
-    "type=raw,value=${{ env.RELEASE_TAG }}",
-    "type=raw,value=latest",
-    "platforms: linux/amd64,linux/arm64",
+    "vivi_Darwin_arm64.tar.gz",
+    "vivi_Darwin_x86_64.tar.gz",
+    "vivi_Linux_arm64.tar.gz",
+    "vivi_Linux_x86_64.tar.gz",
+    "checksums.txt",
+    "go build",
+    "actions/attest-build-provenance",
+    "draft: true",
   ];
 
   for (const snippet of requiredReleaseSnippets) {
@@ -74,28 +92,81 @@ if (existsSync(releaseWorkflowPath)) {
       );
     }
   }
+  const forbiddenReleaseSnippets = [
+    "docker/build-push-action",
+    "npm publish",
+    "NODE_AUTH_TOKEN",
+    "container registry",
+  ];
+  for (const snippet of forbiddenReleaseSnippets) {
+    if (releaseWorkflow.toLowerCase().includes(snippet.toLowerCase())) {
+      errors.push(
+        `release workflow still contains forbidden publish path: ${snippet}`,
+      );
+    }
+  }
 }
 
 const dockerfilePath = path.join(root, "Dockerfile");
 if (existsSync(dockerfilePath)) {
   const dockerfile = readFileSync(dockerfilePath, "utf8");
   const requiredDockerSnippets = [
+    "go build",
+    "/app/vivi",
     "GIT_OPTIONAL_LOCKS=0",
     "GIT_CONFIG_KEY_0=safe.directory",
     "GIT_CONFIG_VALUE_0=*",
-    "apk add --no-cache git tini",
+    "apk add --no-cache ca-certificates git tini",
   ];
 
   for (const snippet of requiredDockerSnippets) {
     if (!dockerfile.includes(snippet)) {
-      errors.push(`Dockerfile missing review-queue runtime support: ${snippet}`);
+      errors.push(
+        `Dockerfile missing review-queue runtime support: ${snippet}`,
+      );
+    }
+  }
+}
+
+const readmePath = path.join(root, "README.md");
+if (existsSync(readmePath)) {
+  const readme = readFileSync(readmePath, "utf8");
+  const installSection = section(readme, "## Install", "## Usage");
+  const oldLowerName = ["path", "lens"].join("");
+  const oldTitleName = ["Path", "Lens"].join("");
+  if (new RegExp(`\\b${oldTitleName}\\b|\\b${oldLowerName}\\b`).test(readme)) {
+    errors.push("README still contains legacy product naming");
+  }
+  if (/\bnpx\b|npm install|docker run/i.test(installSection)) {
+    errors.push(
+      "README install section still exposes npm or Docker as a general install route",
+    );
+  }
+  for (const snippet of [
+    "brew install tasuku43/tap/vivi",
+    "mise use -g github:tasuku43/vivi",
+    "GitHub Releases",
+  ]) {
+    if (!installSection.includes(snippet)) {
+      errors.push(
+        `README install section missing Vivi install route: ${snippet}`,
+      );
     }
   }
 }
 
 for (const file of walk(root)) {
   const rel = path.relative(root, file).split(path.sep).join("/");
-  if (rel.startsWith(".git/") || rel.startsWith("node_modules/")) continue;
+  if (rel === "vivi") continue;
+  if (
+    rel.startsWith(".git/") ||
+    rel.startsWith("node_modules/") ||
+    rel.startsWith("dist/") ||
+    rel.startsWith("coverage/") ||
+    rel.startsWith("public/vivi/vendor/")
+  ) {
+    continue;
+  }
   if (statSync(file).isFile()) {
     const text = readFileSync(file, "utf8");
     if (/@(example|localhost)\b/.test(text)) continue;
@@ -111,6 +182,13 @@ if (errors.length) {
 }
 
 console.log("scaffold validation passed");
+
+function section(text, startHeading, endHeading) {
+  const start = text.indexOf(startHeading);
+  const end = text.indexOf(endHeading, start + startHeading.length);
+  if (start < 0 || end < 0) return "";
+  return text.slice(start, end);
+}
 
 function* walk(dir) {
   for (const name of readdirSync(dir)) {

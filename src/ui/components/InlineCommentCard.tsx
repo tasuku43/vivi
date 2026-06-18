@@ -1,4 +1,4 @@
-import type { CommentStatus, PathlensComment } from "../../domain/comments.js";
+import type { CommentStatus, ViviComment } from "../../domain/comments.js";
 import {
   commentLineLabel,
   statusLabel,
@@ -11,7 +11,7 @@ export function InlineCommentCard({
   onClose,
   onStatusChange,
 }: {
-  comment: PathlensComment | null;
+  comment: ViviComment | null;
   rect: DOMRectLike | null;
   onClose: () => void;
   onStatusChange?: (id: string, status: CommentStatus) => void;

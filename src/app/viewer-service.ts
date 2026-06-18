@@ -10,7 +10,7 @@ import {
   normalizeCommentUpdateInput,
   type CommentListFilters,
   type CreateCommentInput,
-  type PathlensComment,
+  type ViviComment,
 } from "../domain/comments.js";
 import type {
   FilePayload,
@@ -170,11 +170,11 @@ export class ViewerService {
 
   async listComments(
     filters: CommentListFilters = {},
-  ): Promise<PathlensComment[]> {
+  ): Promise<ViviComment[]> {
     return this.requireCommentStore().listComments(filters);
   }
 
-  async createComment(input: unknown): Promise<PathlensComment> {
+  async createComment(input: unknown): Promise<ViviComment> {
     const requestedPath = pathFromCommentInput(input);
     const file = await this.fileSystem.readFile(requestedPath);
     const normalized = normalizeCommentCreateInput(input, {
@@ -185,7 +185,7 @@ export class ViewerService {
     return this.createNormalizedComment(normalized);
   }
 
-  async updateComment(id: string, input: unknown): Promise<PathlensComment> {
+  async updateComment(id: string, input: unknown): Promise<ViviComment> {
     if (!id.trim()) throw new Error("comment id is required");
     const store = this.requireCommentStore();
     const current = await store.getComment(id.trim());
@@ -220,9 +220,9 @@ export class ViewerService {
 
   private async createNormalizedComment(
     input: CreateCommentInput,
-  ): Promise<PathlensComment> {
+  ): Promise<ViviComment> {
     const now = isoNow();
-    const comment: PathlensComment = {
+    const comment: ViviComment = {
       id: randomUUID(),
       path: input.path,
       viewerKind: input.viewerKind ?? "unknown",

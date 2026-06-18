@@ -49,7 +49,7 @@ type StoredWorkspaceSessionInputV1 = Omit<
   inspectorWidth?: number;
 };
 
-export const workspaceSessionStorageKey = "pathlens.workspaceSession.v1";
+export const workspaceSessionStorageKey = "vivi.workspaceSession.v1";
 export const workspaceSessionTtlMs = 30 * 24 * 60 * 60 * 1000;
 export const maxRecentFiles = 20;
 export const restorePromptTabThreshold = 8;

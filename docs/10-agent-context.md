@@ -4,7 +4,7 @@
 
 The desired tool is a simple CLI that serves a selected directory and connects the browser to a local SPA. The SPA shows a live file tree in the sidebar and a main viewer for Markdown, HTML, code, text, images, JSON, and unsupported files.
 
-The key distinction from opening an HTML file through `file://` is that `pathlens` provides a unified, live, multi-file browser interface. It should detect file changes and update content without a full page refresh. The tree should also update dynamically when files or directories are added, removed, or renamed.
+The key distinction from opening an HTML file through `file://` is that `vivi` provides a unified, live, multi-file browser interface. It should detect file changes and update content without a full page refresh. The tree should also update dynamically when files or directories are added, removed, or renamed.
 
 ## Architectural intuition
 
@@ -34,7 +34,7 @@ For MVP:
 
 ## Naming
 
-The project and binary name are `pathlens`.
+The project and binary name are `vivi`.
 
 Rationale:
 

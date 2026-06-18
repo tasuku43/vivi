@@ -4,7 +4,7 @@ This project intentionally uses tests and evals as an evaluation function for au
 
 ## Ideal-state predicate
 
-The implementation approaches the ideal state when a user can run `pathlens .`, open the local SPA, browse a live tree, preview common file types, and see updates without refreshing the page.
+The implementation approaches the ideal state when a user can run `vivi .`, open the local SPA, browse a live tree, preview common file types, and see updates without refreshing the page.
 
 ## Evaluation dimensions
 

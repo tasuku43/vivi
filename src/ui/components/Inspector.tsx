@@ -1,4 +1,4 @@
-import type { PathlensComment } from "../../domain/comments.js";
+import type { ViviComment } from "../../domain/comments.js";
 import type { FilePayload } from "../../domain/fs-node.js";
 import { buildCodeMetadata, type LineRange } from "../state/code-viewer.js";
 import {
@@ -20,7 +20,7 @@ interface Props {
   reviewDiffStats: Record<string, DiffStat | null>;
   loadingReviewDiffs: Record<string, boolean>;
   unreadReviewPaths: Set<string>;
-  comments?: PathlensComment[];
+  comments?: ViviComment[];
   commentsLoading?: boolean;
   selectedCodeRange: LineRange | null;
   refreshedAt?: number;

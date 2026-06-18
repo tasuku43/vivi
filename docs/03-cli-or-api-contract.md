@@ -3,13 +3,13 @@
 ## CLI contract
 
 ```bash
-pathlens [root]
-pathlens [root] --port 4317
-pathlens [root] --host 127.0.0.1
-pathlens [root] --open
-pathlens [root] --include md,html,ts,tsx,json
-pathlens [root] --max-file-size 1048576
-pathlens [root] --allow-html-scripts
+vivi [root]
+vivi [root] --port 4317
+vivi [root] --host 127.0.0.1
+vivi [root] --open
+vivi [root] --include md,html,ts,tsx,json
+vivi [root] --max-file-size 1048576
+vivi [root] --allow-html-scripts
 ```
 
 Default root: `.`

@@ -15,7 +15,7 @@ let dir: string;
 let server: { url: string; close: () => Promise<void> } | null = null;
 
 beforeEach(async () => {
-  dir = await mkdtemp(path.join(tmpdir(), "pathlens-git-diff-"));
+  dir = await mkdtemp(path.join(tmpdir(), "vivi-git-diff-"));
   await mkdir(path.join(dir, "src"), { recursive: true });
   await mkdir(path.join(dir, "assets"), { recursive: true });
   await writeFile(
@@ -27,8 +27,8 @@ beforeEach(async () => {
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 1, 2, 3]),
   );
   await git("init");
-  await git("config", "user.email", "pathlens@example.test");
-  await git("config", "user.name", "pathlens");
+  await git("config", "user.email", "vivi@example.test");
+  await git("config", "user.name", "vivi");
   await git("add", ".");
   await git("commit", "-m", "initial");
   await writeFile(
@@ -100,7 +100,7 @@ it("serves binary diff status for changed image files", async () => {
   );
 
   expect(diff.status).toBe("binary");
-  expect(diff.reason).toBe("Binary diff is not shown in pathlens.");
+  expect(diff.reason).toBe("Binary diff is not shown in Vivi.");
 }, 10000);
 
 it("serves untracked directory contents as file-level changes without directory 500s", async () => {
@@ -167,7 +167,7 @@ it("serves untracked directory contents as file-level changes without directory 
   expect(dsStoreResponse.status).toBe(200);
   await expect(dsStoreResponse.json()).resolves.toMatchObject({
     status: "binary",
-    reason: "Binary diff is not shown in pathlens.",
+    reason: "Binary diff is not shown in Vivi.",
   });
 }, 10000);
 

@@ -3,7 +3,7 @@ import type {
   SourceAnchor,
   CommentStatus,
   CommentViewerKind,
-  PathlensComment,
+  ViviComment,
 } from "../../domain/comments.js";
 import type { FilePayload } from "../../domain/fs-node.js";
 import type { LineRange } from "./code-viewer.js";
@@ -193,7 +193,7 @@ export function statusLabel(status: CommentStatus): string {
   return "Open";
 }
 
-export function commentLineLabel(comment: PathlensComment): string {
+export function commentLineLabel(comment: ViviComment): string {
   return commentLineLabelForAnchor(comment.anchor.canonical);
 }
 
@@ -210,14 +210,14 @@ export function commentLineLabelForAnchor(anchor: SourceAnchor): string {
 }
 
 export function commentsForLine(
-  comments: PathlensComment[],
+  comments: ViviComment[],
   line: number,
-): PathlensComment[] {
+): ViviComment[] {
   return comments.filter((comment) => commentContainsLine(comment, line));
 }
 
 export function commentContainsLine(
-  comment: PathlensComment,
+  comment: ViviComment,
   line: number,
 ): boolean {
   const start = comment.anchor.canonical.lineStart;

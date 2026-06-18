@@ -45,7 +45,7 @@ it("returns bounded line matches for utf8 file payloads", () => {
       path: "README.md",
       viewerKind: "markdown",
       encoding: "utf8",
-      content: "# Pathlens\n\nLive local viewer\nSearch local files",
+      content: "# Vivi\n\nLive local viewer\nSearch local files",
       etag: "sha256:test",
       size: 48,
       mtimeMs: 1,

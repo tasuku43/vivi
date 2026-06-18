@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { RefObject } from "react";
-import type { PathlensComment } from "../../domain/comments.js";
+import type { ViviComment } from "../../domain/comments.js";
 import { commentsForLine, rectLikeFromElement } from "../state/comments.js";
 
 export function CommentedSourceLines({
@@ -15,7 +15,7 @@ export function CommentedSourceLines({
 }: {
   content: string;
   className?: string;
-  comments: PathlensComment[];
+  comments: ViviComment[];
   activeCommentId?: string | null;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onMouseUp?: () => void;

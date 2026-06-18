@@ -1,8 +1,8 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { TextDiff } from "../../domain/change-review.js";
-import type { PathlensComment } from "../../domain/comments.js";
+import type { ViviComment } from "../../domain/comments.js";
 import type { FilePayload } from "../../domain/fs-node.js";
-import { pathlensMermaidThemeVariables } from "../../domain/mermaid-theme.js";
+import { viviMermaidThemeVariables } from "../../domain/mermaid-theme.js";
 import { hasCustomMermaidStyle } from "../../domain/mermaid-preview.js";
 import {
   lineRangeForQuote,
@@ -44,7 +44,7 @@ export function MermaidViewer({
   onDiffToggle?: () => void;
   onDiffFocusChange?: (focusChanges: boolean) => void;
   onCreateComment?: CommentCreateHandler;
-  comments?: PathlensComment[];
+  comments?: ViviComment[];
   activeCommentId?: string | null;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
@@ -232,12 +232,12 @@ export async function renderMermaidSvg(
       : "base",
     themeVariables: hasCustomMermaidStyle(source)
       ? undefined
-      : pathlensMermaidThemeVariables(theme),
+      : viviMermaidThemeVariables(theme),
     flowchart: {
       htmlLabels: false,
     },
   });
-  const { svg } = await mermaid.render(`pathlens-${slugForMarker(id)}`, source);
+  const { svg } = await mermaid.render(`vivi-${slugForMarker(id)}`, source);
   return sanitizeMermaidSvg(svg);
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import type { TextDiff } from "../domain/change-review.js";
-import type { CommentStatus, PathlensComment } from "../domain/comments.js";
+import type { CommentStatus, ViviComment } from "../domain/comments.js";
 import type {
   FilePayload,
   FsEvent,
@@ -156,7 +156,7 @@ export function App() {
   const [diffFocusByPath, setDiffFocusByPath] = useState<
     Record<string, boolean>
   >({});
-  const [comments, setComments] = useState<PathlensComment[]>([]);
+  const [comments, setComments] = useState<ViviComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
   const [commentsPanelQuery, setCommentsPanelQuery] = useState("");
@@ -324,7 +324,7 @@ export function App() {
       const response = await fetch(`/api/v1/comments?${params.toString()}`);
       if (!response.ok)
         throw new Error(`comments request failed: ${response.status}`);
-      const loaded = (await response.json()) as PathlensComment[];
+      const loaded = (await response.json()) as ViviComment[];
       setComments((items) => mergeComments(items, loaded, path));
     } finally {
       setCommentsLoading(false);
@@ -345,7 +345,7 @@ export function App() {
     });
     if (!response.ok)
       throw new Error(`create comment failed: ${response.status}`);
-    const comment = (await response.json()) as PathlensComment;
+    const comment = (await response.json()) as ViviComment;
     setComments((items) => mergeComments(items, [comment], null));
     setActiveCommentId(comment.id);
     setActiveCommentRect(rect ?? null);
@@ -359,7 +359,7 @@ export function App() {
     });
     if (!response.ok)
       throw new Error(`update comment failed: ${response.status}`);
-    const comment = (await response.json()) as PathlensComment;
+    const comment = (await response.json()) as ViviComment;
     setComments((items) => mergeComments(items, [comment], null));
   }
 
@@ -368,7 +368,7 @@ export function App() {
     setActiveCommentRect(rect);
   }
 
-  async function openCommentFromPanel(comment: PathlensComment) {
+  async function openCommentFromPanel(comment: ViviComment) {
     setCommentsPanelOpen(false);
     setDiffEnabled(false);
     setViewerModes((items) => ({ ...items, [comment.path]: "source" }));
@@ -1802,11 +1802,11 @@ function readViewportWidth(): number {
 }
 
 function mergeComments(
-  current: PathlensComment[],
-  incoming: PathlensComment[],
+  current: ViviComment[],
+  incoming: ViviComment[],
   replacedPath: string | null,
-): PathlensComment[] {
-  const byId = new Map<string, PathlensComment>();
+): ViviComment[] {
+  const byId = new Map<string, ViviComment>();
   for (const comment of current) {
     if (replacedPath && comment.path === replacedPath) continue;
     byId.set(comment.id, comment);

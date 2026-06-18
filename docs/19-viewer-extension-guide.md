@@ -1,6 +1,6 @@
 # Viewer Extension Guide
 
-Use this when adding a new file viewer without turning pathlens into an editor.
+Use this when adding a new file viewer without turning vivi into an editor.
 
 1. Classify the file in `src/domain/viewer-kind.ts`.
 2. Keep filesystem reads in `src/infra/node-file-system.ts`; return a `FilePayload`.

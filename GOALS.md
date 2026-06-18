@@ -2,14 +2,14 @@
 
 ## Ideal state
 
-`pathlens` is a polished local CLI tool that turns any selected directory into a live, browser-based viewer. The user starts it from a terminal, opens the generated local URL, and sees a responsive SPA with a live file tree and a main viewer that can render Markdown, HTML, source code, plain text, images, and structured files.
+`vivi` is a polished local CLI tool that turns any selected directory into a live, browser-based viewer. The user starts it from a terminal, opens the generated local URL, and sees a responsive SPA with a live file tree and a main viewer that can render Markdown, HTML, source code, plain text, images, and structured files.
 
 ## Success criteria
 
 The product is successful when a developer can run:
 
 ```bash
-pathlens .
+vivi .
 ```
 
 and use the browser UI to inspect a mixed directory without refreshing the page while files are edited, generated, added, moved, or removed.

@@ -1,6 +1,6 @@
 export type MermaidPreviewTheme = "light" | "dark";
 
-export function pathlensMermaidThemeVariables(theme: MermaidPreviewTheme) {
+export function viviMermaidThemeVariables(theme: MermaidPreviewTheme) {
   if (theme === "light") {
     return {
       background: "#fbfaf7",

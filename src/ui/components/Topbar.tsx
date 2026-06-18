@@ -27,9 +27,9 @@ export function Topbar({
 
   return (
     <header className="topbar">
-      <div className="topbar-brand" aria-label="pathlens">
+      <div className="topbar-brand" aria-label="Vivi">
         <span className="logo" aria-hidden="true" />
-        <span className="brand-wordmark">pathlens</span>
+        <span className="brand-wordmark">Vivi</span>
       </div>
 
       <div className="workspace-strip" aria-label="Current workspace">

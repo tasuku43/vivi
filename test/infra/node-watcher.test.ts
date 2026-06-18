@@ -58,7 +58,7 @@ it("bounds pending watcher events during event storms", async () => {
 });
 
 it("starts without synchronously opening the recursive watcher", async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), "pathlens-watcher-"));
+  const dir = await mkdtemp(path.join(tmpdir(), "vivi-watcher-"));
   const watcher = new NodeWatcher({
     rootDir: dir,
     watchStartDelayMs: 10_000,
@@ -87,7 +87,7 @@ it("starts without synchronously opening the recursive watcher", async () => {
 });
 
 it("falls back to a non-recursive root watcher for broad workspaces", async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), "pathlens-wide-watcher-"));
+  const dir = await mkdtemp(path.join(tmpdir(), "vivi-wide-watcher-"));
   for (let index = 0; index < 3; index += 1) {
     await mkdir(path.join(dir, `dir-${index}`));
   }

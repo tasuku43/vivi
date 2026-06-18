@@ -19,7 +19,7 @@ export function LargeTextPreview({ file }: { file: FilePayload }) {
       </div>
       <div className="large-preview-note">
         This file is larger than the {formatBytes(file.maxSizeBytes ?? 0)} rich
-        preview limit, so pathlens is showing the first readable chunk only.
+        preview limit, so Vivi is showing the first readable chunk only.
       </div>
       <pre className={wrap ? "plain-text wrap" : "plain-text no-wrap"}>
         {file.content}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { TextDiff } from "../../domain/change-review.js";
-import type { PathlensComment } from "../../domain/comments.js";
+import type { ViviComment } from "../../domain/comments.js";
 import type { FilePayload } from "../../domain/fs-node.js";
 import {
   lineRangeForQuote,
@@ -46,7 +46,7 @@ export function HtmlViewer({
   onDiffToggle?: () => void;
   onDiffFocusChange?: (focusChanges: boolean) => void;
   onCreateComment?: CommentCreateHandler;
-  comments?: PathlensComment[];
+  comments?: ViviComment[];
   activeCommentId?: string | null;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
@@ -78,7 +78,7 @@ export function HtmlViewer({
         rect?: { left: number; top: number; width: number; height: number };
       } | null;
       if (
-        data?.type !== "pathlens-html-selection" ||
+        data?.type !== "vivi-html-selection" ||
         data.path !== file.path ||
         typeof data.text !== "string"
       ) {

@@ -39,6 +39,7 @@ interface ShutdownProcess {
 }
 
 const shutdownTimeoutMs = 3_000;
+export const version = "0.0.0";
 
 export function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = {
@@ -61,8 +62,12 @@ export function parseArgs(argv: string[]): CliOptions {
       options.maxFileSizeBytes = parsePositiveInteger(argv[++i] ?? "");
     else if (arg === "--allow-html-scripts") options.allowHtmlScripts = true;
     else if (arg === "--no-html-scripts") options.allowHtmlScripts = false;
+    else if (arg === "--version" || arg === "-v") {
+      console.log(version);
+      process.exit(0);
+    }
     else if (arg === "--help" || arg === "-h") {
-      printHelp();
+      console.log(helpText());
       process.exit(0);
     } else positional.push(arg);
   }
@@ -95,7 +100,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     service,
     allowHtmlScripts: options.allowHtmlScripts,
   });
-  console.log(`pathlens serving ${rootDir}`);
+  console.log(`Vivi serving ${rootDir}`);
   console.log(server.url);
   installShutdownHandlers(server);
   if (options.open) {
@@ -126,7 +131,7 @@ export function installShutdownHandlers(
     }
 
     closing = true;
-    console.log(`\npathlens received ${signal}; shutting down...`);
+    console.log(`\nVivi received ${signal}; shutting down...`);
     void closeWithDeadline(server, closeTimeoutMs)
       .then(() => {
         removeHandlers();
@@ -180,10 +185,23 @@ function exitCodeForSignal(signal: NodeJS.Signals): number {
   return signal === "SIGINT" ? 130 : 143;
 }
 
-function printHelp(): void {
-  console.log(
-    `pathlens - live local viewer for Markdown, HTML, code, and assets\n\nUsage:\n  pathlens [root] [--host 127.0.0.1] [--port 4317] [--open] [--include md,html,ts] [--max-file-size 1048576] [--allow-html-scripts]\n`,
-  );
+export function helpText(): string {
+  return [
+    "vivi - read-only visual workspace viewer",
+    "",
+    "Usage:",
+    "  vivi [root] [--host 127.0.0.1] [--port 4317] [--open] [--include md,html,ts] [--max-file-size 1048576] [--allow-html-scripts]",
+    "",
+    "Options:",
+    "  --host <host>              Host to bind (default: 127.0.0.1)",
+    "  --port <port>              Port to bind (default: 4317, 0 for random)",
+    "  --open                     Open the browser after startup",
+    "  --include <extensions>     Comma-separated extension allow-list",
+    "  --max-file-size <bytes>    Rich preview byte limit",
+    "  --allow-html-scripts       Allow scripts in HTML preview for trusted files",
+    "  --version                  Print version",
+    "  --help                     Show this help",
+  ].join("\n");
 }
 
 function parseInclude(value: string): Set<string> {

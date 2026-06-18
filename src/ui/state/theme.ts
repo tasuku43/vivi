@@ -1,7 +1,7 @@
 export type ThemePreference = "system" | "light" | "dark";
 export type ResolvedTheme = "light" | "dark";
 
-export const themeStorageKey = "pathlens.theme";
+export const themeStorageKey = "vivi.theme";
 
 export function isThemePreference(
   value: string | null,

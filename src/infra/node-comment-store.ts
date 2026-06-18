@@ -5,7 +5,7 @@ import path from "node:path";
 import type { CommentStorePort } from "../app/contracts.js";
 import type {
   CommentListFilters,
-  PathlensComment,
+  ViviComment,
 } from "../domain/comments.js";
 
 export interface NodeCommentStoreOptions {
@@ -19,14 +19,14 @@ export class NodeCommentStore implements CommentStorePort {
 
   constructor(options: NodeCommentStoreOptions = {}) {
     this.filePath = path.join(
-      path.resolve(options.dataDir ?? defaultPathlensDataDir()),
+      path.resolve(options.dataDir ?? defaultViviDataDir()),
       options.fileName ?? "comments.jsonl",
     );
   }
 
   async listComments(
     filters: CommentListFilters = {},
-  ): Promise<PathlensComment[]> {
+  ): Promise<ViviComment[]> {
     const comments = await this.readAll();
     return comments.filter(
       (comment) =>
@@ -35,12 +35,12 @@ export class NodeCommentStore implements CommentStorePort {
     );
   }
 
-  async getComment(id: string): Promise<PathlensComment | null> {
+  async getComment(id: string): Promise<ViviComment | null> {
     const comments = await this.readAll();
     return comments.find((comment) => comment.id === id) ?? null;
   }
 
-  async createComment(comment: PathlensComment): Promise<PathlensComment> {
+  async createComment(comment: ViviComment): Promise<ViviComment> {
     await this.enqueueWrite(async () => {
       const comments = await this.readAll();
       comments.push(comment);
@@ -49,7 +49,7 @@ export class NodeCommentStore implements CommentStorePort {
     return comment;
   }
 
-  async updateComment(comment: PathlensComment): Promise<PathlensComment> {
+  async updateComment(comment: ViviComment): Promise<ViviComment> {
     await this.enqueueWrite(async () => {
       const comments = await this.readAll();
       const index = comments.findIndex((item) => item.id === comment.id);
@@ -60,21 +60,21 @@ export class NodeCommentStore implements CommentStorePort {
     return comment;
   }
 
-  private async readAll(): Promise<PathlensComment[]> {
+  private async readAll(): Promise<ViviComment[]> {
     try {
       const text = await readFile(this.filePath, "utf8");
       return text
         .split(/\r?\n/)
         .map((line) => line.trim())
         .filter(Boolean)
-        .map((line) => JSON.parse(line) as PathlensComment);
+        .map((line) => JSON.parse(line) as ViviComment);
     } catch (error) {
       if (isMissingFileError(error)) return [];
       throw error;
     }
   }
 
-  private async writeAll(comments: PathlensComment[]): Promise<void> {
+  private async writeAll(comments: ViviComment[]): Promise<void> {
     await mkdir(path.dirname(this.filePath), { recursive: true });
     const body = comments.map((comment) => JSON.stringify(comment)).join("\n");
     const tmpPath = `${this.filePath}.${process.pid}.tmp`;
@@ -89,12 +89,12 @@ export class NodeCommentStore implements CommentStorePort {
   }
 }
 
-export function defaultPathlensDataDir(): string {
-  if (process.env.PATHLENS_DATA_DIR) return process.env.PATHLENS_DATA_DIR;
+export function defaultViviDataDir(): string {
+  if (process.env.VIVI_DATA_DIR) return process.env.VIVI_DATA_DIR;
   if (existsSync("/data")) return "/data";
   if (process.env.XDG_DATA_HOME)
-    return path.join(process.env.XDG_DATA_HOME, "pathlens");
-  return path.join(homedir(), ".local", "share", "pathlens");
+    return path.join(process.env.XDG_DATA_HOME, "vivi");
+  return path.join(homedir(), ".local", "share", "vivi");
 }
 
 function isMissingFileError(error: unknown): boolean {

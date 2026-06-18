@@ -1,11 +1,11 @@
 {
-  "name": "pathlens",
+  "name": "vivi",
   "version": "0.0.0",
-  "private": false,
+  "private": true,
   "type": "module",
-  "description": "A live local viewer for Markdown, HTML, code, and assets.",
+  "description": "A read-only visual workspace viewer for agent-written local files.",
   "bin": {
-    "pathlens": "dist/cli/main.js"
+    "vivi": "dist/cli/main.js"
   },
   "files": [
     "dist",
@@ -16,16 +16,21 @@
     "dev": "vite --host 127.0.0.1",
     "dev:server": "tsx src/cli/main.ts . --port 4317",
     "clean:dist": "node scripts/clean-dist.mjs",
-    "build": "npm run clean:dist && tsc -p tsconfig.node.json && vite build",
+    "prepare:ui-assets": "node scripts/prepare-ui-assets.mjs",
+    "prepare:go": "node scripts/prepare-go-workspace.mjs",
+    "postinstall": "node scripts/prepare-go-workspace.mjs",
+    "build": "npm run clean:dist && npm run prepare:ui-assets && tsc -p tsconfig.node.json && vite build",
+    "build:go": "npm run prepare:go && node scripts/run-go-build.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit",
+    "test:go": "npm run prepare:go && go test ./...",
     "test": "vitest run",
     "eval": "node --import tsx evals/run-evals.ts",
-    "e2e": "PATHLENS_E2E=1 vitest run test/e2e",
+    "e2e": "VIVI_E2E=1 vitest run test/e2e",
     "verify:comment-ui": "npm run build && node scripts/verify-comment-ui-cdp.mjs",
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "validate:scaffold": "node scripts/validate-scaffold.mjs",
-    "check": "npm run validate:scaffold && npm run typecheck && npm run test && npm run eval && npm run e2e"
+    "check": "npm run validate:scaffold && npm run typecheck && npm run test && npm run eval && npm run e2e && npm run build && npm run test:go && npm run build:go"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",

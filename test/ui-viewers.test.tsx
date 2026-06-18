@@ -48,7 +48,7 @@ const codeFile: FilePayload = {
 it("renders the topbar as brand, workspace identity, and distinct actions", () => {
   const html = renderToStaticMarkup(
     <Topbar
-      root="/Users/tasuku/work/pathlens"
+      root="/Users/tasuku/work/vivi"
       themePreference="system"
       onThemeCycle={() => undefined}
       onQuickOpen={() => undefined}
@@ -60,7 +60,7 @@ it("renders the topbar as brand, workspace identity, and distinct actions", () =
   expect(html).toContain('class="topbar-brand"');
   expect(html).toContain('class="workspace-strip"');
   expect(html).toContain('aria-label="Workspace actions"');
-  expect(html).toContain('class="workspace-name">pathlens</span>');
+  expect(html).toContain('class="workspace-name">vivi</span>');
   expect(html).toContain(
     'class="workspace-parent">/Users/tasuku/work</span>',
   );
@@ -72,10 +72,10 @@ it("renders the topbar as brand, workspace identity, and distinct actions", () =
 });
 
 it("summarizes workspace paths for compact topbar display", () => {
-  expect(workspaceDisplayName("/Users/tasuku/work/pathlens/")).toBe(
-    "pathlens",
+  expect(workspaceDisplayName("/Users/tasuku/work/vivi/")).toBe(
+    "vivi",
   );
-  expect(workspaceParentPath("/Users/tasuku/work/pathlens/")).toBe(
+  expect(workspaceParentPath("/Users/tasuku/work/vivi/")).toBe(
     "/Users/tasuku/work",
   );
   expect(workspaceDisplayName(null)).toBe("Local viewer");
@@ -358,14 +358,14 @@ it("renders image diffs as binary or source diff status in the image viewer", ()
         baseLabel: "HEAD",
         compareLabel: "working tree",
         content: "",
-        reason: "Binary diff is not shown in pathlens.",
+        reason: "Binary diff is not shown in Vivi.",
       }}
     />,
   );
 
   expect(html).toContain('aria-label="Diff from HEAD for assets/logo.png"');
   expect(html).toContain("Binary");
-  expect(html).toContain("Binary diff is not shown in pathlens.");
+  expect(html).toContain("Binary diff is not shown in Vivi.");
   expect(html).not.toContain("image-stage");
 });
 

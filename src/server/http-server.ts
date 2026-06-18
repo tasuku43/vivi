@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 import type { ViewerService } from "../app/viewer-service.js";
 import { normalizeCommentFilters } from "../domain/comments.js";
 import {
-  pathlensMermaidThemeVariables,
+  viviMermaidThemeVariables,
   type MermaidPreviewTheme,
 } from "../domain/mermaid-theme.js";
 import {
@@ -256,7 +256,7 @@ async function routeRequest(
     return;
   }
 
-  if (url.pathname === "/pathlens/vendor/mermaid.min.js") {
+  if (url.pathname === "/vivi/vendor/mermaid.min.js") {
     const content = await readFile(mermaidBrowserBundlePath());
     res.writeHead(200, {
       "content-type": "text/javascript; charset=utf-8",
@@ -449,7 +449,7 @@ function logHttpError(
 ): void {
   const method = req.method ?? "GET";
   const target = req.url ?? "/";
-  const message = `[pathlens] ${method} ${target} failed with ${normalized.httpStatus}: ${normalized.reason}`;
+  const message = `[vivi] ${method} ${target} failed with ${normalized.httpStatus}: ${normalized.reason}`;
   if (normalized.httpStatus >= 500) {
     console.error(message, error);
     return;
@@ -578,12 +578,12 @@ function renderEmbeddedMermaidPreviewHtml(
           if (!hasMermaidClass(rawAttributes)) return match;
           const source = htmlToText(innerHtml).trim();
           if (!source) return match;
-          const id = `pathlens-html-mermaid-${index}`;
+          const id = `vivi-html-mermaid-${index}`;
           index += 1;
           const scriptStatus = options.allowHtmlScripts
             ? "user scripts active"
             : "user scripts inactive";
-          return `<figure class="html-mermaid" id="${id}" data-pathlens-html-mermaid data-mermaid-status="pending" data-mermaid-custom-style="${hasCustomMermaidStyle(source) ? "true" : "false"}" data-mermaid-source="${escapeAttribute(source)}"><figcaption>Mermaid preview · ${scriptStatus}</figcaption><div class="mermaid-render-target" aria-live="polite"></div><div class="markdown-mermaid-fallback unsupported"><p>Mermaid preview is loading. Source is shown below if rendering fails.</p><details class="markdown-mermaid-source"><summary>Mermaid source</summary><pre><code>${escapeHtml(source)}</code></pre></details></div></figure>`;
+          return `<figure class="html-mermaid" id="${id}" data-vivi-html-mermaid data-mermaid-status="pending" data-mermaid-custom-style="${hasCustomMermaidStyle(source) ? "true" : "false"}" data-mermaid-source="${escapeAttribute(source)}"><figcaption>Mermaid preview · ${scriptStatus}</figcaption><div class="mermaid-render-target" aria-live="polite"></div><div class="markdown-mermaid-fallback unsupported"><p>Mermaid preview is loading. Source is shown below if rendering fails.</p><details class="markdown-mermaid-source"><summary>Mermaid source</summary><pre><code>${escapeHtml(source)}</code></pre></details></div></figure>`;
         },
       )
     : html;
@@ -621,12 +621,12 @@ function injectHtmlPreviewRuntime(
     path: string;
   },
 ): string {
-  if (/data-pathlens-mermaid-preview/i.test(html)) return html;
+  if (/data-vivi-mermaid-preview/i.test(html)) return html;
   const palette = htmlPreviewPalette(options.theme);
-  const styles = `<style data-pathlens-mermaid-preview data-pathlens-html-theme="${options.theme}">
+  const styles = `<style data-vivi-mermaid-preview data-vivi-html-theme="${options.theme}">
 html{color-scheme:${options.theme};background:${palette.background};}
 body{background:${palette.background};color:${palette.text};}
-body:not([data-pathlens-preserve-spacing]){font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
+body:not([data-vivi-preserve-spacing]){font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
 a{color:${palette.accent};}
 hr{border-color:${palette.line};}
 blockquote{border-left:3px solid ${palette.line};color:${palette.muted};margin-left:0;padding-left:14px;}
@@ -671,7 +671,7 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
     const element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
     const rect = range?.getBoundingClientRect();
     parent.postMessage({
-      type: "pathlens-html-selection",
+      type: "vivi-html-selection",
       path,
       text,
       selector: cssPath(element),
@@ -687,14 +687,14 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
 })();
 </script>`;
   const mermaidScripts = options.includeMermaidRuntime
-    ? `<script nonce="${escapeAttribute(options.nonce)}" src="/pathlens/vendor/mermaid.min.js"></script><script nonce="${escapeAttribute(options.nonce)}">
+    ? `<script nonce="${escapeAttribute(options.nonce)}" src="/vivi/vendor/mermaid.min.js"></script><script nonce="${escapeAttribute(options.nonce)}">
 (() => {
   const previewTheme = ${JSON.stringify(options.theme)};
-  const themeVariables = ${JSON.stringify(pathlensMermaidThemeVariables(options.theme))};
+  const themeVariables = ${JSON.stringify(viviMermaidThemeVariables(options.theme))};
   const renderBlocks = async () => {
     const mermaid = globalThis.mermaid;
     if (!mermaid) return;
-    const blocks = Array.from(document.querySelectorAll("[data-pathlens-html-mermaid]"));
+    const blocks = Array.from(document.querySelectorAll("[data-vivi-html-mermaid]"));
     for (const [index, block] of blocks.entries()) {
       const source = block.dataset.mermaidSource;
       const target = block.querySelector(".mermaid-render-target");
@@ -708,7 +708,7 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
           themeVariables: hasCustomStyle ? undefined : themeVariables,
           flowchart: { htmlLabels: false }
         });
-        const result = await mermaid.render(\`pathlens-html-mermaid-\${index}-\${Date.now()}\`, source);
+        const result = await mermaid.render(\`vivi-html-mermaid-\${index}-\${Date.now()}\`, source);
         target.innerHTML = result.svg;
         block.dataset.mermaidStatus = "rendered";
       } catch (error) {

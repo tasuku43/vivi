@@ -51,18 +51,18 @@ it("keeps the Mermaid example workspace usable across mmd, markdown, and html pr
   expect(csp).toContain("script-src 'nonce-");
   expect(csp).not.toContain("script-src 'self' 'unsafe-inline'");
   const previewHtml = await html.text();
-  expect(previewHtml).toContain("data-pathlens-mermaid-preview");
-  expect(previewHtml).toContain('data-pathlens-html-theme="dark"');
+  expect(previewHtml).toContain("data-vivi-mermaid-preview");
+  expect(previewHtml).toContain('data-vivi-html-theme="dark"');
   expect(previewHtml).toContain("background:#0e1316");
   expect(previewHtml).toContain('"primaryTextColor":"#edf7f5"');
-  expect(previewHtml).toContain("/pathlens/vendor/mermaid.min.js");
-  expect(previewHtml).toContain("data-pathlens-html-mermaid");
+  expect(previewHtml).toContain("/vivi/vendor/mermaid.min.js");
+  expect(previewHtml).toContain("data-vivi-html-mermaid");
   expect(previewHtml).toContain('<figure class="html-mermaid"');
   expect(previewHtml).toContain("Open embedded.html");
   expect(previewHtml).toContain("Render with official Mermaid");
   expect(previewHtml).toContain("Diagram remains inspectable");
 
-  const mermaidBundle = await fetch(`${server.url}/pathlens/vendor/mermaid.min.js`);
+  const mermaidBundle = await fetch(`${server.url}/vivi/vendor/mermaid.min.js`);
   expect(mermaidBundle.status).toBe(200);
   expect(mermaidBundle.headers.get("content-type")).toContain("text/javascript");
   expect(await mermaidBundle.text()).toContain('globalThis["mermaid"]');
@@ -70,7 +70,7 @@ it("keeps the Mermaid example workspace usable across mmd, markdown, and html pr
   const lightHtml = await fetch(
     `${server.url}/preview/html?path=${encodeURIComponent("public/embedded.html")}&theme=light`,
   ).then((res) => res.text());
-  expect(lightHtml).toContain('data-pathlens-html-theme="light"');
+  expect(lightHtml).toContain('data-vivi-html-theme="light"');
   expect(lightHtml).toContain("background:#fbfaf7");
   expect(lightHtml).toContain('"primaryTextColor":"#172426"');
 
@@ -98,9 +98,9 @@ it("keeps the Mermaid example workspace usable across mmd, markdown, and html pr
     "script-src 'self' 'unsafe-inline'",
   );
   const scriptsEnabledHtml = await scriptsEnabledPreview.text();
-  expect(scriptsEnabledHtml).toContain("data-pathlens-html-mermaid");
+  expect(scriptsEnabledHtml).toContain("data-vivi-html-mermaid");
   expect(scriptsEnabledHtml).toContain("Mermaid preview · user scripts active");
-  expect(scriptsEnabledHtml).toContain("/pathlens/vendor/mermaid.min.js");
+  expect(scriptsEnabledHtml).toContain("/vivi/vendor/mermaid.min.js");
   expect(scriptsEnabledHtml).toContain("Render with official Mermaid");
 });
 

@@ -1,6 +1,6 @@
 # Security model
 
-`pathlens` is local-first and read-only.
+`vivi` is local-first and read-only.
 
 ## Defaults
 

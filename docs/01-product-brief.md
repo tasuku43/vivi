@@ -2,7 +2,7 @@
 
 ## Product
 
-`pathlens` is a CLI-launched local SPA for live viewing a directory tree and previewing files.
+`vivi` is a CLI-launched local SPA for live viewing a directory tree and previewing files.
 
 ## Problem
 

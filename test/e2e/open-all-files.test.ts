@@ -11,7 +11,7 @@ let dir: string;
 let server: { url: string; close: () => Promise<void> } | null = null;
 
 beforeEach(async () => {
-  dir = await mkdtemp(path.join(tmpdir(), "pathlens-open-all-"));
+  dir = await mkdtemp(path.join(tmpdir(), "vivi-open-all-"));
   await mkdir(path.join(dir, "docs"), { recursive: true });
   await mkdir(path.join(dir, "src"), { recursive: true });
   await mkdir(path.join(dir, "assets"), { recursive: true });
@@ -27,7 +27,7 @@ beforeEach(async () => {
   await writeFile(path.join(dir, "data.json"), '{"ok":true}\n');
   await writeFile(
     path.join(dir, "config.yaml"),
-    "name: pathlens\nfeatures:\n  preview: true\n",
+    "name: vivi\nfeatures:\n  preview: true\n",
   );
   await writeFile(
     path.join(dir, "assets", "logo.svg"),

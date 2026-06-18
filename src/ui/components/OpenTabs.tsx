@@ -162,7 +162,7 @@ export function readDraggedTab(
   dataTransfer: DataTransfer,
 ): DraggedTabPayload | null {
   const raw =
-    dataTransfer.getData("application/x-pathlens-tab") ||
+    dataTransfer.getData("application/x-vivi-tab") ||
     dataTransfer.getData("text/plain");
   if (!raw) return null;
   try {
@@ -180,6 +180,6 @@ function writeDraggedTab(
   payload: DraggedTabPayload,
 ) {
   const raw = JSON.stringify(payload);
-  dataTransfer.setData("application/x-pathlens-tab", raw);
+  dataTransfer.setData("application/x-vivi-tab", raw);
   dataTransfer.setData("text/plain", raw);
 }

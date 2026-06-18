@@ -51,6 +51,7 @@ export class GitChangeReview implements ChangeReviewPort {
   private readonly gitStatusFallbackTimeoutMs: number;
   private readonly gitTimeoutCooldownMs: number;
   private readonly activeGitProcesses = new Set<ChildProcess>();
+  private readonly activeGitCancels = new Set<() => void>();
   private gitSuppressedUntilMs = 0;
   private stopped = false;
 
@@ -61,19 +62,19 @@ export class GitChangeReview implements ChangeReviewPort {
     this.gitCommands = options.gitCommands ?? defaultGitCommands;
     this.gitTimeoutMs =
       options.gitTimeoutMs ??
-      readPositiveEnvMs("PATHLENS_GIT_TIMEOUT_MS") ??
+      readPositiveEnvMs("VIVI_GIT_TIMEOUT_MS") ??
       defaultGitTimeoutMs;
     this.gitStatusTimeoutMs =
       options.gitStatusTimeoutMs ??
-      readPositiveEnvMs("PATHLENS_GIT_STATUS_TIMEOUT_MS") ??
+      readPositiveEnvMs("VIVI_GIT_STATUS_TIMEOUT_MS") ??
       options.gitTimeoutMs ??
-      readPositiveEnvMs("PATHLENS_GIT_TIMEOUT_MS") ??
+      readPositiveEnvMs("VIVI_GIT_TIMEOUT_MS") ??
       defaultGitStatusTimeoutMs;
     this.gitStatusFallbackTimeoutMs =
       options.gitStatusFallbackTimeoutMs ??
-      readPositiveEnvMs("PATHLENS_GIT_STATUS_FALLBACK_TIMEOUT_MS") ??
+      readPositiveEnvMs("VIVI_GIT_STATUS_FALLBACK_TIMEOUT_MS") ??
       options.gitTimeoutMs ??
-      readPositiveEnvMs("PATHLENS_GIT_TIMEOUT_MS") ??
+      readPositiveEnvMs("VIVI_GIT_TIMEOUT_MS") ??
       Math.min(this.gitStatusTimeoutMs, defaultGitStatusFallbackTimeoutMs);
     this.gitTimeoutCooldownMs = options.gitTimeoutCooldownMs ?? 30_000;
   }
@@ -157,6 +158,8 @@ export class GitChangeReview implements ChangeReviewPort {
 
   async stop(): Promise<void> {
     this.stopped = true;
+    for (const cancel of this.activeGitCancels) cancel();
+    this.activeGitCancels.clear();
     for (const child of this.activeGitProcesses) {
       child.kill("SIGKILL");
       child.unref();
@@ -249,7 +252,7 @@ export class GitChangeReview implements ChangeReviewPort {
         baseLabel: base.label,
         compareLabel: "working tree",
         content: "",
-        reason: "Binary diff is not shown in pathlens.",
+        reason: "Binary diff is not shown in Vivi.",
       };
     return {
       path: relativePath,
@@ -292,7 +295,7 @@ export class GitChangeReview implements ChangeReviewPort {
         baseLabel: base.label,
         compareLabel: "working tree",
         content: "",
-        reason: "Binary diff is not shown in pathlens.",
+        reason: "Binary diff is not shown in Vivi.",
       };
     return {
       path: change.path,
@@ -382,6 +385,8 @@ export class GitChangeReview implements ChangeReviewPort {
 
     const resolved = this.resolveInsideRoot(change.path);
     if (!resolved.ok) return [{ ...change, kind: "file" }];
+    const link = await symlinkTargetPolicy(resolved.absolutePath, this.rootDir);
+    if (link.kind === "external") return [];
     const stat = await statFileForDiff(resolved.absolutePath);
     if (!stat.ok) return [{ ...change, kind: "file" }];
     if (!stat.value.isDirectory()) return [{ ...change, kind: "file" }];
@@ -414,6 +419,10 @@ export class GitChangeReview implements ChangeReviewPort {
       const childRelativePath = `${relativePath}/${entry.name}`;
       if (!this.isReviewablePath(childRelativePath)) continue;
       const childAbsolutePath = path.join(absolutePath, entry.name);
+      if (entry.isSymbolicLink()) {
+        const link = await symlinkTargetPolicy(childAbsolutePath, this.rootDir);
+        if (link.kind === "external") continue;
+      }
       if (entry.isDirectory()) {
         if (await isEmbeddedGitRepository(childAbsolutePath)) {
           changes.push({
@@ -466,32 +475,25 @@ export class GitChangeReview implements ChangeReviewPort {
   }
 
   private async gitStatus(): Promise<
-    { ok: true; stdout: string; reason?: string } | { ok: false; reason: string }
+    | { ok: true; stdout: string; reason?: string }
+    | { ok: false; reason: string }
   > {
-    const fullStatus = await this.git([
-      "status",
-      "--porcelain=v1",
-      "--untracked-files=all",
-      "-z",
-      "--",
-      ".",
-    ], {
-      timeoutMs: this.gitStatusFallbackTimeoutMs,
-    });
+    const fullStatus = await this.git(
+      ["status", "--porcelain=v1", "--untracked-files=all", "-z", "--", "."],
+      {
+        timeoutMs: this.gitStatusFallbackTimeoutMs,
+      },
+    );
     if (fullStatus.ok || fullStatus.reason !== gitTimeoutReason) {
       return fullStatus;
     }
 
-    const trackedStatus = await this.git([
-      "status",
-      "--porcelain=v1",
-      "--untracked-files=no",
-      "-z",
-      "--",
-      ".",
-    ], {
-      timeoutMs: this.gitStatusTimeoutMs,
-    });
+    const trackedStatus = await this.git(
+      ["status", "--porcelain=v1", "--untracked-files=no", "-z", "--", "."],
+      {
+        timeoutMs: this.gitStatusTimeoutMs,
+      },
+    );
     if (!trackedStatus.ok) return trackedStatus;
     return { ...trackedStatus, reason: gitPartialTimeoutReason };
   }
@@ -527,23 +529,29 @@ export class GitChangeReview implements ChangeReviewPort {
       }
 
       let settled = false;
+      let child: ChildProcess | null = null;
       const finish = (
         result: { ok: true; stdout: string } | { ok: false; error: unknown },
       ) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        this.activeGitCancels.delete(cancel);
         resolve(result);
       };
+      const cancel = () => {
+        child?.kill("SIGKILL");
+        child?.unref();
+        finish({ ok: false, error: new GitCommandTimeoutError() });
+      };
+      this.activeGitCancels.add(cancel);
 
       const timer = setTimeout(() => {
-        child.kill("SIGKILL");
-        child.unref();
-        finish({ ok: false, error: new GitCommandTimeoutError() });
+        cancel();
       }, options.timeoutMs ?? this.gitTimeoutMs);
       timer.unref();
 
-      const child = execFile(
+      child = execFile(
         command,
         args,
         {
@@ -597,7 +605,7 @@ export class GitChangeReview implements ChangeReviewPort {
         baseLabel: base.label,
         compareLabel: "working tree",
         content: "",
-        reason: "Binary diff is not shown in pathlens.",
+        reason: "Binary diff is not shown in Vivi.",
       };
     }
 
@@ -757,6 +765,36 @@ async function readFileForDiff(
   }
 }
 
+async function symlinkTargetPolicy(
+  absolutePath: string,
+  rootDir: string,
+): Promise<{ kind: "not-symlink" | "internal" | "external" }> {
+  let stat: Stats;
+  try {
+    stat = await fs.lstat(absolutePath);
+  } catch {
+    return { kind: "not-symlink" };
+  }
+  if (!stat.isSymbolicLink()) return { kind: "not-symlink" };
+  try {
+    const rootRealPath = await realpathOrResolve(rootDir);
+    const targetRealPath = await fs.realpath(absolutePath);
+    return isInsidePath(rootRealPath, targetRealPath)
+      ? { kind: "internal" }
+      : { kind: "external" };
+  } catch {
+    return { kind: "external" };
+  }
+}
+
+function isInsidePath(rootDir: string, target: string): boolean {
+  const relative = path.relative(rootDir, target);
+  return (
+    relative === "" ||
+    (!relative.startsWith("..") && !path.isAbsolute(relative))
+  );
+}
+
 function fileSystemDiffReason(error: unknown): string {
   const code =
     error && typeof error === "object" && "code" in error
@@ -816,7 +854,7 @@ export function gitErrorReason(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   if (isCommandTimedOut(error)) return gitTimeoutReason;
   if (code === "ENOENT" || message.includes("ENOENT"))
-    return "Git executable was not found. Install Git or start pathlens with Git on PATH.";
+    return "Git executable was not found. Install Git or start vivi with Git on PATH.";
   if (message.includes("not a git repository"))
     return "This workspace is not a Git repository.";
   if (message.includes("maxBuffer"))

@@ -1,7 +1,7 @@
 version: "3"
 
 vars:
-  IMAGE: '{{.IMAGE | default "pathlens"}}'
+  IMAGE: '{{.IMAGE | default "vivi"}}'
   TAG: '{{.TAG | default "local"}}'
   PORT: '{{.PORT | default "4317"}}'
   ROOT: "{{.ROOT | default .USER_WORKING_DIR}}"
@@ -63,7 +63,7 @@ tasks:
       - docker buildx build --platform {{.PLATFORMS}} -t {{.IMAGE}}:{{.TAG}} .
 
   docker:run:
-    desc: Run pathlens from the local Docker image
+    desc: Run Vivi from the local Docker image
     cmds:
       - docker run --rm -it -p {{.PORT}}:4317 -v "{{.ROOT}}:/workspace:ro" {{.IMAGE}}:{{.TAG}}
 

@@ -46,7 +46,7 @@ export interface CommentAnchor {
   diff?: DiffAnchor;
 }
 
-export interface PathlensComment {
+export interface ViviComment {
   id: string;
   path: string;
   viewerKind: CommentViewerKind;
@@ -152,7 +152,7 @@ export function normalizeCommentFilters(input: {
   };
 }
 
-export function exportCommentAsJsonLine(comment: PathlensComment): string {
+export function exportCommentAsJsonLine(comment: ViviComment): string {
   return JSON.stringify({
     id: comment.id,
     path: comment.path,
@@ -179,11 +179,11 @@ export function exportCommentAsJsonLine(comment: PathlensComment): string {
 }
 
 export function applyCommentUpdate(
-  comment: PathlensComment,
+  comment: ViviComment,
   update: UpdateCommentInput,
   now: string,
-): PathlensComment {
-  const next: PathlensComment = {
+): ViviComment {
+  const next: ViviComment = {
     ...comment,
     body: update.body ?? comment.body,
     status: update.status ?? comment.status,

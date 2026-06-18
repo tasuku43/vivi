@@ -1480,7 +1480,7 @@ it("collects file paths from nested tree nodes for session pruning", () => {
 
 it("scopes persisted workspace sessions by root path", () => {
   expect(workspaceSessionStorageKeyForRoot("/tmp/a project")).toBe(
-    "pathlens.workspaceSession.v1:%2Ftmp%2Fa%20project",
+    "vivi.workspaceSession.v1:%2Ftmp%2Fa%20project",
   );
 });
 

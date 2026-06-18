@@ -40,6 +40,7 @@ export class NodeFileSystem implements FileSystemPort {
   private readonly maxFileSizeBytes: number;
   private readonly allowHtmlScripts: boolean;
   private readonly fileIndexTtlMs: number;
+  private readonly rootRealPath: Promise<string>;
   private fileIndexCache: {
     files: FileSearchResult[];
     createdAt: number;
@@ -54,6 +55,7 @@ export class NodeFileSystem implements FileSystemPort {
     this.allowHtmlScripts = options.allowHtmlScripts ?? false;
     this.fileIndexTtlMs = options.fileIndexTtlMs ?? 5_000;
     this.version = options.version ?? 1;
+    this.rootRealPath = realpathOrResolve(this.rootDir);
   }
 
   async readTree(): Promise<TreeSnapshot> {
@@ -98,7 +100,7 @@ export class NodeFileSystem implements FileSystemPort {
   }
 
   async readFile(relativePath: string): Promise<FilePayload> {
-    const resolved = this.resolveInsideRoot(relativePath);
+    const resolved = await this.resolveInsideRoot(relativePath);
     const stat = await fs.stat(resolved.absolutePath);
     if (!stat.isFile()) throw new Error("path is not a file");
     const viewerKind = classifyViewer(resolved.relativePath);
@@ -297,8 +299,10 @@ export class NodeFileSystem implements FileSystemPort {
       if (isIgnoredPath(relativePath, this.ignoredNames)) continue;
 
       const absolutePath = path.join(this.rootDir, relativePath);
+      if (!(await this.realPathIsInsideRoot(absolutePath))) continue;
       const stat = await fs.stat(absolutePath);
-      if (entry.isDirectory()) {
+      if (entry.isSymbolicLink() && stat.isDirectory()) continue;
+      if (stat.isDirectory()) {
         const children =
           depth > 1
             ? await this.scanDirectory(
@@ -320,7 +324,7 @@ export class NodeFileSystem implements FileSystemPort {
           version: this.version,
         });
         stats.returnedNodes += 1;
-      } else if (entry.isFile()) {
+      } else if (stat.isFile()) {
         stats.scannedFiles += 1;
         if (!this.isIncluded(relativePath)) continue;
         nodes.push({
@@ -341,10 +345,10 @@ export class NodeFileSystem implements FileSystemPort {
     return nodes;
   }
 
-  private resolveInsideRoot(input: string): {
+  private async resolveInsideRoot(input: string): Promise<{
     absolutePath: string;
     relativePath: string;
-  } {
+  }> {
     const normalized = normalizeRelativePath(input);
     if (!normalized.ok) throw new Error(normalized.reason);
     if (!normalized.relativePath) throw new Error("file path is required");
@@ -355,6 +359,9 @@ export class NodeFileSystem implements FileSystemPort {
     const absolutePath = path.resolve(this.rootDir, normalized.relativePath);
     const relativeToRoot = path.relative(this.rootDir, absolutePath);
     if (relativeToRoot.startsWith("..") || path.isAbsolute(relativeToRoot)) {
+      throw new Error("path escapes root");
+    }
+    if (!(await this.realPathIsInsideRoot(absolutePath))) {
       throw new Error("path escapes root");
     }
     return { absolutePath, relativePath: normalized.relativePath };
@@ -374,6 +381,9 @@ export class NodeFileSystem implements FileSystemPort {
     const absolutePath = path.resolve(this.rootDir, normalized.relativePath);
     const relativeToRoot = path.relative(this.rootDir, absolutePath);
     if (relativeToRoot.startsWith("..") || path.isAbsolute(relativeToRoot)) {
+      throw new Error("path escapes root");
+    }
+    if (!(await this.realPathIsInsideRoot(absolutePath))) {
       throw new Error("path escapes root");
     }
     const stat = await fs.stat(absolutePath);
@@ -410,7 +420,11 @@ export class NodeFileSystem implements FileSystemPort {
         : entry.name;
       if (isIgnoredPath(relativePath, this.ignoredNames)) continue;
 
-      if (entry.isDirectory()) {
+      const absolutePath = path.join(this.rootDir, relativePath);
+      if (!(await this.realPathIsInsideRoot(absolutePath))) continue;
+      const stat = await fs.stat(absolutePath);
+      if (entry.isSymbolicLink() && stat.isDirectory()) continue;
+      if (stat.isDirectory()) {
         const shouldContinue = await this.walkFiles(
           relativePath,
           stats,
@@ -419,12 +433,11 @@ export class NodeFileSystem implements FileSystemPort {
         if (!shouldContinue) return false;
         continue;
       }
-      if (!entry.isFile()) continue;
+      if (!stat.isFile()) continue;
       stats.scannedFiles += 1;
       if (!this.isIncluded(relativePath)) continue;
 
       try {
-        const stat = await fs.stat(path.join(this.rootDir, relativePath));
         const shouldContinue = await onFile({
           path: relativePath,
           name: entry.name,
@@ -439,6 +452,22 @@ export class NodeFileSystem implements FileSystemPort {
       }
     }
     return true;
+  }
+
+  private async realPathIsInsideRoot(absolutePath: string): Promise<boolean> {
+    let targetRealPath: string;
+    try {
+      targetRealPath = await fs.realpath(absolutePath);
+    } catch (error) {
+      if (isMissingPathError(error)) return true;
+      throw error;
+    }
+    const rootRealPath = await this.rootRealPath;
+    const relative = path.relative(rootRealPath, targetRealPath);
+    return (
+      relative === "" ||
+      (!relative.startsWith("..") && !path.isAbsolute(relative))
+    );
   }
 
   private async readFileIndex(
@@ -585,5 +614,22 @@ function supportsPartialTextPreview(viewerKind: ViewerKind): boolean {
     viewerKind === "markdown" ||
     viewerKind === "json" ||
     viewerKind === "mermaid"
+  );
+}
+
+async function realpathOrResolve(pathname: string): Promise<string> {
+  try {
+    return await fs.realpath(path.resolve(pathname));
+  } catch {
+    return path.resolve(pathname);
+  }
+}
+
+function isMissingPathError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "ENOENT"
   );
 }

@@ -16,7 +16,7 @@ let dir: string;
 let server: { url: string; close: () => Promise<void> } | null = null;
 
 beforeEach(async () => {
-  dir = await mkdtemp(path.join(tmpdir(), "pathlens-e2e-"));
+  dir = await mkdtemp(path.join(tmpdir(), "vivi-e2e-"));
   await writeFile(path.join(dir, "README.md"), "# E2E");
   await mkdir(path.join(dir, "docs"));
   await writeFile(path.join(dir, "docs", "guide.md"), "# Nested E2E");
@@ -25,7 +25,7 @@ beforeEach(async () => {
     '<head><link rel="stylesheet" href="style.css"></head><h1>Hello</h1><script>window.ran=true</script>',
   );
   await writeFile(path.join(dir, "style.css"), "h1 { color: rgb(255, 0, 0); }");
-  await writeFile(path.join(dir, "app.js"), "window.pathlensFixture = true;");
+  await writeFile(path.join(dir, "app.js"), "window.viviFixture = true;");
 });
 
 afterEach(async () => {
@@ -123,7 +123,7 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   const previewHtml = await preview.text();
   expect(previewHtml).toContain('<base href="/preview/raw/">');
   expect(previewHtml).toContain('<h1 id="hello">Hello</h1>');
-  expect(previewHtml).toContain('data-pathlens-html-theme="dark"');
+  expect(previewHtml).toContain('data-vivi-html-theme="dark"');
   expect(previewHtml).toContain("background:#0e1316");
 
   const css = await fetch(`${server.url}/preview/raw/style.css`);
@@ -181,7 +181,7 @@ it("allows preview scripts only when explicitly requested", async () => {
   const js = await fetch(`${server.url}/preview/raw/app.js`);
   expect(js.status).toBe(200);
   expect(js.headers.get("content-type")).toContain("text/javascript");
-  expect(await js.text()).toContain("pathlensFixture");
+  expect(await js.text()).toContain("viviFixture");
 }, 10000);
 
 it("closes promptly with an open event stream", async () => {

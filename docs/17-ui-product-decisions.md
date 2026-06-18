@@ -113,7 +113,7 @@ Shortcuts:
 
 - Cmd/Ctrl + K opens quick open for fuzzy filename/path search.
 - Cmd/Ctrl + Shift + F opens full-text search across text-previewable files.
-- Cmd/Ctrl + W closes the active pathlens tab when one is open.
+- Cmd/Ctrl + W closes the active vivi tab when one is open.
 - Cmd/Ctrl + / opens a bundled keyboard shortcut reference.
 - Cmd/Ctrl + O is avoided because it conflicts with browser and operating-system file-open expectations.
 

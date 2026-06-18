@@ -1,328 +1,167 @@
-# pathlens
+# Vivi
 
-A live local viewer for Markdown, HTML, code, and assets.
+Vivi is a read-only visual workspace viewer for agent-written local files.
 
-`pathlens` is a CLI-launched local web app for reviewing local files and generated artifacts. It serves a selected directory, opens a browser-based SPA, renders a live file tree in the sidebar, and previews Markdown, HTML, source code, plain text, images, JSON, CSV/TSV, SVG, Mermaid, logs, and other structured files in the main pane.
+Coding agents write. Humans read, understand the workspace, and give the next
+instruction. Vivi exists for that reading loop: it opens a local directory in a
+rich browser UI with a live file tree, open-file tabs, rendered Markdown, safe
+HTML preview, code/text/image/JSON/CSV/Mermaid viewers, comments, and a Review
+Queue for working-tree changes.
 
-## Why this exists
+Vivi is not a diff-only viewer. It is a local file viewer for reading the whole
+workspace and the surrounding context with low cognitive load.
 
-Opening an HTML file through `file://` solves only the single-file case. Static servers such as `python -m http.server` serve files but do not provide a live tree, Markdown rendering, source-code viewing, or a cohesive browser UI. Markdown previewers solve only one media type. `pathlens` is intended to be a local workspace lens: one UI for inspecting generated artifacts, documentation, examples, and code while files change underneath it.
+## Install
 
-## Core workflows
-
-```bash
-pathlens .
-pathlens ./docs
-pathlens ./dist --open
-pathlens . --include md,html,ts,tsx,json,css,png,jpg
-pathlens . --max-file-size 2097152
-pathlens . --allow-html-scripts
-```
-
-Expected user experience:
-
-1. Run the CLI in or against a directory.
-2. A local server starts on localhost.
-3. The browser SPA shows a sidebar tree and main viewer.
-4. Markdown renders as a polished document by default, with a source toggle.
-5. HTML renders in a sandboxed iframe with local CSS enabled and scripts disabled by default, with a source toggle and clear script status.
-6. Code renders in a read-only inspection view with syntax highlighting, stable line numbers, line-range selection, copyable line references, and lightweight symbols in the inspector.
-7. Text/log files use a readable monospace viewer with wrapping controls.
-8. Images preview with fit-to-screen and actual-size modes.
-9. JSON uses an expandable tree/source viewer; CSV/TSV uses a table/source viewer; Mermaid uses a lightweight safe preview/source viewer, including simple Mermaid fences inside Markdown.
-10. File changes update the currently open viewer without a full page reload and mark inactive tabs as changed.
-11. File additions, deletions, and rename-like add/remove pairs update the sidebar tree dynamically and are grouped as likely renames when safe.
-12. Recent filesystem events appear in a compact review queue so changed files can be opened quickly, and the tree can be filtered to changed files only.
-13. Generated-review targets under directories such as `dist/`, `build/`, `reports/`, `coverage/`, `screenshots/`, and `docs/` are surfaced in the inspector.
-14. In Git worktrees, uncommitted added, modified, deleted, and renamed files appear in the changed-file review list, with a bounded side-by-side text diff for small files.
-15. Comments can be attached to files from source selections, rendered Markdown/HTML selections, and current-file diff lines. Comment status can be open, resolved, or archived.
-16. Large trees start with a bounded auto-expanded view and cap rendered visible rows, while selected or changed files remain easy to reveal.
-
-## What pathlens is not
-
-`pathlens` is not an IDE, editor, Git staging tool, Git history browser, remote file browser, cloud sync service, static-site generator, hosted documentation platform, or LLM product. It focuses on reading, comparing, checking, and following local output as it changes.
-
-## Run With Docker
-
-Docker is the recommended way to run `pathlens` locally because it keeps the Node runtime isolated while mounting the directory you want to inspect as read-only.
+Homebrew is the primary macOS install route:
 
 ```bash
-docker run --rm -it \
-  -p 4317:4317 \
-  -v "$PWD:/workspace:ro" \
-  -v pathlens-data:/data \
-  ghcr.io/tasuku43/pathlens:latest
+brew install tasuku43/tap/vivi
 ```
 
-Then open:
+With mise, install the GitHub Release binary:
+
+```bash
+mise use -g github:tasuku43/vivi
+```
+
+To pin a version:
+
+```bash
+mise use -g github:tasuku43/vivi@v0.1.0
+```
+
+You can also download a prebuilt archive from GitHub Releases. The release
+artifacts are named for the target platform, for example:
 
 ```text
-http://127.0.0.1:4317
+vivi_Darwin_arm64.tar.gz
+vivi_Darwin_x86_64.tar.gz
+vivi_Linux_arm64.tar.gz
+vivi_Linux_x86_64.tar.gz
 ```
 
-The Docker image defaults to serving `/workspace` and binding `0.0.0.0` inside the container so the published port works from the host. The CLI default outside Docker remains `127.0.0.1`.
+Each archive contains a single `vivi` binary. Check `checksums.txt` before
+running a downloaded binary.
 
-The image includes Git and runs it with read-only-safe defaults so the Review Queue can list uncommitted working-tree changes from a read-only bind mount.
-
-For very large repositories mounted through Docker, the Review Queue allows a
-longer Git status scan before reporting Git as unavailable. The image defaults
-`PATHLENS_GIT_STATUS_TIMEOUT_MS` to `180000` for the complete untracked scan,
-and caps the tracked-only fallback with
-`PATHLENS_GIT_STATUS_FALLBACK_TIMEOUT_MS=15000`; raise the complete scan
-timeout for especially slow bind mounts:
+## Usage
 
 ```bash
-docker run --rm -it \
-  -p 4317:4317 \
-  -e PATHLENS_GIT_STATUS_TIMEOUT_MS=300000 \
-  -v "$PWD:/workspace:ro" \
-  pathlens:local
+vivi .
+vivi ./docs
+vivi ./dist --open
+vivi . --include md,html,ts,tsx,json,css,png,jpg
+vivi . --max-file-size 2097152
+vivi . --allow-html-scripts
 ```
 
-Comments are persisted outside the viewed workspace. In Docker, the image uses
-`/data/comments.jsonl`; mount `/data` as a volume when you want comments to
-survive container removal. Outside Docker, set `PATHLENS_DATA_DIR` to choose the
-data directory explicitly.
+Defaults:
 
-If `git rev-parse --git-dir` points outside the directory you are mounting, as it does in a linked Git worktree, also mount the common Git metadata directory at the same absolute path:
+- binds to `127.0.0.1`,
+- serves only the selected workspace,
+- ignores `.git`, `node_modules`, and common build caches,
+- renders HTML in a sandboxed iframe,
+- keeps HTML scripts disabled unless `--allow-html-scripts` is passed,
+- stores browser UI state in `localStorage`,
+- does not store file contents in `localStorage`,
+- sends no telemetry.
 
-```bash
-git_common_dir="$(git rev-parse --path-format=absolute --git-common-dir)"
-docker run --rm -it \
-  -p 4317:4317 \
-  -v "$PWD:/workspace:ro" \
-  -v "$git_common_dir:$git_common_dir:ro" \
-  pathlens:local
-```
+## What Vivi Shows
 
-Because the mount is read-only, pathlens can still restore browser UI state: open tabs, split panes, recent files, and inspector visibility are stored in browser `localStorage`, scoped by the absolute served root and pruned after 30 days. File contents are never stored in the session.
+- A stable sidebar file tree for the selected workspace.
+- Open-file tabs and split panes for reading several files together.
+- Markdown, HTML, code, text/log, image/SVG, JSON, CSV/TSV, and Mermaid viewers.
+- A right inspector with Markdown/HTML H1/H2 outline, metadata, comments, and
+  Review Queue.
+- A modal command palette on `Cmd/Ctrl+K`.
+- Live file refresh from watcher events.
+- Working-tree Review Queue entries for added, modified, deleted, and renamed
+  files when Git is available.
 
-### Build The Docker Image Locally
+## Product Boundary
 
-Use Taskfile for local project tasks:
+Vivi is a local read-only viewer. It is not an IDE, editor, Git staging tool,
+Git history browser, remote file browser, cloud sync service, hosted service,
+or LLM product.
 
-```bash
-task docker:build
-task docker:run
-```
+Vivi reads files under the workspace you choose. It does not intentionally write
+to that workspace. Local comments, when enabled, are Vivi metadata stored
+outside the viewed workspace by default.
 
-Stop the foreground Docker run with `Ctrl+C`. The container uses `tini` and the CLI handles `SIGINT`/`SIGTERM`, so the local watcher and HTTP server shut down cleanly.
+## Security Model
 
-Equivalent Docker commands:
+Vivi is local-first, but it is not magic safety dust.
 
-```bash
-docker build -t pathlens:local .
-docker run --rm -it -p 4317:4317 -v "$PWD:/workspace:ro" -v pathlens-data:/data pathlens:local
-```
+- The default bind address is `127.0.0.1`.
+- Binding to `0.0.0.0` exposes the local server to other machines that can reach
+  the host network. Only do this intentionally.
+- File APIs accept normalized relative paths and reject root escapes.
+- Symlinks that resolve outside the workspace are rejected.
+- Files such as `.env`, private keys, and credentials can be displayed if they
+  are inside the workspace and you open them.
+- HTML preview scripts are disabled by default with iframe sandboxing and CSP.
+- `--allow-html-scripts` should only be used for trusted local artifacts.
+- File contents are not sent to an external service.
+- No telemetry is collected.
 
-To validate a multi-architecture build locally with Docker Buildx:
-
-```bash
-task docker:buildx IMAGE=ghcr.io/tasuku43/pathlens TAG=dev
-```
-
-The local Buildx task targets `linux/amd64,linux/arm64` by default. Override the target platforms when needed:
-
-```bash
-task docker:buildx PLATFORMS=linux/arm64 IMAGE=pathlens TAG=arm64
-```
-
-You can override the image tag, served directory, host port, or Buildx target platforms:
-
-```bash
-task docker:build IMAGE=pathlens TAG=dev
-task docker:run IMAGE=pathlens TAG=dev ROOT="$PWD/docs" PORT=4320
-```
-
-## Other Run Options
-
-Use `npx` when you want to run the npm package without installing it globally:
-
-```bash
-npx pathlens . --open
-```
-
-Or install it as an npm package:
-
-```bash
-npm install -g pathlens
-pathlens . --open
-```
-
-For source checkouts:
-
-```bash
-npm install
-npm run build
-node dist/cli/main.js . --open
-```
-
-### HTML script safety
-
-HTML preview is sandboxed and script execution is disabled by default. Local CSS and images can still load through pathlens preview routes so generated reports remain useful. When a generated artifact genuinely needs JavaScript, opt in explicitly:
-
-```bash
-pathlens ./dist --open --allow-html-scripts
-```
-
-When scripts are allowed, the UI shows `scripts on` in the HTML toolbar and the preview CSP permits inline scripts inside the sandboxed iframe. Only use this for local artifacts you trust.
-
-### Large file limits
-
-By default, rich previews read up to 1 MiB per file. Oversized text-like files show an explicit partial preview of the leading chunk, while oversized HTML, images, and binary-like files stop with a safe explanation. You can raise or lower the limit for a local run:
-
-```bash
-pathlens ./reports --open --max-file-size 2097152
-```
-
-## Keyboard Flow
-
-- `Cmd/Ctrl+K`: quick open by filename or path.
-- `Cmd/Ctrl+Shift+F`: search text across searchable file contents.
-- `Cmd/Ctrl+Shift+C`: open the right-aligned global Comments panel.
-- `Enter`: open the selected file.
-- `Esc`: close overlays such as search, comments, and inline comment cards.
-- In code viewers, click a line number to select a line; shift-click extends the selected range.
-- Drag-select text in source/rendered viewers to open a compact comment composer
-  near the selection. `Shift+Enter` or `Cmd/Ctrl+Enter` saves; plain `Enter`
-  inserts a newline.
-- In diff mode, drag-select current-file context or added text to comment.
-  Deleted old-file lines are not commentable and do not show comment controls.
-
-## Release Images
-
-The release workflow builds and pushes Docker images to GitHub Container Registry:
-
-```text
-ghcr.io/tasuku43/pathlens
-```
-
-Pushing a semver tag such as `v0.1.0` runs the release workflow and pushes both the version tag and `latest`:
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-Release images are multi-architecture manifests for `linux/amd64` and `linux/arm64`. Manual workflow runs are available for validation builds. Provide a `release_tag` value matching `vMAJOR.MINOR.PATCH` only when intentionally publishing that tag; otherwise the workflow publishes a `sha-...` image tag.
-
-## Current product status
-
-This repository is an active implementation of the local read-only viewer. It includes the CLI/server boundary, live tree and SSE plumbing, Git working-tree review for uncommitted changes, multi-file tabs, viewer dispatch, a polished code inspection surface, contextual inspector, fixture-driven evals, and server/UI tests. It is still intentionally scoped as a local viewer rather than an editor, IDE, Git client, hosted service, or LLM product.
-
-## Technical direction
-
-TypeScript is the chosen implementation language because the product spans:
-
-- a CLI entrypoint,
-- a local HTTP/SSE server,
-- a React SPA,
-- shared filesystem event contracts,
-- shared viewer type definitions, and
-- test/eval fixtures.
-
-Using one typed language keeps the API contract between server and client explicit.
+See [docs/15-security-model.md](docs/15-security-model.md) for the longer
+security notes.
 
 ## Development
 
-Install [Task](https://taskfile.dev/) first if it is not already available.
+The distributed `vivi` binary does not require Node.js, npm, or Docker at
+runtime. This repository still uses Node.js for frontend development, Vite
+builds, React tests, and TypeScript checks.
+
+Install [Task](https://taskfile.dev/) and Node.js 20 or newer for development:
 
 ```bash
-npm install
+npm ci
 task check
 task build
 ```
 
-Run the full local validation suite:
+Useful commands:
 
 ```bash
-task check
-```
-
-Run the real-browser comment UI verification when changing the review layer:
-
-```bash
+npm run dev
+npm run e2e
 npm run verify:comment-ui
-```
-
-The scaffold validator can run without installed dependencies:
-
-```bash
 node scripts/validate-scaffold.mjs
 ```
 
-## Repository layout
+The Go backend is the distribution target. The TypeScript server remains useful
+while the migration is in progress because the same API contract tests can be
+run against both implementations.
+
+## Docker
+
+Docker is not a general install option for Vivi. It can still be useful for
+development or verification, but large repositories mounted through Docker bind
+mounts on macOS can make Git and broad filesystem scans very slow. Prefer the
+native binary for normal local workspace reading.
+
+## Repository Layout
 
 ```text
-src/cli/       CLI parsing and process boundary
-src/server/    local HTTP, preview, and event transport
-src/app/       use cases and application contracts
-src/domain/    pure filesystem tree model, path policy, and diff logic
-src/infra/     Node filesystem and watcher adapters
-src/ui/        React SPA, sidebar tree, and viewers
-test/          unit, integration, and E2E tests
+cmd/vivi/      Go CLI entrypoint
+internal/      Go server, filesystem, Git, and API implementation
+src/ui/        React SPA, sidebar tree, tabs, inspector, and viewers
+src/domain/    Shared TypeScript UI/domain helpers during migration
+test/          unit, integration, contract, and E2E tests
 evals/         fixture-driven product evaluations
-docs/          product, architecture, requirements, and agent context
+docs/          product, architecture, release, and security notes
 ```
 
-## Product boundary
+## Release Status
 
-`pathlens` is a local read-only viewer, not an IDE, not a static-site generator, not a Git staging or history client, not a remote file browser, not an LLM product, and not a hosted documentation platform. It should remain fast to start, local-first, and safe by default.
+Release workflow, Homebrew formula, and mise instructions are prepared as
+drafts in this repository. Publishing steps are intentionally manual:
 
-## Viewer behavior
+- repository rename,
+- tag push,
+- GitHub Release creation,
+- Homebrew tap push,
+- mise registry registration.
 
-- Markdown: rendered document by default, source toggle, document typography, tables, code blocks, callouts, and H1/H2 outline in the inspector.
-- HTML: sandboxed iframe preview by default, source toggle, local asset preview support, scripts disabled unless explicitly allowed, and visible script-mode status.
-- Code: syntax-highlighted read-only code viewer with line numbers, line/range selection, copyable references, copyable selected code with path and line numbers, current-scope hinting, and inspector metadata.
-- JSON: expandable tree/source viewer.
-- CSV/TSV: bounded table/source viewer for local reports and exports.
-- Mermaid: lightweight safe preview/source viewer for simple flowchart files and Markdown fenced Mermaid blocks.
-- Text/log: monospaced read-only viewer with wrap/no-wrap toggle.
-- Images/SVG: fit-to-screen and actual-size preview modes with size metadata; SVG renders as an image so scripts stay inactive.
-- Large or unsupported files: safe fallback that explains why a richer preview is unavailable; large text-like files show a bounded leading chunk as an explicit partial preview.
-
-Recent filesystem events are shown as a compact review queue. Change events refresh the active file and mark inactive tabs/changed tree rows; add/remove events refresh the tree. Close add/remove file pairs with the same parent and extension are grouped as likely renames in the review list. In Git worktrees, `pathlens` also reads uncommitted working-tree status and can show a bounded side-by-side text diff from `HEAD` or another recent allowed commit base to the working tree. Git status can surface explicit renamed files in the changed-file list.
-
-Comments are local Pathlens metadata, not edits to the workspace. They are stored
-as one record per comment with a canonical source anchor and optional rendered or
-diff anchor metadata. Diff comments can target context and added lines because
-they exist in the current file; deleted lines from the old file are not
-commentable. Saved source and diff comments show a subtle line highlight and
-gutter marker in the file; clicking the marker opens the inline comment card.
-Use the global Comments panel to search, filter by status, and jump to comments
-across the workspace.
-
-The sidebar avoids expanding every descendant in very large trees on first render and avoids mounting every visible row after a large folder is expanded. It auto-expands within a row budget, keeps selected and changed paths revealable by expanding their ancestors, keeps important rows rendered beyond the normal cap, and shows a small note when collapsed or omitted rows are hiding additional entries.
-
-## Adding a Viewer
-
-Viewer selection starts in `src/domain/viewer-kind.ts`. Add or adjust an extension there, then implement a browser-only component under `src/ui/viewers/` and dispatch it from `src/ui/components/FileViewer.tsx`. Keep filesystem reads in `src/infra`, keep viewer logic read-only, add at least one focused test, and update eval fixtures when the viewer changes product coverage.
-
-## Known Limitations
-
-- Mermaid preview intentionally supports only simple flowchart arrows; source mode or the inline Markdown source disclosure remains the fallback.
-- Git integration is read-only and limited to uncommitted working-tree status plus small side-by-side text diffs from recent commit bases; it does not stage, commit, or browse full history.
-- Large files are capped by the preview size limit; text-like files show a bounded partial preview, while non-text previews stop with a safe explanation.
-- Smooth full tree virtualization and arbitrary commit comparison beyond recent allowed bases are deferred.
-
-## Handing this repository to a coding agent
-
-Instruct the agent to read `AGENTS.md`, `GOALS.md`, `docs/09-codex-runbook.md`, `docs/13-test-and-eval-strategy.md`, and `docs/14-architecture.md`. The agent should implement autonomously, drive behavior with tests and evals, run `task check`, and summarize product behavior, remaining gaps, and contract changes.
-
-## UI mockups and product reference
-
-Static HTML mockups are included under `docs/ui-mocks/` so coding agents can understand the intended product shape without relying on external context.
-
-The preferred direction is:
-
-```text
-docs/ui-mocks/06-classic-reader-commandk.html
-```
-
-It combines a classic explorer sidebar, open-file tabs, a central viewer, a right Markdown outline/inspector, and a modal search palette for quick open and text search.
-
-Relevant docs:
-
-- `docs/17-ui-product-decisions.md`
-- `docs/18-ux-acceptance-criteria.md`
-- `docs/ui-mocks/README.md`
+Those actions should only happen after an explicit human release decision.

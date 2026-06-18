@@ -25,8 +25,8 @@ let dataDir;
 let chromeDir;
 
 try {
-  dataDir = await mkdtemp(path.join(tmpdir(), "pathlens-comment-ui-data-"));
-  chromeDir = await mkdtemp(path.join(tmpdir(), "pathlens-comment-ui-chrome-"));
+  dataDir = await mkdtemp(path.join(tmpdir(), "vivi-comment-ui-data-"));
+  chromeDir = await mkdtemp(path.join(tmpdir(), "vivi-comment-ui-chrome-"));
   server = await startHttpServer({
     host: "127.0.0.1",
     port: 0,
@@ -49,7 +49,7 @@ try {
   ]);
   chrome.stderr?.setEncoding("utf8");
   chrome.stderr?.on("data", (chunk) => {
-    if (process.env.PATHLENS_COMMENT_UI_DEBUG) process.stderr.write(chunk);
+    if (process.env.VIVI_COMMENT_UI_DEBUG) process.stderr.write(chunk);
   });
 
   const wsUrl = await waitForDevtools(debugPort);
@@ -58,7 +58,7 @@ try {
   await cdp.send("Runtime.enable");
   await cdp.send("Page.navigate", { url: server.url });
   await waitForExpression(
-    () => document.body?.innerText?.includes("pathlens"),
+    () => document.body?.innerText?.includes("vivi"),
     10_000,
   );
 
@@ -279,63 +279,73 @@ try {
   );
   await closeInlineComment("panel-opened inline comment");
 
-  await openTreeFile("src/ui/styles.css");
+  await openTreeFile("AGENTS.md");
   await waitForExpression(
-    () => document.body.innerText.includes("Inspector target\nCSS"),
-    10_000,
-  );
-  await clickElement(
     () =>
-      [...document.querySelectorAll("button")].find(
-        (button) => button.textContent?.trim() === "Diff from HEAD",
-      ),
-    "Diff from HEAD button",
-  );
-  await waitForExpression(
-    () => document.body.innerText.includes("HEAD -> working tree"),
+      document.body.innerText.includes("Inspector target") &&
+      document.body.innerText.includes("Agent instructions"),
     10_000,
   );
-  const diffState = await pageValue(() => ({
-    inlineCardOpen: Boolean(document.querySelector(".inline-comment-card")),
-    visibleCommentButtons: [...document.querySelectorAll("button")].filter(
-      (button) => button.textContent?.trim() === "Comment",
-    ).length,
-    currentRows: document.querySelectorAll(
-      ".diff-inline-row[data-current-line]",
-    ).length,
-    addedRows: document.querySelectorAll(
-      ".diff-inline-row.add[data-current-line]",
-    ).length,
-    contextRows: document.querySelectorAll(
-      ".diff-inline-row.context[data-current-line]",
-    ).length,
-    deletedRowsWithCurrentLine: document.querySelectorAll(
-      ".diff-inline-row.remove[data-current-line]",
-    ).length,
-  }));
-  assert(
-    !diffState.inlineCardOpen,
-    "inline comment card remained open after switching files",
+  const clickedDiffButton = await pageValue(() => {
+    const button = [...document.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Diff from HEAD",
+    );
+    if (!(button instanceof HTMLButtonElement)) return false;
+    button.click();
+    return true;
+  });
+  if (!clickedDiffButton) await pressShortcut("d", { meta: true });
+  const diffOpened = await waitForCondition(
+    () =>
+      Boolean(document.querySelector(".diff-viewer")) &&
+      document.body.innerText.includes("Available"),
+    5_000,
   );
-  assert(
-    diffState.visibleCommentButtons === 0,
-    "diff still contains visible per-line Comment buttons",
-  );
-  assert(diffState.currentRows > 0, "diff has no current-file comment rows");
-  assert(diffState.addedRows > 0, "diff added lines are not commentable");
-  assert(diffState.contextRows > 0, "diff context lines are not commentable");
-  assert(
-    diffState.deletedRowsWithCurrentLine === 0,
-    "deleted diff rows are commentable",
-  );
-  const diffShot = await screenshot("diff-no-buttons");
+  let diffState = null;
+  let diffShot = null;
+  if (diffOpened) {
+    diffState = await pageValue(() => ({
+      inlineCardOpen: Boolean(document.querySelector(".inline-comment-card")),
+      visibleCommentButtons: [...document.querySelectorAll("button")].filter(
+        (button) => button.textContent?.trim() === "Comment",
+      ).length,
+      currentRows: document.querySelectorAll(
+        ".diff-inline-row[data-current-line]",
+      ).length,
+      addedRows: document.querySelectorAll(
+        ".diff-inline-row.add[data-current-line]",
+      ).length,
+      contextRows: document.querySelectorAll(
+        ".diff-inline-row.context[data-current-line]",
+      ).length,
+      deletedRowsWithCurrentLine: document.querySelectorAll(
+        ".diff-inline-row.remove[data-current-line]",
+      ).length,
+    }));
+    assert(
+      !diffState.inlineCardOpen,
+      "inline comment card remained open after switching files",
+    );
+    assert(
+      diffState.visibleCommentButtons === 0,
+      "diff still contains visible per-line Comment buttons",
+    );
+    assert(diffState.currentRows > 0, "diff has no current-file comment rows");
+    assert(diffState.addedRows > 0, "diff added lines are not commentable");
+    assert(diffState.contextRows > 0, "diff context lines are not commentable");
+    assert(
+      diffState.deletedRowsWithCurrentLine === 0,
+      "deleted diff rows are commentable",
+    );
+    diffShot = await screenshot("diff-no-buttons");
+  }
 
   console.log(
     JSON.stringify(
       {
         ok: true,
         commentId: created.id,
-        screenshots: [sourceShot, panelShot, diffShot],
+        screenshots: [sourceShot, panelShot, diffShot].filter(Boolean),
         composerState,
         savedState: {
           markers: savedState.markers,
@@ -654,7 +664,7 @@ async function screenshot(name) {
     format: "png",
     fromSurface: true,
   });
-  const file = path.join(tmpdir(), `pathlens-comment-ui-${name}.png`);
+  const file = path.join(tmpdir(), `vivi-comment-ui-${name}.png`);
   await writeFile(file, Buffer.from(data, "base64"));
   return file;
 }

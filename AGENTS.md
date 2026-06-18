@@ -1,6 +1,6 @@
 # Agent instructions
 
-This repository is a scaffold for `pathlens`, a TypeScript CLI that launches a local browser SPA for live viewing a directory tree and previewing Markdown, HTML, code, text, images, and structured files.
+This repository is a scaffold for `vivi`, a CLI that launches a local browser SPA for live viewing a directory tree and previewing Markdown, HTML, code, text, images, and structured files.
 
 ## Operating mode
 

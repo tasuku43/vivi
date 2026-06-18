@@ -16,7 +16,7 @@ import type {
 } from "../domain/search.js";
 import type {
   CommentListFilters,
-  PathlensComment,
+  ViviComment,
 } from "../domain/comments.js";
 
 export interface FileSystemPort {
@@ -63,10 +63,10 @@ export interface ChangeReviewPort {
 }
 
 export interface CommentStorePort {
-  listComments(filters?: CommentListFilters): Promise<PathlensComment[]>;
-  createComment(comment: PathlensComment): Promise<PathlensComment>;
-  updateComment(comment: PathlensComment): Promise<PathlensComment>;
-  getComment(id: string): Promise<PathlensComment | null>;
+  listComments(filters?: CommentListFilters): Promise<ViviComment[]>;
+  createComment(comment: ViviComment): Promise<ViviComment>;
+  updateComment(comment: ViviComment): Promise<ViviComment>;
+  getComment(id: string): Promise<ViviComment | null>;
 }
 
 export interface ViewerServiceOptions {

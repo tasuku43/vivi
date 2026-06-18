@@ -7,7 +7,7 @@ import { NodeFileSystem } from "../../src/infra/node-file-system.js";
 let dir: string;
 
 beforeEach(async () => {
-  dir = await mkdtemp(path.join(tmpdir(), "pathlens-"));
+  dir = await mkdtemp(path.join(tmpdir(), "vivi-"));
   await writeFile(path.join(dir, "README.md"), "# Hello");
   await writeFile(path.join(dir, "index.html"), "<h1>Hello</h1>");
   await mkdir(path.join(dir, "docs"));

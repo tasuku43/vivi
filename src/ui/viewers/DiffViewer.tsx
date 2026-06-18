@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TextDiff } from "../../domain/change-review.js";
-import type { PathlensComment } from "../../domain/comments.js";
+import type { ViviComment } from "../../domain/comments.js";
 import type { FilePayload } from "../../domain/fs-node.js";
 import {
   diffStatusLabel,
@@ -53,7 +53,7 @@ export function DiffViewer({
   file?: FilePayload;
   onFocusChangesChange?: (focusChanges: boolean) => void;
   onCreateComment?: CommentCreateHandler;
-  comments?: PathlensComment[];
+  comments?: ViviComment[];
   activeCommentId?: string | null;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
@@ -126,7 +126,7 @@ function SourceDiff({
   theme: ResolvedTheme;
   file?: FilePayload;
   onCreateComment?: CommentCreateHandler;
-  comments: PathlensComment[];
+  comments: ViviComment[];
   activeCommentId?: string | null;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
@@ -268,7 +268,7 @@ function SourceDiffLine({
 }: {
   line: SourceDiffRow;
   html: string;
-  comments: PathlensComment[];
+  comments: ViviComment[];
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
   const currentLine =
@@ -336,7 +336,7 @@ function RenderedDiff({
   renderKind: Exclude<RenderKind, "source">;
   file?: FilePayload;
   onCreateComment?: CommentCreateHandler;
-  comments: PathlensComment[];
+  comments: ViviComment[];
   activeCommentId?: string | null;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
@@ -400,7 +400,7 @@ function RenderedHtmlDiff({
 }: {
   diff: TextDiff;
   rows: RenderedDiffRow[];
-  comments: PathlensComment[];
+  comments: ViviComment[];
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
   return (
@@ -426,7 +426,7 @@ function RenderedHtmlDiffBlock({
   onOpenComment,
 }: {
   row: RenderedDiffRow;
-  comments: PathlensComment[];
+  comments: ViviComment[];
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
   if (row.kind === "gap") return <DiffGap label={row.source} />;
@@ -479,7 +479,7 @@ function RenderedMarkdownDiff({
   rows: RenderedDiffRow[];
   file?: FilePayload;
   onCreateComment?: CommentCreateHandler;
-  comments: PathlensComment[];
+  comments: ViviComment[];
   activeCommentId?: string | null;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
@@ -574,7 +574,7 @@ function RenderedMarkdownDiffBlock({
   onOpenComment,
 }: {
   row: RenderedDiffRow;
-  comments: PathlensComment[];
+  comments: ViviComment[];
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
   if (row.kind === "gap") return <DiffGap label={row.source} />;

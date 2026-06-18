@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import type { TextDiff } from "../../domain/change-review.js";
-import type { PathlensComment } from "../../domain/comments.js";
+import type { ViviComment } from "../../domain/comments.js";
 import type { FilePayload } from "../../domain/fs-node.js";
 import {
   lineRangeForQuote,
@@ -47,7 +47,7 @@ export function CsvViewer({
   onDiffToggle?: () => void;
   onDiffFocusChange?: (focusChanges: boolean) => void;
   onCreateComment?: CommentCreateHandler;
-  comments?: PathlensComment[];
+  comments?: ViviComment[];
   activeCommentId?: string | null;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {

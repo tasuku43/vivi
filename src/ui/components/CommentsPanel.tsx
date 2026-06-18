@@ -1,4 +1,4 @@
-import type { CommentStatus, PathlensComment } from "../../domain/comments.js";
+import type { CommentStatus, ViviComment } from "../../domain/comments.js";
 import {
   commentLineLabel,
   statusLabel,
@@ -18,13 +18,13 @@ export function CommentsPanel({
   onOpenComment,
 }: {
   open: boolean;
-  comments: PathlensComment[];
+  comments: ViviComment[];
   query: string;
   statusFilter: StatusFilter;
   onQueryChange: (query: string) => void;
   onStatusFilterChange: (status: StatusFilter) => void;
   onClose: () => void;
-  onOpenComment: (comment: PathlensComment) => void;
+  onOpenComment: (comment: ViviComment) => void;
 }) {
   if (!open) return null;
   const visibleComments = comments.filter((comment) => {

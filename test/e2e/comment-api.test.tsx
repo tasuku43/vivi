@@ -4,7 +4,7 @@ import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { ViewerService } from "../../src/app/viewer-service.js";
-import type { PathlensComment } from "../../src/domain/comments.js";
+import type { ViviComment } from "../../src/domain/comments.js";
 import type { FilePayload } from "../../src/domain/fs-node.js";
 import { NodeCommentStore } from "../../src/infra/node-comment-store.js";
 import { NodeFileSystem } from "../../src/infra/node-file-system.js";
@@ -19,8 +19,8 @@ let dataDir: string;
 let server: { url: string; close: () => Promise<void> } | null = null;
 
 beforeEach(async () => {
-  workspaceDir = await mkdtemp(path.join(tmpdir(), "pathlens-comments-root-"));
-  dataDir = await mkdtemp(path.join(tmpdir(), "pathlens-comments-data-"));
+  workspaceDir = await mkdtemp(path.join(tmpdir(), "vivi-comments-root-"));
+  dataDir = await mkdtemp(path.join(tmpdir(), "vivi-comments-data-"));
   await mkdir(path.join(workspaceDir, "src"), { recursive: true });
   await writeFile(
     path.join(workspaceDir, "README.md"),
@@ -156,21 +156,21 @@ it("creates, lists, updates, persists, and exports comments", async () => {
   });
   expect(deletedLineAttempt.status).toBe(400);
 
-  const byPath = await fetchJson<PathlensComment[]>(
+  const byPath = await fetchJson<ViviComment[]>(
     "/api/v1/comments?path=src%2Fapp.ts",
   );
   expect(byPath.map((comment) => comment.id).sort()).toEqual(
     [source.id, diffContext.id, diffAdded.id].sort(),
   );
 
-  const resolved = await patchJson<PathlensComment>(
+  const resolved = await patchJson<ViviComment>(
     `/api/v1/comments/${source.id}`,
     { status: "resolved" },
   );
   expect(resolved.status).toBe("resolved");
   expect(resolved.resolvedAt).toBeDefined();
 
-  const openOnly = await fetchJson<PathlensComment[]>(
+  const openOnly = await fetchJson<ViviComment[]>(
     "/api/v1/comments?status=open",
   );
   expect(openOnly).toHaveLength(4);
@@ -216,7 +216,7 @@ it("creates a comment from the UI anchor model and renders it after retrieval", 
   expect(created.anchor.surface).toBe("rendered");
   expect(created.anchor.canonical.lineStart).toBe(3);
 
-  const retrieved = await fetchJson<PathlensComment[]>(
+  const retrieved = await fetchJson<ViviComment[]>(
     "/api/v1/comments?path=README.md",
   );
   expect(retrieved).toContainEqual(
@@ -289,14 +289,14 @@ async function fetchJson<T>(route: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-async function postComment(body: unknown): Promise<PathlensComment> {
+async function postComment(body: unknown): Promise<ViviComment> {
   const response = await fetch(`${server!.url}/api/v1/comments`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
   expect(response.status).toBe(201);
-  return (await response.json()) as PathlensComment;
+  return (await response.json()) as ViviComment;
 }
 
 async function patchJson<T>(route: string, body: unknown): Promise<T> {

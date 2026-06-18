@@ -2,7 +2,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 const exclude =
-  process.env.PATHLENS_E2E === "1"
+  process.env.VIVI_E2E === "1"
     ? ["node_modules/**", "dist/**"]
     : ["node_modules/**", "dist/**", "test/e2e/**"];
 

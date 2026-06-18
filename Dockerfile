@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
-FROM node:20-alpine AS build
-WORKDIR /app
+FROM node:20-alpine AS ui-build
+WORKDIR /src
 
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -9,21 +9,26 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM node:20-alpine AS runtime
+FROM golang:1.22-alpine AS go-build
+WORKDIR /src
+
+COPY . .
+COPY --from=ui-build /src/dist/ui ./dist/ui
+
+RUN go test ./...
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/vivi ./cmd/vivi
+
+FROM alpine:3.20 AS runtime
 WORKDIR /app
 
-ENV NODE_ENV=production
 ENV GIT_OPTIONAL_LOCKS=0 \
     GIT_CONFIG_COUNT=1 \
     GIT_CONFIG_KEY_0=safe.directory \
     GIT_CONFIG_VALUE_0=* \
-    PATHLENS_GIT_STATUS_TIMEOUT_MS=180000 \
-    PATHLENS_GIT_STATUS_FALLBACK_TIMEOUT_MS=15000 \
-    PATHLENS_DATA_DIR=/data
-RUN apk add --no-cache git tini && mkdir -p /data
-COPY --from=build /app/package.json ./package.json
-COPY --from=build /app/dist ./dist
+    VIVI_DATA_DIR=/data
+RUN apk add --no-cache ca-certificates git tini && mkdir -p /data
+COPY --from=go-build /out/vivi /app/vivi
 
 EXPOSE 4317
-ENTRYPOINT ["tini", "--", "node", "dist/cli/main.js"]
-CMD ["/workspace", "--host", "0.0.0.0"]
+ENTRYPOINT ["tini", "--", "/app/vivi"]
+CMD ["/workspace", "--host", "0.0.0.0", "--git-review-timeout", "180s"]
