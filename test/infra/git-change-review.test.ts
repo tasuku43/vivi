@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -52,6 +52,51 @@ it("reads uncommitted Git changes and small text diffs", async () => {
   expect(added.status).toBe("available");
   expect(added.content).toContain("+++ b/report.csv");
   expect(added.content).toContain("+html,ok");
+});
+
+it("reports Git changes under a subdirectory workspace as workspace-relative paths", async () => {
+  const workspaceDir = path.join(dir, "packages", "app");
+  await mkdir(path.join(workspaceDir, "src"), { recursive: true });
+  await writeFile(path.join(workspaceDir, "README.md"), "# App\n");
+  await writeFile(
+    path.join(workspaceDir, "src", "index.ts"),
+    "export const value = 1;\n",
+  );
+  await writeFile(path.join(dir, "other.md"), "# Other\n");
+  await git([
+    "add",
+    "packages/app/README.md",
+    "packages/app/src/index.ts",
+    "other.md",
+  ]);
+  await git(["commit", "-m", "workspace fixture"]);
+
+  await writeFile(path.join(workspaceDir, "README.md"), "# App changed\n");
+  await writeFile(
+    path.join(workspaceDir, "src", "index.ts"),
+    "export const value = 2;\n",
+  );
+  await writeFile(path.join(dir, "other.md"), "# Other changed\n");
+
+  const review = new GitChangeReview({ rootDir: workspaceDir });
+  const changes = await review.readChanges();
+
+  expect(changes.available).toBe(true);
+  expect(changes.changes).toEqual([
+    { path: "README.md", status: "modified" },
+    { path: "src/index.ts", status: "modified" },
+  ]);
+
+  const diff = await review.readDiff("README.md");
+  expect(diff.status).toBe("available");
+  expect(diff.path).toBe("README.md");
+  expect(diff.content).toContain("diff --git a/README.md b/README.md");
+  expect(diff.content).not.toContain("packages/app/README.md");
+
+  await expect(review.readDiff("../other.md")).resolves.toMatchObject({
+    status: "unavailable",
+    reason: "path escapes root",
+  });
 });
 
 it("lists recent diff bases and compares from an allowed older commit", async () => {

@@ -294,6 +294,24 @@ it("routes watcher change events to active file reloads and inactive markers", (
   });
 });
 
+it("reloads active tabs for add events that may represent a first observed change", () => {
+  const activePaths = activePanePaths([
+    { id: "main", activePath: "README.md" },
+  ]);
+
+  expect(
+    decideLiveRefresh(
+      { type: "add", path: "README.md", kind: "file", version: 2 },
+      activePaths,
+    ),
+  ).toEqual({
+    reloadPath: "README.md",
+    stalePath: null,
+    removedPath: null,
+    treeRefreshParentPath: "",
+  });
+});
+
 it("keeps tree refresh decisions separate from file content reloads", () => {
   expect(
     decideLiveRefresh(
@@ -302,7 +320,7 @@ it("keeps tree refresh decisions separate from file content reloads", () => {
     ),
   ).toEqual({
     reloadPath: null,
-    stalePath: null,
+    stalePath: "docs/new.md",
     removedPath: null,
     treeRefreshParentPath: "docs",
   });

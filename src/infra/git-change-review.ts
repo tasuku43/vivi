@@ -60,21 +60,35 @@ export class GitChangeReview implements ChangeReviewPort {
       };
     }
 
-    const repo = await this.git(["rev-parse", "--show-toplevel"]);
-    if (!repo.ok)
-      return this.unavailableChanges(await this.explainGitFailure(repo.reason));
+    const workspace = await this.resolveGitWorkspace();
+    if (!workspace.ok)
+      return this.unavailableChanges(
+        await this.explainGitFailure(workspace.reason),
+      );
 
-    const status = await this.git(["status", "--porcelain=v1", "-z", "--"]);
+    const status = await this.git([
+      "status",
+      "--porcelain=v1",
+      "-z",
+      "--",
+      ".",
+    ]);
     if (!status.ok)
       return this.unavailableChanges(
         await this.explainGitFailure(status.reason),
       );
 
+    const changes = parseGitPorcelainStatus(status.stdout)
+      .map((change) =>
+        gitChangeToWorkspaceChange(change, workspace.workspacePrefix),
+      )
+      .filter((change): change is GitChange => Boolean(change))
+      .filter((change) => this.isReviewablePath(change.path))
+      .sort((a, b) => a.path.localeCompare(b.path));
+
     return {
       available: true,
-      changes: parseGitPorcelainStatus(status.stdout).filter((change) =>
-        this.isReviewablePath(change.path),
-      ),
+      changes,
     };
   }
 
@@ -129,6 +143,13 @@ export class GitChangeReview implements ChangeReviewPort {
         changes.reason ?? "Git unavailable",
       );
 
+    const workspace = await this.resolveGitWorkspace();
+    if (!workspace.ok)
+      return unavailable(
+        resolved.relativePath,
+        await this.explainGitFailure(workspace.reason),
+      );
+
     const change = changes.changes.find(
       (item) => item.path === resolved.relativePath,
     );
@@ -141,20 +162,28 @@ export class GitChangeReview implements ChangeReviewPort {
     if (change.status === "added" && base.option.ref === "HEAD")
       return this.readAddedDiff(change, base.option);
     if (change.status === "deleted" || change.status === "renamed")
-      return this.readGitDiff(change.path, base.option);
-    return this.readGitDiff(change.path, base.option);
+      return this.readGitDiff(change.path, base.option, workspace);
+    return this.readGitDiff(change.path, base.option, workspace);
   }
 
   private async readGitDiff(
     relativePath: string,
     base: DiffBaseOption,
+    workspace: GitWorkspace,
   ): Promise<TextDiff> {
-    const diff = await this.git(
-      ["diff", "--unified=1000000", base.ref, "--", relativePath],
-      {
-        maxBuffer: this.maxDiffBytes * 4 + 64 * 1024,
-      },
-    );
+    const args = [
+      "diff",
+      ...(workspace.workspacePrefix
+        ? [`--relative=${workspace.workspacePrefix}`]
+        : []),
+      "--unified=1000000",
+      base.ref,
+      "--",
+      relativePath,
+    ];
+    const diff = await this.git(args, {
+      maxBuffer: this.maxDiffBytes * 4 + 64 * 1024,
+    });
     if (!diff.ok) return unavailable(relativePath, diff.reason);
     if (!diff.stdout.trim())
       return unavailable(
@@ -265,6 +294,32 @@ export class GitChangeReview implements ChangeReviewPort {
       return { ok: false, reason: "path escapes root" };
     }
     return { ok: true, absolutePath, relativePath: normalized.relativePath };
+  }
+
+  private async resolveGitWorkspace(): Promise<
+    ({ ok: true } & GitWorkspace) | { ok: false; reason: string }
+  > {
+    const repo = await this.git(["rev-parse", "--show-toplevel"]);
+    if (!repo.ok) return { ok: false, reason: repo.reason };
+    const gitRoot = await realpathOrResolve(repo.stdout.trim());
+    const workspaceRoot = await realpathOrResolve(this.rootDir);
+    const relativeToGitRoot = path
+      .relative(gitRoot, workspaceRoot)
+      .split(path.sep)
+      .join("/");
+    const normalized = normalizeRelativePath(relativeToGitRoot);
+    if (
+      !normalized.ok ||
+      relativeToGitRoot.startsWith("../") ||
+      path.isAbsolute(relativeToGitRoot)
+    ) {
+      return { ok: false, reason: "workspace is outside the Git repository" };
+    }
+    return {
+      ok: true,
+      gitRoot,
+      workspacePrefix: normalized.relativePath,
+    };
   }
 
   private isReviewablePath(relativePath: string): boolean {
@@ -437,6 +492,51 @@ export class GitChangeReview implements ChangeReviewPort {
   }
 }
 
+interface GitWorkspace {
+  gitRoot: string;
+  workspacePrefix: string;
+}
+
+function gitChangeToWorkspaceChange(
+  change: GitChange,
+  workspacePrefix: string,
+): GitChange | null {
+  const pathInWorkspace = gitPathToWorkspacePath(change.path, workspacePrefix);
+  const originalPathInWorkspace = change.originalPath
+    ? gitPathToWorkspacePath(change.originalPath, workspacePrefix)
+    : null;
+
+  if (change.status === "renamed") {
+    if (pathInWorkspace && originalPathInWorkspace) {
+      return {
+        path: pathInWorkspace,
+        originalPath: originalPathInWorkspace,
+        status: "renamed",
+      };
+    }
+    if (pathInWorkspace) return { path: pathInWorkspace, status: "added" };
+    if (originalPathInWorkspace)
+      return { path: originalPathInWorkspace, status: "deleted" };
+    return null;
+  }
+
+  if (!pathInWorkspace) return null;
+  return { ...change, path: pathInWorkspace };
+}
+
+function gitPathToWorkspacePath(
+  gitRelativePath: string,
+  workspacePrefix: string,
+): string | null {
+  const normalized = normalizeRelativePath(gitRelativePath);
+  if (!normalized.ok || !normalized.relativePath) return null;
+  if (!workspacePrefix) return normalized.relativePath;
+  const prefix = `${workspacePrefix}/`;
+  if (!normalized.relativePath.startsWith(prefix)) return null;
+  const relativePath = normalized.relativePath.slice(prefix.length);
+  return relativePath || null;
+}
+
 function unavailable(pathname: string, reason: string): TextDiff {
   return {
     path: pathname,
@@ -446,6 +546,14 @@ function unavailable(pathname: string, reason: string): TextDiff {
     content: "",
     reason,
   };
+}
+
+async function realpathOrResolve(pathname: string): Promise<string> {
+  try {
+    return await fs.realpath(path.resolve(pathname));
+  } catch {
+    return path.resolve(pathname);
+  }
 }
 
 function parseDiffBaseLog(

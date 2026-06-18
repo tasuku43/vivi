@@ -102,6 +102,77 @@ it("serves binary diff status for changed image files", async () => {
   expect(diff.reason).toBe("Binary diff is not shown in pathlens.");
 }, 10000);
 
+it("keeps Git subdirectory workspaces bounded to workspace-relative API paths", async () => {
+  const workspaceDir = path.join(dir, "packages", "app");
+  await mkdir(path.join(workspaceDir, "src"), { recursive: true });
+  await writeFile(path.join(workspaceDir, "README.md"), "# App\n");
+  await writeFile(
+    path.join(workspaceDir, "src", "index.ts"),
+    "export const value = 1;\n",
+  );
+  await writeFile(path.join(dir, "other.md"), "# Other\n");
+  await git(
+    "add",
+    "packages/app/README.md",
+    "packages/app/src/index.ts",
+    "other.md",
+  );
+  await git("commit", "-m", "subdirectory workspace");
+
+  await writeFile(path.join(workspaceDir, "README.md"), "# App changed\n");
+  await writeFile(
+    path.join(workspaceDir, "src", "index.ts"),
+    "export const value = 2;\n",
+  );
+  await writeFile(path.join(dir, "other.md"), "# Other changed\n");
+
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: workspaceDir }),
+    changeReview: new GitChangeReview({ rootDir: workspaceDir }),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const tree = await fetch(`${server.url}/api/tree`).then(
+    (res) => res.json() as Promise<{ nodes: Array<{ path: string }> }>,
+  );
+  expect(tree.nodes.map((node) => node.path)).toContain("README.md");
+  expect(JSON.stringify(tree)).toContain("src/index.ts");
+  expect(JSON.stringify(tree)).not.toContain("other.md");
+
+  const outside = await fetch(
+    `${server.url}/api/file?path=${encodeURIComponent("../../other.md")}`,
+  );
+  expect(outside.status).toBe(400);
+
+  const changes = await fetch(`${server.url}/api/changes`).then(
+    (res) =>
+      res.json() as Promise<{
+        available: boolean;
+        changes: Array<{ path: string; status: string }>;
+      }>,
+  );
+  expect(changes.available).toBe(true);
+  expect(changes.changes).toEqual([
+    { path: "README.md", status: "modified" },
+    { path: "src/index.ts", status: "modified" },
+  ]);
+
+  const diff = await fetch(
+    `${server.url}/api/diff?path=${encodeURIComponent("README.md")}&base=HEAD`,
+  ).then(
+    (res) =>
+      res.json() as Promise<{
+        path: string;
+        status: string;
+        content: string;
+      }>,
+  );
+  expect(diff.path).toBe("README.md");
+  expect(diff.status).toBe("available");
+  expect(diff.content).toContain("diff --git a/README.md b/README.md");
+  expect(diff.content).not.toContain("packages/app/README.md");
+}, 10000);
+
 async function git(...args: string[]) {
   await execFileAsync("git", args, { cwd: dir });
 }

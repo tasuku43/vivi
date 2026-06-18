@@ -21,13 +21,12 @@ export function decideLiveRefresh(
   event: FsEvent,
   activePaths: ReadonlySet<string>,
 ): LiveRefreshDecision {
+  const openFileChanged =
+    event.type !== "unlink" && activePaths.has(event.path);
   return {
-    reloadPath:
-      event.type === "change" && activePaths.has(event.path)
-        ? event.path
-        : null,
+    reloadPath: openFileChanged ? event.path : null,
     stalePath:
-      event.type === "change" && !activePaths.has(event.path)
+      event.type !== "unlink" && !activePaths.has(event.path)
         ? event.path
         : null,
     removedPath: event.type === "unlink" ? event.path : null,
