@@ -16,7 +16,8 @@ workspace and the surrounding context with low cognitive load.
 Homebrew is the primary macOS install route:
 
 ```bash
-brew install tasuku43/tap/vivi
+brew tap tasuku43/vivi
+brew install vivi
 ```
 
 With mise, install the GitHub Release binary:

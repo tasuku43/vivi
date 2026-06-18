@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
   id-token: write
   attestations: write
 
@@ -78,7 +79,7 @@ jobs:
           CGO_ENABLED: "0"
         run: |
           mkdir -p "dist/release/${{ matrix.name }}"
-          go build -trimpath -ldflags="-s -w" -o "dist/release/${{ matrix.name }}/vivi" ./cmd/vivi
+          go build -trimpath -ldflags="-s -w -X main.version=${RELEASE_TAG:-0.0.0}" -o "dist/release/${{ matrix.name }}/vivi" ./cmd/vivi
           tar -C "dist/release/${{ matrix.name }}" -czf "dist/release/${{ matrix.artifact }}" vivi
 
       - uses: actions/upload-artifact@v4
@@ -91,6 +92,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: dist/release
@@ -124,3 +127,55 @@ jobs:
           files: |
             dist/release/vivi_*.tar.gz
             dist/release/checksums.txt
+
+      - name: Determine release channel (stable only)
+        if: github.event_name == 'push'
+        id: channel
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          if [[ "${tag}" == *-* ]]; then
+            echo "stable=false" >>"${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          echo "stable=true" >>"${GITHUB_OUTPUT}"
+
+      - name: Create GitHub App token for Homebrew tap
+        if: github.event_name == 'push' && steps.channel.outputs.stable == 'true'
+        id: homebrew-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HOMEBREW_APP_ID }}
+          private-key: ${{ secrets.HOMEBREW_APP_KEY }}
+          owner: tasuku43
+          repositories: homebrew-vivi
+
+      - name: Checkout Homebrew tap
+        if: github.event_name == 'push' && steps.channel.outputs.stable == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: tasuku43/homebrew-vivi
+          token: ${{ steps.homebrew-token.outputs.token }}
+          path: homebrew-tap
+
+      - name: Update Homebrew formula
+        if: github.event_name == 'push' && steps.channel.outputs.stable == 'true'
+        working-directory: homebrew-tap
+        run: |
+          bash ../.github/scripts/update-homebrew-formula.sh "${GITHUB_REF_NAME}" "../dist/release/checksums.txt"
+
+      - name: Create PR for Homebrew formula update
+        if: github.event_name == 'push' && steps.channel.outputs.stable == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ steps.homebrew-token.outputs.token }}
+          path: homebrew-tap
+          commit-message: "Update Homebrew formula for ${{ github.ref_name }}"
+          title: "Update Homebrew formula for ${{ github.ref_name }}"
+          body: |
+            Updates `Formula/vivi.rb` to point to GitHub Releases artifacts for `${{ github.ref_name }}`.
+          add-paths: |
+            Formula/vivi.rb
+          base: main
+          branch: "chore/homebrew-formula-${{ github.ref_name }}"
+          delete-branch: true

@@ -40,6 +40,7 @@ const required = [
   "docs/15-security-model.md",
   "docs/20-go-backend-design.md",
   "docs/install.md",
+  "docs/release/releasing.md",
   "docs/release/homebrew/vivi.rb",
   "SECURITY.md",
   "evals/cases/basic-tree.json",
@@ -83,6 +84,9 @@ if (existsSync(releaseWorkflowPath)) {
     "go build",
     "actions/attest-build-provenance",
     "draft: true",
+    "actions/create-github-app-token",
+    "homebrew-vivi",
+    ".github/scripts/update-homebrew-formula.sh",
   ];
 
   for (const snippet of requiredReleaseSnippets) {
@@ -143,7 +147,8 @@ if (existsSync(readmePath)) {
     );
   }
   for (const snippet of [
-    "brew install tasuku43/tap/vivi",
+    "brew tap tasuku43/vivi",
+    "brew install vivi",
     "mise use -g github:tasuku43/vivi",
     "GitHub Releases",
   ]) {

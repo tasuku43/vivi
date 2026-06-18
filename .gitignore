@@ -1,6 +1,6 @@
 node_modules/
 dist/
-vivi
+/vivi
 .tmp-go-build-cache/
 .tmp-go-mod-cache/
 public/vivi/vendor/mermaid.min.js

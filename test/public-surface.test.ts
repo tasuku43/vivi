@@ -23,7 +23,8 @@ it("keeps the public README on the Vivi binary distribution path", () => {
   expect(readme).not.toMatch(
     new RegExp(`\\b${oldTitleName}\\b|\\b${oldLowerName}\\b`),
   );
-  expect(installSection).toContain("brew install tasuku43/tap/vivi");
+  expect(installSection).toContain("brew tap tasuku43/vivi");
+  expect(installSection).toContain("brew install vivi");
   expect(installSection).toContain("mise");
   expect(installSection).toContain("GitHub Releases");
   expect(installSection).not.toMatch(/\bnpx\b|npm install|docker run/i);
@@ -46,7 +47,8 @@ it("keeps Homebrew and mise install drafts on the vivi command", () => {
 
   expect(formula).toContain("class Vivi < Formula");
   expect(formula).toContain("vivi --version");
-  expect(install).toContain("brew install tasuku43/tap/vivi");
+  expect(install).toContain("brew tap tasuku43/vivi");
+  expect(install).toContain("brew install vivi");
   expect(install).toContain("vivi .");
   expect(install).not.toMatch(
     new RegExp(`\\b${oldLowerName}\\b|npm install|npx`, "i"),

@@ -11,10 +11,20 @@ it("builds release archives for the Vivi single binary", () => {
   expect(workflow).toContain("vivi_Darwin_arm64.tar.gz");
   expect(workflow).toContain("vivi_Linux_x86_64.tar.gz");
   expect(workflow).toContain("checksums.txt");
+  expect(workflow).toContain("actions/create-github-app-token");
+  expect(workflow).toContain("homebrew-vivi");
+  expect(workflow).toContain(".github/scripts/update-homebrew-formula.sh");
   expect(workflow).not.toContain("docker/build-push-action");
   expect(workflow).not.toMatch(
     /npm publish|NODE_AUTH_TOKEN|container registry/i,
   );
+});
+
+it("keeps the Go CLI entrypoint visible to git", () => {
+  const gitignore = readFileSync(".gitignore", "utf8");
+
+  expect(gitignore).toContain("/vivi");
+  expect(gitignore).not.toMatch(/^vivi$/m);
 });
 
 it("documents Docker only as a development or verification path", () => {
@@ -25,6 +35,17 @@ it("documents Docker only as a development or verification path", () => {
   expect(dockerSection).toContain("development or verification");
   expect(dockerSection).toMatch(/bind\s+mounts/);
   expect(section(readme, "## Install", "## Usage")).not.toMatch(/docker/i);
+});
+
+it("documents the tag-triggered release and Homebrew tap workflow", () => {
+  const releaseDocs = readFileSync("docs/release/releasing.md", "utf8");
+
+  expect(releaseDocs).toContain("push tag `vX.Y.Z`");
+  expect(releaseDocs).toContain("tasuku43/homebrew-vivi");
+  expect(releaseDocs).toContain("HOMEBREW_APP_ID");
+  expect(releaseDocs).toContain("HOMEBREW_APP_KEY");
+  expect(releaseDocs).toContain("vivi_Darwin_arm64.tar.gz");
+  expect(releaseDocs).toContain("checksums.txt");
 });
 
 function section(

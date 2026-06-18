@@ -1,6 +1,8 @@
 class Vivi < Formula
   desc "Read-only visual workspace viewer for agent-written local files"
   homepage "https://github.com/tasuku43/vivi"
+  license "MIT"
+
   version "0.1.0"
 
   on_macos do

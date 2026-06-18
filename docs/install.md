@@ -6,7 +6,8 @@ Node.js, npm, or Docker at runtime.
 ## Homebrew
 
 ```bash
-brew install tasuku43/tap/vivi
+brew tap tasuku43/vivi
+brew install vivi
 vivi .
 ```
 
