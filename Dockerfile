@@ -17,6 +17,8 @@ ENV GIT_OPTIONAL_LOCKS=0 \
     GIT_CONFIG_COUNT=1 \
     GIT_CONFIG_KEY_0=safe.directory \
     GIT_CONFIG_VALUE_0=* \
+    PATHLENS_GIT_STATUS_TIMEOUT_MS=180000 \
+    PATHLENS_GIT_STATUS_FALLBACK_TIMEOUT_MS=15000 \
     PATHLENS_DATA_DIR=/data
 RUN apk add --no-cache git tini && mkdir -p /data
 COPY --from=build /app/package.json ./package.json

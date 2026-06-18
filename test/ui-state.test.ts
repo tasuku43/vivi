@@ -27,6 +27,9 @@ import {
 } from "../src/ui/state/git-review.js";
 import {
   gitReviewPollMs,
+  shouldLoadInitialGitReview,
+  shouldPollGitReview,
+  shouldStartGitReviewPolling,
   startGitReviewPolling,
 } from "../src/ui/state/git-review-refresh.js";
 import {
@@ -913,6 +916,7 @@ it("polls Git review while visible so Docker mounts can recover without watcher 
   const stop = startGitReviewPolling({
     timer,
     visibility,
+    shouldRefresh: () => true,
     scheduleRefresh,
   });
   const runPoll = () => {
@@ -936,6 +940,70 @@ it("polls Git review while visible so Docker mounts can recover without watcher 
   expect(handler).toBeNull();
   expect(scheduleRefresh).toHaveBeenCalledTimes(2);
 });
+
+it("does not repeatedly poll slow unavailable Git review workspaces", () => {
+  let handler: (() => void) | null = null;
+  const timer = {
+    setInterval(callback: () => void) {
+      handler = callback;
+      return 9;
+    },
+    clearInterval() {},
+  };
+  let gitReview = null as ReturnType<typeof unavailableGitReview> | null;
+  const scheduleRefresh = vi.fn(() => {
+    gitReview = unavailableGitReview();
+  });
+  startGitReviewPolling({
+    timer,
+    shouldRefresh: () => shouldPollGitReview(gitReview),
+    scheduleRefresh,
+  });
+  const runPoll = () => {
+    if (!handler) throw new Error("poll handler was not registered");
+    handler();
+  };
+
+  runPoll();
+  expect(scheduleRefresh).toHaveBeenCalledTimes(1);
+
+  for (let index = 0; index < 20; index += 1) runPoll();
+  expect(scheduleRefresh).toHaveBeenCalledTimes(1);
+});
+
+it("does not poll partial Git review results after untracked status times out", () => {
+  expect(
+    shouldPollGitReview({
+      available: true,
+      reason: "Git untracked scan timed out; showing tracked changes only.",
+      changes: [{ path: "README.md", status: "modified" }],
+    }),
+  ).toBe(false);
+});
+
+it("waits for the file tree before requesting the initial Git review", () => {
+  expect(shouldLoadInitialGitReview(false, false)).toBe(false);
+  expect(shouldLoadInitialGitReview(true, true)).toBe(false);
+  expect(shouldLoadInitialGitReview(true, false)).toBe(true);
+});
+
+it("waits for the initial Git review result before starting polling", () => {
+  expect(shouldStartGitReviewPolling(null)).toBe(false);
+  expect(
+    shouldStartGitReviewPolling({
+      available: true,
+      changes: [],
+    }),
+  ).toBe(true);
+});
+
+function unavailableGitReview() {
+  return {
+    available: false,
+    reason: "Git command timed out while reading this workspace.",
+    changes: [],
+  };
+}
 
 it("clears watcher-backed Review Queue items once Git reports no changes", () => {
   const reviewEvents = [

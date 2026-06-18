@@ -16,6 +16,7 @@ interface Props {
   fileRemoved?: boolean;
   outline: OutlineHeading[];
   reviewChanges: ReviewChangeItem[];
+  reviewUnavailableReason?: string | null;
   reviewDiffStats: Record<string, DiffStat | null>;
   loadingReviewDiffs: Record<string, boolean>;
   unreadReviewPaths: Set<string>;
@@ -41,6 +42,7 @@ export function Inspector({
   fileRemoved = false,
   outline,
   reviewChanges,
+  reviewUnavailableReason = null,
   reviewDiffStats,
   loadingReviewDiffs,
   unreadReviewPaths,
@@ -136,7 +138,17 @@ export function Inspector({
             ))}
           </div>
         ) : null}
-        {!reviewChanges.length ? (
+        {reviewChanges.length && reviewUnavailableReason ? (
+          <p className="muted compact-empty">
+            Git review warning: {reviewUnavailableReason}
+          </p>
+        ) : null}
+        {!reviewChanges.length && reviewUnavailableReason ? (
+          <p className="muted compact-empty">
+            Git review unavailable: {reviewUnavailableReason}
+          </p>
+        ) : null}
+        {!reviewChanges.length && !reviewUnavailableReason ? (
           <p className="muted compact-empty">No files to review.</p>
         ) : null}
 

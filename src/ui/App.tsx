@@ -73,7 +73,12 @@ import {
   nextReviewQueuePath,
   type GitChangeReviewState,
 } from "./state/git-review.js";
-import { startGitReviewPolling } from "./state/git-review-refresh.js";
+import {
+  shouldLoadInitialGitReview,
+  shouldPollGitReview,
+  shouldStartGitReviewPolling,
+  startGitReviewPolling,
+} from "./state/git-review-refresh.js";
 import type { CommentDraft } from "./state/comments.js";
 import {
   isThemePreference,
@@ -143,6 +148,8 @@ export function App() {
     pendingDiffPaths: 0,
   });
   const [gitReview, setGitReview] = useState<GitChangeReviewState | null>(null);
+  const gitReviewRef = useRef<GitChangeReviewState | null>(null);
+  const initialGitReviewRequested = useRef(false);
   const [diffs, setDiffs] = useState<Record<string, TextDiff>>({});
   const [loadingDiffs, setLoadingDiffs] = useState<Record<string, boolean>>({});
   const [diffEnabled, setDiffEnabled] = useState(false);
@@ -270,7 +277,9 @@ export function App() {
     const response = await fetch("/api/changes");
     if (!response.ok)
       throw new Error(`changes request failed: ${response.status}`);
-    setGitReview((await response.json()) as GitChangeReviewState);
+    const nextGitReview = (await response.json()) as GitChangeReviewState;
+    gitReviewRef.current = nextGitReview;
+    setGitReview(nextGitReview);
     setLiveMetrics((metrics) => ({
       ...metrics,
       gitRefreshes: metrics.gitRefreshes + 1,
@@ -850,17 +859,28 @@ export function App() {
   useEffect(() => {
     loadConfig().catch((err) => setError(String(err)));
     loadTree().catch((err) => setError(String(err)));
-    loadGitReview().catch((err) => setError(String(err)));
     loadComments(null).catch((err) => setError(String(err)));
   }, []);
 
   useEffect(() => {
+    if (
+      !shouldLoadInitialGitReview(Boolean(tree), initialGitReviewRequested.current)
+    ) {
+      return;
+    }
+    initialGitReviewRequested.current = true;
+    loadGitReview().catch((err) => setError(String(err)));
+  }, [tree]);
+
+  useEffect(() => {
+    if (!shouldStartGitReviewPolling(gitReview)) return undefined;
     return startGitReviewPolling({
       timer: window,
       visibility: document,
+      shouldRefresh: () => shouldPollGitReview(gitReviewRef.current),
       scheduleRefresh: () => scheduleGitReviewRefresh(0),
     });
-  }, []);
+  }, [gitReview]);
 
   useEffect(() => {
     if (!config || !tree || workspaceSessionReady) return;
@@ -1311,6 +1331,7 @@ export function App() {
               fileRemoved={activeFileRemoved}
               outline={outline}
               reviewChanges={reviewChanges}
+              reviewUnavailableReason={gitReview?.reason ?? null}
               reviewDiffStats={reviewDiffStats}
               loadingReviewDiffs={loadingDiffs}
               unreadReviewPaths={unreadReviewPathSet}

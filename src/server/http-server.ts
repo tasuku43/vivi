@@ -1,6 +1,7 @@
 import {
   createServer,
   type IncomingMessage,
+  type Server,
   type ServerResponse,
 } from "node:http";
 import { randomBytes } from "node:crypto";
@@ -28,6 +29,8 @@ export interface ServerOptions {
   staticDir?: string;
   allowHtmlScripts?: boolean;
 }
+
+const serverCloseGraceMs = 2_000;
 
 export async function startHttpServer(
   options: ServerOptions,
@@ -69,11 +72,29 @@ export async function startHttpServer(
       await options.service.stop();
       server.closeIdleConnections?.();
       for (const socket of sockets) socket.destroy();
-      await new Promise<void>((resolve, reject) =>
-        server.close((err) => (err ? reject(err) : resolve())),
-      );
+      await closeServerWithGrace(server, serverCloseGraceMs);
     },
   };
+}
+
+function closeServerWithGrace(server: Server, graceMs: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    }, graceMs);
+    timer.unref();
+
+    server.close((err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (err) reject(err);
+      else resolve();
+    });
+  });
 }
 
 async function routeRequest(

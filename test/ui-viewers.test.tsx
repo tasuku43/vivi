@@ -573,6 +573,69 @@ it("keeps Markdown and HTML outline available as In this file", () => {
   expect(html).not.toContain("Document outline");
 });
 
+it("shows why the Review Queue is unavailable instead of looking empty", () => {
+  const html = renderToStaticMarkup(
+    <Inspector
+      file={null}
+      outline={[]}
+      reviewChanges={[]}
+      reviewUnavailableReason="Git command timed out while reading this workspace."
+      reviewDiffStats={{}}
+      loadingReviewDiffs={{}}
+      unreadReviewPaths={new Set()}
+      selectedCodeRange={null}
+      activePaneId="main"
+      onOutlineSelect={() => undefined}
+      onOpenEventPath={() => undefined}
+      onConfirmEventPath={() => undefined}
+      onOpenNextChanged={() => undefined}
+      onOpenPreviousChanged={() => undefined}
+      onOpenAllChanged={() => undefined}
+      onTargetHoverChange={() => undefined}
+      onRevealTarget={() => undefined}
+      onRevealInTree={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Git review unavailable");
+  expect(html).toContain("Git command timed out while reading this workspace.");
+  expect(html).not.toContain("No files to review.");
+});
+
+it("shows partial Review Queue results as a warning", () => {
+  const html = renderToStaticMarkup(
+    <Inspector
+      file={null}
+      outline={[]}
+      reviewChanges={[
+        { path: "README.md", status: "modified", source: "git" },
+      ]}
+      reviewUnavailableReason="Git untracked scan timed out; showing tracked changes only."
+      reviewDiffStats={{}}
+      loadingReviewDiffs={{}}
+      unreadReviewPaths={new Set()}
+      selectedCodeRange={null}
+      activePaneId="main"
+      onOutlineSelect={() => undefined}
+      onOpenEventPath={() => undefined}
+      onConfirmEventPath={() => undefined}
+      onOpenNextChanged={() => undefined}
+      onOpenPreviousChanged={() => undefined}
+      onOpenAllChanged={() => undefined}
+      onTargetHoverChange={() => undefined}
+      onRevealTarget={() => undefined}
+      onRevealInTree={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Git review warning");
+  expect(html).toContain(
+    "Git untracked scan timed out; showing tracked changes only.",
+  );
+  expect(html).toContain("README.md");
+  expect(html).not.toContain("Git review unavailable");
+});
+
 function findElement(
   node: ReactNode,
   predicate: (element: ReactElement) => boolean,

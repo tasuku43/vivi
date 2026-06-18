@@ -64,6 +64,21 @@ The Docker image defaults to serving `/workspace` and binding `0.0.0.0` inside t
 
 The image includes Git and runs it with read-only-safe defaults so the Review Queue can list uncommitted working-tree changes from a read-only bind mount.
 
+For very large repositories mounted through Docker, the Review Queue allows a
+longer Git status scan before reporting Git as unavailable. The image defaults
+`PATHLENS_GIT_STATUS_TIMEOUT_MS` to `180000` for the complete untracked scan,
+and caps the tracked-only fallback with
+`PATHLENS_GIT_STATUS_FALLBACK_TIMEOUT_MS=15000`; raise the complete scan
+timeout for especially slow bind mounts:
+
+```bash
+docker run --rm -it \
+  -p 4317:4317 \
+  -e PATHLENS_GIT_STATUS_TIMEOUT_MS=300000 \
+  -v "$PWD:/workspace:ro" \
+  pathlens:local
+```
+
 Comments are persisted outside the viewed workspace. In Docker, the image uses
 `/data/comments.jsonl`; mount `/data` as a volume when you want comments to
 survive container removal. Outside Docker, set `PATHLENS_DATA_DIR` to choose the

@@ -214,6 +214,7 @@ export class ViewerService {
 
   async stop(): Promise<void> {
     await this.watcher?.stop();
+    await this.changeReview?.stop?.();
     this.subscribers.clear();
   }
 

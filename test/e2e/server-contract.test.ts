@@ -199,6 +199,23 @@ it("closes promptly with an open event stream", async () => {
   server = null;
 }, 10000);
 
+it("closes promptly while a Git review request is still pending", async () => {
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+    changeReview: new HangingChangeReview(),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const pending = fetch(`${server.url}/api/changes`).catch(() => undefined);
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  await expect(
+    Promise.race([server.close(), timeoutAfter(3_000)]),
+  ).resolves.toBeUndefined();
+  server = null;
+  await pending;
+}, 10000);
+
 it("streams filesystem events over SSE for live review", async () => {
   const watcher = new ManualWatcher();
   const service = new ViewerService({
@@ -365,6 +382,30 @@ class StaticChangeReview implements ChangeReviewPort {
       baseLabel: baseRef,
       compareLabel: "working tree",
       content: "diff --git a/README.md b/README.md\n+# E2E",
+    };
+  }
+
+  async readDiffBases() {
+    return {
+      available: true,
+      options: [{ ref: "HEAD", label: "HEAD" }],
+    };
+  }
+}
+
+class HangingChangeReview implements ChangeReviewPort {
+  async readChanges() {
+    return new Promise<never>(() => undefined);
+  }
+
+  async readDiff(relativePath: string) {
+    return {
+      path: relativePath,
+      status: "unavailable" as const,
+      baseLabel: "HEAD",
+      compareLabel: "working tree",
+      content: "",
+      reason: "pending",
     };
   }
 

@@ -38,6 +38,8 @@ interface ShutdownProcess {
   exit(code?: number): never | void;
 }
 
+const shutdownTimeoutMs = 3_000;
+
 export function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = {
     root: ".",
@@ -104,6 +106,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
 export function installShutdownHandlers(
   server: ClosableServer,
   shutdownProcess: ShutdownProcess = process,
+  closeTimeoutMs = shutdownTimeoutMs,
 ): () => void {
   let closing = false;
   const handlers = new Map<NodeJS.Signals, (signal: NodeJS.Signals) => void>();
@@ -124,8 +127,7 @@ export function installShutdownHandlers(
 
     closing = true;
     console.log(`\npathlens received ${signal}; shutting down...`);
-    void server
-      .close()
+    void closeWithDeadline(server, closeTimeoutMs)
       .then(() => {
         removeHandlers();
         shutdownProcess.exit(exitCodeForSignal(signal));
@@ -143,6 +145,35 @@ export function installShutdownHandlers(
   }
 
   return removeHandlers;
+}
+
+function closeWithDeadline(
+  server: ClosableServer,
+  timeoutMs: number,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    }, timeoutMs);
+
+    server.close().then(
+      () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve();
+      },
+      (error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 }
 
 function exitCodeForSignal(signal: NodeJS.Signals): number {

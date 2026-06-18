@@ -59,6 +59,7 @@ export interface ChangeReviewPort {
   readChanges(): Promise<ChangeReviewSummary>;
   readDiff(relativePath: string, baseRef?: string): Promise<TextDiff>;
   readDiffBases?(): Promise<DiffBaseSummary>;
+  stop?(): Promise<void>;
 }
 
 export interface CommentStorePort {

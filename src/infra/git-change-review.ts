@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, type ChildProcess } from "node:child_process";
 import { promises as fs, type Stats } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -24,6 +24,11 @@ import {
 
 const inflateAsync = promisify(inflate);
 const gitTimeoutReason = "Git command timed out while reading this workspace.";
+const gitPartialTimeoutReason =
+  "Git untracked scan timed out; showing tracked changes only.";
+const defaultGitTimeoutMs = 2_000;
+const defaultGitStatusTimeoutMs = 30_000;
+const defaultGitStatusFallbackTimeoutMs = 10_000;
 
 export interface GitChangeReviewOptions {
   rootDir: string;
@@ -31,6 +36,8 @@ export interface GitChangeReviewOptions {
   maxDiffBytes?: number;
   gitCommands?: string[];
   gitTimeoutMs?: number;
+  gitStatusTimeoutMs?: number;
+  gitStatusFallbackTimeoutMs?: number;
   gitTimeoutCooldownMs?: number;
 }
 
@@ -40,15 +47,34 @@ export class GitChangeReview implements ChangeReviewPort {
   private readonly maxDiffBytes: number;
   private readonly gitCommands: string[];
   private readonly gitTimeoutMs: number;
+  private readonly gitStatusTimeoutMs: number;
+  private readonly gitStatusFallbackTimeoutMs: number;
   private readonly gitTimeoutCooldownMs: number;
+  private readonly activeGitProcesses = new Set<ChildProcess>();
   private gitSuppressedUntilMs = 0;
+  private stopped = false;
 
   constructor(options: GitChangeReviewOptions) {
     this.rootDir = path.resolve(options.rootDir);
     this.ignoredNames = options.ignoredNames ?? defaultIgnoredNames;
     this.maxDiffBytes = options.maxDiffBytes ?? 256 * 1024;
     this.gitCommands = options.gitCommands ?? defaultGitCommands;
-    this.gitTimeoutMs = options.gitTimeoutMs ?? 2_000;
+    this.gitTimeoutMs =
+      options.gitTimeoutMs ??
+      readPositiveEnvMs("PATHLENS_GIT_TIMEOUT_MS") ??
+      defaultGitTimeoutMs;
+    this.gitStatusTimeoutMs =
+      options.gitStatusTimeoutMs ??
+      readPositiveEnvMs("PATHLENS_GIT_STATUS_TIMEOUT_MS") ??
+      options.gitTimeoutMs ??
+      readPositiveEnvMs("PATHLENS_GIT_TIMEOUT_MS") ??
+      defaultGitStatusTimeoutMs;
+    this.gitStatusFallbackTimeoutMs =
+      options.gitStatusFallbackTimeoutMs ??
+      readPositiveEnvMs("PATHLENS_GIT_STATUS_FALLBACK_TIMEOUT_MS") ??
+      options.gitTimeoutMs ??
+      readPositiveEnvMs("PATHLENS_GIT_TIMEOUT_MS") ??
+      Math.min(this.gitStatusTimeoutMs, defaultGitStatusFallbackTimeoutMs);
     this.gitTimeoutCooldownMs = options.gitTimeoutCooldownMs ?? 30_000;
   }
 
@@ -67,14 +93,7 @@ export class GitChangeReview implements ChangeReviewPort {
         await this.explainGitFailure(workspace.reason),
       );
 
-    const status = await this.git([
-      "status",
-      "--porcelain=v1",
-      "--untracked-files=all",
-      "-z",
-      "--",
-      ".",
-    ]);
+    const status = await this.gitStatus();
     if (!status.ok)
       return this.unavailableChanges(
         await this.explainGitFailure(status.reason),
@@ -96,6 +115,7 @@ export class GitChangeReview implements ChangeReviewPort {
 
     return {
       available: true,
+      reason: status.reason,
       changes,
     };
   }
@@ -133,6 +153,15 @@ export class GitChangeReview implements ChangeReviewPort {
         })),
       ],
     };
+  }
+
+  async stop(): Promise<void> {
+    this.stopped = true;
+    for (const child of this.activeGitProcesses) {
+      child.kill("SIGKILL");
+      child.unref();
+    }
+    this.activeGitProcesses.clear();
   }
 
   async readDiff(relativePath: string, baseRef = "HEAD"): Promise<TextDiff> {
@@ -319,7 +348,9 @@ export class GitChangeReview implements ChangeReviewPort {
   private async resolveGitWorkspace(): Promise<
     ({ ok: true } & GitWorkspace) | { ok: false; reason: string }
   > {
-    const repo = await this.git(["rev-parse", "--show-toplevel"]);
+    const repo = await this.git(["rev-parse", "--show-toplevel"], {
+      timeoutMs: this.gitStatusTimeoutMs,
+    });
     if (!repo.ok) return { ok: false, reason: repo.reason };
     const gitRoot = await realpathOrResolve(repo.stdout.trim());
     const workspaceRoot = await realpathOrResolve(this.rootDir);
@@ -434,9 +465,40 @@ export class GitChangeReview implements ChangeReviewPort {
     return Date.now() < this.gitSuppressedUntilMs;
   }
 
+  private async gitStatus(): Promise<
+    { ok: true; stdout: string; reason?: string } | { ok: false; reason: string }
+  > {
+    const fullStatus = await this.git([
+      "status",
+      "--porcelain=v1",
+      "--untracked-files=all",
+      "-z",
+      "--",
+      ".",
+    ], {
+      timeoutMs: this.gitStatusFallbackTimeoutMs,
+    });
+    if (fullStatus.ok || fullStatus.reason !== gitTimeoutReason) {
+      return fullStatus;
+    }
+
+    const trackedStatus = await this.git([
+      "status",
+      "--porcelain=v1",
+      "--untracked-files=no",
+      "-z",
+      "--",
+      ".",
+    ], {
+      timeoutMs: this.gitStatusTimeoutMs,
+    });
+    if (!trackedStatus.ok) return trackedStatus;
+    return { ...trackedStatus, reason: gitPartialTimeoutReason };
+  }
+
   private async git(
     args: string[],
-    options: { maxBuffer?: number } = {},
+    options: { maxBuffer?: number; timeoutMs?: number } = {},
   ): Promise<{ ok: true; stdout: string } | { ok: false; reason: string }> {
     let lastError: unknown = null;
     for (const command of this.gitCommands) {
@@ -456,9 +518,14 @@ export class GitChangeReview implements ChangeReviewPort {
   private async tryGit(
     command: string,
     args: string[],
-    options: { maxBuffer?: number },
+    options: { maxBuffer?: number; timeoutMs?: number },
   ): Promise<{ ok: true; stdout: string } | { ok: false; error: unknown }> {
     return new Promise((resolve) => {
+      if (this.stopped) {
+        resolve({ ok: false, error: new GitCommandTimeoutError() });
+        return;
+      }
+
       let settled = false;
       const finish = (
         result: { ok: true; stdout: string } | { ok: false; error: unknown },
@@ -473,7 +540,8 @@ export class GitChangeReview implements ChangeReviewPort {
         child.kill("SIGKILL");
         child.unref();
         finish({ ok: false, error: new GitCommandTimeoutError() });
-      }, this.gitTimeoutMs);
+      }, options.timeoutMs ?? this.gitTimeoutMs);
+      timer.unref();
 
       const child = execFile(
         command,
@@ -492,6 +560,12 @@ export class GitChangeReview implements ChangeReviewPort {
           finish({ ok: true, stdout });
         },
       );
+      this.activeGitProcesses.add(child);
+      child.once("close", () => this.activeGitProcesses.delete(child));
+      if (this.stopped) {
+        child.kill("SIGKILL");
+        child.unref();
+      }
     });
   }
 
@@ -775,6 +849,13 @@ function isCommandNotFound(error: unknown): boolean {
 
 function isGitExecutableMissingReason(reason?: string): boolean {
   return reason?.startsWith("Git executable was not found.") ?? false;
+}
+
+function readPositiveEnvMs(name: string): number | undefined {
+  const raw = process.env[name];
+  if (!raw) return undefined;
+  const value = Number(raw);
+  return Number.isSafeInteger(value) && value > 0 ? value : undefined;
 }
 
 async function findUnreadableExternalGitDir(

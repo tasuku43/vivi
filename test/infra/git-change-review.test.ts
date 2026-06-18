@@ -307,6 +307,153 @@ it("does not retry Git immediately after a timeout", async () => {
   expect(Date.now() - startedAt).toBeLessThan(100);
 });
 
+it("falls back to tracked changes when untracked status times out", async () => {
+  const fakeGit = path.join(dir, "fallback-git");
+  await writeFile(
+    fakeGit,
+    [
+      "#!/bin/sh",
+      'if [ "$1" = "rev-parse" ]; then',
+      '  printf "%s\\n" "$PWD"',
+      "  exit 0",
+      "fi",
+      'if [ "$1" = "status" ] && [ "$3" = "--untracked-files=all" ]; then',
+      "  sleep 5",
+      "  exit 0",
+      "fi",
+      'if [ "$1" = "status" ] && [ "$3" = "--untracked-files=no" ]; then',
+      '  printf " M README.md\\0"',
+      "  exit 0",
+      "fi",
+      "exit 1",
+      "",
+    ].join("\n"),
+  );
+  await chmod(fakeGit, 0o755);
+
+  const review = new GitChangeReview({
+    rootDir: dir,
+    gitCommands: [fakeGit],
+    gitTimeoutMs: 1_000,
+  });
+
+  const startedAt = Date.now();
+  await expect(review.readChanges()).resolves.toMatchObject({
+    available: true,
+    reason: "Git untracked scan timed out; showing tracked changes only.",
+    changes: [{ path: "README.md", status: "modified", kind: "file" }],
+  });
+  expect(Date.now() - startedAt).toBeLessThan(2_500);
+});
+
+it("uses the status timeout for slow complete Review Queue scans", async () => {
+  await writeFile(path.join(dir, "slow.md"), "# Slow\n");
+  const fakeGit = path.join(dir, "slow-status-git");
+  await writeFile(
+    fakeGit,
+    [
+      "#!/bin/sh",
+      'if [ "$1" = "rev-parse" ]; then',
+      '  printf "%s\\n" "$PWD"',
+      "  exit 0",
+      "fi",
+      'if [ "$1" = "status" ]; then',
+      "  sleep 1",
+      '  printf "?? slow.md\\0"',
+      "  exit 0",
+      "fi",
+      "exit 1",
+      "",
+    ].join("\n"),
+  );
+  await chmod(fakeGit, 0o755);
+
+  const review = new GitChangeReview({
+    rootDir: dir,
+    gitCommands: [fakeGit],
+    gitTimeoutMs: 300,
+    gitStatusTimeoutMs: 1_500,
+  });
+
+  await expect(review.readChanges()).resolves.toMatchObject({
+    available: true,
+    changes: [{ path: "slow.md", status: "added", kind: "file" }],
+  });
+});
+
+it("uses the status timeout while resolving the Review Queue Git workspace", async () => {
+  await writeFile(path.join(dir, "workspace.md"), "# Workspace\n");
+  const fakeGit = path.join(dir, "slow-workspace-git");
+  await writeFile(
+    fakeGit,
+    [
+      "#!/bin/sh",
+      'if [ "$1" = "rev-parse" ]; then',
+      "  sleep 1",
+      '  printf "%s\\n" "$PWD"',
+      "  exit 0",
+      "fi",
+      'if [ "$1" = "status" ]; then',
+      '  printf "?? workspace.md\\0"',
+      "  exit 0",
+      "fi",
+      "exit 1",
+      "",
+    ].join("\n"),
+  );
+  await chmod(fakeGit, 0o755);
+
+  const review = new GitChangeReview({
+    rootDir: dir,
+    gitCommands: [fakeGit],
+    gitTimeoutMs: 300,
+    gitStatusTimeoutMs: 1_500,
+  });
+
+  await expect(review.readChanges()).resolves.toMatchObject({
+    available: true,
+    changes: [{ path: "workspace.md", status: "added", kind: "file" }],
+  });
+});
+
+it("kills in-flight Git commands on stop", async () => {
+  const fakeGit = path.join(dir, "stoppable-git");
+  await writeFile(
+    fakeGit,
+    [
+      "#!/bin/sh",
+      'if [ "$1" = "rev-parse" ]; then',
+      '  printf "%s\\n" "$PWD"',
+      "  exit 0",
+      "fi",
+      'if [ "$1" = "status" ]; then',
+      "  sleep 30",
+      "  exit 0",
+      "fi",
+      "exit 1",
+      "",
+    ].join("\n"),
+  );
+  await chmod(fakeGit, 0o755);
+
+  const review = new GitChangeReview({
+    rootDir: dir,
+    gitCommands: [fakeGit],
+    gitStatusTimeoutMs: 30_000,
+  });
+
+  const pending = review.readChanges();
+  await new Promise((resolve) => setTimeout(resolve, 100));
+
+  await review.stop();
+  await expect(Promise.race([pending, timeoutAfter(1_000)])).resolves
+    .toMatchObject({
+      available: false,
+      reason: "Git command timed out while reading this workspace.",
+      changes: [],
+    });
+});
+
 it("reads HEAD diffs without a Git executable for tracked loose objects", async () => {
   await writeFile(path.join(dir, "README.md"), "# After\n");
 
@@ -350,4 +497,10 @@ it("does not expose raw spawn ENOENT errors", () => {
 
 async function git(args: string[], cwd = dir): Promise<void> {
   await execFileAsync("git", args, { cwd });
+}
+
+function timeoutAfter(ms: number): Promise<never> {
+  return new Promise((_, reject) => {
+    setTimeout(() => reject(new Error(`timed out after ${ms}ms`)), ms);
+  });
 }
