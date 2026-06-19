@@ -143,7 +143,7 @@ jobs:
       - name: Create GitHub App token for Homebrew tap
         if: github.event_name == 'push' && steps.channel.outputs.stable == 'true'
         id: homebrew-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.HOMEBREW_APP_ID }}
           private-key: ${{ secrets.HOMEBREW_APP_KEY }}
