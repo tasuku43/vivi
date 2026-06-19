@@ -26,8 +26,8 @@ open a Homebrew formula update PR against `tasuku43/homebrew-vivi`.
 2. Create a tag locally, for example `git tag v0.1.0`.
 3. Push the tag with `git push origin v0.1.0`.
 4. Confirm the `Release` workflow succeeds.
-5. Confirm the draft GitHub Release contains the four platform archives and
-   `checksums.txt`.
+5. Confirm the published GitHub Release contains the four platform archives and
+   `checksums.txt`, and that asset URLs use `/download/vX.Y.Z/`.
 6. Download one archive and run `vivi --version`.
 7. Confirm a PR was created in `tasuku43/homebrew-vivi` updating
    `Formula/vivi.rb`.

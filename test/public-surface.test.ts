@@ -30,17 +30,18 @@ it("keeps the public README on the Vivi binary distribution path", () => {
   expect(installSection).not.toMatch(/\bnpx\b|npm install|docker run/i);
 });
 
-it("drafts Go binary release artifacts without npm or Docker publishing", () => {
+it("publishes Go binary release artifacts without npm or Docker publishing", () => {
   const workflow = readFileSync(".github/workflows/release.yml", "utf8");
 
   expect(workflow).toContain("vivi_Darwin_arm64.tar.gz");
   expect(workflow).toContain("vivi_Linux_x86_64.tar.gz");
   expect(workflow).toContain("checksums.txt");
+  expect(workflow).toContain("draft: false");
   expect(workflow).not.toContain("docker/build-push-action");
   expect(workflow).not.toMatch(/npm publish|NODE_AUTH_TOKEN|npm provenance/i);
 });
 
-it("keeps Homebrew and mise install drafts on the vivi command", () => {
+it("keeps Homebrew and mise install paths on the vivi command", () => {
   const formula = readFileSync("docs/release/homebrew/vivi.rb", "utf8");
   const install = readFileSync("docs/install.md", "utf8");
   const oldLowerName = ["path", "lens"].join("");

@@ -119,11 +119,11 @@ jobs:
             dist/release/vivi_*.tar.gz
             dist/release/checksums.txt
 
-      - name: Create draft GitHub Release
+      - name: Create GitHub Release
         if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
-          draft: true
+          draft: false
           files: |
             dist/release/vivi_*.tar.gz
             dist/release/checksums.txt

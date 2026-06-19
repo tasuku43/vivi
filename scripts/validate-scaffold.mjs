@@ -83,7 +83,7 @@ if (existsSync(releaseWorkflowPath)) {
     "checksums.txt",
     "go build",
     "actions/attest-build-provenance",
-    "draft: true",
+    "draft: false",
     "actions/create-github-app-token",
     "homebrew-vivi",
     ".github/scripts/update-homebrew-formula.sh",
