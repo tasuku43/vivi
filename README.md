@@ -16,7 +16,7 @@ workspace and the surrounding context with low cognitive load.
 Homebrew is the primary macOS install route:
 
 ```bash
-brew tap tasuku43/vivi
+brew tap tasuku43/tap
 brew install vivi
 ```
 

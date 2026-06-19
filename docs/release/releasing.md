@@ -1,7 +1,7 @@
 # Releasing Vivi
 
 Vivi binaries are distributed through GitHub Releases. Stable releases also
-open a Homebrew formula update PR against `tasuku43/homebrew-vivi`.
+open a Homebrew formula update PR against `tasuku43/homebrew-tap`.
 
 ## Release pipeline
 
@@ -15,7 +15,7 @@ open a Homebrew formula update PR against `tasuku43/homebrew-vivi`.
   - `vivi_Linux_x86_64.tar.gz`
   - `checksums.txt`
 - Homebrew:
-  - stable tag pushes create a PR in `tasuku43/homebrew-vivi`
+  - stable tag pushes create a PR in `tasuku43/homebrew-tap`
   - requires GitHub Actions secrets `HOMEBREW_APP_ID` and `HOMEBREW_APP_KEY`
   - the GitHub App needs access to the tap repository and permission to create
     pull requests
@@ -29,5 +29,5 @@ open a Homebrew formula update PR against `tasuku43/homebrew-vivi`.
 5. Confirm the published GitHub Release contains the four platform archives and
    `checksums.txt`, and that asset URLs use `/download/vX.Y.Z/`.
 6. Download one archive and run `vivi --version`.
-7. Confirm a PR was created in `tasuku43/homebrew-vivi` updating
+7. Confirm a PR was created in `tasuku43/homebrew-tap` updating
    `Formula/vivi.rb`.

@@ -12,7 +12,7 @@ it("builds release archives for the Vivi single binary", () => {
   expect(workflow).toContain("vivi_Linux_x86_64.tar.gz");
   expect(workflow).toContain("checksums.txt");
   expect(workflow).toContain("actions/create-github-app-token");
-  expect(workflow).toContain("homebrew-vivi");
+  expect(workflow).toContain("homebrew-tap");
   expect(workflow).toContain(".github/scripts/update-homebrew-formula.sh");
   expect(workflow).toContain("actions/checkout@v7");
   expect(workflow).toContain("actions/setup-node@v6");
@@ -82,7 +82,7 @@ it("documents the tag-triggered release and Homebrew tap workflow", () => {
   const releaseDocs = readFileSync("docs/release/releasing.md", "utf8");
 
   expect(releaseDocs).toContain("push tag `vX.Y.Z`");
-  expect(releaseDocs).toContain("tasuku43/homebrew-vivi");
+  expect(releaseDocs).toContain("tasuku43/homebrew-tap");
   expect(releaseDocs).toContain("HOMEBREW_APP_ID");
   expect(releaseDocs).toContain("HOMEBREW_APP_KEY");
   expect(releaseDocs).toContain("vivi_Darwin_arm64.tar.gz");

@@ -148,13 +148,13 @@ jobs:
           app-id: ${{ secrets.HOMEBREW_APP_ID }}
           private-key: ${{ secrets.HOMEBREW_APP_KEY }}
           owner: tasuku43
-          repositories: homebrew-vivi
+          repositories: homebrew-tap
 
       - name: Checkout Homebrew tap
         if: github.event_name == 'push' && steps.channel.outputs.stable == 'true'
         uses: actions/checkout@v7
         with:
-          repository: tasuku43/homebrew-vivi
+          repository: tasuku43/homebrew-tap
           token: ${{ steps.homebrew-token.outputs.token }}
           path: homebrew-tap
 

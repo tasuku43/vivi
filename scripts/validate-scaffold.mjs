@@ -85,7 +85,7 @@ if (existsSync(releaseWorkflowPath)) {
     "actions/attest-build-provenance",
     "draft: false",
     "actions/create-github-app-token",
-    "homebrew-vivi",
+    "homebrew-tap",
     ".github/scripts/update-homebrew-formula.sh",
   ];
 
@@ -147,7 +147,7 @@ if (existsSync(readmePath)) {
     );
   }
   for (const snippet of [
-    "brew tap tasuku43/vivi",
+    "brew tap tasuku43/tap",
     "brew install vivi",
     "mise use -g github:tasuku43/vivi",
     "GitHub Releases",
