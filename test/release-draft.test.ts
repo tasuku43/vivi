@@ -14,10 +14,51 @@ it("builds release archives for the Vivi single binary", () => {
   expect(workflow).toContain("actions/create-github-app-token");
   expect(workflow).toContain("homebrew-vivi");
   expect(workflow).toContain(".github/scripts/update-homebrew-formula.sh");
+  expect(workflow).toContain("actions/checkout@v7");
+  expect(workflow).toContain("actions/setup-node@v6");
+  expect(workflow).toContain("actions/setup-go@v6");
+  expect(workflow).toContain("actions/upload-artifact@v7");
+  expect(workflow).toContain("actions/download-artifact@v8");
   expect(workflow).not.toContain("docker/build-push-action");
   expect(workflow).not.toMatch(
     /npm publish|NODE_AUTH_TOKEN|container registry/i,
   );
+});
+
+it("keeps release build setup free of hosted-runner warnings", () => {
+  const workflow = readFileSync(".github/workflows/release.yml", "utf8");
+
+  expect(workflow).toContain("node-version: 24");
+  expect(workflow).toContain("go-version-file: go.mod");
+  expect(workflow).toContain("cache: false");
+  expect(workflow).not.toContain("node-version: 20");
+  expect(workflow).not.toMatch(
+    /actions\/(?:checkout|setup-node|setup-go|upload-artifact|download-artifact)@v[45]/,
+  );
+  expect(workflow).not.toMatch(/cache:\s*true/);
+});
+
+it("keeps CI setup aligned with release runner defaults", () => {
+  const workflow = readFileSync(".github/workflows/ci.yml", "utf8");
+
+  expect(workflow).toContain("node-version: 24");
+  expect(workflow).toContain("go-version-file: go.mod");
+  expect(workflow).toContain("cache: false");
+  expect(workflow).not.toContain("node-version: 20");
+  expect(workflow).not.toMatch(
+    /actions\/(?:checkout|setup-node|setup-go)@v[45]/,
+  );
+  expect(workflow).not.toMatch(/cache:\s*true/);
+});
+
+it("enables Dependabot for package and workflow maintenance", () => {
+  const config = readFileSync(".github/dependabot.yml", "utf8");
+
+  expect(config).toContain("version: 2");
+  expect(config).toContain("package-ecosystem: npm");
+  expect(config).toContain("package-ecosystem: github-actions");
+  expect(config).toContain("directory: /");
+  expect(config).toContain("interval: weekly");
 });
 
 it("keeps the Go CLI entrypoint visible to git", () => {
