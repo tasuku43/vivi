@@ -1275,7 +1275,7 @@ body.resizing-workbench-pane {
 .code-line {
   position: relative;
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-columns: 64px minmax(0, 1fr) 34px;
   min-height: 23px;
   color: var(--text);
 }
@@ -1287,6 +1287,7 @@ body.resizing-workbench-pane {
   box-shadow: inset 3px 0 0 var(--accent);
 }
 .code-line.has-comment,
+.code-line.drafting-comment,
 .commented-source-line.has-comment,
 .diff-inline-row.has-comment,
 .rendered-markdown-diff-block.has-comment,
@@ -1299,7 +1300,19 @@ body.resizing-workbench-pane {
   );
   box-shadow: inset 2px 0 0 var(--comment-line);
 }
+.code-line.active-comment {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--comment-tint-active) 88%, var(--accent-faint)),
+    color-mix(in srgb, var(--comment-tint-active) 72%, transparent) 66%,
+    transparent
+  );
+  box-shadow:
+    inset 2px 0 0 var(--comment-text),
+    inset 0 0 0 1px color-mix(in srgb, var(--comment-line) 52%, transparent);
+}
 .code-line.has-comment .line-number,
+.code-line.drafting-comment .line-number,
 .commented-source-line.has-comment .commented-source-gutter,
 .diff-inline-row.has-comment .diff-line-no {
   color: var(--comment-text);
@@ -1323,8 +1336,55 @@ body.resizing-workbench-pane {
 .line-code {
   display: block;
   min-width: 0;
-  padding: 0 18px;
+  padding: 0 10px 0 18px;
   white-space: pre;
+}
+.code-line-comment-action {
+  position: relative;
+  align-self: center;
+  justify-self: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+  padding: 0;
+}
+.code-line-comment-action::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 5px;
+  width: 11px;
+  height: 9px;
+  border: 1.5px solid currentColor;
+  border-radius: 4px;
+  color: var(--comment-text);
+}
+.code-line-comment-action::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 13px;
+  width: 5px;
+  height: 5px;
+  border-left: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  color: var(--comment-text);
+  transform: skew(-22deg);
+}
+.code-line:hover .code-line-comment-action,
+.code-line-comment-action:focus-visible,
+.code-line.drafting-comment .code-line-comment-action,
+.code-line.has-comment .code-line-comment-action {
+  opacity: 1;
+}
+.code-line-comment-action:hover,
+.code-line-comment-action:focus-visible {
+  outline: none;
+  background: var(--comment-tint-active);
 }
 .commented-source-lines {
   min-width: max-content;

@@ -14,6 +14,7 @@ import {
   recordReviewEvent,
   summarizeReviewEvents,
 } from "../src/ui/state/review-events.js";
+import { sourceLineCommentDraft } from "../src/ui/state/comments.js";
 
 it("splits code lines without inventing a trailing empty line", () => {
   expect(splitCodeLines("one\ntwo\n")).toEqual(["one", "two"]);
@@ -85,6 +86,36 @@ it("builds code metadata for the inspector", () => {
     language: "json",
     lineCount: 3,
     selectedReference: "data/sample.json:2",
+  });
+});
+
+it("creates source comment drafts anchored to exactly one code line", () => {
+  const draft = sourceLineCommentDraft(
+    {
+      path: "src/app.ts",
+      viewerKind: "code",
+      encoding: "utf8",
+      content: "const a = 1;\nconst b = 2;\n",
+      etag: "sha256:test",
+      size: 24,
+      mtimeMs: 1,
+    },
+    2,
+  );
+
+  expect(draft).toMatchObject({
+    path: "src/app.ts",
+    viewerKind: "text",
+    anchor: {
+      surface: "source",
+      canonical: {
+        path: "src/app.ts",
+        lineStart: 2,
+        lineEnd: 2,
+        quote: "const b = 2;",
+        fileHash: "sha256:test",
+      },
+    },
   });
 });
 

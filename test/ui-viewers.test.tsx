@@ -2,6 +2,7 @@ import { Children, isValidElement } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
+import type { ViviComment } from "../src/domain/comments.js";
 import type { FilePayload } from "../src/domain/fs-node.js";
 import { FileViewer } from "../src/ui/components/FileViewer.js";
 import { Inspector } from "../src/ui/components/Inspector.js";
@@ -43,6 +44,26 @@ const codeFile: FilePayload = {
   etag: "sha256:test",
   size: 42,
   mtimeMs: 1,
+};
+
+const codeLineComment: ViviComment = {
+  id: "comment-1",
+  path: "src/app.ts",
+  viewerKind: "text",
+  anchor: {
+    surface: "source",
+    canonical: {
+      path: "src/app.ts",
+      lineStart: 2,
+      lineEnd: 2,
+      quote: "return true;",
+      fileHash: "sha256:test",
+    },
+  },
+  body: "Check this return",
+  status: "open",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z",
 };
 
 it("renders the topbar as brand, workspace identity, and distinct actions", () => {
@@ -124,6 +145,28 @@ it("renders code with stable line numbers and selected ranges", () => {
   expect(html).toContain('aria-label="Select line 1"');
   expect(html).toContain("Copy ref");
   expect(html).toContain("Copy range");
+});
+
+it("renders code line comment targets with persistent row highlights", () => {
+  const html = renderToStaticMarkup(
+    <CodeViewer
+      file={codeFile}
+      theme="dark"
+      selectedRange={null}
+      comments={[codeLineComment]}
+      activeCommentId={codeLineComment.id}
+      onSelectionChange={() => undefined}
+      onOpenComment={() => undefined}
+      onCreateComment={() => undefined}
+    />,
+  );
+
+  expect(html).toContain('class="code-line has-comment active-comment"');
+  expect(html).toContain(`data-comment-id="${codeLineComment.id}"`);
+  expect(html).toContain('class="code-line-comment-action"');
+  expect(html).toContain('aria-label="Open line note for line 2"');
+  expect(html).toContain('aria-label="Add line note for line 1"');
+  expect(html).not.toContain(">Comment<");
 });
 
 it("extracts shiki line spans without losing nested syntax spans", () => {

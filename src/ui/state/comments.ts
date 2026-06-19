@@ -70,6 +70,18 @@ export function sourceCommentDraft(
   };
 }
 
+export function sourceLineCommentDraft(
+  file: FilePayload,
+  lineNumber: number,
+): CommentDraft {
+  const line = file.content.split(/\r?\n/)[Math.max(0, lineNumber - 1)] ?? "";
+  return sourceCommentDraft(
+    file,
+    { start: lineNumber, end: lineNumber },
+    line,
+  );
+}
+
 export function renderedCommentDraft(
   file: FilePayload,
   kind: "markdown" | "html",

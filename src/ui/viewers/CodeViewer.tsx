@@ -19,6 +19,7 @@ import {
   scheduleSelectionCommentUpdate,
   selectionCommentTargetInElement,
   sourceCommentDraft,
+  sourceLineCommentDraft,
   type CommentCreateHandler,
   type CommentDraft,
 } from "../state/comments.js";
@@ -67,6 +68,10 @@ export function CodeViewer({
     draft: CommentDraft;
     rect: DOMRectLike;
   } | null>(null);
+  const [lineComment, setLineComment] = useState<{
+    draft: CommentDraft;
+    rect: DOMRectLike;
+  } | null>(null);
   const codeLinesRef = useRef<HTMLDivElement | null>(null);
   const language = languageForPath(file.path, file.viewerKind);
   const lines = splitCodeLines(file.content);
@@ -95,6 +100,8 @@ export function CodeViewer({
 
   useEffect(() => {
     setAnchorLine(null);
+    setLineComment(null);
+    setSelectionComment(null);
   }, [file.path]);
 
   function selectLine(lineNumber: number, shiftKey: boolean) {
@@ -129,6 +136,15 @@ export function CodeViewer({
         selection.text,
       ),
       rect: selection.rect,
+    });
+    setLineComment(null);
+  }
+
+  function startLineComment(lineNumber: number, target: Element) {
+    setSelectionComment(null);
+    setLineComment({
+      draft: sourceLineCommentDraft(file, lineNumber),
+      rect: rectLikeFromElement(target),
     });
   }
 
@@ -246,9 +262,23 @@ export function CodeViewer({
             const highlighted = highlightedLines?.[index];
             const lineComments = commentsForLine(comments, lineNumber);
             const firstComment = lineComments[0];
+            const activeCommentLine = lineComments.some(
+              (comment) => comment.id === activeCommentId,
+            );
+            const draftingLine =
+              lineComment?.draft.anchor.canonical.lineStart === lineNumber;
+            const className = [
+              "code-line",
+              selectedLine ? "selected" : "",
+              lineComments.length ? "has-comment" : "",
+              activeCommentLine ? "active-comment" : "",
+              draftingLine ? "drafting-comment" : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
             return (
               <div
-                className={`${selectedLine ? "code-line selected" : "code-line"}${lineComments.length ? " has-comment" : ""}`}
+                className={className}
                 data-line={lineNumber}
                 key={lineNumber}
                 role="listitem"
@@ -295,6 +325,26 @@ export function CodeViewer({
                     __html: highlighted ?? escapeHtml(line || " "),
                   }}
                 />
+                <button
+                  className="code-line-comment-action"
+                  type="button"
+                  aria-label={
+                    firstComment
+                      ? `Open line note for line ${lineNumber}`
+                      : `Add line note for line ${lineNumber}`
+                  }
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (firstComment) {
+                      onOpenComment?.(
+                        firstComment.id,
+                        rectLikeFromElement(event.currentTarget),
+                      );
+                      return;
+                    }
+                    startLineComment(lineNumber, event.currentTarget);
+                  }}
+                />
               </div>
             );
           })}
@@ -305,6 +355,12 @@ export function CodeViewer({
         rect={selectionComment?.rect ?? null}
         onSave={onCreateComment}
         onDismiss={() => setSelectionComment(null)}
+      />
+      <SelectionCommentComposer
+        draft={lineComment?.draft ?? null}
+        rect={lineComment?.rect ?? null}
+        onSave={onCreateComment}
+        onDismiss={() => setLineComment(null)}
       />
     </section>
   );

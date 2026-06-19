@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { CommentStatus, ViviComment } from "../../domain/comments.js";
 import {
   commentLineLabel,
@@ -16,6 +17,19 @@ export function InlineCommentCard({
   onClose: () => void;
   onStatusChange?: (id: string, status: CommentStatus) => void;
 }) {
+  const cardRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!comment || !rect) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (target && cardRef.current?.contains(target)) return;
+      onClose();
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => window.removeEventListener("pointerdown", onPointerDown);
+  }, [comment, rect, onClose]);
+
   if (!comment || !rect) return null;
   const width = 340;
   const left = clamp(
@@ -28,6 +42,7 @@ export function InlineCommentCard({
 
   return (
     <article
+      ref={cardRef}
       className={`inline-comment-card ${pointsLeft ? "points-left" : "points-top"}`}
       style={{ left, top }}
       aria-label="Comment"
