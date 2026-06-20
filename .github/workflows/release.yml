@@ -79,7 +79,7 @@ jobs:
           CGO_ENABLED: "0"
         run: |
           mkdir -p "dist/release/${{ matrix.name }}"
-          go build -trimpath -ldflags="-s -w -X main.version=${RELEASE_TAG:-0.0.0}" -o "dist/release/${{ matrix.name }}/vivi" ./cmd/vivi
+          go build -trimpath -ldflags="-s -w -X main.version=${RELEASE_TAG:-0.0.0}" -o "dist/release/${{ matrix.name }}/vivi" ./cli
           tar -C "dist/release/${{ matrix.name }}" -czf "dist/release/${{ matrix.artifact }}" vivi
 
       - uses: actions/upload-artifact@v7

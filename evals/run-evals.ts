@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { NodeFileSystem } from "../src/infra/node-file-system.js";
-import { formatLineReference } from "../src/ui/state/code-viewer.js";
+import { NodeFileSystem } from "../server/typescript/infrastructure/node-file-system.js";
+import { formatLineReference } from "../ui/src/state/code-viewer.js";
 
 interface EvalCase {
   name: string;

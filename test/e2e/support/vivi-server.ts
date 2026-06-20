@@ -79,7 +79,7 @@ function serverArgs(options: {
     : [
         "--import",
         "tsx",
-        "src/cli/main.ts",
+        "cli/typescript/main.ts",
         "{root}",
         "--host",
         "{host}",
@@ -104,7 +104,7 @@ function serverArgs(options: {
 function insertAppFlag(args: string[], flag: string, value?: string): void {
   const insertion = value === undefined ? [flag] : [flag, value];
   const nodeEntrypointIndex = args.findIndex((arg) =>
-    arg.endsWith("src/cli/main.ts"),
+    arg.endsWith("cli/typescript/main.ts"),
   );
   if (nodeEntrypointIndex >= 0) {
     args.splice(nodeEntrypointIndex + 1, 0, ...insertion);

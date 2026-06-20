@@ -12,17 +12,21 @@ const required = [
   ".dockerignore",
   "package.json",
   "go.mod",
-  "cmd/vivi/main.go",
-  "internal/server/server.go",
+  "cli/main.go",
+  "server/server.go",
+  "server/workspace/workspace.go",
   "scripts/prepare-go-workspace.mjs",
   "scripts/prepare-ui-assets.mjs",
   "scripts/run-go-build.mjs",
-  "src/cli/main.ts",
-  "src/server/http-server.ts",
-  "src/app/viewer-service.ts",
-  "src/domain/fs-node.ts",
-  "src/infra/node-file-system.ts",
-  "src/ui/App.tsx",
+  "scripts/run-go-test.mjs",
+  "cli/typescript/main.ts",
+  "server/typescript/http/http-server.ts",
+  "server/typescript/application/viewer-service.ts",
+  "ui/package.json",
+  "ui/src/app/App.tsx",
+  "ui/src/application/ports/ViviClient.ts",
+  "ui/src/infrastructure/vivi-api/restViviClient.ts",
+  "ui/src/features/workbench/WorkbenchContainer.tsx",
   "docs/01-product-brief.md",
   "docs/02-requirements.md",
   "docs/03-cli-or-api-contract.md",
@@ -166,7 +170,12 @@ for (const file of walk(root)) {
   if (
     rel.startsWith(".git/") ||
     rel.startsWith("node_modules/") ||
+    rel.startsWith(".tmp-go-build-cache/") ||
+    rel.startsWith(".tmp-go-mod-cache/") ||
     rel.startsWith("dist/") ||
+    rel.startsWith("ui/dist/") ||
+    rel.startsWith("ui/storybook-static/") ||
+    rel.startsWith("ui/public/vivi/vendor/") ||
     rel.startsWith("coverage/") ||
     rel.startsWith("public/vivi/vendor/")
   ) {

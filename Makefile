@@ -1,4 +1,4 @@
-.PHONY: check validate typecheck test eval e2e build
+.PHONY: check validate typecheck test eval e2e build storybook storybook-build
 
 check:
 	task check
@@ -20,3 +20,9 @@ e2e:
 
 build:
 	task build
+
+storybook:
+	task storybook
+
+storybook-build:
+	task storybook:build

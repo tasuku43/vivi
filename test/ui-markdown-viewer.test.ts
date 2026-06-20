@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   injectMermaidPreviewBlocks,
   renderMarkdownDocumentHtml,
-} from "../src/ui/viewers/MarkdownViewer.js";
+} from "../ui/src/features/file-context/viewers/MarkdownViewer.js";
 
 describe("renderMarkdownDocumentHtml", () => {
   const fixture = (name: string) =>

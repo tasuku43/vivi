@@ -1,9 +1,9 @@
 import { expect, it } from "vitest";
-import type { FsNode } from "../../src/domain/fs-node.js";
+import type { FsNode } from "../../server/typescript/domain/fs-node.js";
 import {
   collectSearchableFiles,
   searchFilePayload,
-} from "../../src/domain/search.js";
+} from "../../server/typescript/domain/search.js";
 
 it("collects only text-searchable files from the tree", () => {
   const nodes: FsNode[] = [

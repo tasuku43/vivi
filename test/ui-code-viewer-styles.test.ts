@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const styles = readFileSync("src/ui/styles.css", "utf8");
+const styles = readFileSync("ui/src/styles.css", "utf8");
 
 describe("code viewer line actions", () => {
   it("keeps the comment action on a fixed gutter rail", () => {

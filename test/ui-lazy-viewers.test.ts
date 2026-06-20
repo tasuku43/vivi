@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
 
 const fileViewerSource = readFileSync(
-  new URL("../src/ui/components/FileViewer.tsx", import.meta.url),
+  new URL(
+    "../ui/src/features/file-context/components/FileViewer.tsx",
+    import.meta.url,
+  ),
   "utf8",
 );
 

@@ -13,10 +13,10 @@ FROM golang:1.22-alpine AS go-build
 WORKDIR /src
 
 COPY . .
-COPY --from=ui-build /src/dist/ui ./dist/ui
+COPY --from=ui-build /src/ui/dist ./ui/dist
 
 RUN go test ./...
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/vivi ./cmd/vivi
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/vivi ./cli
 
 FROM alpine:3.20 AS runtime
 WORKDIR /app

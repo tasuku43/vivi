@@ -14,7 +14,7 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import {
   GitChangeReview,
   gitErrorReason,
-} from "../../src/infra/git-change-review.js";
+} from "../../server/typescript/infrastructure/git-change-review.js";
 
 const execFileAsync = promisify(execFile);
 

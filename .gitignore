@@ -4,6 +4,8 @@ dist/
 .tmp-go-build-cache/
 .tmp-go-mod-cache/
 public/vivi/vendor/mermaid.min.js
+ui/public/vivi/vendor/mermaid.min.js
+ui/storybook-static/
 coverage/
 .vite/
 .DS_Store

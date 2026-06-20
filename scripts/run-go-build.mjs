@@ -3,7 +3,7 @@ import path from "node:path";
 
 const cwd = process.cwd();
 const command = process.platform === "win32" ? "go.exe" : "go";
-const child = spawn(command, ["build", "./cmd/vivi"], {
+const child = spawn(command, ["build", "-o", "vivi", "./cli"], {
   cwd,
   env: {
     ...process.env,

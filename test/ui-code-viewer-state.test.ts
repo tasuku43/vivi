@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import type { FsEvent } from "../src/domain/fs-node.js";
+import type { FsEvent } from "../ui/src/domain/fs-node.js";
 import {
   buildCodeMetadata,
   currentScopeForLine,
@@ -8,16 +8,16 @@ import {
   formatSelectedCodeWithLineNumbers,
   normalizeLineRange,
   splitCodeLines,
-} from "../src/ui/state/code-viewer.js";
+} from "../ui/src/state/code-viewer.js";
 import {
   eventLabel,
   recordReviewEvent,
   summarizeReviewEvents,
-} from "../src/ui/state/review-events.js";
+} from "../ui/src/state/review-events.js";
 import {
   codeCommentThreads,
   sourceLineCommentDraft,
-} from "../src/ui/state/comments.js";
+} from "../ui/src/state/comments.js";
 
 it("splits code lines without inventing a trailing empty line", () => {
   expect(splitCodeLines("one\ntwo\n")).toEqual(["one", "two"]);

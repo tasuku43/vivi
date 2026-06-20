@@ -4,7 +4,7 @@ import {
   extractHtmlOutline,
   extractMarkdownOutline,
   renderMarkdownHtmlWithHeadingIds,
-} from "../src/ui/state/outline.js";
+} from "../ui/src/state/outline.js";
 
 describe("extractMarkdownOutline", () => {
   it("extracts H1 and H2 headings with stable ids", () => {

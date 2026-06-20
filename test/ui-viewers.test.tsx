@@ -2,24 +2,27 @@ import { Children, isValidElement } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
-import type { ViviComment } from "../src/domain/comments.js";
-import type { FilePayload } from "../src/domain/fs-node.js";
-import { CodeCommentThread } from "../src/ui/components/CodeCommentThread.js";
-import { FileViewer } from "../src/ui/components/FileViewer.js";
-import { Inspector } from "../src/ui/components/Inspector.js";
-import { ShortcutHelp } from "../src/ui/components/ShortcutHelp.js";
+import type { ViviComment } from "../ui/src/domain/comments.js";
+import type { FilePayload } from "../ui/src/domain/fs-node.js";
+import { CodeCommentThread } from "../ui/src/features/comments/components/CodeCommentThread.js";
+import { FileViewer } from "../ui/src/features/file-context/components/FileViewer.js";
+import { Inspector } from "../ui/src/features/review-queue/Inspector.js";
+import { ShortcutHelp } from "../ui/src/shared/components/ShortcutHelp.js";
 import {
   Topbar,
   workspaceDisplayName,
   workspaceParentPath,
-} from "../src/ui/components/Topbar.js";
-import { TreeSidebar } from "../src/ui/components/TreeSidebar.js";
-import { WorkspaceRestoreNotice } from "../src/ui/components/WorkspaceRestoreNotice.js";
+} from "../ui/src/shared/components/Topbar.js";
+import { TreeSidebar } from "../ui/src/shared/components/TreeSidebar.js";
+import { WorkspaceRestoreNotice } from "../ui/src/shared/components/WorkspaceRestoreNotice.js";
 import {
   CodeViewer,
   extractHighlightedLines,
-} from "../src/ui/viewers/CodeViewer.js";
-import { CsvViewer, parseDelimitedText } from "../src/ui/viewers/CsvViewer.js";
+} from "../ui/src/features/file-context/viewers/CodeViewer.js";
+import {
+  CsvViewer,
+  parseDelimitedText,
+} from "../ui/src/features/file-context/viewers/CsvViewer.js";
 import {
   buildRenderedDiffBlocks,
   buildFocusedRenderedDiffRows,
@@ -27,17 +30,17 @@ import {
   buildRenderedDiffRows,
   buildRenderedHtmlRows,
   DiffViewer,
-} from "../src/ui/viewers/DiffViewer.js";
-import { HtmlViewer } from "../src/ui/viewers/HtmlViewer.js";
-import { ImageViewer } from "../src/ui/viewers/ImageViewer.js";
-import { JsonViewer } from "../src/ui/viewers/JsonViewer.js";
-import { MarkdownViewer } from "../src/ui/viewers/MarkdownViewer.js";
+} from "../ui/src/features/file-context/viewers/DiffViewer.js";
+import { HtmlViewer } from "../ui/src/features/file-context/viewers/HtmlViewer.js";
+import { ImageViewer } from "../ui/src/features/file-context/viewers/ImageViewer.js";
+import { JsonViewer } from "../ui/src/features/file-context/viewers/JsonViewer.js";
+import { MarkdownViewer } from "../ui/src/features/file-context/viewers/MarkdownViewer.js";
 import {
   hasCustomMermaidStyle,
   MermaidViewer,
-} from "../src/ui/viewers/MermaidViewer.js";
-import { TextViewer } from "../src/ui/viewers/TextViewer.js";
-import type { CommentDraft } from "../src/ui/state/comments.js";
+} from "../ui/src/features/file-context/viewers/MermaidViewer.js";
+import { TextViewer } from "../ui/src/features/file-context/viewers/TextViewer.js";
+import type { CommentDraft } from "../ui/src/state/comments.js";
 
 const codeFile: FilePayload = {
   path: "src/app.ts",

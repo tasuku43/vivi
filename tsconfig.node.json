@@ -8,9 +8,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "dist",
-    "rootDir": "src",
+    "outDir": "dist/typescript",
+    "rootDir": ".",
     "types": ["node"]
   },
-  "include": ["src/cli", "src/server", "src/app", "src/domain", "src/infra"]
+  "include": ["cli/typescript", "server/typescript"]
 }

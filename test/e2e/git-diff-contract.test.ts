@@ -4,10 +4,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { afterEach, beforeEach, expect, it } from "vitest";
-import { ViewerService } from "../../src/app/viewer-service.js";
-import { GitChangeReview } from "../../src/infra/git-change-review.js";
-import { NodeFileSystem } from "../../src/infra/node-file-system.js";
-import { startHttpServer } from "../../src/server/http-server.js";
+import { ViewerService } from "../../server/typescript/application/viewer-service.js";
+import { GitChangeReview } from "../../server/typescript/infrastructure/git-change-review.js";
+import { NodeFileSystem } from "../../server/typescript/infrastructure/node-file-system.js";
+import { startHttpServer } from "../../server/typescript/http/http-server.js";
 
 const execFileAsync = promisify(execFile);
 

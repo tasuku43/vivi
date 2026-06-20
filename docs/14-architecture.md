@@ -1,113 +1,67 @@
 # Architecture
 
-## Layer diagram
+Vivi is a local application distributed as one Go CLI. The repository is
+organized around the three runtime responsibilities:
 
 ```text
-             browser
-               |
-             src/ui
-               |
-HTTP/SSE boundary in src/server
-               |
-             src/app
-               |
-           src/domain
-               ^
-               |
-            src/infra
+ui/      React workspace UI and its browser-side architecture
+server/  Go local HTTP/API server, filesystem, review, comments, and events
+cli/     Go process entrypoint and server composition
 ```
 
-CLI entry:
+The project remains one Go module. `cli` may start `server`; `server` does not
+depend on `cli`. The server may serve the generated `ui/dist` asset package but
+does not import browser source from `ui/src`.
+
+The preserved TypeScript server and CLI harnesses live below
+`server/typescript` and `cli/typescript`. They continue to support fast contract
+and adapter tests while the Go binary remains the release target.
+
+## Browser layers
 
 ```text
-src/cli -> src/server -> src/app -> src/domain
-                         ^
-                         |
-                      src/infra
+ui/src/app             startup and dependency wiring
+ui/src/features        workbench, file context, comments, review, commands
+ui/src/application     transport-independent use cases and ports
+ui/src/domain          Vivi concepts such as FileContext and Comment
+ui/src/infrastructure  REST DTOs, adapters, fetch, and EventSource
+ui/src/shared          reusable browser presentation
 ```
 
-## Package responsibilities
+Allowed dependency direction:
 
-### `src/cli`
+```text
+app -> features / application / infrastructure / domain / shared
+features -> application / domain / shared
+application -> domain / shared
+infrastructure -> application / domain / shared
+domain -> shared
+```
 
-- Parse command-line arguments.
-- Validate process-level options.
-- Print URL and status.
-- Set exit codes.
+`ViviClient` is the browser API boundary. Features work with its domain-facing
+methods, including `getFileContext`; only `RestViviClient` knows endpoint paths,
+query parameters, REST DTOs, `fetch`, or `EventSource`. A future GraphQL client
+must implement the same port and adapt generated types before returning them.
 
-### `src/server`
+ESLint enforces the dangerous boundaries: features/application cannot import
+infrastructure, application/domain cannot import React, domain cannot import
+outer layers, UI components cannot consume DTOs, and features cannot call
+`fetch` or construct `EventSource` directly. `npm run test:architecture` proves
+the rules with intentionally invalid fixtures that are excluded from normal
+lint.
 
-- Expose HTTP routes.
-- Serve the SPA.
-- Implement SSE event stream.
-- Translate app results into HTTP responses.
+## Server scope
 
-### `src/app`
-
-- Own use cases.
-- Define ports for filesystem and watcher adapters.
-- Own response DTOs consumed by server/UI.
-- Apply high-level product policy.
-
-### `src/domain`
-
-- Pure types and deterministic logic.
-- Path policy functions.
-- Viewer classification.
-- Tree diff/event models.
-
-### `src/infra`
-
-- Node filesystem reads.
-- Watcher implementation.
-- Hashing and metadata collection.
-- Browser opening integration.
-
-### `src/ui`
-
-- React SPA.
-- Sidebar tree state.
-- File viewer routing.
-- EventSource client.
-- Markdown/HTML/code/text/image renderers.
-
-## Dependency direction
-
-- `domain` has no dependency on `app`, `infra`, `server`, `cli`, or `ui`.
-- `app` depends on `domain` and defines ports.
-- `infra` implements app ports.
-- `server` composes app and infra.
-- `cli` composes server startup.
-- `ui` consumes HTTP/SSE contracts and shared DTO types only when bundler-safe.
+The current refactor moves the existing Go packages into `server/` without
+forcing a resolver/use-case/repository redesign. That internal design is left
+for the later API evolution. Existing REST routes, path containment, preview
+safety, comments, git review, search, diff, and SSE behavior remain the contract.
 
 ## Extension points
 
-- Add new viewer kinds in `src/domain/viewer-kind.ts` and `src/ui/viewers/`.
-- Add new event transport in `src/server/`.
-- Add advanced watcher logic in `src/infra/`.
-- Add normalized tree-state helpers in `src/ui/state/`.
-
-## Anti-patterns
-
-- Domain code reading from disk.
-- UI components importing Node modules.
-- Per-node filesystem watchers.
-- Whole-tree re-render as the only long-term update strategy.
-- Path strings accepted without root validation.
-- HTML preview with unsafe defaults.
-
-## Why this architecture
-
-The product crosses filesystem, server, and browser boundaries. Keeping a pure domain and explicit app ports makes it easier for coding agents to add behavior without scattering filesystem, HTTP, and React concerns through the codebase.
-
-## UI state architecture
-
-The preferred UI direction introduces these browser-side state domains:
-
-- tree state: nodes, expansion, selected path, live update markers,
-- tab state: open files, active tab, changed/stale indicators,
-- viewer state: file payload, rendered/source mode, scroll position,
-- inspector state: Review Queue, heading outline, collapsed file details,
-- search palette state: open/closed, mode, query, focused result.
-
-Do not collapse these into one monolithic React component. Add `src/ui/state/` helpers or focused hooks when implementation grows beyond the scaffold. UI helpers may transform HTTP/SSE DTOs into view models, but they must not read files directly or import Node-only modules.
+- Add browser concepts under `ui/src/domain`.
+- Extend the browser API through `application/ports/ViviClient.ts`, then adapt
+  the REST implementation in `infrastructure/vivi-api`.
+- Add viewers under `features/file-context/viewers`.
+- Add server behavior under `server/` and preserve the documented HTTP contract.
+- Keep CLI parsing and process concerns in `cli/`.

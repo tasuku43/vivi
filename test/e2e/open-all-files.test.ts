@@ -2,10 +2,10 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it } from "vitest";
-import type { FsNode } from "../../src/domain/fs-node.js";
-import { ViewerService } from "../../src/app/viewer-service.js";
-import { NodeFileSystem } from "../../src/infra/node-file-system.js";
-import { startHttpServer } from "../../src/server/http-server.js";
+import type { FsNode } from "../../server/typescript/domain/fs-node.js";
+import { ViewerService } from "../../server/typescript/application/viewer-service.js";
+import { NodeFileSystem } from "../../server/typescript/infrastructure/node-file-system.js";
+import { startHttpServer } from "../../server/typescript/http/http-server.js";
 
 let dir: string;
 let server: { url: string; close: () => Promise<void> } | null = null;

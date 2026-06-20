@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { highlightCode } from "../src/ui/state/highlighter.js";
+import { highlightCode } from "../ui/src/state/highlighter.js";
 
 it("loads syntax languages on demand and falls back for unknown languages", async () => {
   const highlighted = await highlightCode(

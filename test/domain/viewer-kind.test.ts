@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { classifyViewer } from "../../src/domain/viewer-kind.js";
+import { classifyViewer } from "../../server/typescript/domain/viewer-kind.js";
 
 it("classifies common viewer kinds", () => {
   expect(classifyViewer("README.md")).toBe("markdown");

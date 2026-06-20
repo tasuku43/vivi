@@ -1,9 +1,9 @@
 import path from "node:path";
 import { afterEach, expect, it } from "vitest";
-import type { FsNode } from "../../src/domain/fs-node.js";
-import { ViewerService } from "../../src/app/viewer-service.js";
-import { NodeFileSystem } from "../../src/infra/node-file-system.js";
-import { startHttpServer } from "../../src/server/http-server.js";
+import type { FsNode } from "../../server/typescript/domain/fs-node.js";
+import { ViewerService } from "../../server/typescript/application/viewer-service.js";
+import { NodeFileSystem } from "../../server/typescript/infrastructure/node-file-system.js";
+import { startHttpServer } from "../../server/typescript/http/http-server.js";
 
 let server: { url: string; close: () => Promise<void> } | null = null;
 
@@ -22,7 +22,11 @@ it("keeps the Mermaid example workspace usable across mmd, markdown, and html pr
   const tree = await fetch(`${server.url}/api/tree`).then(
     (res) => res.json() as Promise<{ nodes: FsNode[] }>,
   );
-  expect(flattenFiles(tree.nodes).map((file) => file.path).sort()).toEqual([
+  expect(
+    flattenFiles(tree.nodes)
+      .map((file) => file.path)
+      .sort(),
+  ).toEqual([
     "README.md",
     "docs/flow.mmd",
     "docs/notes.md",
@@ -64,7 +68,9 @@ it("keeps the Mermaid example workspace usable across mmd, markdown, and html pr
 
   const mermaidBundle = await fetch(`${server.url}/vivi/vendor/mermaid.min.js`);
   expect(mermaidBundle.status).toBe(200);
-  expect(mermaidBundle.headers.get("content-type")).toContain("text/javascript");
+  expect(mermaidBundle.headers.get("content-type")).toContain(
+    "text/javascript",
+  );
   expect(await mermaidBundle.text()).toContain('globalThis["mermaid"]');
 
   const lightHtml = await fetch(
@@ -94,9 +100,9 @@ it("keeps the Mermaid example workspace usable across mmd, markdown, and html pr
     `${server.url}/preview/html?path=${encodeURIComponent("public/embedded.html")}`,
   );
   expect(scriptsEnabledPreview.status).toBe(200);
-  expect(scriptsEnabledPreview.headers.get("content-security-policy")).toContain(
-    "script-src 'self' 'unsafe-inline'",
-  );
+  expect(
+    scriptsEnabledPreview.headers.get("content-security-policy"),
+  ).toContain("script-src 'self' 'unsafe-inline'");
   const scriptsEnabledHtml = await scriptsEnabledPreview.text();
   expect(scriptsEnabledHtml).toContain("data-vivi-html-mermaid");
   expect(scriptsEnabledHtml).toContain("Mermaid preview · user scripts active");

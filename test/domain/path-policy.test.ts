@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeRelativePath } from "../../src/domain/path-policy.js";
+import { normalizeRelativePath } from "../../server/typescript/domain/path-policy.js";
 
 it("normalizes safe relative paths", () => {
   expect(normalizeRelativePath("./docs/../README.md")).toEqual({

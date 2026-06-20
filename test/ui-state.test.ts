@@ -1,11 +1,11 @@
 import { expect, it, vi } from "vitest";
-import type { FilePayload, FsNode } from "../src/domain/fs-node.js";
-import type { FileSearchResult } from "../src/domain/search.js";
-import { iconForPath, languageForPath } from "../src/ui/state/file-icons.js";
+import type { FilePayload, FsNode } from "../ui/src/domain/fs-node.js";
+import type { FileSearchResult } from "../ui/src/domain/search.js";
+import { iconForPath, languageForPath } from "../ui/src/state/file-icons.js";
 import {
   clampPaletteSelection,
   movePaletteSelection,
-} from "../src/ui/state/command-palette.js";
+} from "../ui/src/state/command-palette.js";
 import {
   filterTreeToPaths,
   fuzzyFileResults,
@@ -13,7 +13,7 @@ import {
   replaceDirectoryChildren,
   reviewArtifactResults,
   unloadedAncestorDirectoryPaths,
-} from "../src/ui/state/files.js";
+} from "../ui/src/state/files.js";
 import {
   buildDiffStat,
   buildSideBySideDiffRows,
@@ -24,24 +24,24 @@ import {
   nextReviewQueuePath,
   parseUnifiedDiff,
   reviewQueueSourceLabel,
-} from "../src/ui/state/git-review.js";
+} from "../ui/src/state/git-review.js";
 import {
   gitReviewPollMs,
   shouldLoadInitialGitReview,
   shouldPollGitReview,
   shouldStartGitReviewPolling,
   startGitReviewPolling,
-} from "../src/ui/state/git-review-refresh.js";
+} from "../ui/src/state/git-review-refresh.js";
 import {
   buildFileSearchItems,
   buildTextSearchItems,
-} from "../src/ui/state/search-palette.js";
+} from "../ui/src/state/search-palette.js";
 import {
   flattenPanes,
   initialEditorLayout,
   setPaneActivePath,
   splitEditorPane,
-} from "../src/ui/state/editor-layout.js";
+} from "../ui/src/state/editor-layout.js";
 import {
   closeOtherOpenTabs,
   closeOpenTab,
@@ -54,18 +54,18 @@ import {
   moveOpenTab,
   promoteOpenTab,
   upsertOpenTab,
-} from "../src/ui/state/tabs.js";
+} from "../ui/src/state/tabs.js";
 import {
   activePanePaths,
   decideLiveRefresh,
   shouldApplyLiveRefresh,
-} from "../src/ui/state/live-refresh.js";
+} from "../ui/src/state/live-refresh.js";
 import {
   isThemePreference,
   nextThemePreference,
   resolveThemePreference,
   themePreferenceLabel,
-} from "../src/ui/state/theme.js";
+} from "../ui/src/state/theme.js";
 import {
   clampInspectorWidth,
   clampSidebarWidth,
@@ -77,7 +77,7 @@ import {
   minInspectorWidth,
   minSidebarWidth,
   shouldCollapseInspector,
-} from "../src/ui/state/workbench-layout.js";
+} from "../ui/src/state/workbench-layout.js";
 import {
   buildWorkspaceSession,
   collectFilePaths,
@@ -89,7 +89,7 @@ import {
   shouldPromptForWorkspaceSessionRestore,
   workspaceSessionStorageKeyForRoot,
   workspaceSessionTtlMs,
-} from "../src/ui/state/workspace-session.js";
+} from "../ui/src/state/workspace-session.js";
 import {
   defaultViewerMode,
   diffSupportForFile,
@@ -97,17 +97,17 @@ import {
   nextViewerMode,
   supportsDiffMode,
   supportsSourceToggle,
-} from "../src/ui/state/viewer-mode.js";
-import { summarizeReviewEvents } from "../src/ui/state/review-events.js";
-import { keyboardShortcutAction } from "../src/ui/state/shortcuts.js";
+} from "../ui/src/state/viewer-mode.js";
+import { summarizeReviewEvents } from "../ui/src/state/review-events.js";
+import { keyboardShortcutAction } from "../ui/src/state/shortcuts.js";
 import {
   boundedVisibleTreeRows,
   countTreeNodes,
   ensureVisibleAncestors,
   initialExpandedPaths,
   visibleTreeRows,
-} from "../src/ui/state/tree-expansion.js";
-import { inspectorTargetLabel } from "../src/ui/components/Inspector.js";
+} from "../ui/src/state/tree-expansion.js";
+import { inspectorTargetLabel } from "../ui/src/features/review-queue/Inspector.js";
 
 it("opens, updates, and marks tabs by path", () => {
   const tabs = upsertOpenTab([], {
@@ -401,12 +401,12 @@ it("applies only the newest live refresh payload for rapid repeated saves", () =
   versions["README.md"] = 2;
   const secondRequest = versions["README.md"];
 
-  expect(
-    shouldApplyLiveRefresh(versions, "README.md", firstRequest),
-  ).toBe(false);
-  expect(
-    shouldApplyLiveRefresh(versions, "README.md", secondRequest),
-  ).toBe(true);
+  expect(shouldApplyLiveRefresh(versions, "README.md", firstRequest)).toBe(
+    false,
+  );
+  expect(shouldApplyLiveRefresh(versions, "README.md", secondRequest)).toBe(
+    true,
+  );
 });
 
 it("does not mark the active viewer stale for unrelated watcher events", () => {
@@ -512,15 +512,13 @@ it("maps workspace keyboard shortcuts to app actions", () => {
   };
 
   expect(keyboardShortcutAction({ ...command, key: "k" })).toBe("quick-open");
-  expect(
-    keyboardShortcutAction({ ...command, key: "F", shiftKey: true }),
-  ).toBe("search-text");
-  expect(keyboardShortcutAction({ ...command, key: "d" })).toBe(
-    "toggle-diff",
+  expect(keyboardShortcutAction({ ...command, key: "F", shiftKey: true })).toBe(
+    "search-text",
   );
-  expect(
-    keyboardShortcutAction({ ...command, key: "U", shiftKey: true }),
-  ).toBe("open-latest-unread");
+  expect(keyboardShortcutAction({ ...command, key: "d" })).toBe("toggle-diff");
+  expect(keyboardShortcutAction({ ...command, key: "U", shiftKey: true })).toBe(
+    "open-latest-unread",
+  );
   expect(keyboardShortcutAction({ ...command, key: "w" })).toBe(
     "close-active-tab",
   );
@@ -1705,14 +1703,15 @@ it("models diff support by viewer kind and keeps unsupported extensions visible"
   ] as const) {
     expect(supportsDiffMode({ viewerKind, encoding: "utf8" })).toBe(true);
   }
-  expect(
-    supportsDiffMode({ viewerKind: "image", encoding: "base64" }),
-  ).toBe(true);
-  expect(
-    diffSupportForFile({ viewerKind: "json", encoding: "utf8" }),
-  ).toEqual({ supported: true, renderKind: "source" });
-  expect(
-    supportsDiffMode({ viewerKind: "json", encoding: "base64" }),
-  ).toBe(false);
+  expect(supportsDiffMode({ viewerKind: "image", encoding: "base64" })).toBe(
+    true,
+  );
+  expect(diffSupportForFile({ viewerKind: "json", encoding: "utf8" })).toEqual({
+    supported: true,
+    renderKind: "source",
+  });
+  expect(supportsDiffMode({ viewerKind: "json", encoding: "base64" })).toBe(
+    false,
+  );
   expect(diffUnsupportedViewerKinds).toEqual([]);
 });

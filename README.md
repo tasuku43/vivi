@@ -120,6 +120,7 @@ Install [Task](https://taskfile.dev/) and Node.js 20 or newer for development:
 npm ci
 task check
 task build
+task storybook
 ```
 
 Useful commands:
@@ -145,10 +146,9 @@ native binary for normal local workspace reading.
 ## Repository Layout
 
 ```text
-cmd/vivi/      Go CLI entrypoint
-internal/      Go server, filesystem, Git, and API implementation
-src/ui/        React SPA, sidebar tree, tabs, inspector, and viewers
-src/domain/    Shared TypeScript UI/domain helpers during migration
+cli/           Go CLI entrypoint plus the preserved TypeScript CLI harness
+server/        Go local HTTP/API server and TypeScript contract implementation
+ui/            React SPA, layered client boundary, features, tests, and Storybook
 test/          unit, integration, contract, and E2E tests
 evals/         fixture-driven product evaluations
 docs/          product, architecture, release, and security notes

@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile, mkdir, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it } from "vitest";
-import { NodeFileSystem } from "../../src/infra/node-file-system.js";
+import { NodeFileSystem } from "../../server/typescript/infrastructure/node-file-system.js";
 
 let dir: string;
 

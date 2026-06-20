@@ -5,7 +5,7 @@
   "type": "module",
   "description": "A read-only visual workspace viewer for agent-written local files.",
   "bin": {
-    "vivi": "dist/cli/main.js"
+    "vivi": "dist/typescript/cli/typescript/main.js"
   },
   "files": [
     "dist",
@@ -13,24 +13,27 @@
     "LICENSE"
   ],
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
-    "dev:server": "tsx src/cli/main.ts . --port 4317",
+    "dev": "npm --prefix ui run dev",
+    "dev:server": "tsx cli/typescript/main.ts . --port 4317",
     "clean:dist": "node scripts/clean-dist.mjs",
     "prepare:ui-assets": "node scripts/prepare-ui-assets.mjs",
     "prepare:go": "node scripts/prepare-go-workspace.mjs",
     "postinstall": "node scripts/prepare-go-workspace.mjs",
-    "build": "npm run clean:dist && npm run prepare:ui-assets && tsc -p tsconfig.node.json && vite build",
+    "build": "npm run clean:dist && npm run prepare:ui-assets && tsc -p tsconfig.node.json && npm --prefix ui run build",
     "build:go": "npm run prepare:go && node scripts/run-go-build.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit",
-    "test:go": "npm run prepare:go && go test ./...",
+    "typecheck": "npm --prefix ui run typecheck && tsc -p tsconfig.node.json --noEmit",
+    "test:go": "npm run prepare:go && node scripts/run-go-test.mjs",
     "test": "vitest run",
     "eval": "node --import tsx evals/run-evals.ts",
     "e2e": "VIVI_E2E=1 vitest run test/e2e",
     "verify:comment-ui": "npm run build && node scripts/verify-comment-ui-cdp.mjs",
     "format:check": "prettier --check .",
-    "lint": "eslint .",
+    "lint": "npm --prefix ui run lint",
+    "test:architecture": "node scripts/verify-ui-architecture.mjs",
+    "storybook": "npm --prefix ui run storybook",
+    "build:storybook": "npm --prefix ui run build-storybook",
     "validate:scaffold": "node scripts/validate-scaffold.mjs",
-    "check": "npm run validate:scaffold && npm run typecheck && npm run test && npm run eval && npm run e2e && npm run build && npm run test:go && npm run build:go"
+    "check": "npm run validate:scaffold && npm run lint && npm run test:architecture && npm run typecheck && npm run test && npm run eval && npm run e2e && npm run build && npm run build:storybook && npm run test:go && npm run build:go"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
@@ -42,13 +45,18 @@
     "vite": "latest"
   },
   "devDependencies": {
+    "@storybook/addon-a11y": "^10.4.6",
+    "@storybook/addon-docs": "^10.4.6",
+    "@storybook/react-vite": "^10.4.6",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "eslint": "latest",
     "prettier": "latest",
+    "storybook": "^10.4.6",
     "tsx": "latest",
     "typescript": "latest",
+    "typescript-eslint": "^8.61.1",
     "vitest": "latest"
   },
   "engines": {

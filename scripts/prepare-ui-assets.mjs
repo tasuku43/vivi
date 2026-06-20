@@ -6,6 +6,7 @@ const require = createRequire(import.meta.url);
 const source = require.resolve("mermaid/dist/mermaid.min.js");
 const target = path.join(
   process.cwd(),
+  "ui",
   "public",
   "vivi",
   "vendor",

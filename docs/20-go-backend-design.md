@@ -14,12 +14,12 @@ github.com/tasuku43/vivi
 Initial Go layout:
 
 ```text
-cmd/vivi/main.go
-internal/server
-internal/workspace
-internal/gitreview
-internal/comments
-internal/static
+cli/main.go
+server/server.go
+server/workspace
+server/gitreview
+server/comments
+ui/static_assets.go
 ```
 
 ## CLI Flags
@@ -84,7 +84,9 @@ Error responses use:
 
 ## Static Frontend
 
-Release builds run the Vite build first. Go embeds `dist/ui` with `embed.FS`.
+Release builds run the Vite build first. The small Go package at
+`ui/static_assets.go` embeds `ui/dist` with `embed.FS`; `server` depends only on
+that generated asset package, not on `ui/src`.
 The server serves those assets directly and falls back to `index.html` for SPA
 routes. The archive contains only the `vivi` binary because the assets are
 inside the binary.

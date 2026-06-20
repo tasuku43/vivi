@@ -27,6 +27,75 @@ tasks:
     cmds:
       - npm run typecheck
 
+  dev:
+    desc: Start the Vite UI dev server
+    cmds:
+      - task: ui:dev
+
+  dev:server:
+    desc: Start the local TypeScript server harness
+    cmds:
+      - npm run dev:server
+
+  lint:
+    desc: Enforce UI and architecture boundaries
+    cmds:
+      - npm run lint
+      - npm run test:architecture
+
+  ui:test:
+    desc: Run UI and browser-facing tests
+    cmds:
+      - npm test -- test/ui-*.test.ts test/ui-*.test.tsx
+
+  ui:dev:
+    desc: Start the Vite UI dev server
+    cmds:
+      - npm run dev
+
+  ui:build:
+    desc: Build the React UI assets
+    cmds:
+      - npm run prepare:ui-assets
+      - npm --prefix ui run build
+
+  ui:storybook:
+    desc: Start Storybook for presentational UI components
+    cmds:
+      - npm run storybook
+
+  ui:storybook:build:
+    desc: Build Storybook as a verification step
+    cmds:
+      - npm run build:storybook
+
+  storybook:
+    desc: Start Storybook for presentational UI components
+    cmds:
+      - task: ui:storybook
+
+  storybook:build:
+    desc: Build Storybook as a verification step
+    cmds:
+      - task: ui:storybook:build
+
+  server:test:
+    desc: Run Go server and TypeScript server contract tests
+    cmds:
+      - npm run test:go -- ./server/...
+      - npm test -- test/app test/domain test/infra test/e2e
+
+  cli:test:
+    desc: Run CLI tests
+    cmds:
+      - npm run test:go -- ./cli
+      - npm test -- test/cli-args.test.ts test/cli-shutdown.test.ts
+
+  go:test:
+    desc: Run all Go package tests with repository-local caches
+    cmds:
+      - npm run test:go
+
   test:
     desc: Run unit and integration tests
     cmds:

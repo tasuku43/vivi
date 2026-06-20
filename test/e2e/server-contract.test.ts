@@ -2,15 +2,15 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it } from "vitest";
-import { ViewerService } from "../../src/app/viewer-service.js";
+import { ViewerService } from "../../server/typescript/application/viewer-service.js";
 import type {
   ChangeReviewPort,
   FileSystemPort,
   WatcherPort,
-} from "../../src/app/contracts.js";
-import type { FsEvent } from "../../src/domain/fs-node.js";
-import { NodeFileSystem } from "../../src/infra/node-file-system.js";
-import { startHttpServer } from "../../src/server/http-server.js";
+} from "../../server/typescript/application/contracts.js";
+import type { FsEvent } from "../../server/typescript/domain/fs-node.js";
+import { NodeFileSystem } from "../../server/typescript/infrastructure/node-file-system.js";
+import { startHttpServer } from "../../server/typescript/http/http-server.js";
 
 let dir: string;
 let server: { url: string; close: () => Promise<void> } | null = null;
@@ -128,7 +128,9 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   expect(previewHtml).toContain('data-vivi-source-line-end="1"');
   expect(previewHtml).toContain("vivi-html-block-target");
   expect(previewHtml).toContain("if (event.source !== parent) return;");
-  expect(previewHtml).toContain('action.setAttribute("aria-label", actionLabel(0))');
+  expect(previewHtml).toContain(
+    'action.setAttribute("aria-label", actionLabel(0))',
+  );
   expect(previewHtml).toContain("drafting-vivi-comment");
   expect(previewHtml).toContain(
     'replace(/[^a-zA-Z0-9_-]/g, (character) => "\\\\" + character)',

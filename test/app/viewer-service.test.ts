@@ -1,9 +1,9 @@
 import { expect, it } from "vitest";
-import { ViewerService } from "../../src/app/viewer-service.js";
+import { ViewerService } from "../../server/typescript/application/viewer-service.js";
 import type {
   ChangeReviewPort,
   FileSystemPort,
-} from "../../src/app/contracts.js";
+} from "../../server/typescript/application/contracts.js";
 
 it("delegates tree reads to the filesystem port", async () => {
   const fsPort: FileSystemPort = {

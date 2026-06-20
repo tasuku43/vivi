@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   addRenderedCommentBlockIdsToHtml,
   renderedCommentBlocksForHtml,
-} from "../src/domain/rendered-comment-blocks.js";
-import { positionInlineCommentCard } from "../src/ui/components/InlineCommentCard.js";
+} from "../ui/src/domain/rendered-comment-blocks.js";
+import { positionInlineCommentCard } from "../ui/src/features/comments/components/InlineCommentCard.js";
 import {
   renderedCommentActionLabel,
   renderedCommentSourceRange,
   renderedCommentSummaryForComment,
-} from "../src/ui/state/rendered-comment-blocks.js";
+} from "../ui/src/state/rendered-comment-blocks.js";
 
 describe("rendered comment blocks", () => {
   it("annotates readable blocks without rewriting raw text or template content", () => {

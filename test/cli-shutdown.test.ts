@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import { installShutdownHandlers } from "../src/cli/main.js";
+import { installShutdownHandlers } from "../cli/typescript/main.js";
 
 it("closes the server and exits with the signal code on SIGINT", async () => {
   const events = new Map<string, (signal: NodeJS.Signals) => void>();

@@ -4,7 +4,7 @@ import {
   buildFullFileDiff,
   parseGitPorcelainStatus,
   statusFromCode,
-} from "../../src/domain/change-review.js";
+} from "../../server/typescript/domain/change-review.js";
 
 it("parses porcelain status into review changes", () => {
   const output = [

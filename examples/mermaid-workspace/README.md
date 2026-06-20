@@ -9,5 +9,5 @@ This project exercises Mermaid rendering in the three places vivi supports:
 Open it locally with:
 
 ```bash
-npx tsx src/cli/main.ts examples/mermaid-workspace --port 4318
+npx tsx cli/typescript/main.ts examples/mermaid-workspace --port 4318
 ```

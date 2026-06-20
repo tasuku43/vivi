@@ -20,12 +20,13 @@ Tests are the control system, not a final cleanup step.
 Preserve the layered architecture:
 
 ```text
-src/cli    -> process args, stdout/stderr, exit codes
-src/server -> HTTP/SSE boundary and browser delivery
-src/app    -> use-case orchestration and ports
-src/domain -> pure deterministic logic
-src/infra  -> Node filesystem, watchers, hashing, process integration
-src/ui     -> React SPA and browser-only rendering
+cli              -> process args, stdout/stderr, exit codes
+server           -> local HTTP/SSE, filesystem, comments, review, browser delivery
+ui/src/app       -> browser startup and dependency wiring
+ui/src/features  -> browser feature packages
+ui/src/application -> browser use cases and ports
+ui/src/domain    -> pure browser/domain concepts
+ui/src/infrastructure -> REST DTOs, adapters, fetch, and EventSource
 ```
 
 Dependency direction:
@@ -38,8 +39,8 @@ infra -> app ports + domain types
 
 Forbidden moves:
 
-- Do not put filesystem reads inside `src/domain`.
-- Do not parse CLI flags inside `src/app` or `src/domain`.
+- Do not put filesystem reads inside `ui/src/domain`.
+- Do not parse CLI flags inside `ui/src/application` or `ui/src/domain`.
 - Do not put HTTP route logic inside React components.
 - Do not let UI components depend on Node-only APIs.
 - Do not make each tree node open its own watcher.

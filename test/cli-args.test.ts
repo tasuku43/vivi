@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { helpText, parseArgs } from "../src/cli/main.js";
+import { helpText, parseArgs } from "../cli/typescript/main.js";
 
 it("parses documented CLI switches", () => {
   const args = parseArgs([
