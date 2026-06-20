@@ -8,10 +8,31 @@ const restrictedInfrastructure = {
 
 export default tseslint.config(
   {
+    files: [
+      "src/features/**/*.{ts,tsx}",
+      "src/application/**/*.{ts,tsx}",
+      "src/domain/**/*.{ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/graphql/generated/**"],
+              message: "Generated GraphQL types are private to the infrastructure adapter.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     ignores: [
       "dist/**",
       "storybook-static/**",
       "public/**",
+      "src/infrastructure/vivi-api/graphql/generated/**",
       "src/**/*.violation.ts",
       "src/**/*.violation.tsx",
     ],

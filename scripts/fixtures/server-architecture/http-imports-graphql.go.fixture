@@ -1,0 +1,2 @@
+package httpfixture
+import _ "github.com/tasuku43/vivi/server/graphql"

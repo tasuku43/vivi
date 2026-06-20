@@ -14,6 +14,10 @@ const fixtures = [
   "src/application/architecture-react.violation.ts",
   "src/domain/architecture-domain-import.violation.ts",
   "src/features/architecture-dto-import.violation.ts",
+  "src/features/architecture-graphql-generated.violation.ts",
+  "src/application/architecture-graphql-generated.violation.ts",
+  "src/domain/architecture-graphql-generated.violation.ts",
+  "src/shared/architecture-graphql-generated.violation.ts",
 ];
 
 for (const fixture of fixtures) {

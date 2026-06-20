@@ -1,5 +1,9 @@
 # Vivi
 
+The canonical data contract is `server/graphql/schema.graphqls`. Run
+`task generate` to regenerate the Go bindings and infrastructure-private
+TypeScript operation types.
+
 Vivi is a read-only visual workspace viewer for agent-written local files.
 
 Coding agents write. Humans read, understand the workspace, and give the next

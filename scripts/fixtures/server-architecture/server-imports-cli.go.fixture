@@ -1,0 +1,2 @@
+package serverfixture
+import _ "github.com/tasuku43/vivi/cli"

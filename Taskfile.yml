@@ -18,13 +18,14 @@ tasks:
   generate:
     desc: Regenerate generated source files
     cmds:
+      - npm run generate:ui-graphql
       - task: generate:graphql
 
   generate:check:
     desc: Verify committed generated GraphQL source is reproducible
     cmds:
       - task: generate
-      - git diff --exit-code -- server/graphql/generated/generated.go server/graphql/model/models_gen.go server/graphql/schema.resolvers.go
+      - git diff --exit-code -- server/graphql/generated/generated.go server/graphql/model/models_gen.go server/graphql/schema.resolvers.go ui/src/infrastructure/vivi-api/graphql/generated
 
   security:
     desc: Enforce repository supply-chain policy

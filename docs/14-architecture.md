@@ -42,9 +42,11 @@ domain -> shared
 methods, including `getFileContext`, `getCommentThreads`, and `exportComments`;
 only infrastructure clients know endpoint paths, transport DTOs, `fetch`, or
 `EventSource`. `GraphqlViviClient` is the normal browser data path and adapts
-GraphQL response shapes before returning domain types. `RestViviClient` remains
-as a compatibility adapter for the REST wrapper routes while the migration
-finishes.
+GraphQL response shapes before returning domain types. `RestViviClient` is a
+compatibility-only adapter and is not wired into browser startup. The Go runtime
+returns 404 for legacy `/api/*` data routes. Generated operation types stay
+inside infrastructure and are converted by GraphQL adapters before reaching
+application or domain code.
 
 ESLint enforces the dangerous boundaries: features/application cannot import
 infrastructure, application/domain cannot import React, domain cannot import
@@ -52,6 +54,18 @@ outer layers, UI components cannot consume DTOs, and features cannot call
 `fetch` or construct `EventSource` directly. `npm run test:architecture` proves
 the rules with intentionally invalid fixtures that are excluded from normal
 lint.
+
+Generated GraphQL types are additionally denied from `features`, components,
+`application`, and `domain`. `scripts/verify-ui-architecture.mjs` runs
+intentional `.violation.ts` fixtures and fails unless ESLint rejects every one.
+
+Go boundaries are enforced twice. `server/architecture_boundary_test.go`
+recursively checks package imports during `go test`, while
+`scripts/verify-server-architecture.mjs` recursively scans the repository and
+proves the checker with intentional `.go.fixture` violations. The forbidden
+edges are `server/graphql -> server/http`, `server/http -> server/graphql`,
+`server/application -> any transport package`, and root `server -> cli`.
+Both checks are part of `task check` through `test:architecture` and `test:go`.
 
 ## Server scope
 

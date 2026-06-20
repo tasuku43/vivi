@@ -11,125 +11,50 @@ import {
   adaptGraphqlConfig,
   adaptGraphqlDiff,
   adaptGraphqlFile,
+  adaptGraphqlFileSearch,
   adaptGraphqlReviewQueue,
   adaptGraphqlTree,
+  adaptGraphqlTextSearch,
   adaptGraphqlWorkspaceEvent,
 } from "./adapters/graphql-adapters.js";
 import type {
-  GraphqlCommentDto,
-  GraphqlCommentExportDto,
-  GraphqlCommentThreadDto,
-  GraphqlConfigDto,
-  GraphqlDiffDto,
-  GraphqlFileDto,
-  GraphqlFileSearchDto,
   GraphqlResponse,
-  GraphqlReviewQueueDto,
-  GraphqlTextSearchDto,
-  GraphqlTreeDto,
-  GraphqlWorkspaceEventDto,
 } from "./dto/graphql-dto.js";
-
-const treeSelection = `{
-  root
-  version
-  path
-  depth
-  stats {
-    durationMs
-    scannedDirectories
-    scannedFiles
-    returnedNodes
-  }
-  nodes {
-    id
-    path
-    name
-    kind
-    parentPath
-    viewerKind
-    childrenLoaded
-    size
-    mtimeMs
-    version
-    children {
-      id
-      path
-      name
-      kind
-      parentPath
-      viewerKind
-      childrenLoaded
-      size
-      mtimeMs
-      version
-    }
-  }
-}`;
-
-const configSelection = `{
-  root
-  allowHtmlScripts
-  maxFileSizeBytes
-}`;
-
-const fileSelection = `{
-  path
-  viewerKind
-  encoding
-  content
-  etag
-  size
-  mtimeMs
-  mimeType
-  truncated
-  maxSizeBytes
-  previewBytes
-}`;
-
-const commentSelection = `{
-  id
-  threadId
-  path
-  viewerKind
-  anchor
-  body
-  status
-  createdAt
-  updatedAt
-  resolvedAt
-  archivedAt
-}`;
-
-const commentThreadSelection = `{
-  id
-  path
-  status
-  anchor
-  updatedAt
-  comments ${commentSelection}
-}`;
-
-const diffSelection = `{
-  path
-  status
-  kind
-  baseLabel
-  compareLabel
-  content
-  reason
-}`;
-
-const reviewQueueSelection = `{
-  available
-  reason
-  changes {
-    path
-    status
-    kind
-    originalPath
-  }
-}`;
+import { print } from "graphql";
+import {
+  CreateCommentDocument,
+  UpdateCommentStatusDocument,
+  UpdateCommentThreadStatusDocument,
+  ViviCommentExportDocument,
+  ViviCommentsDocument,
+  ViviCommentThreadsDocument,
+  ViviConfigDocument,
+  ViviDiffDocument,
+  ViviFileContextDocument,
+  ViviFileSearchDocument,
+  ViviReviewQueueDocument,
+  ViviTextSearchDocument,
+  ViviTreeDocument,
+  ViviWorkspaceDocument,
+  WorkspaceEventsDocument,
+} from "./graphql/generated/graphql.js";
+import type {
+  CreateCommentMutation,
+  UpdateCommentStatusMutation,
+  UpdateCommentThreadStatusMutation,
+  ViviCommentExportQuery,
+  ViviCommentsQuery,
+  ViviCommentThreadsQuery,
+  ViviConfigQuery,
+  ViviDiffQuery,
+  ViviFileContextQuery,
+  ViviFileSearchQuery,
+  ViviReviewQueueQuery,
+  ViviTextSearchQuery,
+  ViviTreeQuery,
+  ViviWorkspaceQuery,
+  WorkspaceEventsSubscription,
+} from "./graphql/generated/graphql.js";
 
 export interface GraphqlViviClientOptions {
   baseUrl?: string;
@@ -150,16 +75,9 @@ export class GraphqlViviClient implements ViviClient {
   }
 
   async getWorkspace() {
-    const data = await this.graphql<{
-      workspace: { tree: GraphqlTreeDto; config: GraphqlConfigDto };
-    }>({
+    const data = await this.graphql<ViviWorkspaceQuery>({
       operationName: "ViviWorkspace",
-      query: `query ViviWorkspace($path: String, $depth: Int) {
-        workspace(path: $path, depth: $depth) {
-          tree ${treeSelection}
-          config ${configSelection}
-        }
-      }`,
+      query: print(ViviWorkspaceDocument),
       variables: { depth: 1 },
     });
     return {
@@ -169,20 +87,18 @@ export class GraphqlViviClient implements ViviClient {
   }
 
   async getTree(input: { path?: string; depth?: number } = {}) {
-    const data = await this.graphql<{ tree: GraphqlTreeDto }>({
+    const data = await this.graphql<ViviTreeQuery>({
       operationName: "ViviTree",
-      query: `query ViviTree($path: String, $depth: Int) {
-        tree(path: $path, depth: $depth) ${treeSelection}
-      }`,
+      query: print(ViviTreeDocument),
       variables: { path: input.path, depth: input.depth ?? 1 },
     });
     return adaptGraphqlTree(data.tree);
   }
 
   async getConfig() {
-    const data = await this.graphql<{ config: GraphqlConfigDto }>({
+    const data = await this.graphql<ViviConfigQuery>({
       operationName: "ViviConfig",
-      query: `query ViviConfig { config ${configSelection} }`,
+      query: print(ViviConfigDocument),
     });
     return adaptGraphqlConfig(data.config);
   }
@@ -193,33 +109,9 @@ export class GraphqlViviClient implements ViviClient {
     includeDiff?: boolean;
     diffBase?: string;
   }) {
-    const data = await this.graphql<{
-      fileContext: {
-        file: GraphqlFileDto;
-        comments: GraphqlCommentDto[];
-        commentThreads: GraphqlCommentThreadDto[];
-        diff?: GraphqlDiffDto;
-      };
-    }>({
+    const data = await this.graphql<ViviFileContextQuery>({
       operationName: "ViviFileContext",
-      query: `query ViviFileContext(
-        $path: String!
-        $includeComments: Boolean
-        $includeDiff: Boolean
-        $diffBase: String
-      ) {
-        fileContext(
-          path: $path
-          includeComments: $includeComments
-          includeDiff: $includeDiff
-          diffBase: $diffBase
-        ) {
-          file ${fileSelection}
-          comments ${commentSelection}
-          commentThreads ${commentThreadSelection}
-          diff ${diffSelection}
-        }
-      }`,
+      query: print(ViviFileContextDocument),
       variables: input,
     });
     return {
@@ -235,94 +127,62 @@ export class GraphqlViviClient implements ViviClient {
   }
 
   async getComments(input: CommentListFilters = {}) {
-    const data = await this.graphql<{ comments: GraphqlCommentDto[] }>({
+    const data = await this.graphql<ViviCommentsQuery>({
       operationName: "ViviComments",
-      query: `query ViviComments($path: String, $status: CommentStatus) {
-        comments(path: $path, status: $status) ${commentSelection}
-        commentThreads(path: $path, status: $status) {
-          id
-          path
-          status
-          anchor
-          updatedAt
-          comments ${commentSelection}
-        }
-      }`,
+      query: print(ViviCommentsDocument),
       variables: input,
     });
     return data.comments.map(adaptGraphqlComment);
   }
 
   async getCommentThreads(input: CommentListFilters = {}) {
-    const data = await this.graphql<{
-      commentThreads: GraphqlCommentThreadDto[];
-    }>({
+    const data = await this.graphql<ViviCommentThreadsQuery>({
       operationName: "ViviCommentThreads",
-      query: `query ViviCommentThreads($path: String, $status: CommentStatus) {
-        commentThreads(path: $path, status: $status) ${commentThreadSelection}
-      }`,
+      query: print(ViviCommentThreadsDocument),
       variables: input,
     });
     return data.commentThreads.map(adaptGraphqlCommentThread);
   }
 
   async exportComments(input: CommentExportFilters = {}) {
-    const data = await this.graphql<{
-      commentExport: GraphqlCommentExportDto;
-    }>({
+    const data = await this.graphql<ViviCommentExportQuery>({
       operationName: "ViviCommentExport",
-      query: `query ViviCommentExport(
-        $path: String
-        $status: CommentStatus
-        $format: CommentExportFormat
-      ) {
-        commentExport(path: $path, status: $status, format: $format) {
-          format
-          contentType
-          content
-        }
-      }`,
+      query: print(ViviCommentExportDocument),
       variables: { ...input, format: input.format ?? "jsonl" },
     });
     return data.commentExport.content;
   }
 
   async getReviewQueue() {
-    const data = await this.graphql<{ reviewQueue: GraphqlReviewQueueDto }>({
+    const data = await this.graphql<ViviReviewQueueQuery>({
       operationName: "ViviReviewQueue",
-      query: `query ViviReviewQueue { reviewQueue ${reviewQueueSelection} }`,
+      query: print(ViviReviewQueueDocument),
     });
     return adaptGraphqlReviewQueue(data.reviewQueue);
   }
 
   async getDiff(input: { path: string; base?: string }) {
-    const data = await this.graphql<{ diff: GraphqlDiffDto }>({
+    const data = await this.graphql<ViviDiffQuery>({
       operationName: "ViviDiff",
-      query: `query ViviDiff($path: String!, $base: String) {
-        diff(path: $path, base: $base) ${diffSelection}
-      }`,
+      query: print(ViviDiffDocument),
       variables: input,
     });
     return adaptGraphqlDiff(data.diff);
   }
 
   async createComment(input: CreateCommentInput) {
-    const data = await this.graphql<{ createComment: GraphqlCommentDto }>({
+    const data = await this.graphql<CreateCommentMutation>({
       operationName: "CreateComment",
-      query: `mutation CreateComment($input: CommentInput!) {
-        createComment(input: $input) ${commentSelection}
-      }`,
+      query: print(CreateCommentDocument),
       variables: { input },
     });
     return adaptGraphqlComment(data.createComment);
   }
 
   async updateCommentStatus(input: { id: string; status: CommentStatus }) {
-    const data = await this.graphql<{ updateComment: GraphqlCommentDto }>({
+    const data = await this.graphql<UpdateCommentStatusMutation>({
       operationName: "UpdateCommentStatus",
-      query: `mutation UpdateCommentStatus($id: ID!, $status: CommentStatus!) {
-        updateComment(id: $id, input: { status: $status }) ${commentSelection}
-      }`,
+      query: print(UpdateCommentStatusDocument),
       variables: input,
     });
     return adaptGraphqlComment(data.updateComment);
@@ -332,13 +192,9 @@ export class GraphqlViviClient implements ViviClient {
     id: string;
     status: CommentStatus;
   }) {
-    const data = await this.graphql<{
-      updateCommentThread: GraphqlCommentThreadDto;
-    }>({
+    const data = await this.graphql<UpdateCommentThreadStatusMutation>({
       operationName: "UpdateCommentThreadStatus",
-      query: `mutation UpdateCommentThreadStatus($id: ID!, $status: CommentStatus!) {
-        updateCommentThread(id: $id, input: { status: $status }) ${commentThreadSelection}
-      }`,
+      query: print(UpdateCommentThreadStatusDocument),
       variables: input,
     });
     return adaptGraphqlCommentThread(data.updateCommentThread);
@@ -349,26 +205,15 @@ export class GraphqlViviClient implements ViviClient {
     limit?: number;
     signal?: AbortSignal;
   }) {
-    const data = await this.graphql<{ fileSearch: GraphqlFileSearchDto }>(
+    const data = await this.graphql<ViviFileSearchQuery>(
       {
         operationName: "ViviFileSearch",
-        query: `query ViviFileSearch($query: String!, $limit: Int) {
-          fileSearch(query: $query, limit: $limit) {
-            results {
-              path
-              name
-              viewerKind
-              size
-              mtimeMs
-              score
-            }
-          }
-        }`,
+        query: print(ViviFileSearchDocument),
         variables: { query: input.query, limit: input.limit ?? 40 },
       },
       { signal: input.signal },
     );
-    return data.fileSearch.results;
+    return adaptGraphqlFileSearch(data.fileSearch);
   }
 
   async searchText(input: {
@@ -376,33 +221,23 @@ export class GraphqlViviClient implements ViviClient {
     limit?: number;
     signal?: AbortSignal;
   }) {
-    const data = await this.graphql<{ textSearch: GraphqlTextSearchDto }>(
+    const data = await this.graphql<ViviTextSearchQuery>(
       {
         operationName: "ViviTextSearch",
-        query: `query ViviTextSearch($query: String!, $limit: Int) {
-          textSearch(query: $query, limit: $limit) {
-            results {
-              path
-              viewerKind
-              lineNumber
-              lineText
-              matchStart
-              matchLength
-            }
-          }
-        }`,
+        query: print(ViviTextSearchDocument),
         variables: { query: input.query, limit: input.limit ?? 40 },
       },
       { signal: input.signal },
     );
-    return data.textSearch.results;
+    return adaptGraphqlTextSearch(data.textSearch);
   }
 
-  subscribeWorkspaceEvents(onEvent: (event: GraphqlWorkspaceEventDto) => void) {
+  subscribeWorkspaceEvents(
+    onEvent: (event: ReturnType<typeof adaptGraphqlWorkspaceEvent>) => void,
+  ) {
     const params = new URLSearchParams({
       operationName: "WorkspaceEvents",
-      query:
-        "subscription WorkspaceEvents { workspaceEvents { type path kind version } }",
+      query: print(WorkspaceEventsDocument),
     });
     const source = this.createEventSource(this.url(`/graphql?${params}`));
     const listener = (raw: Event) => {
@@ -442,12 +277,14 @@ export class GraphqlViviClient implements ViviClient {
   }
 }
 
-function parseWorkspaceEvent(raw: string): GraphqlWorkspaceEventDto {
+function parseWorkspaceEvent(
+  raw: string,
+): WorkspaceEventsSubscription["workspaceEvents"] {
   const payload = JSON.parse(raw) as
-    | GraphqlWorkspaceEventDto
-    | { data?: { workspaceEvents?: GraphqlWorkspaceEventDto } };
+    | WorkspaceEventsSubscription["workspaceEvents"]
+    | { data?: WorkspaceEventsSubscription };
   if ("data" in payload && payload.data?.workspaceEvents) {
     return payload.data.workspaceEvents;
   }
-  return payload as GraphqlWorkspaceEventDto;
+  return payload as WorkspaceEventsSubscription["workspaceEvents"];
 }

@@ -1,0 +1,27 @@
+fragment TreeFields on TreeSnapshot {
+  root version path depth
+  stats { durationMs scannedDirectories scannedFiles returnedNodes }
+  nodes { id path name kind parentPath viewerKind childrenLoaded size mtimeMs version children { id path name kind parentPath viewerKind childrenLoaded size mtimeMs version } }
+}
+
+fragment ConfigFields on ViewerConfig { root allowHtmlScripts maxFileSizeBytes }
+fragment FileFields on FilePayload { path viewerKind encoding content etag size mtimeMs mimeType truncated maxSizeBytes previewBytes }
+fragment CommentFields on Comment { id threadId path viewerKind anchor body status createdAt updatedAt resolvedAt archivedAt }
+fragment ThreadFields on CommentThread { id path status anchor updatedAt comments { ...CommentFields } }
+fragment DiffFields on TextDiff { path status kind baseLabel compareLabel content reason }
+
+query ViviWorkspace($path: String, $depth: Int) { workspace(path: $path, depth: $depth) { tree { ...TreeFields } config { ...ConfigFields } } }
+query ViviTree($path: String, $depth: Int) { tree(path: $path, depth: $depth) { ...TreeFields } }
+query ViviConfig { config { ...ConfigFields } }
+query ViviFileContext($path: String!, $includeComments: Boolean, $includeDiff: Boolean, $diffBase: String) { fileContext(path: $path, includeComments: $includeComments, includeDiff: $includeDiff, diffBase: $diffBase) { file { ...FileFields } comments { ...CommentFields } commentThreads { ...ThreadFields } diff { ...DiffFields } } }
+query ViviComments($path: String, $status: CommentStatus) { comments(path: $path, status: $status) { ...CommentFields } }
+query ViviCommentThreads($path: String, $status: CommentStatus) { commentThreads(path: $path, status: $status) { ...ThreadFields } }
+query ViviCommentExport($path: String, $status: CommentStatus, $format: CommentExportFormat) { commentExport(path: $path, status: $status, format: $format) { format contentType content } }
+query ViviReviewQueue { reviewQueue { available reason changes { path status kind originalPath } } }
+query ViviDiff($path: String!, $base: String) { diff(path: $path, base: $base) { ...DiffFields } }
+query ViviFileSearch($query: String!, $limit: Int) { fileSearch(query: $query, limit: $limit) { results { path name viewerKind size mtimeMs score } } }
+query ViviTextSearch($query: String!, $limit: Int) { textSearch(query: $query, limit: $limit) { results { path viewerKind lineNumber lineText matchStart matchLength } } }
+mutation CreateComment($input: CommentInput!) { createComment(input: $input) { ...CommentFields } }
+mutation UpdateCommentStatus($id: ID!, $status: CommentStatus!) { updateComment(id: $id, input: { status: $status }) { ...CommentFields } }
+mutation UpdateCommentThreadStatus($id: ID!, $status: CommentStatus!) { updateCommentThread(id: $id, input: { status: $status }) { ...ThreadFields } }
+subscription WorkspaceEvents { workspaceEvents { type path kind version } }

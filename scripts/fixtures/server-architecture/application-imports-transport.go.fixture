@@ -1,0 +1,2 @@
+package applicationfixture
+import _ "github.com/tasuku43/vivi/server/http"

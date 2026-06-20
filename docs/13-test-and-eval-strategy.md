@@ -37,8 +37,8 @@ Validate Node adapters with fixtures:
 Exercise the real CLI/server path:
 
 - start server against fixture directory,
-- request `/api/tree`,
-- request `/api/file`,
+- execute the GraphQL `ViviTree` operation,
+- execute the GraphQL `ViviFileContext` operation,
 - verify invalid path rejection,
 - verify preview endpoint behavior.
 
