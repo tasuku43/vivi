@@ -10,6 +10,7 @@ import { createPortal } from "react-dom";
 import type { TextDiff } from "../../../domain/change-review.js";
 import type { ViviComment } from "../../../domain/comments.js";
 import type { FilePayload } from "../../../domain/fs-node.js";
+import type { CommentActivitySummary } from "../../../state/comment-activity.js";
 import { renderedCommentBlockAttribute } from "../../../domain/rendered-comment-blocks.js";
 import {
   renderedCommentDraft,
@@ -66,6 +67,7 @@ export function MarkdownViewer({
   onOpenComment,
   onCloseComment,
   onCommentStatusChange,
+  threadActivities = {},
 }: {
   file: FilePayload;
   mode?: ViewerMode;
@@ -83,6 +85,7 @@ export function MarkdownViewer({
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onCloseComment?: () => void;
   onCommentStatusChange?: CommentStatusChangeHandler;
+  threadActivities?: Record<string, CommentActivitySummary>;
 }) {
   const [localMode, setLocalMode] = useState<ViewerMode>("rendered");
   const [renderedThreadTarget, setRenderedThreadTarget] = useState<{
@@ -287,6 +290,10 @@ export function MarkdownViewer({
         renderedThreadComments,
       )
     : null;
+  const renderedThreadId =
+    renderedThread?.comments[0]?.threadId ??
+    renderedThread?.comments[0]?.id ??
+    renderedThreadTarget?.draft.threadId;
 
   return (
     <section className="document-viewer">
@@ -333,6 +340,7 @@ export function MarkdownViewer({
           comments={comments}
           activeCommentId={activeCommentId}
           onOpenComment={onOpenComment}
+          threadActivities={threadActivities}
         />
       ) : mode === "rendered" ? (
         <article
@@ -356,6 +364,7 @@ export function MarkdownViewer({
           onOpenComment={onOpenComment}
           onCloseComment={onCloseComment}
           onCommentStatusChange={onCommentStatusChange}
+          threadActivities={threadActivities}
         />
       )}
       {renderedThread && renderedThreadTarget
@@ -364,6 +373,11 @@ export function MarkdownViewer({
               className="rendered-comment-thread"
               thread={renderedThread}
               draft={renderedThreadTarget.draft}
+              activity={
+                renderedThreadId
+                  ? threadActivities[renderedThreadId]
+                  : undefined
+              }
               onCreateComment={onCreateComment}
               onStatusChange={onCommentStatusChange}
               onClose={closeRenderedThread}

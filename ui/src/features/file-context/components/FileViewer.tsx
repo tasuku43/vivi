@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { TextDiff } from "../../../domain/change-review.js";
 import type { ViviComment } from "../../../domain/comments.js";
 import type { FilePayload } from "../../../domain/fs-node.js";
+import type { CommentActivitySummary } from "../../../state/comment-activity.js";
 import { CsvViewer, isDelimitedPath } from "../viewers/CsvViewer.js";
 import { DiffViewer } from "../viewers/DiffViewer.js";
 import { LargeTextPreview } from "../viewers/LargeTextPreview.js";
@@ -72,6 +73,7 @@ export function FileViewer({
   onOpenComment,
   onCloseComment,
   onCommentStatusChange,
+  threadActivities = {},
   onCloseRemoved,
 }: {
   file: FilePayload | null;
@@ -95,6 +97,7 @@ export function FileViewer({
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onCloseComment?: () => void;
   onCommentStatusChange?: CommentStatusChangeHandler;
+  threadActivities?: Record<string, CommentActivitySummary>;
   onCloseRemoved?: () => void;
 }) {
   if (!file)
@@ -152,6 +155,7 @@ export function FileViewer({
           onOpenComment={onOpenComment}
           onCloseComment={onCloseComment}
           onCommentStatusChange={onCommentStatusChange}
+          threadActivities={threadActivities}
         />
       </LazyViewerFallback>
     );
@@ -237,6 +241,7 @@ export function FileViewer({
           onOpenComment={onOpenComment}
           onCloseComment={onCloseComment}
           onCommentStatusChange={onCommentStatusChange}
+          threadActivities={threadActivities}
         />
       </LazyViewerFallback>
     );

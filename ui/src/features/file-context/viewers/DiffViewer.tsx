@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { TextDiff } from "../../../domain/change-review.js";
 import type { ViviComment } from "../../../domain/comments.js";
 import type { FilePayload } from "../../../domain/fs-node.js";
+import type { CommentActivitySummary } from "../../../state/comment-activity.js";
 import {
   diffStatusLabel,
   parseUnifiedDiff,
@@ -49,6 +50,7 @@ export function DiffViewer({
   activeCommentId,
   onOpenComment,
   onCommentStatusChange,
+  threadActivities = {},
 }: {
   path: string;
   diff: TextDiff | null;
@@ -63,6 +65,7 @@ export function DiffViewer({
   activeCommentId?: string | null;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onCommentStatusChange?: CommentStatusChangeHandler;
+  threadActivities?: Record<string, CommentActivitySummary>;
 }) {
   const [localFocusChanges, setLocalFocusChanges] = useState(false);
   const focusChanges = controlledFocusChanges ?? localFocusChanges;
@@ -101,6 +104,7 @@ export function DiffViewer({
             activeCommentId={activeCommentId}
             onOpenComment={onOpenComment}
             onCommentStatusChange={onCommentStatusChange}
+            threadActivities={threadActivities}
           />
         ) : (
           <RenderedDiff
@@ -129,6 +133,7 @@ function SourceDiff({
   activeCommentId,
   onOpenComment,
   onCommentStatusChange,
+  threadActivities,
 }: {
   diff: TextDiff;
   focusChanges: boolean;
@@ -139,6 +144,7 @@ function SourceDiff({
   activeCommentId?: string | null;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onCommentStatusChange?: CommentStatusChangeHandler;
+  threadActivities: Record<string, CommentActivitySummary>;
 }) {
   const diffRef = useRef<HTMLDivElement | null>(null);
   const [draftThread, setDraftThread] = useState<{
@@ -359,6 +365,9 @@ function SourceDiff({
               }
             : null
           : (draftThread?.draft ?? null);
+        const threadId =
+          threadForDisplay?.comments[0]?.threadId ??
+          threadForDisplay?.comments[0]?.id;
         return (
           <Fragment
             key={`${line.kind}-${index}-${"oldLine" in line ? (line.oldLine ?? "") : ""}-${"newLine" in line ? (line.newLine ?? "") : ""}-${line.text}`}
@@ -381,6 +390,7 @@ function SourceDiff({
                 <CodeCommentThread
                   thread={threadForDisplay}
                   draft={threadDraft}
+                  activity={threadId ? threadActivities[threadId] : undefined}
                   onCreateComment={onCreateComment}
                   onStatusChange={onCommentStatusChange}
                   onClose={closeCommentThread}

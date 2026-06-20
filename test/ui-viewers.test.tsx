@@ -5,6 +5,7 @@ import { expect, it } from "vitest";
 import type { ViviComment } from "../ui/src/domain/comments.js";
 import type { FilePayload } from "../ui/src/domain/fs-node.js";
 import { CodeCommentThread } from "../ui/src/features/comments/components/CodeCommentThread.js";
+import { CommentsPanel } from "../ui/src/features/comments/components/CommentsPanel.js";
 import { FileViewer } from "../ui/src/features/file-context/components/FileViewer.js";
 import { Inspector } from "../ui/src/features/review-queue/Inspector.js";
 import { ShortcutHelp } from "../ui/src/shared/components/ShortcutHelp.js";
@@ -41,6 +42,7 @@ import {
 } from "../ui/src/features/file-context/viewers/MermaidViewer.js";
 import { TextViewer } from "../ui/src/features/file-context/viewers/TextViewer.js";
 import type { CommentDraft } from "../ui/src/state/comments.js";
+import { summarizeThreadActivity } from "../ui/src/state/comment-activity.js";
 
 const codeFile: FilePayload = {
   path: "src/app.ts",
@@ -735,6 +737,149 @@ it("renders the Review Queue before secondary file helpers in the inspector", ()
   expect(html).not.toContain("Review targets");
   expect(html).not.toContain("Changed files");
   expect(html).not.toContain("Diff preview");
+});
+
+it("renders comment activity in inline thread headers without changing lifecycle status", () => {
+  const html = renderToStaticMarkup(
+    <CodeCommentThread
+      thread={{
+        key: "thread-1",
+        path: "src/app.ts",
+        lineStart: 2,
+        lineEnd: 2,
+        comments: [
+          { ...codeLineComment, threadId: "thread-1" },
+          { ...codeLineReply, threadId: "thread-1" },
+        ],
+      }}
+      draft={{
+        threadId: "thread-1",
+        path: "src/app.ts",
+        viewerKind: "text",
+        anchor: codeLineComment.anchor,
+      }}
+      activity={summarizeThreadActivity(
+        [
+          {
+            id: "activity-1",
+            threadId: "thread-1",
+            type: "thread_read",
+            actor: {
+              id: "claude-code:run-1",
+              kind: "claude-code",
+              displayName: "Claude Code",
+            },
+            createdAt: "2026-06-20T00:00:48.000Z",
+          },
+          {
+            id: "activity-2",
+            threadId: "thread-1",
+            type: "comment_added",
+            actor: {
+              id: "codex:run-1",
+              kind: "codex",
+              displayName: "Codex",
+            },
+            createdAt: "2026-06-20T00:00:00.000Z",
+          },
+        ],
+        new Date("2026-06-20T00:01:00.000Z").getTime(),
+      )}
+      onClose={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Claude Code read 12s ago");
+  expect(html).toContain("Codex replied 1m ago");
+  expect(html).toContain('class="comment-status open">Open</span>');
+  expect(html).not.toContain("read</span></span>");
+});
+
+it("renders comment activity in workspace comments rows", () => {
+  const html = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={[{ ...codeLineComment, threadId: "thread-1" }]}
+      query=""
+      statusFilter="open"
+      threadActivities={{
+        "thread-1": summarizeThreadActivity(
+          [
+            {
+              id: "activity-1",
+              threadId: "thread-1",
+              type: "comment_added",
+              actor: {
+                id: "codex:run-1",
+                kind: "codex",
+                displayName: "Codex",
+              },
+              createdAt: "2026-06-20T00:00:00.000Z",
+            },
+          ],
+          new Date("2026-06-20T00:01:00.000Z").getTime(),
+        ),
+      }}
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Codex replied 1m ago");
+  expect(html).toContain("open");
+});
+
+it("renders comment activity in Review Queue and inspector comment summaries", () => {
+  const activity = summarizeThreadActivity(
+    [
+      {
+        id: "activity-1",
+        threadId: "thread-1",
+        type: "thread_status_changed",
+        actor: {
+          id: "human:tasuku",
+          kind: "human",
+          displayName: "Tasuku",
+        },
+        previousStatus: "open",
+        status: "resolved",
+        createdAt: "2026-06-20T00:00:30.000Z",
+      },
+    ],
+    new Date("2026-06-20T00:01:00.000Z").getTime(),
+  );
+  const html = renderToStaticMarkup(
+    <Inspector
+      file={codeFile}
+      outline={[]}
+      reviewChanges={[
+        { path: "src/app.ts", status: "modified", source: "git" },
+      ]}
+      reviewDiffStats={{}}
+      loadingReviewDiffs={{}}
+      unreadReviewPaths={new Set()}
+      comments={[{ ...codeLineComment, threadId: "thread-1" }]}
+      threadActivities={{ "thread-1": activity }}
+      pathActivities={{ "src/app.ts": [activity] }}
+      selectedCodeRange={null}
+      activePaneId="main"
+      onOutlineSelect={() => undefined}
+      onOpenEventPath={() => undefined}
+      onConfirmEventPath={() => undefined}
+      onOpenNextChanged={() => undefined}
+      onOpenPreviousChanged={() => undefined}
+      onOpenAllChanged={() => undefined}
+      onTargetHoverChange={() => undefined}
+      onRevealTarget={() => undefined}
+      onRevealInTree={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Tasuku marked resolved 30s ago");
+  expect(html).toContain("Review Queue");
+  expect(html).toContain("open comments");
 });
 
 it("opens Review Queue rows as preview on click and stable tabs on double click", () => {

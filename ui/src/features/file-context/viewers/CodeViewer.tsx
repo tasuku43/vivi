@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { TextDiff } from "../../../domain/change-review.js";
 import type { ViviComment } from "../../../domain/comments.js";
 import type { FilePayload } from "../../../domain/fs-node.js";
+import type { CommentActivitySummary } from "../../../state/comment-activity.js";
 import {
   currentScopeForLine,
   detectCodeSymbols,
@@ -38,6 +39,7 @@ export function CodeViewer({
   onOpenComment,
   onCloseComment,
   onCommentStatusChange,
+  threadActivities = {},
 }: {
   file: FilePayload;
   theme: ResolvedTheme;
@@ -56,6 +58,7 @@ export function CodeViewer({
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onCloseComment?: () => void;
   onCommentStatusChange?: CommentStatusChangeHandler;
+  threadActivities?: Record<string, CommentActivitySummary>;
 }) {
   const [html, setHtml] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
@@ -185,6 +188,7 @@ export function CodeViewer({
           comments={comments}
           activeCommentId={activeCommentId}
           onOpenComment={onOpenComment}
+          threadActivities={threadActivities}
         />
       ) : (
         <SourceCommentSurface
@@ -198,6 +202,7 @@ export function CodeViewer({
           onOpenComment={onOpenComment}
           onCloseComment={onCloseComment}
           onCommentStatusChange={onCommentStatusChange}
+          threadActivities={threadActivities}
         />
       )}
     </section>

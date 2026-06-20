@@ -1,10 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { ViviComment } from "../../domain/comments.js";
+import type {
+  CommentThreadActivityEvent,
+  ViviComment,
+} from "../../domain/comments.js";
+import { summarizeThreadActivity } from "../../state/comment-activity.js";
 import { CommentsPanel } from "./components/CommentsPanel.js";
 import { InlineCommentCard } from "./components/InlineCommentCard.js";
 
 const comment: ViviComment = {
   id: "comment-1",
+  threadId: "thread-1",
   path: "docs/guide.md",
   viewerKind: "markdown",
   anchor: {
@@ -42,6 +47,106 @@ type Story = StoryObj<typeof meta>;
 
 export const WorkspaceComments: Story = {};
 
+export const NoActivity: Story = {};
+
+export const ReadByClaudeCode: Story = {
+  args: {
+    threadActivities: {
+      "thread-1": summarizeThreadActivity([
+        activity({
+          id: "activity-read",
+          type: "thread_read",
+          actor: {
+            id: "claude-code:run-1",
+            kind: "claude-code",
+            displayName: "Claude Code",
+          },
+          createdAt: "2026-06-20T00:00:48.000Z",
+        }),
+      ]),
+    },
+  },
+};
+
+export const CommentAddedByCodex: Story = {
+  args: {
+    threadActivities: {
+      "thread-1": summarizeThreadActivity([
+        activity({
+          id: "activity-reply",
+          type: "comment_added",
+          actor: {
+            id: "codex:run-1",
+            kind: "codex",
+            displayName: "Codex",
+          },
+          createdAt: "2026-06-20T00:00:00.000Z",
+        }),
+      ]),
+    },
+  },
+};
+
+export const StatusChangedByHuman: Story = {
+  args: {
+    threadActivities: {
+      "thread-1": summarizeThreadActivity([
+        activity({
+          id: "activity-status",
+          type: "thread_status_changed",
+          actor: {
+            id: "human:tasuku",
+            kind: "human",
+            displayName: "Tasuku",
+          },
+          previousStatus: "open",
+          status: "resolved",
+          createdAt: "2026-06-20T00:00:10.000Z",
+        }),
+      ]),
+    },
+  },
+};
+
+export const MultipleAgents: Story = {
+  args: {
+    threadActivities: {
+      "thread-1": summarizeThreadActivity([
+        activity({
+          id: "activity-read",
+          type: "thread_read",
+          actor: {
+            id: "claude-code:run-1",
+            kind: "claude-code",
+            displayName: "Claude Code",
+          },
+          createdAt: "2026-06-20T00:00:48.000Z",
+        }),
+        activity({
+          id: "activity-reply",
+          type: "comment_added",
+          actor: {
+            id: "codex:run-1",
+            kind: "codex",
+            displayName: "Codex",
+          },
+          createdAt: "2026-06-20T00:00:00.000Z",
+        }),
+        activity({
+          id: "activity-unknown",
+          type: "thread_read",
+          actor: {
+            id: "agent:unknown",
+            kind: "unknown",
+            displayName: "unknown agent",
+          },
+          createdAt: "2026-06-19T23:58:00.000Z",
+        }),
+      ]),
+    },
+  },
+};
+
 export const InlineCommentCardStory: Story = {
   render: () => (
     <InlineCommentCard
@@ -52,3 +157,19 @@ export const InlineCommentCardStory: Story = {
     />
   ),
 };
+
+function activity(
+  input: Partial<CommentThreadActivityEvent> & {
+    id: string;
+    type: CommentThreadActivityEvent["type"];
+  },
+): CommentThreadActivityEvent {
+  return {
+    threadId: "thread-1",
+    commentId: undefined,
+    clientEventId: undefined,
+    actor: { id: "agent:unknown", kind: "unknown" },
+    createdAt: "2026-06-20T00:00:00.000Z",
+    ...input,
+  };
+}

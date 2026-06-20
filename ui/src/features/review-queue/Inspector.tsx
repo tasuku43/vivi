@@ -1,5 +1,7 @@
 import type { ViviComment } from "../../domain/comments.js";
 import type { FilePayload } from "../../domain/fs-node.js";
+import type { CommentActivitySummary } from "../../state/comment-activity.js";
+import { activityLabel } from "../../state/comment-activity.js";
 import { buildCodeMetadata, type LineRange } from "../../state/code-viewer.js";
 import {
   changeStatusLabel,
@@ -22,6 +24,8 @@ interface Props {
   unreadReviewPaths: Set<string>;
   comments?: ViviComment[];
   commentsLoading?: boolean;
+  threadActivities?: Record<string, CommentActivitySummary>;
+  pathActivities?: Record<string, CommentActivitySummary[]>;
   selectedCodeRange: LineRange | null;
   refreshedAt?: number;
   activePaneId: string;
@@ -48,6 +52,8 @@ export function Inspector({
   unreadReviewPaths,
   comments = [],
   commentsLoading = false,
+  threadActivities = {},
+  pathActivities = {},
   selectedCodeRange,
   refreshedAt,
   activePaneId,
@@ -92,50 +98,58 @@ export function Inspector({
         </div>
         {reviewChanges.length ? (
           <div className="review-queue">
-            {reviewChanges.slice(0, 12).map((change) => (
-              <button
-                className="change-open"
-                disabled={!isReviewChangeOpenable(change)}
-                aria-label={`${changeStatusLabel(change.status, change.kind)} ${change.path} from ${reviewQueueSourceLabel(change.source)}`}
-                key={`${change.source}:${change.path}`}
-                onClick={() => onOpenEventPath(change.path)}
-                onDoubleClick={() => onConfirmEventPath(change.path)}
-                title="Double-click to keep open as a tab"
-                type="button"
-              >
-                <span
-                  className={
-                    unreadReviewPaths.has(change.path)
-                      ? "unread-dot"
-                      : "unread-dot read"
-                  }
-                  aria-hidden="true"
-                />
-                <span className="file-icon change-icon">
-                  {iconForPath(change.path)}
-                </span>
-                <span className="change-main">
-                  <span className="change-heading">
-                    <span
-                      className={`change-status ${change.kind ?? change.status}`}
-                    >
-                      {changeStatusLabel(change.status, change.kind)}
-                    </span>
-                    <b>{basenameForPath(change.path)}</b>
+            {reviewChanges.slice(0, 12).map((change) => {
+              const activity = pathActivities[change.path]?.[0];
+              return (
+                <button
+                  className="change-open"
+                  disabled={!isReviewChangeOpenable(change)}
+                  aria-label={`${changeStatusLabel(change.status, change.kind)} ${change.path} from ${reviewQueueSourceLabel(change.source)}`}
+                  key={`${change.source}:${change.path}`}
+                  onClick={() => onOpenEventPath(change.path)}
+                  onDoubleClick={() => onConfirmEventPath(change.path)}
+                  title="Double-click to keep open as a tab"
+                  type="button"
+                >
+                  <span
+                    className={
+                      unreadReviewPaths.has(change.path)
+                        ? "unread-dot"
+                        : "unread-dot read"
+                    }
+                    aria-hidden="true"
+                  />
+                  <span className="file-icon change-icon">
+                    {iconForPath(change.path)}
                   </span>
-                  <small>
-                    {reviewPathLabel(change)}
-                    <span className="change-source">
-                      {reviewQueueSourceLabel(change.source)}
+                  <span className="change-main">
+                    <span className="change-heading">
+                      <span
+                        className={`change-status ${change.kind ?? change.status}`}
+                      >
+                        {changeStatusLabel(change.status, change.kind)}
+                      </span>
+                      <b>{basenameForPath(change.path)}</b>
                     </span>
-                  </small>
-                </span>
-                <DiffStatBadge
-                  loading={Boolean(loadingReviewDiffs[change.path])}
-                  stat={reviewDiffStats[change.path] ?? null}
-                />
-              </button>
-            ))}
+                    <small>
+                      {reviewPathLabel(change)}
+                      <span className="change-source">
+                        {reviewQueueSourceLabel(change.source)}
+                      </span>
+                    </small>
+                    {activity?.inline[0] ? (
+                      <small className="change-activity">
+                        {activity.inline[0]}
+                      </small>
+                    ) : null}
+                  </span>
+                  <DiffStatBadge
+                    loading={Boolean(loadingReviewDiffs[change.path])}
+                    stat={reviewDiffStats[change.path] ?? null}
+                  />
+                </button>
+              );
+            })}
           </div>
         ) : null}
         {reviewChanges.length && reviewUnavailableReason ? (
@@ -189,8 +203,36 @@ export function Inspector({
             >
               Open in Comments panel
             </button>
+            {comments.length ? (
+              <div className="inspector-comment-activity">
+                {comments.slice(0, 3).map((comment) => {
+                  const threadId = comment.threadId ?? comment.id;
+                  const activity = threadActivities[threadId];
+                  return activity?.inline[0] ? (
+                    <span key={comment.id}>{activity.inline[0]}</span>
+                  ) : null;
+                })}
+              </div>
+            ) : null}
           </div>
         )}
+        {comments.some((comment) => {
+          const activity = threadActivities[comment.threadId ?? comment.id];
+          return activity && activity.timeline.length > activity.inline.length;
+        }) ? (
+          <details className="comment-activity-timeline inspector-timeline">
+            <summary>Activity timeline</summary>
+            <ol>
+              {comments.flatMap((comment) => {
+                const activity =
+                  threadActivities[comment.threadId ?? comment.id];
+                return (activity?.timeline ?? []).map((event) => (
+                  <li key={event.id}>{activityLabel(event)}</li>
+                ));
+              })}
+            </ol>
+          </details>
+        ) : null}
 
         <h3 className="section-title">In this file</h3>
         {codeMetadata ? (

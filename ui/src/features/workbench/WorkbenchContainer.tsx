@@ -93,6 +93,13 @@ import {
   type CommentDraft,
 } from "../../state/comments.js";
 import {
+  addCommentActivities,
+  addCommentActivity,
+  emptyCommentActivityState,
+  summarizeThreadActivity,
+  type CommentActivitySummary,
+} from "../../state/comment-activity.js";
+import {
   isThemePreference,
   nextThemePreference,
   resolveThemePreference,
@@ -170,6 +177,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     Record<string, boolean>
   >({});
   const [comments, setComments] = useState<ViviComment[]>([]);
+  const [commentActivity, setCommentActivity] = useState(
+    emptyCommentActivityState,
+  );
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
   const [commentsPanelQuery, setCommentsPanelQuery] = useState("");
@@ -246,6 +256,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const diffEnabledRef = useRef(diffEnabled);
   const liveFileRefreshTimers = useRef<Record<string, number>>({});
   const liveFileRefreshVersions = useRef<Record<string, number>>({});
+  const loadedActivityThreadIds = useRef(new Set<string>());
 
   async function loadTree() {
     setTree(await client.getTree({ depth: 1 }));
@@ -324,6 +335,32 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     }
   }
 
+  async function loadThreadActivities(threadIds: string[]) {
+    if (!client.getCommentThreadActivities) return;
+    const targets = threadIds
+      .filter((threadId) => !loadedActivityThreadIds.current.has(threadId))
+      .slice(0, 24);
+    if (!targets.length) return;
+    targets.forEach((threadId) =>
+      loadedActivityThreadIds.current.add(threadId),
+    );
+    try {
+      const results = await Promise.all(
+        targets.map((threadId) =>
+          client.getCommentThreadActivities!({ threadId, first: 12 }),
+        ),
+      );
+      setCommentActivity((state) =>
+        addCommentActivities(state, results.flat()),
+      );
+    } catch (err) {
+      targets.forEach((threadId) =>
+        loadedActivityThreadIds.current.delete(threadId),
+      );
+      throw err;
+    }
+  }
+
   async function createComment(
     draft: CommentDraft,
     body: string,
@@ -384,6 +421,34 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     () => (selectedPath ? activeCommentsForPath(comments, selectedPath) : []),
     [comments, selectedPath],
   );
+  const commentActivitySummaries = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(commentActivity.byThreadId).map(([threadId, events]) => [
+          threadId,
+          summarizeThreadActivity(events),
+        ]),
+      ) as Record<string, CommentActivitySummary>,
+    [commentActivity.byThreadId],
+  );
+  const commentActivitiesByPath = useMemo(() => {
+    const byPath: Record<string, CommentActivitySummary[]> = {};
+    const seenThreadIds = new Set<string>();
+    for (const comment of comments) {
+      const threadId = comment.threadId ?? comment.id;
+      if (seenThreadIds.has(threadId)) continue;
+      seenThreadIds.add(threadId);
+      const activity = commentActivitySummaries[threadId];
+      if (!activity?.timeline.length) continue;
+      byPath[comment.path] = [...(byPath[comment.path] ?? []), activity];
+    }
+    for (const path of Object.keys(byPath)) {
+      byPath[path].sort((a, b) =>
+        b.timeline[0]!.createdAt.localeCompare(a.timeline[0]!.createdAt),
+      );
+    }
+    return byPath;
+  }, [commentActivitySummaries, comments]);
   const activeComment = activeCommentId
     ? (comments.find((comment) => comment.id === activeCommentId) ?? null)
     : null;
@@ -443,6 +508,25 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const changedPathSet = useMemo(
     () => new Set(reviewChanges.map((change) => change.path)),
     [reviewChanges],
+  );
+  const activityThreadTargets = useMemo(
+    () =>
+      commentActivityThreadTargets({
+        comments,
+        selectedPath,
+        commentsPanelOpen,
+        commentsPanelQuery,
+        commentsPanelStatus,
+        reviewPaths: reviewChanges.slice(0, 12).map((change) => change.path),
+      }),
+    [
+      comments,
+      commentsPanelOpen,
+      commentsPanelQuery,
+      commentsPanelStatus,
+      reviewChanges,
+      selectedPath,
+    ],
   );
   const sidebarNodes = useMemo(
     () =>
@@ -857,6 +941,20 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     loadConfig().catch((err) => setError(String(err)));
     loadTree().catch((err) => setError(String(err)));
     loadComments(null).catch((err) => setError(String(err)));
+  }, []);
+
+  useEffect(() => {
+    if (!activityThreadTargets.length) return;
+    void loadThreadActivities(activityThreadTargets).catch((err) =>
+      setError(String(err)),
+    );
+  }, [activityThreadTargets]);
+
+  useEffect(() => {
+    if (!client.subscribeCommentThreadActivities) return undefined;
+    return client.subscribeCommentThreadActivities(undefined, (event) => {
+      setCommentActivity((state) => addCommentActivity(state, event));
+    });
   }, []);
 
   useEffect(() => {
@@ -1321,6 +1419,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               unreadReviewPaths={unreadReviewPathSet}
               comments={activeFileComments}
               commentsLoading={commentsLoading}
+              threadActivities={commentActivitySummaries}
+              pathActivities={commentActivitiesByPath}
               onOpenComments={() => {
                 setCommentsPanelStatus("all");
                 setCommentsPanelQuery(file?.path ?? "");
@@ -1429,6 +1529,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         comments={comments}
         query={commentsPanelQuery}
         statusFilter={commentsPanelStatus}
+        threadActivities={commentActivitySummaries}
         onQueryChange={setCommentsPanelQuery}
         onStatusFilterChange={setCommentsPanelStatus}
         onClose={() => setCommentsPanelOpen(false)}
@@ -1603,6 +1704,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               onOpenComment={openInlineComment}
               onCloseComment={closeInlineComment}
               onCommentStatusChange={updateCommentStatus}
+              threadActivities={commentActivitySummaries}
               onCodeSelectionChange={(range) => {
                 if (!paneFile?.path) return;
                 setCodeSelections((items) => ({
@@ -1810,6 +1912,46 @@ function mergeComments(
   return [...byId.values()].sort((a, b) =>
     b.createdAt.localeCompare(a.createdAt),
   );
+}
+
+function commentActivityThreadTargets({
+  comments,
+  selectedPath,
+  commentsPanelOpen,
+  commentsPanelQuery,
+  commentsPanelStatus,
+  reviewPaths,
+}: {
+  comments: ViviComment[];
+  selectedPath: string | null;
+  commentsPanelOpen: boolean;
+  commentsPanelQuery: string;
+  commentsPanelStatus: CommentStatusFilter;
+  reviewPaths: string[];
+}): string[] {
+  const reviewPathSet = new Set(reviewPaths);
+  const query = commentsPanelQuery.trim().toLowerCase();
+  const targets: string[] = [];
+  for (const comment of comments) {
+    if (comment.status !== "open") continue;
+    const threadId = comment.threadId ?? comment.id;
+    if (targets.includes(threadId)) continue;
+    const selectedTarget =
+      selectedPath !== null && comment.path === selectedPath;
+    const reviewTarget = reviewPathSet.has(comment.path);
+    const panelTarget =
+      commentsPanelOpen &&
+      (commentsPanelStatus === "all" ||
+        comment.status === commentsPanelStatus) &&
+      (!query ||
+        [comment.path, comment.body, comment.anchor.canonical.quote ?? ""]
+          .join(" ")
+          .toLowerCase()
+          .includes(query));
+    if (selectedTarget || reviewTarget || panelTarget) targets.push(threadId);
+    if (targets.length >= 40) break;
+  }
+  return targets;
 }
 
 interface DOMRectLike {

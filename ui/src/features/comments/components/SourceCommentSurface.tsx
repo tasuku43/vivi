@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import type { ViviComment } from "../../../domain/comments.js";
 import type { FilePayload } from "../../../domain/fs-node.js";
+import type { CommentActivitySummary } from "../../../state/comment-activity.js";
 import {
   lineInRange,
   normalizeLineRange,
@@ -37,6 +38,7 @@ export function SourceCommentSurface({
   onOpenComment,
   onCloseComment,
   onCommentStatusChange,
+  threadActivities = {},
 }: {
   file: FilePayload;
   highlightedLines?: string[] | null;
@@ -49,6 +51,7 @@ export function SourceCommentSurface({
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onCloseComment?: () => void;
   onCommentStatusChange?: CommentStatusChangeHandler;
+  threadActivities?: Record<string, CommentActivitySummary>;
 }) {
   const [anchorLine, setAnchorLine] = useState<number | null>(null);
   const [draftThread, setDraftThread] = useState<{
@@ -319,6 +322,9 @@ export function SourceCommentSurface({
                 displayedThread.comments[0]?.id,
             }
           : (draftThread?.draft ?? sourceLineCommentDraft(file, lineNumber));
+        const threadId =
+          threadForDisplay?.comments[0]?.threadId ??
+          threadForDisplay?.comments[0]?.id;
         return (
           <Fragment key={lineNumber}>
             <div
@@ -386,6 +392,7 @@ export function SourceCommentSurface({
                 <CodeCommentThread
                   thread={threadForDisplay}
                   draft={threadDraft}
+                  activity={threadId ? threadActivities[threadId] : undefined}
                   onCreateComment={onCreateComment}
                   onStatusChange={onCommentStatusChange}
                   onClose={closeCommentThread}

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { summarizeThreadActivity } from "../../state/comment-activity.js";
 import { Inspector } from "./Inspector.js";
 
 const noop = () => undefined;
@@ -18,6 +19,26 @@ const meta = {
     },
     loadingReviewDiffs: {},
     unreadReviewPaths: new Set(["ui/src/app/App.tsx"]),
+    pathActivities: {
+      "ui/src/app/App.tsx": [
+        summarizeThreadActivity(
+          [
+            {
+              id: "activity-queue-1",
+              threadId: "thread-app",
+              type: "thread_read",
+              actor: {
+                id: "claude-code:run-1",
+                kind: "claude-code",
+                displayName: "Claude Code",
+              },
+              createdAt: "2026-06-20T00:00:48.000Z",
+            },
+          ],
+          new Date("2026-06-20T00:01:00.000Z").getTime(),
+        ),
+      ],
+    },
     selectedCodeRange: null,
     activePaneId: "main",
     onOutlineSelect: noop,

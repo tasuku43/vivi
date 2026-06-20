@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { CommentStatus } from "../../../domain/comments.js";
+import type { CommentActivitySummary } from "../../../state/comment-activity.js";
+import { activityLabel } from "../../../state/comment-activity.js";
 import type {
   CodeCommentThread as CodeCommentThreadModel,
   CommentCreateHandler,
@@ -15,6 +17,7 @@ export function CodeCommentThread({
   onCreateComment,
   onStatusChange,
   onClose,
+  activity,
 }: {
   thread: CodeCommentThreadModel;
   draft: CommentDraft;
@@ -22,6 +25,7 @@ export function CodeCommentThread({
   onCreateComment?: CommentCreateHandler;
   onStatusChange?: CommentStatusChangeHandler;
   onClose: () => void;
+  activity?: CommentActivitySummary;
 }) {
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
@@ -114,6 +118,23 @@ export function CodeCommentThread({
           ×
         </button>
       </header>
+      {activity?.inline.length ? (
+        <div className="comment-activity-summary" aria-label="Thread activity">
+          {activity.inline.map((label) => (
+            <span key={label}>{label}</span>
+          ))}
+          {activity.timeline.length > activity.inline.length ? (
+            <details className="comment-activity-timeline">
+              <summary>{activity.timeline.length} events</summary>
+              <ol>
+                {activity.timeline.map((event) => (
+                  <li key={event.id}>{activityLabel(event)}</li>
+                ))}
+              </ol>
+            </details>
+          ) : null}
+        </div>
+      ) : null}
 
       {thread.comments.length ? (
         <div className="code-comment-thread-messages">

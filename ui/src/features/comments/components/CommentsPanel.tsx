@@ -1,4 +1,6 @@
 import type { CommentStatus, ViviComment } from "../../../domain/comments.js";
+import type { CommentActivitySummary } from "../../../state/comment-activity.js";
+import { activityLabel } from "../../../state/comment-activity.js";
 import {
   commentLineLabel,
   statusLabel,
@@ -16,6 +18,7 @@ export function CommentsPanel({
   onStatusFilterChange,
   onClose,
   onOpenComment,
+  threadActivities = {},
 }: {
   open: boolean;
   comments: ViviComment[];
@@ -25,6 +28,7 @@ export function CommentsPanel({
   onStatusFilterChange: (status: StatusFilter) => void;
   onClose: () => void;
   onOpenComment: (comment: ViviComment) => void;
+  threadActivities?: Record<string, CommentActivitySummary>;
 }) {
   if (!open) return null;
   const visibleComments = comments.filter((comment) => {
@@ -78,36 +82,67 @@ export function CommentsPanel({
       </div>
       <div className="global-comments-list">
         {visibleComments.length ? (
-          visibleComments.map((comment) => (
-            <button
-              className={`global-comment-row ${comment.status}`}
-              type="button"
-              key={comment.id}
-              onClick={() => onOpenComment(comment)}
-            >
-              <span className="global-comment-dot" aria-hidden="true" />
-              <span className="global-comment-main">
-                <span className="global-comment-meta">
-                  <strong>{comment.path}</strong>
-                  <span>{commentLineLabel(comment)}</span>
-                  <span className={`comment-status ${comment.status}`}>
-                    {statusLabel(comment.status)}
+          visibleComments.map((comment) => {
+            const threadId = comment.threadId ?? comment.id;
+            const activity = threadActivities[threadId];
+            return (
+              <button
+                className={`global-comment-row ${comment.status}`}
+                type="button"
+                key={comment.id}
+                onClick={() => onOpenComment(comment)}
+              >
+                <span className="global-comment-dot" aria-hidden="true" />
+                <span className="global-comment-main">
+                  <span className="global-comment-meta">
+                    <strong>{comment.path}</strong>
+                    <span>{commentLineLabel(comment)}</span>
+                    <span className={`comment-status ${comment.status}`}>
+                      {statusLabel(comment.status)}
+                    </span>
                   </span>
-                </span>
-                <span className="global-comment-body">
-                  {truncateCommentPreview(comment.body, 130)}
-                </span>
-                {comment.anchor.canonical.quote ? (
-                  <span className="global-comment-quote">
-                    {truncateCommentPreview(
-                      comment.anchor.canonical.quote,
-                      140,
-                    )}
+                  <span className="global-comment-body">
+                    {truncateCommentPreview(comment.body, 130)}
                   </span>
-                ) : null}
-              </span>
-            </button>
-          ))
+                  {activity?.inline.length ? (
+                    <span className="comment-activity-summary compact">
+                      {activity.inline.map((label) => (
+                        <span key={label}>{label}</span>
+                      ))}
+                      {activity.timeline.length > activity.inline.length ? (
+                        <span>
+                          {activity.timeline.length - activity.inline.length}{" "}
+                          older
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : null}
+                  {activity &&
+                  activity.timeline.length > activity.inline.length ? (
+                    <details
+                      className="comment-activity-timeline"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <summary>Activity timeline</summary>
+                      <ol>
+                        {activity.timeline.map((event) => (
+                          <li key={event.id}>{activityLabel(event)}</li>
+                        ))}
+                      </ol>
+                    </details>
+                  ) : null}
+                  {comment.anchor.canonical.quote ? (
+                    <span className="global-comment-quote">
+                      {truncateCommentPreview(
+                        comment.anchor.canonical.quote,
+                        140,
+                      )}
+                    </span>
+                  ) : null}
+                </span>
+              </button>
+            );
+          })
         ) : (
           <p className="muted compact-empty">No matching comments.</p>
         )}
