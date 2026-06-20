@@ -49,6 +49,7 @@ export interface CommentAnchor {
 
 export interface ViviComment {
   id: string;
+  threadId?: string;
   path: string;
   viewerKind: CommentViewerKind;
   anchor: CommentAnchor;
@@ -61,6 +62,7 @@ export interface ViviComment {
 }
 
 export interface CreateCommentInput {
+  threadId?: string;
   path: string;
   viewerKind?: CommentViewerKind;
   anchor: CommentAnchor;
@@ -76,6 +78,15 @@ export interface UpdateCommentInput {
 export interface CommentListFilters {
   path?: string;
   status?: CommentStatus;
+}
+
+export interface CommentThread {
+  id: string;
+  path: string;
+  status: CommentStatus;
+  anchor: CommentAnchor;
+  updatedAt: string;
+  comments: ViviComment[];
 }
 
 export interface CommentExportFilters {
@@ -116,6 +127,7 @@ export function normalizeCommentCreateInput(
   const status =
     input.status === undefined ? "open" : normalizeStatus(input.status);
   return {
+    threadId: optionalString(input.threadId),
     path,
     viewerKind:
       normalizeCommentViewerKind(input.viewerKind) ??
@@ -156,6 +168,7 @@ export function normalizeCommentFilters(input: {
 export function exportCommentAsJsonLine(comment: ViviComment): string {
   return JSON.stringify({
     id: comment.id,
+    threadId: comment.threadId,
     path: comment.path,
     viewerKind: comment.viewerKind,
     status: comment.status,
@@ -201,6 +214,28 @@ export function applyCommentUpdate(
     next.archivedAt = undefined;
   }
   return next;
+}
+
+export function buildCommentThreads(comments: ViviComment[]): CommentThread[] {
+  const threads = new Map<string, CommentThread>();
+  for (const comment of comments) {
+    const threadId = comment.threadId ?? comment.id;
+    const thread =
+      threads.get(threadId) ??
+      ({
+        id: threadId,
+        path: comment.path,
+        status: comment.status,
+        anchor: comment.anchor,
+        updatedAt: comment.updatedAt,
+        comments: [],
+      } satisfies CommentThread);
+    thread.comments.push(comment);
+    if (comment.status === "open") thread.status = "open";
+    if (comment.updatedAt > thread.updatedAt) thread.updatedAt = comment.updatedAt;
+    threads.set(threadId, thread);
+  }
+  return [...threads.values()];
 }
 
 function normalizeAnchor(

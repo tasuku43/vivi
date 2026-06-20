@@ -1,0 +1,28 @@
+schema:
+  - server/graphql/schema.graphqls
+
+exec:
+  filename: server/graphql/generated/generated.go
+  package: generated
+
+model:
+  filename: server/graphql/model/models_gen.go
+  package: model
+
+resolver:
+  layout: follow-schema
+  dir: server/graphql
+  package: graphql
+  filename_template: "{name}.resolvers.go"
+
+autobind:
+  - github.com/tasuku43/vivi/server/gitreview
+  - github.com/tasuku43/vivi/server/workspace
+
+models:
+  ID:
+    model:
+      - github.com/99designs/gqlgen/graphql.ID
+  JSON:
+    model:
+      - github.com/99designs/gqlgen/graphql.Map

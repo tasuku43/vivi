@@ -39,9 +39,12 @@ domain -> shared
 ```
 
 `ViviClient` is the browser API boundary. Features work with its domain-facing
-methods, including `getFileContext`; only `RestViviClient` knows endpoint paths,
-query parameters, REST DTOs, `fetch`, or `EventSource`. A future GraphQL client
-must implement the same port and adapt generated types before returning them.
+methods, including `getFileContext`, `getCommentThreads`, and `exportComments`;
+only infrastructure clients know endpoint paths, transport DTOs, `fetch`, or
+`EventSource`. `GraphqlViviClient` is the normal browser data path and adapts
+GraphQL response shapes before returning domain types. `RestViviClient` remains
+as a compatibility adapter for the REST wrapper routes while the migration
+finishes.
 
 ESLint enforces the dangerous boundaries: features/application cannot import
 infrastructure, application/domain cannot import React, domain cannot import
@@ -52,16 +55,22 @@ lint.
 
 ## Server scope
 
-The current refactor moves the existing Go packages into `server/` without
-forcing a resolver/use-case/repository redesign. That internal design is left
-for the later API evolution. Existing REST routes, path containment, preview
-safety, comments, git review, search, diff, and SSE behavior remain the contract.
+The Go server keeps a lightweight application service in `server/application`.
+HTTP transports call that service rather than reaching directly into workspace,
+Git review, or comment stores. Comment thread grouping and export live behind
+that service boundary, so GraphQL resolvers and REST compatibility routes share
+the same behavior. `server/graphql/schema.graphqls` is implemented with
+generated `gqlgen` transport code, and REST data routes remain thin
+compatibility wrappers. Existing REST routes, path containment, preview safety,
+comments, git review, search, diff, and SSE behavior remain the contract during
+the migration.
 
 ## Extension points
 
 - Add browser concepts under `ui/src/domain`.
 - Extend the browser API through `application/ports/ViviClient.ts`, then adapt
-  the REST implementation in `infrastructure/vivi-api`.
+  the GraphQL implementation in `infrastructure/vivi-api`.
 - Add viewers under `features/file-context/viewers`.
-- Add server behavior under `server/` and preserve the documented HTTP contract.
+- Add server behavior under `server/application` first, then expose it through
+  GraphQL resolvers or compatibility HTTP routes.
 - Keep CLI parsing and process concerns in `cli/`.

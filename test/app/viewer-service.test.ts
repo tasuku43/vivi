@@ -2,8 +2,10 @@ import { expect, it } from "vitest";
 import { ViewerService } from "../../server/typescript/application/viewer-service.js";
 import type {
   ChangeReviewPort,
+  CommentStorePort,
   FileSystemPort,
 } from "../../server/typescript/application/contracts.js";
+import type { ViviComment } from "../../server/typescript/domain/comments.js";
 
 it("delegates tree reads to the filesystem port", async () => {
   const fsPort: FileSystemPort = {
@@ -220,3 +222,66 @@ it("delegates lazy directory and backend search reads when available", async () 
   });
   expect(fullTreeReads).toBe(0);
 });
+
+it("groups comments into application-level threads", async () => {
+  const comments: ViviComment[] = [
+    commentFixture({ id: "c1", threadId: "t1", status: "resolved" }),
+    commentFixture({ id: "c2", threadId: "t1", body: "Follow-up" }),
+  ];
+  const commentStore: CommentStorePort = {
+    async listComments() {
+      return comments;
+    },
+    async createComment(comment) {
+      return comment;
+    },
+    async updateComment(comment) {
+      return comment;
+    },
+    async getComment() {
+      return null;
+    },
+  };
+  const fsPort: FileSystemPort = {
+    async readTree() {
+      return { root: ".", version: 1, nodes: [] };
+    },
+    async readFile() {
+      throw new Error("not used");
+    },
+    async readHtmlPreview() {
+      throw new Error("not used");
+    },
+  };
+  const service = new ViewerService({ fileSystem: fsPort, commentStore });
+
+  await expect(service.listCommentThreads({ path: "README.md" })).resolves.toEqual([
+    {
+      id: "t1",
+      path: "README.md",
+      status: "open",
+      anchor: comments[0]!.anchor,
+      updatedAt: comments[1]!.updatedAt,
+      comments,
+    },
+  ]);
+});
+
+function commentFixture(
+  input: Partial<ViviComment> & { id: string },
+): ViviComment {
+  return {
+    threadId: input.threadId,
+    id: input.id,
+    path: "README.md",
+    viewerKind: "markdown",
+    anchor: {
+      surface: "source",
+      canonical: { path: "README.md", lineStart: 1 },
+    },
+    body: input.body ?? "Comment",
+    status: input.status ?? "open",
+    createdAt: input.createdAt ?? "2026-06-20T00:00:00.000Z",
+    updatedAt: input.updatedAt ?? `2026-06-20T00:00:0${input.id.at(-1)}.000Z`,
+  };
+}

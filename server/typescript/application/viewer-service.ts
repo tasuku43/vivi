@@ -5,9 +5,11 @@ import type {
 } from "../domain/change-review.js";
 import {
   applyCommentUpdate,
+  buildCommentThreads,
   exportCommentAsJsonLine,
   normalizeCommentCreateInput,
   normalizeCommentUpdateInput,
+  type CommentThread,
   type CommentListFilters,
   type CreateCommentInput,
   type ViviComment,
@@ -172,6 +174,12 @@ export class ViewerService {
     return this.requireCommentStore().listComments(filters);
   }
 
+  async listCommentThreads(
+    filters: CommentListFilters = {},
+  ): Promise<CommentThread[]> {
+    return buildCommentThreads(await this.listComments(filters));
+  }
+
   async createComment(input: unknown): Promise<ViviComment> {
     const requestedPath = pathFromCommentInput(input);
     const file = await this.fileSystem.readFile(requestedPath);
@@ -190,6 +198,29 @@ export class ViewerService {
     if (!current) throw new Error("comment not found");
     const update = normalizeCommentUpdateInput(input);
     return store.updateComment(applyCommentUpdate(current, update, isoNow()));
+  }
+
+  async updateCommentThreadStatus(input: {
+    id: string;
+    status: ViviComment["status"];
+  }): Promise<CommentThread> {
+    if (!input.id.trim()) throw new Error("comment thread id is required");
+    const store = this.requireCommentStore();
+    const comments = await store.listComments();
+    const members = comments.filter(
+      (comment) => (comment.threadId ?? comment.id) === input.id,
+    );
+    if (!members.length) throw new Error("comment thread not found");
+    const now = isoNow();
+    const updated: ViviComment[] = [];
+    for (const comment of members) {
+      updated.push(
+        await store.updateComment(
+          applyCommentUpdate(comment, { status: input.status }, now),
+        ),
+      );
+    }
+    return buildCommentThreads(updated)[0]!;
   }
 
   async exportCommentsAsJsonl(
@@ -220,8 +251,10 @@ export class ViewerService {
     input: CreateCommentInput,
   ): Promise<ViviComment> {
     const now = isoNow();
+    const id = randomUUID();
     const comment: ViviComment = {
-      id: randomUUID(),
+      id,
+      threadId: input.threadId ?? id,
       path: input.path,
       viewerKind: input.viewerKind ?? "unknown",
       anchor: input.anchor,

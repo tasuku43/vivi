@@ -4,7 +4,9 @@ import type {
 } from "../../domain/change-review.js";
 import type {
   CommentListFilters,
+  CommentExportFilters,
   CommentStatus,
+  CommentThread,
   CreateCommentInput,
   ViviComment,
 } from "../../domain/comments.js";
@@ -31,6 +33,8 @@ export interface ViviClient {
     diffBase?: string;
   }): Promise<FileContext>;
   getComments(input?: CommentListFilters): Promise<ViviComment[]>;
+  getCommentThreads(input?: CommentListFilters): Promise<CommentThread[]>;
+  exportComments(input?: CommentExportFilters): Promise<string>;
   getReviewQueue(): Promise<ChangeReviewSummary>;
   getDiff(input: { path: string; base?: string }): Promise<TextDiff>;
   createComment(input: CreateCommentInput): Promise<ViviComment>;
@@ -38,6 +42,10 @@ export interface ViviClient {
     id: string;
     status: CommentStatus;
   }): Promise<ViviComment>;
+  updateCommentThreadStatus(input: {
+    id: string;
+    status: CommentStatus;
+  }): Promise<CommentThread>;
   searchFiles(input: {
     query: string;
     limit?: number;

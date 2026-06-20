@@ -12,6 +12,7 @@ const file = {
 };
 const comment = {
   id: "c1",
+  threadId: "t1",
   path: "README.md",
   viewerKind: "markdown" as const,
   anchor: {
@@ -22,6 +23,14 @@ const comment = {
   status: "open" as const,
   createdAt: "2026-06-20T00:00:00.000Z",
   updatedAt: "2026-06-20T00:00:00.000Z",
+};
+const commentThread = {
+  id: "t1",
+  path: "README.md",
+  status: "open" as const,
+  anchor: comment.anchor,
+  updatedAt: comment.updatedAt,
+  comments: [comment],
 };
 const diff = {
   path: "README.md",
@@ -48,12 +57,41 @@ it("assembles FileContext while keeping REST calls behind ViviClient", async () 
       includeDiff: true,
       diffBase: "HEAD",
     }),
-  ).resolves.toEqual({ file, comments: [comment], diff });
+  ).resolves.toEqual({
+    file,
+    comments: [comment],
+    commentThreads: [commentThread],
+    diff,
+  });
 
   expect(request.mock.calls.map(([url]) => String(url))).toEqual([
     "/api/file?path=README.md",
     "/api/v1/comments?path=README.md",
     "/api/diff?path=README.md&base=HEAD",
+  ]);
+});
+
+it("groups REST comments into compatibility comment threads", async () => {
+  const request = vi.fn<typeof fetch>(async () => Response.json([comment]));
+  const client = new RestViviClient({ fetch: request });
+
+  await expect(client.getCommentThreads({ path: "README.md" })).resolves.toEqual(
+    [commentThread],
+  );
+  expect(request.mock.calls.map(([url]) => String(url))).toEqual([
+    "/api/v1/comments?path=README.md",
+  ]);
+});
+
+it("exports comments through the REST compatibility client", async () => {
+  const request = vi.fn<typeof fetch>(async () => new Response("jsonl\n"));
+  const client = new RestViviClient({ fetch: request });
+
+  await expect(
+    client.exportComments({ path: "README.md", status: "open" }),
+  ).resolves.toBe("jsonl\n");
+  expect(request.mock.calls.map(([url]) => String(url))).toEqual([
+    "/api/v1/comments/export?format=jsonl&path=README.md&status=open",
   ]);
 });
 
@@ -83,4 +121,28 @@ it("preserves comment creation and status update payloads", async () => {
   expect(JSON.parse(String(request.mock.calls[1]?.[1]?.body))).toEqual({
     status: "resolved",
   });
+});
+
+it("updates comment thread status through REST compatibility calls", async () => {
+  const request = vi.fn<typeof fetch>(async (input, init) => {
+    const url = String(input);
+    if (url.startsWith("/api/v1/comments?")) return Response.json([comment]);
+    return Response.json({
+      ...comment,
+      status: JSON.parse(String(init?.body)).status,
+    });
+  });
+  const client = new RestViviClient({ fetch: request });
+
+  await expect(
+    client.updateCommentThreadStatus({ id: "t1", status: "resolved" }),
+  ).resolves.toMatchObject({
+    id: "t1",
+    status: "resolved",
+    comments: [expect.objectContaining({ id: "c1", status: "resolved" })],
+  });
+  expect(request.mock.calls.map(([url]) => String(url))).toEqual([
+    "/api/v1/comments?",
+    "/api/v1/comments/c1",
+  ]);
 });

@@ -22,8 +22,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tasuku43/vivi/server/application"
 	"github.com/tasuku43/vivi/server/comments"
 	"github.com/tasuku43/vivi/server/gitreview"
+	vivigraphql "github.com/tasuku43/vivi/server/graphql"
 	"github.com/tasuku43/vivi/server/workspace"
 	uiassets "github.com/tasuku43/vivi/ui"
 )
@@ -42,28 +44,27 @@ type Server struct {
 	listener    net.Listener
 	url         string
 	options     Options
-	subscribers map[chan fsEvent]struct{}
-	mu          sync.Mutex
+	app         *application.Service
+	graphql     http.Handler
 	connections map[net.Conn]struct{}
 	connMu      sync.Mutex
-	version     int
-}
-
-type fsEvent struct {
-	Type    string `json:"type"`
-	Path    string `json:"path"`
-	Kind    string `json:"kind,omitempty"`
-	Version int    `json:"version"`
 }
 
 func Start(ctx context.Context, options Options) (*Server, error) {
 	mux := http.NewServeMux()
+	app := application.NewService(application.Options{
+		Workspace: options.Workspace,
+		Git:       options.Git,
+		Comments:  options.Comments,
+	})
 	server := &Server{
 		options:     options,
-		subscribers: map[chan fsEvent]struct{}{},
+		app:         app,
 		connections: map[net.Conn]struct{}{},
-		version:     1,
 	}
+	server.graphql = vivigraphql.NewHandler(app, func(r *http.Request) bool {
+		return safeJSONWriteRequest(r, server.options.Host)
+	})
 	mux.HandleFunc("/", server.route)
 	listener, err := net.Listen("tcp", net.JoinHostPort(options.Host, strconv.Itoa(options.Port)))
 	if err != nil {
@@ -127,7 +128,7 @@ func (server *Server) route(w http.ResponseWriter, r *http.Request) {
 	case r.URL.Path == "/api/tree":
 		server.handleTree(w, r)
 	case r.URL.Path == "/api/config":
-		writeJSON(w, http.StatusOK, server.options.Workspace.Config())
+		writeJSON(w, http.StatusOK, server.app.Config())
 	case r.URL.Path == "/api/file":
 		server.handleFile(w, r)
 	case r.URL.Path == "/api/files":
@@ -135,11 +136,17 @@ func (server *Server) route(w http.ResponseWriter, r *http.Request) {
 	case r.URL.Path == "/api/search":
 		server.handleSearch(w, r)
 	case r.URL.Path == "/api/changes":
-		writeJSON(w, http.StatusOK, server.options.Git.ReadChanges(r.Context()))
+		writeJSON(w, http.StatusOK, server.app.ReadChanges(r.Context()))
 	case r.URL.Path == "/api/diff-bases":
-		writeJSON(w, http.StatusOK, server.options.Git.ReadDiffBases(r.Context()))
+		writeJSON(w, http.StatusOK, server.app.ReadDiffBases(r.Context()))
 	case r.URL.Path == "/api/diff":
 		server.handleDiff(w, r)
+	case r.URL.Path == "/graphql":
+		if r.Method == http.MethodGet && isGraphqlWorkspaceEventsRequest(r) {
+			server.handleGraphqlEvents(w, r)
+			return
+		}
+		server.graphql.ServeHTTP(w, r)
 	case r.URL.Path == "/api/v1/meta":
 		writeJSON(w, http.StatusOK, metaResponse())
 	case r.URL.Path == "/api/v1/comments" && r.Method == http.MethodGet:
@@ -164,19 +171,7 @@ func (server *Server) route(w http.ResponseWriter, r *http.Request) {
 func (server *Server) handleTree(w http.ResponseWriter, r *http.Request) {
 	depth := positiveInt(r.URL.Query().Get("depth"))
 	requestedPath := r.URL.Query().Get("path")
-	if requestedPath != "" || depth > 0 {
-		if depth <= 0 {
-			depth = 1
-		}
-		tree, err := server.options.Workspace.ReadDirectory(requestedPath, depth)
-		if err != nil {
-			writeError(w, r, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, tree)
-		return
-	}
-	tree, err := server.options.Workspace.ReadTree()
+	tree, err := server.app.ReadTree(requestedPath, depth)
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -185,7 +180,7 @@ func (server *Server) handleTree(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) handleFile(w http.ResponseWriter, r *http.Request) {
-	file, err := server.options.Workspace.ReadFile(r.URL.Query().Get("path"))
+	file, err := server.app.ReadFile(r.URL.Query().Get("path"))
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -194,7 +189,7 @@ func (server *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
-	result, err := server.options.Workspace.SearchFiles(r.URL.Query().Get("q"), positiveInt(r.URL.Query().Get("limit")))
+	result, err := server.app.SearchFiles(r.URL.Query().Get("q"), positiveInt(r.URL.Query().Get("limit")))
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -203,7 +198,7 @@ func (server *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
-	result, err := server.options.Workspace.SearchText(r.URL.Query().Get("q"), positiveInt(r.URL.Query().Get("limit")))
+	result, err := server.app.SearchText(r.URL.Query().Get("q"), positiveInt(r.URL.Query().Get("limit")))
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -212,12 +207,12 @@ func (server *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
-	diff := server.options.Git.ReadDiff(r.Context(), r.URL.Query().Get("path"), r.URL.Query().Get("base"))
+	diff := server.app.ReadDiff(r.Context(), r.URL.Query().Get("path"), r.URL.Query().Get("base"))
 	writeJSON(w, http.StatusOK, diff)
 }
 
 func (server *Server) handleListComments(w http.ResponseWriter, r *http.Request) {
-	result, err := server.options.Comments.List(comments.Filters{
+	result, err := server.app.ListComments(comments.Filters{
 		Path:   r.URL.Query().Get("path"),
 		Status: r.URL.Query().Get("status"),
 	})
@@ -238,13 +233,7 @@ func (server *Server) handleCreateComment(w http.ResponseWriter, r *http.Request
 		writeError(w, r, err)
 		return
 	}
-	pathValue, _ := input["path"].(string)
-	file, err := server.options.Workspace.ReadFile(pathValue)
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	comment, err := server.options.Comments.Create(input, file.Etag, file.ViewerKind)
+	comment, err := server.app.CreateComment(input)
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -263,7 +252,7 @@ func (server *Server) handleUpdateComment(w http.ResponseWriter, r *http.Request
 		writeError(w, r, err)
 		return
 	}
-	comment, err := server.options.Comments.Update(id, input)
+	comment, err := server.app.UpdateComment(id, input)
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -276,7 +265,7 @@ func (server *Server) handleExportComments(w http.ResponseWriter, r *http.Reques
 		writeError(w, r, fmt.Errorf("invalid comment export format"))
 		return
 	}
-	body, err := server.options.Comments.ExportJSONL(comments.Filters{
+	body, err := server.app.ExportCommentsJSONL(comments.Filters{
 		Path:   r.URL.Query().Get("path"),
 		Status: r.URL.Query().Get("status"),
 	})
@@ -351,8 +340,8 @@ func (server *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	if flusher, ok := w.(http.Flusher); ok {
 		flusher.Flush()
 	}
-	events := server.subscribe()
-	defer server.unsubscribe(events)
+	events, unsubscribe := server.app.SubscribeWorkspaceEvents()
+	defer unsubscribe()
 	for {
 		select {
 		case <-r.Context().Done():
@@ -369,6 +358,42 @@ func (server *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+}
+
+func (server *Server) handleGraphqlEvents(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("content-type", "text/event-stream")
+	w.Header().Set("cache-control", "no-cache, no-transform")
+	w.Header().Set("connection", "keep-alive")
+	_, _ = io.WriteString(w, ": connected\n\n")
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
+	}
+	events, unsubscribe := server.app.SubscribeWorkspaceEvents()
+	defer unsubscribe()
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case event := <-events:
+			payload, err := json.Marshal(map[string]any{
+				"data": map[string]any{"workspaceEvents": event},
+			})
+			if err != nil {
+				continue
+			}
+			_, _ = io.WriteString(w, "event: next\n")
+			_, _ = io.WriteString(w, "data: "+string(payload)+"\n\n")
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
+		}
+	}
+}
+
+func isGraphqlWorkspaceEventsRequest(r *http.Request) bool {
+	return r.URL.Query().Get("operationName") == "WorkspaceEvents" ||
+		strings.Contains(r.URL.Query().Get("query"), "workspaceEvents") ||
+		strings.Contains(r.URL.Query().Get("query"), "subscription")
 }
 
 func (server *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
@@ -401,32 +426,8 @@ func (server *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(content)
 }
 
-func (server *Server) subscribe() chan fsEvent {
-	events := make(chan fsEvent, 32)
-	server.mu.Lock()
-	server.subscribers[events] = struct{}{}
-	server.mu.Unlock()
-	return events
-}
-
-func (server *Server) unsubscribe(events chan fsEvent) {
-	server.mu.Lock()
-	delete(server.subscribers, events)
-	close(events)
-	server.mu.Unlock()
-}
-
-func (server *Server) publish(event fsEvent) {
-	server.mu.Lock()
-	server.version++
-	event.Version = server.version
-	for subscriber := range server.subscribers {
-		select {
-		case subscriber <- event:
-		default:
-		}
-	}
-	server.mu.Unlock()
+func (server *Server) publish(event application.WorkspaceEvent) {
+	server.app.PublishWorkspaceEvent(event)
 }
 
 func (server *Server) trackConnection(conn net.Conn, state http.ConnState) {
@@ -473,16 +474,16 @@ func (server *Server) watch(ctx context.Context) {
 			for pathname, entry := range current {
 				old, ok := previous[pathname]
 				if !ok {
-					server.publish(fsEvent{Type: "add", Path: pathname, Kind: entry.Kind})
+					server.publish(application.WorkspaceEvent{Type: "add", Path: pathname, Kind: entry.Kind})
 					continue
 				}
 				if entry.Kind == "file" && (entry.Size != old.Size || entry.MtimeNs != old.MtimeNs) {
-					server.publish(fsEvent{Type: "change", Path: pathname})
+					server.publish(application.WorkspaceEvent{Type: "change", Path: pathname})
 				}
 			}
 			for pathname, old := range previous {
 				if _, ok := current[pathname]; !ok {
-					server.publish(fsEvent{Type: "unlink", Path: pathname, Kind: old.Kind})
+					server.publish(application.WorkspaceEvent{Type: "unlink", Path: pathname, Kind: old.Kind})
 				}
 			}
 			previous = current

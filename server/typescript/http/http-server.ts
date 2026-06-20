@@ -12,7 +12,11 @@ import type { AddressInfo, Socket } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ViewerService } from "../application/viewer-service.js";
-import { normalizeCommentFilters } from "../domain/comments.js";
+import {
+  normalizeCommentFilters,
+  type CommentListFilters,
+  type CommentStatus,
+} from "../domain/comments.js";
 import {
   viviMermaidThemeVariables,
   type MermaidPreviewTheme,
@@ -105,6 +109,11 @@ async function routeRequest(
 ): Promise<void> {
   const host = req.headers.host ?? `${options.host}:${options.port}`;
   const url = new URL(req.url ?? "/", `http://${host}`);
+
+  if (url.pathname === "/graphql") {
+    await handleGraphqlRequest(req, res, options);
+    return;
+  }
 
   if (url.pathname === "/api/v1/meta") {
     sendJson(res, 200, {
@@ -307,6 +316,293 @@ async function routeRequest(
   await serveSpa(req, res, options.staticDir);
 }
 
+async function handleGraphqlRequest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  options: ServerOptions,
+): Promise<void> {
+  if (req.method === "GET") {
+    const host = req.headers.host ?? `${options.host}:${options.port}`;
+    const url = new URL(req.url ?? "/", `http://${host}`);
+    if (isGraphqlWorkspaceEventsRequest({
+      operationName: url.searchParams.get("operationName") ?? undefined,
+      query: url.searchParams.get("query") ?? undefined,
+    })) {
+      streamGraphqlWorkspaceEvents(req, res, options);
+      return;
+    }
+  }
+  if (req.method !== "POST") {
+    sendJson(res, 405, {
+      errors: [{ message: "GraphQL endpoint requires POST" }],
+    });
+    return;
+  }
+  const payload = (await readJson(req)) as {
+    operationName?: string;
+    query?: string;
+    variables?: Record<string, unknown>;
+  };
+  const variables = payload.variables ?? {};
+  const operationName = graphqlOperation(payload);
+  if (isGraphqlMutation(operationName, payload.query)) {
+    assertSafeJsonWriteRequest(req, options);
+  }
+  try {
+    sendJson(res, 200, {
+      data: await executeGraphqlOperation(operationName, variables, options),
+    });
+  } catch (error) {
+    sendJson(res, 200, {
+      errors: [
+        {
+          message: error instanceof Error ? error.message : String(error),
+          extensions: { status: "request_error" },
+        },
+      ],
+    });
+  }
+}
+
+function streamGraphqlWorkspaceEvents(
+  req: IncomingMessage,
+  res: ServerResponse,
+  options: ServerOptions,
+): void {
+  res.writeHead(200, {
+    "content-type": "text/event-stream",
+    "cache-control": "no-cache, no-transform",
+    connection: "keep-alive",
+  });
+  res.write(": connected\n\n");
+  const unsubscribe = options.service.subscribe((event) => {
+    res.write("event: next\n");
+    res.write(
+      `data: ${JSON.stringify({ data: { workspaceEvents: event } })}\n\n`,
+    );
+  });
+  req.on("close", unsubscribe);
+}
+
+async function executeGraphqlOperation(
+  operationName: string,
+  variables: Record<string, unknown>,
+  options: ServerOptions,
+): Promise<Record<string, unknown>> {
+  switch (operationName) {
+    case "ViviWorkspace": {
+      const tree = await readGraphqlTree(options, variables);
+      return {
+        workspace: {
+          tree,
+          config: options.service.getConfig(),
+        },
+      };
+    }
+    case "ViviTree":
+      return { tree: await readGraphqlTree(options, variables) };
+    case "ViviConfig":
+      return { config: options.service.getConfig() };
+    case "ViviFile": {
+      return { file: await options.service.readFile(requiredString(variables, "path")) };
+    }
+    case "ViviFileContext": {
+      const requestedPath = requiredString(variables, "path");
+      const includeComments = boolVariable(variables, "includeComments");
+      return {
+        fileContext: {
+          file: await options.service.readFile(requestedPath),
+          comments: includeComments
+            ? await options.service.listComments({ path: requestedPath })
+            : [],
+          commentThreads: includeComments
+            ? await options.service.listCommentThreads({ path: requestedPath })
+            : [],
+          diff: boolVariable(variables, "includeDiff")
+            ? await options.service.readDiff(
+                requestedPath,
+                optionalString(variables, "diffBase"),
+              )
+            : undefined,
+        },
+      };
+    }
+    case "ViviComments": {
+      const filters = graphqlCommentFilters(variables);
+      const comments = await options.service.listComments(filters);
+      return {
+        comments,
+        commentThreads: await options.service.listCommentThreads(filters),
+      };
+    }
+    case "ViviCommentThreads":
+      return {
+        commentThreads: await options.service.listCommentThreads(
+          graphqlCommentFilters(variables),
+        ),
+      };
+    case "ViviCommentExport":
+      return {
+        commentExport: {
+          format: "jsonl",
+          contentType: "application/x-ndjson; charset=utf-8",
+          content: await options.service.exportCommentsAsJsonl(
+            graphqlCommentFilters(variables),
+          ),
+        },
+      };
+    case "ViviReviewQueue":
+      return { reviewQueue: await options.service.readChanges() };
+    case "ViviDiffBases":
+      return { diffBases: await options.service.readDiffBases() };
+    case "ViviDiff":
+      return {
+        diff: await options.service.readDiff(
+          requiredString(variables, "path"),
+          optionalString(variables, "base"),
+        ),
+      };
+    case "ViviFileSearch":
+      return {
+        fileSearch: await options.service.searchFiles(
+          requiredString(variables, "query"),
+          { limit: positiveVariable(variables, "limit") ?? 40 },
+        ),
+      };
+    case "ViviTextSearch":
+      return {
+        textSearch: await options.service.searchText(
+          requiredString(variables, "query"),
+          { limit: positiveVariable(variables, "limit") ?? 40 },
+        ),
+      };
+    case "ViviMeta":
+      return {
+        meta: {
+          version: "v1",
+          comments: {
+            statuses: ["open", "resolved", "archived"],
+            surfaces: ["source", "rendered", "diff"],
+            exportFormats: ["jsonl"],
+          },
+        },
+      };
+    case "ViviPreview": {
+      const requestedPath = requiredString(variables, "path");
+      return {
+        htmlPreview: {
+          url: `/preview/html?path=${encodeURIComponent(requestedPath)}`,
+          scriptsAllowed: options.service.getConfig().allowHtmlScripts,
+          transport: "http-rendering",
+        },
+        rawPreview: {
+          url: `/preview/raw/${encodeURIComponent(requestedPath)}`,
+          scriptsAllowed: false,
+          transport: "http-rendering",
+        },
+      };
+    }
+    case "CreateComment":
+      return {
+        createComment: await options.service.createComment(
+          variables.input ?? {},
+        ),
+      };
+    case "UpdateComment":
+    case "UpdateCommentStatus":
+      return {
+        updateComment: await options.service.updateComment(
+          requiredString(variables, "id"),
+          variables.input ?? { status: requiredString(variables, "status") },
+        ),
+      };
+    case "UpdateCommentThread":
+    case "UpdateCommentThreadStatus":
+      return {
+        updateCommentThread: await options.service.updateCommentThreadStatus({
+          id: requiredString(variables, "id"),
+          status: requiredString(variables, "status") as CommentStatus,
+        }),
+      };
+    default:
+      throw new Error("unsupported GraphQL operation");
+  }
+}
+
+async function readGraphqlTree(
+  options: ServerOptions,
+  variables: Record<string, unknown>,
+) {
+  const requestedPath = optionalString(variables, "path") ?? "";
+  const depth = positiveVariable(variables, "depth");
+  return requestedPath || depth
+    ? options.service.readDirectory(requestedPath, { depth: depth ?? 1 })
+    : options.service.readTree();
+}
+
+function graphqlOperation(payload: {
+  operationName?: string;
+  query?: string;
+}): string {
+  if (payload.operationName) return payload.operationName;
+  for (const candidate of [
+    "ViviWorkspace",
+    "ViviTree",
+    "ViviConfig",
+    "ViviFileContext",
+    "ViviFile",
+    "ViviComments",
+    "ViviCommentThreads",
+    "ViviCommentExport",
+    "ViviReviewQueue",
+    "ViviDiffBases",
+    "ViviDiff",
+    "ViviFileSearch",
+    "ViviTextSearch",
+    "ViviMeta",
+    "ViviPreview",
+    "CreateComment",
+    "UpdateCommentThreadStatus",
+    "UpdateCommentThread",
+    "UpdateCommentStatus",
+    "UpdateComment",
+  ]) {
+    if (payload.query?.includes(candidate)) return candidate;
+  }
+  return "";
+}
+
+function isGraphqlMutation(operationName: string, query?: string): boolean {
+  return (
+    operationName === "CreateComment" ||
+    operationName === "UpdateComment" ||
+    operationName === "UpdateCommentStatus" ||
+    operationName === "UpdateCommentThread" ||
+    operationName === "UpdateCommentThreadStatus" ||
+    query?.includes("mutation") === true
+  );
+}
+
+function isGraphqlWorkspaceEventsRequest(input: {
+  operationName?: string;
+  query?: string;
+}): boolean {
+  return (
+    input.operationName === "WorkspaceEvents" ||
+    input.query?.includes("workspaceEvents") === true ||
+    input.query?.includes("subscription") === true
+  );
+}
+
+function graphqlCommentFilters(
+  variables: Record<string, unknown>,
+): CommentListFilters {
+  return normalizeCommentFilters({
+    path: optionalString(variables, "path") ?? null,
+    status: optionalString(variables, "status") ?? null,
+  });
+}
+
 async function serveSpa(
   req: IncomingMessage,
   res: ServerResponse,
@@ -386,6 +682,35 @@ function parsePositiveInt(value: string | null): number | null {
   if (!value) return null;
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function optionalString(
+  variables: Record<string, unknown>,
+  key: string,
+): string | undefined {
+  const value = variables[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function requiredString(variables: Record<string, unknown>, key: string): string {
+  const value = optionalString(variables, key)?.trim();
+  if (!value) throw new Error(`${key} is required`);
+  return value;
+}
+
+function boolVariable(variables: Record<string, unknown>, key: string): boolean {
+  return variables[key] === true;
+}
+
+function positiveVariable(
+  variables: Record<string, unknown>,
+  key: string,
+): number | undefined {
+  const value = variables[key];
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return undefined;
+  }
+  return Math.floor(value);
 }
 
 function statusForError(message: string): number {

@@ -1,5 +1,9 @@
 import type { ViviClient } from "../../application/ports/ViviClient.js";
-import type { CreateCommentInput } from "../../domain/comments.js";
+import {
+  buildCommentThreads,
+  type CommentExportFilters,
+  type CreateCommentInput,
+} from "../../domain/comments.js";
 import {
   adaptComment,
   adaptConfig,
@@ -77,7 +81,7 @@ export class RestViviClient implements ViviClient {
       commentsPromise,
       diffPromise,
     ]);
-    return { file, comments, diff };
+    return { file, comments, commentThreads: buildCommentThreads(comments), diff };
   }
 
   async getComments(input: { path?: string; status?: string } = {}) {
@@ -88,6 +92,23 @@ export class RestViviClient implements ViviClient {
       `/api/v1/comments?${params}`,
     );
     return dtos.map(adaptComment);
+  }
+
+  async getCommentThreads(input: { path?: string; status?: string } = {}) {
+    return buildCommentThreads(await this.getComments(input));
+  }
+
+  async exportComments(input: CommentExportFilters = {}) {
+    const params = new URLSearchParams({ format: input.format ?? "jsonl" });
+    if (input.path) params.set("path", input.path);
+    if (input.status) params.set("status", input.status);
+    const response = await this.request(
+      this.url(`/api/v1/comments/export?${params}`),
+    );
+    if (!response.ok) {
+      throw new Error(`/api/v1/comments/export request failed: ${response.status}`);
+    }
+    return response.text();
   }
 
   async getReviewQueue() {
@@ -128,6 +149,23 @@ export class RestViviClient implements ViviClient {
         },
       ),
     );
+  }
+
+  async updateCommentThreadStatus(input: {
+    id: string;
+    status: "open" | "resolved" | "archived";
+  }) {
+    const comments = await this.getComments();
+    const members = comments.filter(
+      (comment) => (comment.threadId ?? comment.id) === input.id,
+    );
+    if (!members.length) throw new Error("comment thread not found");
+    const updated = await Promise.all(
+      members.map((comment) =>
+        this.updateCommentStatus({ id: comment.id, status: input.status }),
+      ),
+    );
+    return buildCommentThreads(updated)[0]!;
   }
 
   async searchFiles(input: {

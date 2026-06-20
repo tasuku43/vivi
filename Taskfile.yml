@@ -22,6 +22,16 @@ tasks:
     cmds:
       - npm run validate:scaffold
 
+  generate:
+    desc: Regenerate generated source files
+    cmds:
+      - task: generate:graphql
+
+  generate:graphql:
+    desc: Regenerate Go GraphQL code from the Vivi schema
+    cmds:
+      - env GOCACHE="$PWD/.tmp-go-build-cache" GOMODCACHE="$PWD/.tmp-go-mod-cache" go run github.com/99designs/gqlgen generate --config server/graphql/gqlgen.yml
+
   typecheck:
     desc: Run TypeScript checks
     cmds:

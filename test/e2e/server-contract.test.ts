@@ -250,6 +250,34 @@ it("streams filesystem events over SSE for live review", async () => {
   await reader?.cancel();
 }, 10000);
 
+it("streams filesystem events through GraphQL SSE", async () => {
+  const watcher = new ManualWatcher();
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+    watcher,
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const params = new URLSearchParams({
+    operationName: "WorkspaceEvents",
+    query:
+      "subscription WorkspaceEvents { workspaceEvents { type path kind version } }",
+  });
+  const response = await fetch(`${server.url}/graphql?${params}`);
+  expect(response.status).toBe(200);
+  const reader = response.body?.getReader();
+  expect(reader).toBeDefined();
+
+  watcher.emit({ type: "change", path: "README.md", version: 2 });
+  const chunk = await readUntil(reader!, "README.md");
+
+  expect(chunk).toContain("event: next");
+  expect(chunk).toContain('"workspaceEvents"');
+  expect(chunk).toContain('"type":"change"');
+  expect(chunk).toContain('"path":"README.md"');
+  await reader?.cancel();
+}, 10000);
+
 it("serves latest file payloads for active-viewer refetches after watcher events", async () => {
   const watcher = new ManualWatcher();
   const service = new ViewerService({

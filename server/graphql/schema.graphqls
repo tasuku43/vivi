@@ -1,0 +1,259 @@
+scalar JSON
+
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
+
+type Query {
+  workspace(path: String, depth: Int): Workspace!
+  config: ViewerConfig!
+  tree(path: String, depth: Int): TreeSnapshot!
+  file(path: String!): FilePayload!
+  fileContext(path: String!, includeComments: Boolean = false, includeDiff: Boolean = false, diffBase: String): FileContext!
+  comments(path: String, status: CommentStatus): [Comment!]!
+  commentThreads(path: String, status: CommentStatus): [CommentThread!]!
+  commentExport(path: String, status: CommentStatus, format: CommentExportFormat = jsonl): CommentExport!
+  reviewQueue: ChangeReviewSummary!
+  diffBases: DiffBaseSummary!
+  diff(path: String!, base: String): TextDiff!
+  fileSearch(query: String!, limit: Int): FileSearchResponse!
+  textSearch(query: String!, limit: Int): TextSearchResponse!
+  meta: Meta!
+  htmlPreview(path: String!): PreviewResource!
+  rawPreview(path: String!): PreviewResource!
+}
+
+type Mutation {
+  createComment(input: CommentInput!): Comment!
+  updateComment(id: ID!, input: CommentUpdateInput!): Comment!
+  updateCommentThread(id: ID!, input: CommentThreadUpdateInput!): CommentThread!
+}
+
+type Subscription {
+  workspaceEvents: WorkspaceEvent!
+}
+
+type Workspace {
+  tree: TreeSnapshot!
+  config: ViewerConfig!
+}
+
+type ViewerConfig {
+  root: String!
+  allowHtmlScripts: Boolean!
+  maxFileSizeBytes: Int!
+}
+
+type TreeSnapshot {
+  root: String!
+  version: Int!
+  path: String
+  depth: Int
+  nodes: [FsNode!]!
+  stats: TreeStats
+}
+
+type FsNode {
+  id: ID!
+  path: String!
+  name: String!
+  kind: NodeKind!
+  parentPath: String
+  viewerKind: String
+  children: [FsNode!]
+  childrenLoaded: Boolean
+  size: Int
+  mtimeMs: Float
+  version: Int
+}
+
+type TreeStats {
+  durationMs: Int!
+  scannedDirectories: Int!
+  scannedFiles: Int!
+  returnedNodes: Int!
+}
+
+type FileContext {
+  file: FilePayload!
+  comments: [Comment!]!
+  commentThreads: [CommentThread!]!
+  diff: TextDiff
+}
+
+type FilePayload {
+  path: String!
+  viewerKind: String!
+  encoding: String!
+  content: String!
+  etag: String!
+  size: Int!
+  mtimeMs: Float!
+  mimeType: String
+  truncated: Boolean
+  maxSizeBytes: Int
+  previewBytes: Int
+}
+
+type CommentThread {
+  id: ID!
+  path: String!
+  status: CommentStatus!
+  anchor: JSON
+  updatedAt: String
+  comments: [Comment!]!
+}
+
+type Comment {
+  id: ID!
+  threadId: ID
+  path: String!
+  viewerKind: String!
+  anchor: JSON!
+  body: String!
+  status: CommentStatus!
+  createdAt: String!
+  updatedAt: String!
+  resolvedAt: String
+  archivedAt: String
+}
+
+type CommentExport {
+  format: CommentExportFormat!
+  contentType: String!
+  content: String!
+}
+
+input CommentInput {
+  threadId: ID
+  path: String!
+  viewerKind: String
+  anchor: JSON!
+  body: String!
+  status: CommentStatus
+}
+
+input CommentUpdateInput {
+  body: String
+  status: CommentStatus
+}
+
+input CommentThreadUpdateInput {
+  status: CommentStatus!
+}
+
+type ChangeReviewSummary {
+  available: Boolean!
+  reason: String
+  changes: [Change!]!
+}
+
+type Change {
+  path: String!
+  status: String!
+  kind: String
+  originalPath: String
+}
+
+type DiffBaseSummary {
+  available: Boolean!
+  reason: String
+  options: [DiffBase!]!
+}
+
+type DiffBase {
+  ref: String!
+  label: String!
+  subject: String
+}
+
+type TextDiff {
+  path: String!
+  status: String!
+  kind: String
+  baseLabel: String!
+  compareLabel: String!
+  content: String!
+  reason: String
+}
+
+type FileSearchResponse {
+  query: String!
+  results: [FileSearchResult!]!
+  stats: SearchStats!
+}
+
+type FileSearchResult {
+  path: String!
+  name: String!
+  viewerKind: String!
+  size: Int
+  mtimeMs: Float
+  score: Int!
+}
+
+type TextSearchResponse {
+  query: String!
+  results: [TextSearchResult!]!
+  stats: SearchStats!
+}
+
+type TextSearchResult {
+  path: String!
+  viewerKind: String!
+  lineNumber: Int!
+  lineText: String!
+  matchStart: Int!
+  matchLength: Int!
+}
+
+type SearchStats {
+  durationMs: Int!
+  scannedDirectories: Int!
+  scannedFiles: Int!
+  readFiles: Int!
+  skippedFiles: Int!
+  cached: Boolean
+}
+
+type Meta {
+  version: String!
+  comments: CommentMeta!
+}
+
+type CommentMeta {
+  statuses: [CommentStatus!]!
+  surfaces: [String!]!
+  exportFormats: [String!]!
+}
+
+type PreviewResource {
+  url: String!
+  contentType: String
+  scriptsAllowed: Boolean!
+  transport: String!
+}
+
+type WorkspaceEvent {
+  type: String!
+  path: String!
+  kind: NodeKind
+  version: Int!
+}
+
+enum NodeKind {
+  file
+  directory
+}
+
+enum CommentStatus {
+  open
+  resolved
+  archived
+}
+
+enum CommentExportFormat {
+  jsonl
+}

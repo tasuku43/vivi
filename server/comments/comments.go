@@ -62,11 +62,15 @@ func (store *Store) Create(input map[string]any, fileHash, viewerKind string) (m
 		return nil, errors.New("body is required")
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
+	id := randomID()
 	comment := copyMap(input)
-	comment["id"] = randomID()
+	comment["id"] = id
 	comment["path"] = strings.TrimSpace(pathValue)
 	comment["body"] = strings.TrimSpace(body)
 	comment["viewerKind"] = viewerKind
+	if threadID, ok := comment["threadId"].(string); !ok || strings.TrimSpace(threadID) == "" {
+		comment["threadId"] = id
+	}
 	if _, ok := comment["status"].(string); !ok {
 		comment["status"] = "open"
 	}
