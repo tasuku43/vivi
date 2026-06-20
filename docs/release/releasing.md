@@ -29,5 +29,13 @@ open a Homebrew formula update PR against `tasuku43/homebrew-tap`.
 5. Confirm the published GitHub Release contains the four platform archives and
    `checksums.txt`, and that asset URLs use `/download/vX.Y.Z/`.
 6. Download one archive and run `vivi --version`.
-7. Confirm a PR was created in `tasuku43/homebrew-tap` updating
+7. Verify its provenance with
+   `gh attestation verify <archive> --repo tasuku43/vivi` and verify all files
+   with `sha256sum --check checksums.txt` from the download directory.
+8. Confirm a PR was created in `tasuku43/homebrew-tap` updating
    `Formula/vivi.rb`.
+
+The workflow pins every Action to a commit SHA, grants write permissions only to
+the checksums/release job, and uses a GitHub App token scoped only to the Homebrew
+tap. See `docs/21-supply-chain-security.md` for the dependency and release
+integrity policy.

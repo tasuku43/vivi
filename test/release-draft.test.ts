@@ -14,11 +14,11 @@ it("builds release archives for the Vivi single binary", () => {
   expect(workflow).toContain("actions/create-github-app-token");
   expect(workflow).toContain("homebrew-tap");
   expect(workflow).toContain(".github/scripts/update-homebrew-formula.sh");
-  expect(workflow).toContain("actions/checkout@v7");
-  expect(workflow).toContain("actions/setup-node@v6");
-  expect(workflow).toContain("actions/setup-go@v6");
-  expect(workflow).toContain("actions/upload-artifact@v7");
-  expect(workflow).toContain("actions/download-artifact@v8");
+  expect(workflow).toMatch(/actions\/checkout@[0-9a-f]{40}/);
+  expect(workflow).toMatch(/actions\/setup-node@[0-9a-f]{40}/);
+  expect(workflow).toMatch(/actions\/setup-go@[0-9a-f]{40}/);
+  expect(workflow).toMatch(/actions\/upload-artifact@[0-9a-f]{40}/);
+  expect(workflow).toMatch(/actions\/download-artifact@[0-9a-f]{40}/);
   expect(workflow).not.toContain("docker/build-push-action");
   expect(workflow).not.toMatch(
     /npm publish|NODE_AUTH_TOKEN|container registry/i,
@@ -56,6 +56,7 @@ it("enables Dependabot for package and workflow maintenance", () => {
 
   expect(config).toContain("version: 2");
   expect(config).toContain("package-ecosystem: npm");
+  expect(config).toContain("package-ecosystem: gomod");
   expect(config).toContain("package-ecosystem: github-actions");
   expect(config).toContain("directory: /");
   expect(config).toContain("interval: weekly");
@@ -66,16 +67,6 @@ it("keeps the Go CLI entrypoint visible to git", () => {
 
   expect(gitignore).toContain("/vivi");
   expect(gitignore).not.toMatch(/^vivi$/m);
-});
-
-it("documents Docker only as a development or verification path", () => {
-  const readme = readFileSync("README.md", "utf8");
-  const dockerSection = section(readme, "## Docker", "## Repository Layout");
-
-  expect(dockerSection).toContain("not a general install option");
-  expect(dockerSection).toContain("development or verification");
-  expect(dockerSection).toMatch(/bind\s+mounts/);
-  expect(section(readme, "## Install", "## Usage")).not.toMatch(/docker/i);
 });
 
 it("documents the tag-triggered release and Homebrew tap workflow", () => {

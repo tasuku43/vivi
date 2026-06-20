@@ -66,8 +66,7 @@ This avoids re-rendering the entire tree for every update and keeps expansion st
 Comments are stored outside the viewed workspace so read-only mounts remain
 compatible. The first storage adapter writes JSONL to the Vivi data directory:
 `$VIVI_DATA_DIR/comments.jsonl` when set, then `$XDG_DATA_HOME/vivi/comments.jsonl`,
-then the platform user data fallback. Docker may override this for development
-or verification containers, but it is not the normal user install path.
+then the platform user data fallback.
 
 The canonical comment anchor is a source file location:
 

@@ -110,9 +110,9 @@ security notes.
 
 ## Development
 
-The distributed `vivi` binary does not require Node.js, npm, or Docker at
-runtime. This repository still uses Node.js for frontend development, Vite
-builds, React tests, and TypeScript checks.
+The distributed `vivi` binary does not require Node.js or npm at runtime. This
+repository still uses Node.js for frontend development, Vite builds, React
+tests, and TypeScript checks.
 
 Install [Task](https://taskfile.dev/) and Node.js 20 or newer for development:
 
@@ -135,13 +135,6 @@ node scripts/validate-scaffold.mjs
 The Go backend is the distribution target. The TypeScript server remains useful
 while the migration is in progress because the same API contract tests can be
 run against both implementations.
-
-## Docker
-
-Docker is not a general install option for Vivi. It can still be useful for
-development or verification, but large repositories mounted through Docker bind
-mounts on macOS can make Git and broad filesystem scans very slow. Prefer the
-native binary for normal local workspace reading.
 
 ## Repository Layout
 

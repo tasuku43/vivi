@@ -1,12 +1,5 @@
 version: "3"
 
-vars:
-  IMAGE: '{{.IMAGE | default "vivi"}}'
-  TAG: '{{.TAG | default "local"}}'
-  PORT: '{{.PORT | default "4317"}}'
-  ROOT: "{{.ROOT | default .USER_WORKING_DIR}}"
-  PLATFORMS: '{{.PLATFORMS | default "linux/amd64,linux/arm64"}}'
-
 tasks:
   default:
     cmds:
@@ -26,6 +19,17 @@ tasks:
     desc: Regenerate generated source files
     cmds:
       - task: generate:graphql
+
+  generate:check:
+    desc: Verify committed generated GraphQL source is reproducible
+    cmds:
+      - task: generate
+      - git diff --exit-code -- server/graphql/generated/generated.go server/graphql/model/models_gen.go server/graphql/schema.resolvers.go
+
+  security:
+    desc: Enforce repository supply-chain policy
+    cmds:
+      - npm run security:policy
 
   generate:graphql:
     desc: Regenerate Go GraphQL code from the Vivi schema
@@ -131,24 +135,3 @@ tasks:
     desc: Run the full validation suite
     cmds:
       - npm run check
-
-  docker:build:
-    desc: Build the local Docker image
-    cmds:
-      - docker build -t {{.IMAGE}}:{{.TAG}} .
-
-  docker:buildx:
-    desc: Build a multi-architecture Docker image with buildx
-    cmds:
-      - docker buildx build --platform {{.PLATFORMS}} -t {{.IMAGE}}:{{.TAG}} .
-
-  docker:run:
-    desc: Run Vivi from the local Docker image
-    cmds:
-      - docker run --rm -it -p {{.PORT}}:4317 -v "{{.ROOT}}:/workspace:ro" {{.IMAGE}}:{{.TAG}}
-
-  docker:smoke:
-    desc: Build and smoke-test the Docker image help output
-    cmds:
-      - task: docker:build
-      - docker run --rm {{.IMAGE}}:{{.TAG}} --help

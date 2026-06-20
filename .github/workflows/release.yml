@@ -11,11 +11,7 @@ on:
         required: false
         type: string
 
-permissions:
-  contents: write
-  pull-requests: write
-  id-token: write
-  attestations: write
+permissions: read-all
 
 jobs:
   build:
@@ -44,7 +40,7 @@ jobs:
     env:
       RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.release_tag }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           ref: ${{ env.RELEASE_TAG || github.ref }}
 
@@ -56,12 +52,12 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 24
           cache: npm
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
         with:
           go-version-file: go.mod
           cache: false
@@ -82,7 +78,7 @@ jobs:
           go build -trimpath -ldflags="-s -w -X main.version=${RELEASE_TAG:-0.0.0}" -o "dist/release/${{ matrix.name }}/vivi" ./cli
           tar -C "dist/release/${{ matrix.name }}" -czf "dist/release/${{ matrix.artifact }}" vivi
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ matrix.artifact }}
           path: dist/release/${{ matrix.artifact }}
@@ -91,10 +87,14 @@ jobs:
   checksums:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: dist/release
           merge-multiple: true
@@ -106,14 +106,14 @@ jobs:
           sha256sum vivi_*.tar.gz > checksums.txt
           cat checksums.txt
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: checksums.txt
           path: dist/release/checksums.txt
           if-no-files-found: error
 
       - name: Attest release artifacts
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@b3e506e8c389afc651c5bacf2b8f2a1ea0557215 # v4
         with:
           subject-path: |
             dist/release/vivi_*.tar.gz
@@ -121,12 +121,9 @@ jobs:
 
       - name: Create GitHub Release
         if: github.event_name == 'push'
-        uses: softprops/action-gh-release@v3
-        with:
-          draft: false
-          files: |
-            dist/release/vivi_*.tar.gz
-            dist/release/checksums.txt
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" dist/release/vivi_*.tar.gz dist/release/checksums.txt --verify-tag --generate-notes
 
       - name: Determine release channel (stable only)
         if: github.event_name == 'push'
@@ -143,7 +140,7 @@ jobs:
       - name: Create GitHub App token for Homebrew tap
         if: github.event_name == 'push' && steps.channel.outputs.stable == 'true'
         id: homebrew-token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
           app-id: ${{ secrets.HOMEBREW_APP_ID }}
           private-key: ${{ secrets.HOMEBREW_APP_KEY }}
@@ -152,7 +149,7 @@ jobs:
 
       - name: Checkout Homebrew tap
         if: github.event_name == 'push' && steps.channel.outputs.stable == 'true'
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: tasuku43/homebrew-tap
           token: ${{ steps.homebrew-token.outputs.token }}
@@ -166,16 +163,17 @@ jobs:
 
       - name: Create PR for Homebrew formula update
         if: github.event_name == 'push' && steps.channel.outputs.stable == 'true'
-        uses: peter-evans/create-pull-request@v8
-        with:
-          token: ${{ steps.homebrew-token.outputs.token }}
-          path: homebrew-tap
-          commit-message: "Update Homebrew formula for ${{ github.ref_name }}"
-          title: "Update Homebrew formula for ${{ github.ref_name }}"
-          body: |
-            Updates `Formula/vivi.rb` to point to GitHub Releases artifacts for `${{ github.ref_name }}`.
-          add-paths: |
-            Formula/vivi.rb
-          base: main
-          branch: "chore/homebrew-formula-${{ github.ref_name }}"
-          delete-branch: true
+        env:
+          GH_TOKEN: ${{ steps.homebrew-token.outputs.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        working-directory: homebrew-tap
+        shell: bash
+        run: |
+          branch="chore/homebrew-formula-${RELEASE_TAG}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]""@""users.noreply.github.com"
+          git switch -c "${branch}"
+          git add Formula/vivi.rb
+          git commit -m "Update Homebrew formula for ${RELEASE_TAG}"
+          git push origin "${branch}"
+          gh pr create --repo tasuku43/homebrew-tap --base main --head "${branch}" --title "Update Homebrew formula for ${RELEASE_TAG}" --body "Updates Formula/vivi.rb to point to GitHub Releases artifacts for ${RELEASE_TAG}."

@@ -33,31 +33,32 @@
     "storybook": "npm --prefix ui run storybook",
     "build:storybook": "npm --prefix ui run build-storybook",
     "validate:scaffold": "node scripts/validate-scaffold.mjs",
-    "check": "npm run validate:scaffold && npm run lint && npm run test:architecture && npm run typecheck && npm run test && npm run eval && npm run e2e && npm run build && npm run build:storybook && npm run test:go && npm run build:go"
+    "security:policy": "node scripts/check-supply-chain.mjs",
+    "check": "npm run validate:scaffold && npm run security:policy && npm run lint && npm run test:architecture && npm run typecheck && npm run test && npm run eval && npm run e2e && npm run build && npm run build:storybook && npm run test:go && npm run build:go"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "marked": "latest",
+    "marked": "18.0.5",
     "mermaid": "^11.15.0",
-    "react": "latest",
-    "react-dom": "latest",
-    "shiki": "latest",
-    "vite": "latest"
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "shiki": "4.2.0"
   },
   "devDependencies": {
     "@storybook/addon-a11y": "^10.4.6",
     "@storybook/addon-docs": "^10.4.6",
     "@storybook/react-vite": "^10.4.6",
-    "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "eslint": "latest",
-    "prettier": "latest",
+    "@types/node": "25.9.3",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "eslint": "10.5.0",
+    "prettier": "3.8.4",
     "storybook": "^10.4.6",
-    "tsx": "latest",
-    "typescript": "latest",
+    "tsx": "4.22.4",
+    "typescript": "6.0.3",
     "typescript-eslint": "^8.61.1",
-    "vitest": "latest"
+    "vite": "8.0.16",
+    "vitest": "4.1.9"
   },
   "engines": {
     "node": ">=20"

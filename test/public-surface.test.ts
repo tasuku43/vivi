@@ -36,7 +36,7 @@ it("publishes Go binary release artifacts without npm or Docker publishing", () 
   expect(workflow).toContain("vivi_Darwin_arm64.tar.gz");
   expect(workflow).toContain("vivi_Linux_x86_64.tar.gz");
   expect(workflow).toContain("checksums.txt");
-  expect(workflow).toContain("draft: false");
+  expect(workflow).toContain("gh release create");
   expect(workflow).not.toContain("docker/build-push-action");
   expect(workflow).not.toMatch(/npm publish|NODE_AUTH_TOKEN|npm provenance/i);
 });

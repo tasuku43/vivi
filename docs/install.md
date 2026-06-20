@@ -1,7 +1,7 @@
 # Install Vivi
 
 Vivi is distributed as a prebuilt single binary. Normal users do not need
-Node.js, npm, or Docker at runtime.
+Node.js or npm at runtime.
 
 ## Homebrew
 
@@ -45,10 +45,3 @@ vivi_Linux_x86_64.tar.gz
 ```
 
 Verify `checksums.txt` before running the binary.
-
-## Development-Only Docker Note
-
-Docker is not a normal install route. It may be useful for development or
-verification, but large repositories mounted into Docker on macOS can make Git
-and broad file scans very slow. Use the native binary for ordinary local
-workspace reading.

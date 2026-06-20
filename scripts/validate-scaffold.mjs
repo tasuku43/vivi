@@ -8,8 +8,6 @@ const required = [
   "GOALS.md",
   "Makefile",
   "Taskfile.yml",
-  "Dockerfile",
-  ".dockerignore",
   "package.json",
   "go.mod",
   "cli/main.go",
@@ -87,7 +85,7 @@ if (existsSync(releaseWorkflowPath)) {
     "checksums.txt",
     "go build",
     "actions/attest-build-provenance",
-    "draft: false",
+    "gh release create",
     "actions/create-github-app-token",
     "homebrew-tap",
     ".github/scripts/update-homebrew-formula.sh",
@@ -110,27 +108,6 @@ if (existsSync(releaseWorkflowPath)) {
     if (releaseWorkflow.toLowerCase().includes(snippet.toLowerCase())) {
       errors.push(
         `release workflow still contains forbidden publish path: ${snippet}`,
-      );
-    }
-  }
-}
-
-const dockerfilePath = path.join(root, "Dockerfile");
-if (existsSync(dockerfilePath)) {
-  const dockerfile = readFileSync(dockerfilePath, "utf8");
-  const requiredDockerSnippets = [
-    "go build",
-    "/app/vivi",
-    "GIT_OPTIONAL_LOCKS=0",
-    "GIT_CONFIG_KEY_0=safe.directory",
-    "GIT_CONFIG_VALUE_0=*",
-    "apk add --no-cache ca-certificates git tini",
-  ];
-
-  for (const snippet of requiredDockerSnippets) {
-    if (!dockerfile.includes(snippet)) {
-      errors.push(
-        `Dockerfile missing review-queue runtime support: ${snippet}`,
       );
     }
   }
