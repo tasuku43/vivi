@@ -111,7 +111,7 @@ func helpText() string {
 		"",
 		"Usage:",
 		"  vivi [root] [--host 127.0.0.1] [--port 4317] [--open] [--include md,html,ts] [--max-file-size 1048576] [--allow-html-scripts]",
-		"  vivi comments <active|list|show|reply|resolve|archive|reopen> [options]",
+		"  vivi comments <active|watch|list|show|reply|resolve|archive|reopen> [options]",
 		"",
 		"Options:",
 		"  --host <host>              Host to bind (default: 127.0.0.1)",

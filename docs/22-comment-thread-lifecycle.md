@@ -126,10 +126,19 @@ The CLI wrapper for that workflow is:
 
 ```bash
 vivi comments active --actor claude-code --client-event-id fetch-open-1 --json
+vivi comments watch --actor claude-code --json
 vivi comments show <thread-id> --json
 vivi comments reply <thread-id> --body "Implemented in this branch" --actor codex --json
 vivi comments resolve <thread-id> --actor codex --json
 ```
+
+`comments watch` is intentionally an open worklist watcher. It emits
+newline-delimited JSON snapshots of `commentThreads(status: open)` with a
+resume cursor, starts by emitting the current open threads unless
+`--no-initial` is set, and ignores unpublished draft review comments. If a
+future Draft Review Batch UI publishes multiple comments at once, watch treats
+the resulting `open` threads as normal worklist entries and only carries
+`reviewBatchId` as optional metadata on those threads and comments.
 
 Use `archive` instead of `resolve` for intentionally dismissed work, and
 `reopen` before replying to a resolved or archived thread. The CLI uses GraphQL

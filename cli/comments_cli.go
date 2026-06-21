@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -11,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 	"time"
 )
@@ -18,15 +21,20 @@ import (
 const defaultCommentsURL = "http://127.0.0.1:4317"
 
 type commentsCommandOptions struct {
-	URL           string
-	JSON          bool
-	Path          string
-	Status        string
-	ActorID       string
-	ActorKind     string
-	ActorName     string
-	ClientEventID string
-	Body          string
+	URL            string
+	JSON           bool
+	Path           string
+	Status         string
+	ActorID        string
+	ActorKind      string
+	ActorName      string
+	ClientEventID  string
+	Body           string
+	WatchInterval  time.Duration
+	WatchInitial   bool
+	WatchOnce      bool
+	WatchMaxEvents int
+	ResumeCursor   string
 }
 
 type graphqlRequest struct {
@@ -68,6 +76,15 @@ func runCommentsCommand(ctx context.Context, args []string, stdout io.Writer) er
 			return fmt.Errorf("unexpected argument %q", positional[0])
 		}
 		return commentsList(ctx, stdout, options)
+	case "watch":
+		options, positional, err := parseCommentsFlags(command, args[1:])
+		if err != nil {
+			return err
+		}
+		if len(positional) > 0 {
+			return fmt.Errorf("unexpected argument %q", positional[0])
+		}
+		return commentsWatch(ctx, stdout, options)
 	case "show":
 		options, positional, err := parseCommentsFlags(command, args[1:])
 		if err != nil {
@@ -105,9 +122,11 @@ func runCommentsCommand(ctx context.Context, args []string, stdout io.Writer) er
 
 func parseCommentsFlags(command string, args []string) (commentsCommandOptions, []string, error) {
 	options := commentsCommandOptions{
-		URL:    strings.TrimRight(os.Getenv("VIVI_URL"), "/"),
-		Status: "",
-		JSON:   true,
+		URL:           strings.TrimRight(os.Getenv("VIVI_URL"), "/"),
+		Status:        "",
+		JSON:          true,
+		WatchInterval: 2 * time.Second,
+		WatchInitial:  true,
 	}
 	if options.URL == "" {
 		options.URL = defaultCommentsURL
@@ -123,9 +142,19 @@ func parseCommentsFlags(command string, args []string) (commentsCommandOptions, 
 	flags.StringVar(&options.ActorName, "actor-name", "", "actor display name")
 	flags.StringVar(&options.ClientEventID, "client-event-id", "", "idempotency key for read activity")
 	flags.StringVar(&options.Body, "body", "", "reply body")
+	flags.DurationVar(&options.WatchInterval, "interval", options.WatchInterval, "watch polling interval")
+	flags.StringVar(&options.ResumeCursor, "cursor", "", "resume cursor from a previous watch event")
+	flags.BoolVar(&options.WatchInitial, "initial", options.WatchInitial, "emit current open worklist on startup")
+	suppressInitial := false
+	flags.BoolVar(&suppressInitial, "no-initial", false, "suppress current open worklist on startup")
+	flags.BoolVar(&options.WatchOnce, "once", false, "poll once and exit")
+	flags.IntVar(&options.WatchMaxEvents, "max-events", 0, "stop after emitting this many watch events")
 	flagArgs, positional := splitCommentsFlagsAndPositionals(args)
 	if err := flags.Parse(flagArgs); err != nil {
 		return options, nil, err
+	}
+	if suppressInitial {
+		options.WatchInitial = false
 	}
 	options.URL = strings.TrimRight(options.URL, "/")
 	if options.URL == "" {
@@ -167,7 +196,7 @@ func commentsFlagRequiresValue(arg string) bool {
 		name = before
 	}
 	switch name {
-	case "url", "path", "status", "actor", "actor-kind", "actor-name", "client-event-id", "body":
+	case "url", "path", "status", "actor", "actor-kind", "actor-name", "client-event-id", "body", "interval", "cursor", "max-events":
 		return true
 	default:
 		return false
@@ -175,16 +204,22 @@ func commentsFlagRequiresValue(arg string) bool {
 }
 
 func commentsList(ctx context.Context, stdout io.Writer, options commentsCommandOptions) error {
+	threads, _, err := fetchCommentThreads(ctx, options, options.Status)
+	if err != nil {
+		return err
+	}
+	return writeJSON(stdout, map[string]any{"threads": threads, "count": len(threads)})
+}
+
+func fetchCommentThreads(ctx context.Context, options commentsCommandOptions, status string) ([]commentThreadOutput, string, error) {
 	variables := map[string]any{}
 	if options.Path != "" {
 		variables["path"] = options.Path
 	}
-	if options.Status != "" {
-		variables["status"] = options.Status
+	if status != "" {
+		variables["status"] = status
 	}
-	var data struct {
-		CommentThreads []commentThreadOutput `json:"commentThreads"`
-	}
+	var threads []commentThreadOutput
 	if err := postGraphQL(ctx, options, graphqlRequest{
 		OperationName: "AgentCommentThreads",
 		Query: `query AgentCommentThreads($path: String, $status: CommentStatus) {
@@ -216,10 +251,214 @@ func commentsList(ctx context.Context, stdout io.Writer, options commentsCommand
 			}
 		}`,
 		Variables: variables,
-	}, "commentThreads", &data.CommentThreads); err != nil {
-		return err
+	}, "commentThreads", &threads); err != nil {
+		return nil, "", err
 	}
-	return writeJSON(stdout, map[string]any{"threads": data.CommentThreads, "count": len(data.CommentThreads)})
+	return threads, commentThreadsCursor(threads), nil
+}
+
+func commentsWatch(ctx context.Context, stdout io.Writer, options commentsCommandOptions) error {
+	if options.Status != "" && options.Status != "open" {
+		return errors.New("comments watch only supports open threads")
+	}
+	if options.WatchInterval <= 0 {
+		return errors.New("comments watch requires a positive --interval")
+	}
+	if options.WatchMaxEvents < 0 {
+		return errors.New("comments watch requires a non-negative --max-events")
+	}
+	encoder := json.NewEncoder(stdout)
+	encoder.SetEscapeHTML(false)
+	var previous []commentThreadOutput
+	lastCursor := strings.TrimSpace(options.ResumeCursor)
+	emitted := 0
+	first := true
+	for {
+		probeThreads, probeCursor, err := fetchCommentThreads(ctx, withoutReadHeaders(options), "open")
+		if err != nil {
+			if options.WatchOnce {
+				return err
+			}
+			if err := waitForWatchInterval(ctx, options.WatchInterval); err != nil {
+				return err
+			}
+			continue
+		}
+		shouldEmit := false
+		reason := "open_worklist_changed"
+		if first {
+			reason = "initial"
+			shouldEmit = options.WatchInitial && (lastCursor == "" || probeCursor != lastCursor)
+		} else {
+			shouldEmit = probeCursor != lastCursor
+		}
+		if shouldEmit {
+			deliveredOptions := options
+			deliveredOptions.Status = "open"
+			deliveredOptions.ClientEventID = watchClientEventID(options, probeCursor)
+			threads, cursor, err := fetchCommentThreads(ctx, deliveredOptions, "open")
+			if err != nil {
+				if options.WatchOnce {
+					return err
+				}
+				if err := waitForWatchInterval(ctx, options.WatchInterval); err != nil {
+					return err
+				}
+				continue
+			}
+			if !first && cursor == lastCursor {
+				previous = threads
+				first = false
+			} else {
+				event := commentWatchEvent{
+					Type:      "comments_open_worklist",
+					Reason:    reason,
+					Changes:   watchChanges(previous, threads),
+					Cursor:    cursor,
+					EmittedAt: time.Now().UTC().Format(time.RFC3339Nano),
+					Count:     len(threads),
+					Threads:   threads,
+				}
+				if first && strings.TrimSpace(options.ResumeCursor) != "" {
+					event.Reason = "resumed"
+					event.Changes = []string{"open_worklist_changed"}
+				}
+				if err := encoder.Encode(event); err != nil {
+					return err
+				}
+				lastCursor = cursor
+				previous = threads
+				emitted++
+				if options.WatchMaxEvents > 0 && emitted >= options.WatchMaxEvents {
+					return nil
+				}
+			}
+		} else {
+			previous = probeThreads
+			lastCursor = probeCursor
+		}
+		first = false
+		if options.WatchOnce {
+			return nil
+		}
+		if err := waitForWatchInterval(ctx, options.WatchInterval); err != nil {
+			return err
+		}
+	}
+}
+
+func waitForWatchInterval(ctx context.Context, interval time.Duration) error {
+	timer := time.NewTimer(interval)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+func watchClientEventID(options commentsCommandOptions, cursor string) string {
+	if strings.TrimSpace(options.ActorID) == "" {
+		return options.ClientEventID
+	}
+	base := strings.TrimSpace(options.ClientEventID)
+	if base == "" {
+		base = "comments-watch"
+	}
+	return base + ":" + cursor
+}
+
+func watchChanges(previous, current []commentThreadOutput) []string {
+	if previous == nil {
+		if len(current) == 0 {
+			return []string{}
+		}
+		return []string{"open_thread_added"}
+	}
+	previousByID := map[string]string{}
+	currentByID := map[string]string{}
+	for _, thread := range previous {
+		previousByID[thread.ID] = commentThreadFingerprint(thread)
+	}
+	for _, thread := range current {
+		currentByID[thread.ID] = commentThreadFingerprint(thread)
+	}
+	changes := []string{}
+	for id := range currentByID {
+		if _, ok := previousByID[id]; !ok {
+			changes = appendUnique(changes, "open_thread_added")
+		}
+	}
+	for id := range previousByID {
+		if _, ok := currentByID[id]; !ok {
+			changes = appendUnique(changes, "open_thread_removed")
+		}
+	}
+	for id, fingerprint := range currentByID {
+		if previousByID[id] != "" && previousByID[id] != fingerprint {
+			changes = appendUnique(changes, "open_thread_updated")
+		}
+	}
+	if len(changes) == 0 && commentThreadsCursor(previous) != commentThreadsCursor(current) {
+		changes = append(changes, "open_worklist_changed")
+	}
+	return changes
+}
+
+func appendUnique(items []string, value string) []string {
+	for _, item := range items {
+		if item == value {
+			return items
+		}
+	}
+	return append(items, value)
+}
+
+func commentThreadsCursor(threads []commentThreadOutput) string {
+	fingerprints := make([]string, 0, len(threads))
+	for _, thread := range threads {
+		fingerprints = append(fingerprints, commentThreadFingerprint(thread))
+	}
+	sort.Strings(fingerprints)
+	bytes, _ := json.Marshal(fingerprints)
+	sum := sha256.Sum256(bytes)
+	return "open:" + hex.EncodeToString(sum[:])
+}
+
+func commentThreadFingerprint(thread commentThreadOutput) string {
+	type cursorComment struct {
+		ID            string `json:"id"`
+		UpdatedAt     string `json:"updatedAt"`
+		Status        string `json:"status"`
+		ReviewBatchID string `json:"reviewBatchId,omitempty"`
+	}
+	type cursorThread struct {
+		ID            string          `json:"id"`
+		Path          string          `json:"path"`
+		Status        string          `json:"status"`
+		ReviewBatchID string          `json:"reviewBatchId,omitempty"`
+		UpdatedAt     string          `json:"updatedAt,omitempty"`
+		Comments      []cursorComment `json:"comments"`
+	}
+	value := cursorThread{
+		ID:            thread.ID,
+		Path:          thread.Path,
+		Status:        thread.Status,
+		ReviewBatchID: thread.ReviewBatchID,
+		UpdatedAt:     thread.UpdatedAt,
+		Comments:      make([]cursorComment, 0, len(thread.Comments)),
+	}
+	for _, comment := range thread.Comments {
+		value.Comments = append(value.Comments, cursorComment{
+			ID:            comment.ID,
+			UpdatedAt:     comment.UpdatedAt,
+			Status:        comment.Status,
+			ReviewBatchID: comment.ReviewBatchID,
+		})
+	}
+	bytes, _ := json.Marshal(value)
+	return string(bytes)
 }
 
 func commentsShow(ctx context.Context, stdout io.Writer, options commentsCommandOptions, threadID string) error {
@@ -489,6 +728,7 @@ func commentsHelpText() string {
 		"",
 		"Usage:",
 		"  vivi comments active --actor claude-code --json",
+		"  vivi comments watch --actor claude-code --json",
 		"  vivi comments list --status resolved --json",
 		"  vivi comments show <thread-id> --json",
 		"  vivi comments reply <thread-id> --body \"Fixed\" --actor codex --json",
@@ -506,7 +746,22 @@ func commentsHelpText() string {
 		"  --actor-name <name>        Actor display name",
 		"  --client-event-id <id>     Idempotency key for read receipts",
 		"  --body <text>              Reply body",
+		"  --interval <duration>      Watch polling interval (default 2s)",
+		"  --cursor <cursor>          Suppress an already delivered watch snapshot",
+		"  --no-initial               Wait for the next open-worklist change",
+		"  --once                     Poll once and exit",
+		"  --max-events <count>       Stop watch after emitting count events",
 	}, "\n")
+}
+
+type commentWatchEvent struct {
+	Type      string                `json:"type"`
+	Reason    string                `json:"reason"`
+	Changes   []string              `json:"changes"`
+	Cursor    string                `json:"cursor"`
+	EmittedAt string                `json:"emittedAt"`
+	Count     int                   `json:"count"`
+	Threads   []commentThreadOutput `json:"threads"`
 }
 
 type commentThreadOutput struct {

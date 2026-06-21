@@ -11,6 +11,7 @@ vivi [root] --include md,html,ts,tsx,json
 vivi [root] --max-file-size 1048576
 vivi [root] --allow-html-scripts
 vivi comments active --actor claude-code --json
+vivi comments watch --actor claude-code --json
 vivi comments reply <thread-id> --body "Implemented" --actor codex --json
 vivi comments resolve <thread-id> --actor codex --json
 ```
@@ -34,6 +35,7 @@ The v1 commands are:
 
 ```bash
 vivi comments active --actor claude-code --client-event-id fetch-open-1 --json
+vivi comments watch --actor claude-code --json
 vivi comments list --status resolved --json
 vivi comments show <thread-id> --json
 vivi comments reply <thread-id> --body "Fixed in this branch" --actor codex --json
@@ -59,11 +61,41 @@ All `vivi comments` commands currently emit JSON. List-like commands return:
 }
 ```
 
+`watch` emits newline-delimited JSON events. It is an open worklist watcher,
+not a draft or review-batch intake. It polls `commentThreads(status: open)`,
+emits the current open worklist on startup by default, and then emits another
+full open-worklist snapshot whenever the cursor changes. Pass
+`--no-initial` to wait for future changes only, or `--cursor <cursor>` with a
+cursor from a previous event to suppress duplicate delivery after restart. Each
+event is shaped as:
+
+```json
+{
+  "type": "comments_open_worklist",
+  "reason": "initial",
+  "changes": ["open_thread_added"],
+  "cursor": "open:...",
+  "emittedAt": "2026-06-21T00:00:00Z",
+  "count": 1,
+  "threads": []
+}
+```
+
+`reason` is `initial`, `resumed`, or `open_worklist_changed`; `changes`
+contains coarse causes such as `open_thread_added`, `open_thread_updated`, and
+`open_thread_removed`. The cursor is a stable hash of the delivered open
+worklist and is safe to reuse for idempotent resume. When `--actor` is set,
+watch records read receipts only for delivered snapshots. The client event id
+is derived from `--client-event-id` when supplied, otherwise `comments-watch`,
+plus the delivered cursor, so reconnecting with the same cursor does not create
+duplicate read receipts.
+
 Single-thread lifecycle commands return `{ "thread": ... }`; `reply` returns
 `{ "comment": ... }`; `show` returns `{ "thread": ..., "activities": [...] }`.
 Published review batches add `reviewBatchId` to returned threads and comments
-so agents can group work that was published together. Draft review comments are
-not returned by `active`, `list`, or `show`.
+as auxiliary metadata. Draft review comments are not returned by `active`,
+`watch`, `list`, or `show`; after publish, the resulting `open` threads appear
+as ordinary open worklist items.
 
 ## GraphQL data API
 

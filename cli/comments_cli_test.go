@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -136,6 +139,125 @@ func TestCommentsCLIShowsPublishedReviewBatchAndHidesDrafts(t *testing.T) {
 	}
 }
 
+func TestCommentsCLIWatchStreamsOpenWorklistSnapshots(t *testing.T) {
+	server := newCommentsCLITestServer(t)
+	defer server.Close()
+	threadID := createCommentThreadForCLI(t, server.URL)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	events, done := startCommentsWatchForTest(t, ctx, "watch", "--url", server.URL, "--actor", "claude-code", "--actor-name", "Claude Code", "--interval", "10ms", "--max-events", "3", "--json")
+
+	initial := receiveWatchEvent(t, events)
+	if initial.Type != "comments_open_worklist" || initial.Reason != "initial" || initial.Count != 1 || initial.Threads[0].ID != threadID {
+		t.Fatalf("initial watch event = %#v", initial)
+	}
+	if initial.Threads[0].Status != "open" || len(initial.Threads[0].Comments) != 1 {
+		t.Fatalf("initial watch worklist = %#v", initial.Threads)
+	}
+
+	runCommentsCLIForTest(t, "reply", threadID, "--url", server.URL, "--actor", "codex:watch-test", "--actor-kind", "codex", "--body", "Taking this one", "--json")
+	updated := receiveWatchEvent(t, events)
+	if updated.Count != 1 || updated.Threads[0].ID != threadID || len(updated.Threads[0].Comments) != 2 || !containsString(updated.Changes, "open_thread_updated") {
+		t.Fatalf("updated watch event = %#v", updated)
+	}
+	if updated.Cursor == initial.Cursor {
+		t.Fatalf("cursor did not change after reply: %s", updated.Cursor)
+	}
+
+	runCommentsCLIForTest(t, "resolve", threadID, "--url", server.URL, "--actor", "codex:watch-test", "--actor-kind", "codex", "--json")
+	removed := receiveWatchEvent(t, events)
+	if removed.Count != 0 || !containsString(removed.Changes, "open_thread_removed") {
+		t.Fatalf("removed watch event = %#v", removed)
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("watch returned error: %v", err)
+	}
+}
+
+func TestCommentsCLIWatchHidesDraftsUntilPublish(t *testing.T) {
+	server := newCommentsCLITestServer(t)
+	defer server.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	events, done := startCommentsWatchForTest(t, ctx, "watch", "--url", server.URL, "--actor", "codex:agent", "--actor-kind", "codex", "--interval", "10ms", "--max-events", "2", "--json")
+
+	initial := receiveWatchEvent(t, events)
+	if initial.Count != 0 {
+		t.Fatalf("initial event included comments before publish: %#v", initial)
+	}
+
+	graphqlForCLI(t, server.URL, map[string]any{"operationName": "CreateDraftReviewComment", "query": `mutation CreateDraftReviewComment($input: DraftReviewCommentInput!) { createDraftReviewComment(input: $input) { id } }`, "variables": map[string]any{"input": map[string]any{
+		"path": "README.md",
+		"body": "Draft-only feedback",
+		"anchor": map[string]any{
+			"surface": "source",
+			"canonical": map[string]any{
+				"path":      "README.md",
+				"lineStart": float64(1),
+			},
+		},
+	}}})
+	expectNoWatchEvent(t, events, 50*time.Millisecond)
+
+	published := graphqlForCLI(t, server.URL, map[string]any{"operationName": "PublishDraftReviewComments", "query": `mutation PublishDraftReviewComments { publishDraftReviewComments { reviewBatchId threads { id } } }`})["publishDraftReviewComments"].(map[string]any)
+	publishedEvent := receiveWatchEvent(t, events)
+	if publishedEvent.Count != 1 || !containsString(publishedEvent.Changes, "open_thread_added") {
+		t.Fatalf("published watch event = %#v", publishedEvent)
+	}
+	if publishedEvent.Threads[0].ReviewBatchID != published["reviewBatchId"].(string) {
+		t.Fatalf("watch event did not keep reviewBatchId as metadata: %#v", publishedEvent.Threads[0])
+	}
+	if publishedEvent.Threads[0].Comments[0].Body != "Draft-only feedback" {
+		t.Fatalf("watch event missing published comment body: %#v", publishedEvent.Threads[0].Comments)
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("watch returned error: %v", err)
+	}
+}
+
+func TestCommentsCLIWatchCursorSuppressesDuplicateResume(t *testing.T) {
+	server := newCommentsCLITestServer(t)
+	defer server.Close()
+	threadID := createCommentThreadForCLI(t, server.URL)
+
+	first := runCommentsCLIForTest(t, "watch", "--url", server.URL, "--actor", "claude-code", "--client-event-id", "resume-test", "--once", "--json")
+	firstEvent := decodeSingleWatchEvent(t, first)
+	if firstEvent.Count != 1 || firstEvent.Threads[0].ID != threadID {
+		t.Fatalf("first watch event = %s", first.String())
+	}
+
+	duplicate := runCommentsCLIForTest(t, "watch", "--url", server.URL, "--actor", "claude-code", "--client-event-id", "resume-test", "--once", "--cursor", firstEvent.Cursor, "--json")
+	if strings.TrimSpace(duplicate.String()) != "" {
+		t.Fatalf("duplicate resume emitted output: %s", duplicate.String())
+	}
+
+	activities := graphqlForCLI(t, server.URL, map[string]any{
+		"operationName": "Activities",
+		"query":         `query Activities($threadId: ID!) { commentThreadActivities(threadId: $threadId) { type actor { id } clientEventId } }`,
+		"variables":     map[string]any{"threadId": threadID},
+	})["commentThreadActivities"].([]any)
+	readReceipts := 0
+	for _, activity := range activities {
+		item := activity.(map[string]any)
+		actor := item["actor"].(map[string]any)
+		if item["type"] == "thread_read" && actor["id"] == "claude-code" && item["clientEventId"] == "resume-test:"+firstEvent.Cursor {
+			readReceipts++
+		}
+	}
+	if readReceipts != 1 {
+		t.Fatalf("expected one idempotent watch read receipt, got %d in %#v", readReceipts, activities)
+	}
+
+	runCommentsCLIForTest(t, "reply", threadID, "--url", server.URL, "--actor", "codex:watch-test", "--actor-kind", "codex", "--body", "Cursor should advance", "--json")
+	resumed := runCommentsCLIForTest(t, "watch", "--url", server.URL, "--actor", "claude-code", "--client-event-id", "resume-test", "--once", "--cursor", firstEvent.Cursor, "--json")
+	resumedEvent := decodeSingleWatchEvent(t, resumed)
+	if resumedEvent.Reason != "resumed" || resumedEvent.Cursor == firstEvent.Cursor || !containsString(resumedEvent.Changes, "open_worklist_changed") {
+		t.Fatalf("resumed watch event = %s", resumed.String())
+	}
+}
+
 type commentsCLITestServer struct {
 	URL        string
 	oldClient  *http.Client
@@ -248,6 +370,82 @@ func decodeCLIJSON(t *testing.T, output *bytes.Buffer, target any) {
 	if err := json.Unmarshal(output.Bytes(), target); err != nil {
 		t.Fatalf("invalid json %q: %v", output.String(), err)
 	}
+}
+
+func startCommentsWatchForTest(t *testing.T, ctx context.Context, args ...string) (<-chan commentWatchEvent, <-chan error) {
+	t.Helper()
+	reader, writer := io.Pipe()
+	events := make(chan commentWatchEvent, 8)
+	done := make(chan error, 1)
+	go func() {
+		err := runCommentsCommand(ctx, args, writer)
+		_ = writer.CloseWithError(err)
+		done <- err
+	}()
+	go func() {
+		defer close(events)
+		decoder := json.NewDecoder(reader)
+		for {
+			var event commentWatchEvent
+			if err := decoder.Decode(&event); err != nil {
+				if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "file already closed") {
+					return
+				}
+				t.Errorf("decode watch event: %v", err)
+				return
+			}
+			events <- event
+		}
+	}()
+	return events, done
+}
+
+func receiveWatchEvent(t *testing.T, events <-chan commentWatchEvent) commentWatchEvent {
+	t.Helper()
+	select {
+	case event, ok := <-events:
+		if !ok {
+			t.Fatal("watch event stream closed")
+		}
+		return event
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for watch event")
+		return commentWatchEvent{}
+	}
+}
+
+func expectNoWatchEvent(t *testing.T, events <-chan commentWatchEvent, duration time.Duration) {
+	t.Helper()
+	select {
+	case event := <-events:
+		t.Fatalf("unexpected watch event: %#v", event)
+	case <-time.After(duration):
+	}
+}
+
+func decodeSingleWatchEvent(t *testing.T, output *bytes.Buffer) commentWatchEvent {
+	t.Helper()
+	var event commentWatchEvent
+	decoder := json.NewDecoder(bytes.NewReader(output.Bytes()))
+	if err := decoder.Decode(&event); err != nil {
+		t.Fatalf("invalid watch event %q: %v", output.String(), err)
+	}
+	var extra commentWatchEvent
+	if err := decoder.Decode(&extra); err != nil && !errors.Is(err, io.EOF) {
+		t.Fatalf("invalid trailing watch event data %q: %v", output.String(), err)
+	} else if err == nil {
+		t.Fatalf("expected one watch event, got %q", output.String())
+	}
+	return event
+}
+
+func containsString(items []string, expected string) bool {
+	for _, item := range items {
+		if item == expected {
+			return true
+		}
+	}
+	return false
 }
 
 func graphqlForCLI(t *testing.T, serverURL string, request map[string]any) map[string]any {
