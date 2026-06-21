@@ -142,11 +142,26 @@ import {
 import {
   defaultViewerMode,
   diffSupportForFile,
+  nextViewerMode,
   supportsDiffMode,
+  supportsSourceToggle,
   type ViewerMode,
 } from "../../state/viewer-mode.js";
-import type { SearchPaletteMode } from "../../state/search-palette.js";
+import type {
+  CommandActionItem,
+  SearchPaletteMode,
+} from "../../state/search-palette.js";
 import { keyboardShortcutAction } from "../../state/shortcuts.js";
+import {
+  agentReplyNavigationTargets,
+  draftCommentNavigationTargets,
+  firstRelevantThreadForReviewItem,
+  latestUnreadActivityTarget,
+  moveReviewNavigationTarget,
+  openThreadNavigationTargets,
+  unresolvedThreadNavigationTargets,
+  type ReviewNavigationTarget,
+} from "../../state/review-navigation.js";
 import type { ViviClient } from "../../application/ports/ViviClient.js";
 
 interface LiveRefreshMetrics {
@@ -351,7 +366,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     const loaded = await client.getDraftReviewComments(
       path ? { path } : undefined,
     );
-    setDraftComments((items) => mergeDraftComments(items, loaded, path ?? null));
+    setDraftComments((items) =>
+      mergeDraftComments(items, loaded, path ?? null),
+    );
   }
 
   async function loadThreadActivities(threadIds: string[]) {
@@ -392,7 +409,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       body: trimmedBody,
       source: "human",
     });
-    setDraftComments((items) => mergeDraftComments(items, [draftComment], null));
+    setDraftComments((items) =>
+      mergeDraftComments(items, [draftComment], null),
+    );
     setActiveCommentId(null);
     setActiveCommentRect(rect ?? null);
   }
@@ -476,6 +495,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         : [],
     [draftComments, selectedPath],
   );
+  const allCommentMessages = useMemo(
+    () => combinePublishedAndDraftComments(comments, draftComments),
+    [comments, draftComments],
+  );
   const commentActivitySummaries = useMemo(
     () =>
       Object.fromEntries(
@@ -487,7 +510,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     [commentActivity.byThreadId],
   );
   const activeComment = activeCommentId
-    ? (comments.find((comment) => comment.id === activeCommentId) ?? null)
+    ? (allCommentMessages.find((comment) => comment.id === activeCommentId) ??
+      null)
     : null;
   const visibleActiveComment =
     activeComment?.path === selectedPath ? activeComment : null;
@@ -551,6 +575,36 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         unreadReviewPathSet,
       ),
     [commentActivitySummaries, comments, reviewChanges, unreadReviewPathSet],
+  );
+  const openThreadTargets = useMemo(
+    () => openThreadNavigationTargets(comments),
+    [comments],
+  );
+  const currentFileOpenThreadTargets = useMemo(
+    () => openThreadNavigationTargets(comments, { path: selectedPath }),
+    [comments, selectedPath],
+  );
+  const currentReviewBatchId = activeComment?.reviewBatchId ?? null;
+  const currentBatchThreadTargets = useMemo(
+    () =>
+      currentReviewBatchId
+        ? openThreadNavigationTargets(comments, {
+            reviewBatchId: currentReviewBatchId,
+          })
+        : [],
+    [comments, currentReviewBatchId],
+  );
+  const draftTargets = useMemo(
+    () => draftCommentNavigationTargets(draftComments),
+    [draftComments],
+  );
+  const agentReplyTargets = useMemo(
+    () => agentReplyNavigationTargets(comments),
+    [comments],
+  );
+  const latestUnreadTarget = useMemo(
+    () => latestUnreadActivityTarget(reviewItems),
+    [reviewItems],
   );
   const changedPathSet = useMemo(
     () => new Set(reviewChanges.map((change) => change.path)),
@@ -812,6 +866,139 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     setPaletteOpen(true);
   }
 
+  const commandActions = useMemo<CommandActionItem[]>(
+    () => [
+      {
+        id: "next-open-thread",
+        label: "Next open thread",
+        detail:
+          "Move to the next unresolved review thread across the workspace",
+        shortcut: "Cmd ]",
+        disabled: !openThreadTargets.length,
+      },
+      {
+        id: "previous-open-thread",
+        label: "Previous open thread",
+        detail: "Move to the previous unresolved review thread",
+        shortcut: "Cmd [",
+        disabled: !openThreadTargets.length,
+      },
+      {
+        id: "next-current-file-thread",
+        label: "Next thread in current file",
+        detail: "Stay in the active file while moving through open threads",
+        disabled: !currentFileOpenThreadTargets.length,
+      },
+      {
+        id: "previous-current-file-thread",
+        label: "Previous thread in current file",
+        detail: "Move backward through open threads in the active file",
+        disabled: !currentFileOpenThreadTargets.length,
+      },
+      {
+        id: "next-batch-thread",
+        label: "Next thread in current review batch",
+        detail: "Use reviewBatchId metadata when the active thread has it",
+        disabled: !currentBatchThreadTargets.length,
+      },
+      {
+        id: "next-draft-comment",
+        label: "Next draft comment",
+        detail: "Review unpublished draft comments before publishing",
+        disabled: !draftTargets.length,
+      },
+      {
+        id: "previous-draft-comment",
+        label: "Previous draft comment",
+        detail: "Move backward through unpublished draft comments",
+        disabled: !draftTargets.length,
+      },
+      {
+        id: "next-agent-reply",
+        label: "Next agent reply",
+        detail: "Jump to the most recent Codex or Claude Code reply",
+        disabled: !agentReplyTargets.length,
+      },
+      {
+        id: "latest-unread-activity",
+        label: "Latest unread activity",
+        detail: "Open the next review item marked as unseen",
+        shortcut: "Cmd Shift U",
+        disabled: !latestUnreadTarget,
+      },
+      {
+        id: "next-unresolved-thread",
+        label: "Next unresolved thread",
+        detail:
+          "Alias for the next open thread; resolved and archived stay in history",
+        disabled: !openThreadTargets.length,
+      },
+      {
+        id: "toggle-source",
+        label: "Toggle source/rendered",
+        detail: "Switch Markdown or HTML between source and rendered preview",
+        shortcut: "Cmd E",
+        disabled: !supportsSourceToggle(file),
+      },
+      {
+        id: "toggle-diff",
+        label: "Toggle diff",
+        detail: "Show or hide the read-only diff from HEAD",
+        shortcut: "Cmd D",
+        disabled: !supportsDiffMode(file),
+      },
+      {
+        id: "show-source",
+        label: "Show source",
+        detail: "Switch the active viewer to source mode",
+        disabled: !file,
+      },
+      {
+        id: "show-rendered",
+        label: "Show rendered",
+        detail: "Switch Markdown or HTML to rendered/preview mode",
+        disabled: !supportsSourceToggle(file),
+      },
+      {
+        id: "show-diff",
+        label: "Show diff",
+        detail: "Switch the active viewer to diff from HEAD",
+        disabled: !supportsDiffMode(file),
+      },
+      {
+        id: "focus-review-queue",
+        label: "Focus Review Queue",
+        detail: "Move keyboard focus to the active review work list",
+        shortcut: "Cmd Shift R",
+        disabled: !reviewItems.length,
+      },
+      {
+        id: "focus-comments-panel",
+        label: "Focus Comments panel",
+        detail: "Open and focus the workspace comments panel",
+        shortcut: "Cmd Shift C",
+      },
+      {
+        id: "focus-inline-thread",
+        label: "Focus current inline thread",
+        detail: "Move focus to the active inline comment thread",
+        shortcut: "Cmd I",
+        disabled: !activeCommentId && !currentFileOpenThreadTargets.length,
+      },
+    ],
+    [
+      activeCommentId,
+      agentReplyTargets.length,
+      currentBatchThreadTargets.length,
+      currentFileOpenThreadTargets.length,
+      draftTargets.length,
+      file,
+      latestUnreadTarget,
+      openThreadTargets.length,
+      reviewItems.length,
+    ],
+  );
+
   function openAllChangedFiles() {
     for (const change of reviewChanges) {
       if (!isReviewChangeOpenable(change)) continue;
@@ -824,18 +1011,183 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
 
   function openReviewQueueFile(direction: "next" | "previous") {
     const path = nextReviewQueueItemPath(reviewItems, selectedPath, direction);
-    if (path)
-      void loadFile(path, layout.activePaneId, "preview").catch((err) =>
-        setError(String(err)),
-      );
+    if (path) openReviewQueueItem(path, "preview");
   }
 
   function openLatestUnreadReviewFile() {
     const path = latestUnreadReviewItemPath(reviewItems);
-    if (path)
-      void loadFile(path, layout.activePaneId, "preview").catch((err) =>
+    if (path) openReviewQueueItem(path, "preview");
+  }
+
+  function openReviewQueueItem(path: string, mode: OpenTabMode) {
+    const item = reviewItems.find((candidate) => candidate.path === path);
+    const target = item
+      ? firstRelevantThreadForReviewItem(item, comments)
+      : null;
+    if (target) {
+      void openReviewTarget(target, mode).catch((err) => setError(String(err)));
+      return;
+    }
+    void loadFile(path, layout.activePaneId, mode).catch((err) =>
+      setError(String(err)),
+    );
+  }
+
+  async function openReviewTarget(
+    target: ReviewNavigationTarget,
+    mode: OpenTabMode = "preview",
+  ) {
+    setPaletteOpen(false);
+    setShortcutHelpOpen(false);
+    setCommentsPanelOpen(false);
+    const payload = await loadFile(target.path, layout.activePaneId, mode);
+    const targetComment = target.commentId
+      ? allCommentMessages.find((comment) => comment.id === target.commentId)
+      : null;
+    if (target.surface === "diff") {
+      if (supportsDiffMode(payload)) {
+        setDiffEnabled(true);
+        await loadHeadDiff(target.path);
+      }
+    } else {
+      setDiffEnabled(false);
+      if (target.surface === "source") {
+        setViewerModes((items) => ({ ...items, [target.path]: "source" }));
+      }
+      if (target.surface === "rendered") {
+        setViewerModes((items) => ({
+          ...items,
+          [target.path]:
+            targetComment?.viewerKind === "html" ? "preview" : "rendered",
+        }));
+      }
+    }
+    if (target.commentId) {
+      setActiveCommentId(target.commentId);
+      setActiveCommentRect(null);
+      window.setTimeout(() => focusCurrentInlineThread(), 120);
+    }
+  }
+
+  function openMovedTarget(
+    targets: ReviewNavigationTarget[],
+    direction: "next" | "previous",
+  ) {
+    const activeDraftId =
+      activeComment &&
+      "draftId" in activeComment &&
+      typeof activeComment.draftId === "string"
+        ? activeComment.draftId
+        : null;
+    const target = moveReviewNavigationTarget(
+      targets,
+      {
+        path: selectedPath,
+        commentId: activeCommentId,
+        draftId: activeDraftId,
+      },
+      direction,
+    );
+    if (target)
+      void openReviewTarget(target).catch((err) => setError(String(err)));
+  }
+
+  function toggleSourceRendered(path = selectedPath) {
+    if (!path) return;
+    const target = files[path] ?? file;
+    const next = nextViewerMode(
+      target,
+      viewerModes[path] ?? (target ? defaultViewerMode(target) : undefined),
+    );
+    if (!next) return;
+    setDiffEnabled(false);
+    setViewerModes((items) => ({ ...items, [path]: next }));
+  }
+
+  function setActiveViewerSurface(surface: "source" | "rendered" | "diff") {
+    if (!selectedPath) return;
+    if (surface === "diff") {
+      if (!file || !supportsDiffMode(file)) return;
+      setDiffEnabled(true);
+      void loadHeadDiff(selectedPath).catch((err) => setError(String(err)));
+      return;
+    }
+    setDiffEnabled(false);
+    if (surface === "source") {
+      setViewerModes((items) => ({ ...items, [selectedPath]: "source" }));
+      return;
+    }
+    if (file?.viewerKind === "html") {
+      setViewerModes((items) => ({ ...items, [selectedPath]: "preview" }));
+    } else if (file?.viewerKind === "markdown") {
+      setViewerModes((items) => ({ ...items, [selectedPath]: "rendered" }));
+    }
+  }
+
+  function focusReviewQueue() {
+    setInspectorVisible(true);
+    window.setTimeout(() => {
+      document
+        .querySelector<HTMLButtonElement>(
+          ".review-queue .change-open:not(:disabled)",
+        )
+        ?.focus();
+    }, 0);
+  }
+
+  function focusCommentsPanel() {
+    setPaletteOpen(false);
+    setShortcutHelpOpen(false);
+    setCommentsPanelOpen(true);
+    window.setTimeout(() => {
+      document
+        .querySelector<HTMLInputElement>(".global-comments-panel input")
+        ?.focus();
+    }, 0);
+  }
+
+  function focusCurrentInlineThread() {
+    if (!activeCommentId) {
+      openMovedTarget(currentFileOpenThreadTargets, "next");
+      return;
+    }
+    const escapedId =
+      typeof CSS !== "undefined" && CSS.escape
+        ? CSS.escape(activeCommentId)
+        : activeCommentId.replace(/"/g, '\\"');
+    const target = document.querySelector<HTMLElement>(
+      `[data-comment-id="${escapedId}"], .inline-comment-card`,
+    );
+    target?.focus();
+  }
+
+  function runCommandAction(id: string) {
+    if (id === "next-open-thread" || id === "next-unresolved-thread")
+      openMovedTarget(openThreadTargets, "next");
+    if (id === "previous-open-thread")
+      openMovedTarget(openThreadTargets, "previous");
+    if (id === "next-current-file-thread")
+      openMovedTarget(currentFileOpenThreadTargets, "next");
+    if (id === "previous-current-file-thread")
+      openMovedTarget(currentFileOpenThreadTargets, "previous");
+    if (id === "next-batch-thread")
+      openMovedTarget(currentBatchThreadTargets, "next");
+    if (id === "next-draft-comment") openMovedTarget(draftTargets, "next");
+    if (id === "previous-draft-comment")
+      openMovedTarget(draftTargets, "previous");
+    if (id === "next-agent-reply") openMovedTarget(agentReplyTargets, "next");
+    if (id === "latest-unread-activity" && latestUnreadTarget)
+      void openReviewTarget(latestUnreadTarget).catch((err) =>
         setError(String(err)),
       );
+    if (id === "toggle-source") toggleSourceRendered();
+    if (id === "toggle-diff") toggleHeadDiff();
+    if (id === "show-source") setActiveViewerSurface("source");
+    if (id === "show-rendered") setActiveViewerSurface("rendered");
+    if (id === "show-diff") setActiveViewerSurface("diff");
+    if (id === "focus-review-queue") focusReviewQueue();
+    if (id === "focus-comments-panel") focusCommentsPanel();
+    if (id === "focus-inline-thread") focusCurrentInlineThread();
   }
 
   function markReviewPathUnread(path: string) {
@@ -1290,7 +1642,16 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
 
       event.preventDefault();
       if (action === "toggle-diff") toggleHeadDiff();
+      if (action === "toggle-source") toggleSourceRendered();
       if (action === "open-latest-unread") openLatestUnreadReviewFile();
+      if (action === "open-next-review") openReviewQueueFile("next");
+      if (action === "open-previous-review") openReviewQueueFile("previous");
+      if (action === "open-next-thread")
+        openMovedTarget(openThreadTargets, "next");
+      if (action === "open-previous-thread")
+        openMovedTarget(openThreadTargets, "previous");
+      if (action === "focus-review-queue") focusReviewQueue();
+      if (action === "focus-current-inline-thread") focusCurrentInlineThread();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -1304,6 +1665,13 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     reviewChanges,
     unreadReviewPaths,
     commentsPanelOpen,
+    activeCommentId,
+    openThreadTargets,
+    currentFileOpenThreadTargets,
+    reviewItems,
+    files,
+    file,
+    viewerModes,
   ]);
 
   useEffect(() => {
@@ -1491,16 +1859,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               refreshedAt={file?.path ? refreshedFiles[file.path] : undefined}
               activePaneId={layout.activePaneId}
               onOutlineSelect={jumpToOutline}
-              onOpenEventPath={(path) =>
-                void loadFile(path, layout.activePaneId, "preview").catch(
-                  (err) => setError(String(err)),
-                )
-              }
-              onConfirmEventPath={(path) =>
-                void loadFile(path, layout.activePaneId, "normal").catch(
-                  (err) => setError(String(err)),
-                )
-              }
+              onOpenEventPath={(path) => openReviewQueueItem(path, "preview")}
+              onConfirmEventPath={(path) => openReviewQueueItem(path, "normal")}
               onOpenNextChanged={() => openReviewQueueFile("next")}
               onOpenPreviousChanged={() => openReviewQueueFile("previous")}
               onOpenAllChanged={openAllChangedFiles}
@@ -1543,6 +1903,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         fileLoading={fileSearchLoading}
         textResults={textSearchResults}
         textLoading={textSearchLoading}
+        actions={commandActions}
         onQueryChange={setPaletteQuery}
         onModeChange={(mode) => {
           setPaletteMode(mode);
@@ -1550,6 +1911,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         }}
         onClose={() => setPaletteOpen(false)}
         onOpenPath={openFromPalette}
+        onRunAction={runCommandAction}
       />
       <ShortcutHelp
         open={shortcutHelpOpen}
@@ -2023,9 +2385,8 @@ function combinePublishedAndDraftComments(
   const published = path
     ? comments.filter((comment) => comment.path === path)
     : comments;
-  const draftMessages = (path
-    ? drafts.filter((draft) => draft.path === path)
-    : drafts
+  const draftMessages = (
+    path ? drafts.filter((draft) => draft.path === path) : drafts
   ).map((draft) => draftReviewCommentAsViviComment(draft, comments));
   return [...published, ...draftMessages].sort((a, b) =>
     a.createdAt.localeCompare(b.createdAt),

@@ -7,6 +7,7 @@ import type { FilePayload } from "../ui/src/domain/fs-node.js";
 import { CodeCommentThread } from "../ui/src/features/comments/components/CodeCommentThread.js";
 import { CommentsPanel } from "../ui/src/features/comments/components/CommentsPanel.js";
 import { DraftReviewTray } from "../ui/src/features/comments/components/DraftReviewTray.js";
+import { CommandPalette } from "../ui/src/features/command-palette/CommandPalette.js";
 import { FileViewer } from "../ui/src/features/file-context/components/FileViewer.js";
 import { Inspector } from "../ui/src/features/review-queue/Inspector.js";
 import { ShortcutHelp } from "../ui/src/shared/components/ShortcutHelp.js";
@@ -133,11 +134,56 @@ it("renders the shortcut guide as one bundled reference", () => {
 
   expect(html).toContain('aria-label="Keyboard shortcuts"');
   expect(html).toContain("Cmd W");
+  expect(html).toContain("Cmd E");
+  expect(html).toContain("Cmd I");
   expect(html).toContain("Cmd Shift U");
   expect(html).toContain("Cmd Shift J");
   expect(html).toContain("Cmd Shift K");
+  expect(html).toContain("Cmd Shift R");
   expect(html).toContain("Cmd /");
   expect(html).toContain("Command palette");
+});
+
+it("renders command palette actions for review navigation", () => {
+  const html = renderToStaticMarkup(
+    <CommandPalette
+      open
+      mode="action"
+      query=""
+      fileResults={[]}
+      fileLoading={false}
+      textResults={[]}
+      textLoading={false}
+      actions={[
+        {
+          id: "next-open-thread",
+          label: "Next open thread",
+          detail: "Move to the next unresolved review thread",
+          shortcut: "Cmd ]",
+        },
+        {
+          id: "next-draft-comment",
+          label: "Next draft comment",
+          detail: "Review unpublished draft comments",
+        },
+        {
+          id: "show-diff",
+          label: "Show diff",
+          detail: "Switch the active viewer to diff from HEAD",
+        },
+      ]}
+      onQueryChange={() => undefined}
+      onModeChange={() => undefined}
+      onClose={() => undefined}
+      onOpenPath={() => undefined}
+      onRunAction={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Actions");
+  expect(html).toContain("Next open thread");
+  expect(html).toContain("Next draft comment");
+  expect(html).toContain("Show diff");
 });
 
 it("explains restored workspace tabs and offers a fresh start", () => {

@@ -76,6 +76,7 @@ export function InlineCommentCard({
         } as CSSProperties
       }
       aria-label="Comment"
+      tabIndex={-1}
     >
       <div className="inline-comment-top">
         <div>

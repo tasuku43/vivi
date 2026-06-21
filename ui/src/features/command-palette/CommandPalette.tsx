@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import type { SearchPaletteMode } from "../../state/search-palette.js";
 import {
+  buildCommandActionItems,
   buildFileSearchItems,
   buildTextSearchItems,
 } from "../../state/search-palette.js";
+import type { CommandActionItem } from "../../state/search-palette.js";
 import {
   clampPaletteSelection,
   movePaletteSelection,
@@ -22,10 +24,12 @@ interface Props {
   fileLoading: boolean;
   textResults: TextSearchResult[];
   textLoading: boolean;
+  actions?: CommandActionItem[];
   onQueryChange: (query: string) => void;
   onModeChange: (mode: SearchPaletteMode) => void;
   onClose: () => void;
   onOpenPath: (path: string, preview: boolean) => void;
+  onRunAction?: (id: string) => void;
 }
 
 export function CommandPalette({
@@ -36,17 +40,19 @@ export function CommandPalette({
   fileLoading,
   textResults,
   textLoading,
+  actions = [],
   onQueryChange,
   onModeChange,
   onClose,
   onOpenPath,
+  onRunAction,
 }: Props) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const results = useMemo(() => {
+    if (mode === "action") return buildCommandActionItems(actions);
     if (mode === "text") return buildTextSearchItems(textResults);
     return buildFileSearchItems(fileResults);
-  }, [fileResults, mode, textResults]);
-  const activeIndex = clampPaletteSelection(selectedIndex, results.length);
+  }, [actions, fileResults, mode, textResults]);
 
   useEffect(() => {
     if (open) setSelectedIndex(0);
@@ -54,9 +60,32 @@ export function CommandPalette({
 
   if (!open) return null;
 
-  const title = mode === "file" ? "Quick open" : "Search text";
+  const title =
+    mode === "file"
+      ? "Quick open"
+      : mode === "text"
+        ? "Search text"
+        : "Run command";
   const placeholder =
-    mode === "file" ? "Type a filename or path..." : "Search file contents...";
+    mode === "file"
+      ? "Type a filename or path..."
+      : mode === "text"
+        ? "Search file contents..."
+        : "Type a command...";
+  const visibleResults =
+    mode === "action"
+      ? results.filter((item) => {
+          const queryText = query.trim().toLowerCase();
+          if (!queryText) return true;
+          return `${item.label} ${item.detail}`
+            .toLowerCase()
+            .includes(queryText);
+        })
+      : results;
+  const activeVisibleIndex = clampPaletteSelection(
+    selectedIndex,
+    visibleResults.length,
+  );
 
   return (
     <div className="palette-overlay" role="presentation" onClick={onClose}>
@@ -88,6 +117,14 @@ export function CommandPalette({
             >
               Text
             </button>
+            <button
+              className={mode === "action" ? "active" : ""}
+              role="tab"
+              aria-selected={mode === "action"}
+              onClick={() => onModeChange("action")}
+            >
+              Actions
+            </button>
           </div>
           <input
             autoFocus
@@ -95,7 +132,9 @@ export function CommandPalette({
             placeholder={placeholder}
             value={query}
             aria-activedescendant={
-              activeIndex >= 0 ? `palette-result-${activeIndex}` : undefined
+              activeVisibleIndex >= 0
+                ? `palette-result-${activeVisibleIndex}`
+                : undefined
             }
             onChange={(event) => {
               setSelectedIndex(0);
@@ -111,47 +150,69 @@ export function CommandPalette({
                 setSelectedIndex((index) =>
                   movePaletteSelection(
                     index,
-                    results.length,
+                    visibleResults.length,
                     event.key === "ArrowDown" ? 1 : -1,
                   ),
                 );
                 return;
               }
-              if (event.key === "Enter" && activeIndex >= 0) {
-                onOpenPath(
-                  results[activeIndex].path,
-                  !(event.metaKey || event.ctrlKey),
-                );
+              if (event.key === "Enter" && activeVisibleIndex >= 0) {
+                const item = visibleResults[activeVisibleIndex];
+                if (item.kind === "action") {
+                  if (!item.disabled)
+                    onRunAction?.(item.id.replace(/^action:/, ""));
+                  return;
+                }
+                onOpenPath(item.path, !(event.metaKey || event.ctrlKey));
               }
             }}
           />
         </div>
         <div className="palette-body">
           <div className="palette-results" role="listbox">
-            {results.map((item, index) => (
+            {visibleResults.map((item, index) => (
               <button
                 id={`palette-result-${index}`}
                 key={item.id}
                 role="option"
-                aria-label={`${item.label} ${item.detail} ${item.kind === "file" ? "open file" : `line ${item.lineNumber}`}`}
+                aria-label={`${item.label} ${item.detail} ${
+                  item.kind === "file"
+                    ? "open file"
+                    : item.kind === "text"
+                      ? `line ${item.lineNumber}`
+                      : "run action"
+                }`}
                 className={
-                  index === activeIndex
+                  index === activeVisibleIndex
                     ? "palette-result active"
                     : "palette-result"
                 }
-                aria-selected={index === activeIndex}
-                onClick={() => onOpenPath(item.path, true)}
+                aria-selected={index === activeVisibleIndex}
+                disabled={item.kind === "action" && item.disabled}
+                onClick={() => {
+                  if (item.kind === "action") {
+                    onRunAction?.(item.id.replace(/^action:/, ""));
+                  } else {
+                    onOpenPath(item.path, true);
+                  }
+                }}
                 onMouseEnter={() => setSelectedIndex(index)}
               >
                 <span className="file-icon">
-                  {iconForPath(item.path, item.viewerKind)}
+                  {item.kind === "action"
+                    ? "⌘"
+                    : iconForPath(item.path, item.viewerKind)}
                 </span>
                 <span className="palette-result-main">
                   <strong>{item.label}</strong>
                   <small>{item.detail}</small>
                 </span>
                 <span className="palette-type">
-                  {item.kind === "file" ? "Open" : `L${item.lineNumber}`}
+                  {item.kind === "file"
+                    ? "Open"
+                    : item.kind === "text"
+                      ? `L${item.lineNumber}`
+                      : (item.shortcut ?? "Run")}
                 </span>
               </button>
             ))}
@@ -161,9 +222,13 @@ export function CommandPalette({
             {fileLoading && mode === "file" ? (
               <p className="muted palette-empty">Searching...</p>
             ) : null}
-            {!results.length && !textLoading && !fileLoading && (
+            {!visibleResults.length && !textLoading && !fileLoading && (
               <p className="muted palette-empty">
-                {mode === "file" ? "No matching files." : "No text matches."}
+                {mode === "file"
+                  ? "No matching files."
+                  : mode === "text"
+                    ? "No text matches."
+                    : "No matching actions."}
               </p>
             )}
           </div>
@@ -183,6 +248,10 @@ export function CommandPalette({
             <div>
               <span>Search text</span>
               <kbd>Cmd Shift F</kbd>
+            </div>
+            <div>
+              <span>Actions</span>
+              <kbd>tab</kbd>
             </div>
             <div>
               <span>Close</span>

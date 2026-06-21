@@ -108,6 +108,14 @@ import {
   summarizeReviewQueue,
 } from "../ui/src/state/review-queue.js";
 import {
+  agentReplyNavigationTargets,
+  draftCommentNavigationTargets,
+  firstRelevantThreadForReviewItem,
+  latestUnreadActivityTarget,
+  moveReviewNavigationTarget,
+  openThreadNavigationTargets,
+} from "../ui/src/state/review-navigation.js";
+import {
   boundedVisibleTreeRows,
   countTreeNodes,
   ensureVisibleAncestors,
@@ -523,6 +531,12 @@ it("maps workspace keyboard shortcuts to app actions", () => {
     "search-text",
   );
   expect(keyboardShortcutAction({ ...command, key: "d" })).toBe("toggle-diff");
+  expect(keyboardShortcutAction({ ...command, key: "e" })).toBe(
+    "toggle-source",
+  );
+  expect(keyboardShortcutAction({ ...command, key: "i" })).toBe(
+    "focus-current-inline-thread",
+  );
   expect(keyboardShortcutAction({ ...command, key: "U", shiftKey: true })).toBe(
     "open-latest-unread",
   );
@@ -531,6 +545,15 @@ it("maps workspace keyboard shortcuts to app actions", () => {
   );
   expect(keyboardShortcutAction({ ...command, key: "K", shiftKey: true })).toBe(
     "open-previous-review",
+  );
+  expect(keyboardShortcutAction({ ...command, key: "]" })).toBe(
+    "open-next-thread",
+  );
+  expect(keyboardShortcutAction({ ...command, key: "[" })).toBe(
+    "open-previous-thread",
+  );
+  expect(keyboardShortcutAction({ ...command, key: "R", shiftKey: true })).toBe(
+    "focus-review-queue",
   );
   expect(keyboardShortcutAction({ ...command, key: "w" })).toBe(
     "close-active-tab",
@@ -1217,6 +1240,126 @@ it("navigates the prioritized work queue and keeps read receipts low-noise", () 
       createdAt: "2026-06-20T00:01:00.000Z",
     }),
   ).toBe(true);
+});
+
+it("builds review navigation targets without changing thread lifecycle state", () => {
+  const comments = [
+    {
+      ...makeReviewComment("open-1", "docs/a.md", "open"),
+      threadId: "thread-a",
+      reviewBatchId: "batch-1",
+      anchor: {
+        surface: "source" as const,
+        canonical: { path: "docs/a.md", lineStart: 4 },
+      },
+    },
+    {
+      ...makeReviewComment("reply-1", "docs/a.md", "open"),
+      threadId: "thread-a",
+      source: "codex" as const,
+      updatedAt: "2026-06-20T00:03:00.000Z",
+      anchor: {
+        surface: "source" as const,
+        canonical: { path: "docs/a.md", lineStart: 4 },
+      },
+    },
+    makeReviewComment("resolved-1", "docs/b.md", "resolved"),
+  ];
+  const drafts = [
+    {
+      id: "draft-1",
+      path: "docs/c.md",
+      viewerKind: "markdown" as const,
+      anchor: {
+        surface: "rendered" as const,
+        canonical: { path: "docs/c.md", lineStart: 2 },
+      },
+      body: "Draft before publish",
+      createdAt: "2026-06-20T00:01:00.000Z",
+      updatedAt: "2026-06-20T00:01:00.000Z",
+    },
+  ];
+
+  const openTargets = openThreadNavigationTargets(comments);
+  expect(openTargets).toHaveLength(1);
+  expect(openTargets[0]).toMatchObject({
+    threadId: "thread-a",
+    commentId: "open-1",
+    path: "docs/a.md",
+    surface: "source",
+  });
+  expect(
+    openThreadNavigationTargets(comments, { reviewBatchId: "batch-1" }),
+  ).toHaveLength(1);
+  expect(draftCommentNavigationTargets(drafts)[0]).toMatchObject({
+    draftId: "draft-1",
+    commentId: "draft:draft-1",
+    surface: "rendered",
+  });
+  expect(agentReplyNavigationTargets(comments)[0]).toMatchObject({
+    threadId: "thread-a",
+    commentId: "reply-1",
+  });
+  expect(
+    moveReviewNavigationTarget(openTargets, { path: "docs/z.md" }, "next"),
+  ).toBe(openTargets[0]);
+});
+
+it("prefers relevant open threads when jumping from a review queue item", () => {
+  const comments = [
+    {
+      ...makeReviewComment("resolved-1", "docs/a.md", "resolved"),
+      threadId: "thread-old",
+    },
+    {
+      ...makeReviewComment("open-1", "docs/a.md", "open"),
+      threadId: "thread-open",
+      anchor: {
+        surface: "diff" as const,
+        canonical: { path: "docs/a.md", lineStart: 8 },
+      },
+    },
+  ];
+  const items = buildReviewQueueItems([], comments, {}, new Set());
+
+  expect(firstRelevantThreadForReviewItem(items[0]!, comments)).toMatchObject({
+    threadId: "thread-open",
+    commentId: "open-1",
+    surface: "diff",
+  });
+});
+
+it("treats unread activity as a navigation hint rather than status", () => {
+  const items = buildReviewQueueItems(
+    [{ path: "docs/a.md", status: "modified", source: "git" }],
+    [makeReviewComment("resolved-1", "docs/a.md", "resolved")],
+    {
+      "resolved-1": {
+        inline: [],
+        timeline: [
+          {
+            id: "activity-1",
+            threadId: "resolved-1",
+            type: "thread_status_changed",
+            actor: { id: "codex:1", kind: "codex" },
+            createdAt: "2026-06-20T00:04:00.000Z",
+          },
+        ],
+      },
+    },
+    new Set(["docs/a.md"]),
+  );
+
+  expect(latestUnreadActivityTarget(items)).toMatchObject({
+    path: "docs/a.md",
+    threadId: "resolved-1",
+    activityId: "activity-1",
+  });
+  expect(items[0]?.threadCounts).toEqual({
+    open: 0,
+    resolved: 1,
+    archived: 0,
+  });
 });
 
 function makeReviewComment(

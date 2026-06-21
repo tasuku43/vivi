@@ -1,10 +1,16 @@
 const globalShortcuts = [
   ["Quick open", "Cmd K"],
   ["Search text", "Cmd Shift F"],
+  ["Toggle source/rendered", "Cmd E"],
   ["Toggle diff from HEAD", "Cmd D"],
+  ["Next open thread", "Cmd ]"],
+  ["Previous open thread", "Cmd ["],
   ["Open next unread review item", "Cmd Shift U"],
   ["Next review item", "Cmd Shift J"],
   ["Previous review item", "Cmd Shift K"],
+  ["Focus Review Queue", "Cmd Shift R"],
+  ["Focus Comments panel", "Cmd Shift C"],
+  ["Focus current inline thread", "Cmd I"],
   ["Close active tab", "Cmd W"],
   ["Show shortcuts", "Cmd /"],
 ];
@@ -12,6 +18,7 @@ const globalShortcuts = [
 const paletteShortcuts = [
   ["Preview result", "Enter"],
   ["Keep result open", "Cmd Enter"],
+  ["Run action", "Enter"],
   ["Close overlay", "Esc"],
 ];
 

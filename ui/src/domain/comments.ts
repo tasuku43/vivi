@@ -134,10 +134,7 @@ export interface DraftReviewComment {
   updatedAt: string;
 }
 
-export type CreateDraftReviewCommentInput = Omit<
-  CreateCommentInput,
-  "status"
->;
+export type CreateDraftReviewCommentInput = Omit<CreateCommentInput, "status">;
 
 export interface UpdateDraftReviewCommentInput {
   id: string;
@@ -322,6 +319,7 @@ export function buildCommentThreads(comments: ViviComment[]): CommentThread[] {
         id: threadId,
         path: comment.path,
         status: comment.status,
+        reviewBatchId: comment.reviewBatchId,
         anchor: comment.anchor,
         updatedAt: comment.updatedAt,
         createdAt: comment.createdAt,
@@ -333,6 +331,8 @@ export function buildCommentThreads(comments: ViviComment[]): CommentThread[] {
     }
     if (comment.updatedAt > thread.updatedAt)
       thread.updatedAt = comment.updatedAt;
+    if (!thread.reviewBatchId && comment.reviewBatchId)
+      thread.reviewBatchId = comment.reviewBatchId;
     if (comment.createdAt < thread.createdAt)
       thread.createdAt = comment.createdAt;
     if (

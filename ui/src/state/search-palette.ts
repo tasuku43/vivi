@@ -1,6 +1,14 @@
 import type { FileSearchResult, TextSearchResult } from "../domain/search.js";
 
-export type SearchPaletteMode = "file" | "text";
+export type SearchPaletteMode = "file" | "text" | "action";
+
+export interface CommandActionItem {
+  id: string;
+  label: string;
+  detail: string;
+  shortcut?: string;
+  disabled?: boolean;
+}
 
 export type SearchPaletteItem =
   | {
@@ -19,6 +27,14 @@ export type SearchPaletteItem =
       detail: string;
       viewerKind?: string;
       lineNumber: number;
+    }
+  | {
+      kind: "action";
+      id: string;
+      label: string;
+      detail: string;
+      shortcut?: string;
+      disabled?: boolean;
     };
 
 export function buildFileSearchItems(
@@ -45,5 +61,18 @@ export function buildTextSearchItems(
     detail: `L${result.lineNumber} ${result.lineText.trim()}`,
     viewerKind: result.viewerKind,
     lineNumber: result.lineNumber,
+  }));
+}
+
+export function buildCommandActionItems(
+  actions: CommandActionItem[],
+): SearchPaletteItem[] {
+  return actions.map((action) => ({
+    kind: "action" as const,
+    id: `action:${action.id}`,
+    label: action.label,
+    detail: action.detail,
+    shortcut: action.shortcut,
+    disabled: action.disabled,
   }));
 }
