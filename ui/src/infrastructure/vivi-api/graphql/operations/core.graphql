@@ -116,6 +116,7 @@ fragment ThreadFields on CommentThread {
 }
 fragment DraftReviewCommentFields on DraftReviewComment {
   id
+  threadId
   path
   viewerKind
   anchor

@@ -99,6 +99,7 @@ import {
 } from "../../state/git-review-refresh.js";
 import {
   activeCommentsForPath,
+  draftReviewCommentAsViviComment,
   type CommentDraft,
 } from "../../state/comments.js";
 import {
@@ -1777,7 +1778,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               }
               comments={
                 paneFile?.path
-                  ? comments.filter((comment) => comment.path === paneFile.path)
+                  ? combinePublishedAndDraftComments(
+                      comments,
+                      draftComments,
+                      paneFile.path,
+                    )
                   : []
               }
               activeCommentId={activeCommentId}
@@ -2007,6 +2012,23 @@ function mergeDraftComments(
   for (const draft of incoming) byId.set(draft.id, draft);
   return [...byId.values()].sort((a, b) =>
     b.updatedAt.localeCompare(a.updatedAt),
+  );
+}
+
+function combinePublishedAndDraftComments(
+  comments: ViviComment[],
+  drafts: DraftReviewComment[],
+  path?: string,
+): ViviComment[] {
+  const published = path
+    ? comments.filter((comment) => comment.path === path)
+    : comments;
+  const draftMessages = (path
+    ? drafts.filter((draft) => draft.path === path)
+    : drafts
+  ).map((draft) => draftReviewCommentAsViviComment(draft, comments));
+  return [...published, ...draftMessages].sort((a, b) =>
+    a.createdAt.localeCompare(b.createdAt),
   );
 }
 

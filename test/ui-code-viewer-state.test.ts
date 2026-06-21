@@ -16,6 +16,7 @@ import {
 } from "../ui/src/state/review-events.js";
 import {
   codeCommentThreads,
+  draftReviewCommentAsViviComment,
   sourceLineCommentDraft,
 } from "../ui/src/state/comments.js";
 
@@ -160,6 +161,48 @@ it("groups multiple comments on one code line into an ordered thread", () => {
     "root",
     "reply",
   ]);
+});
+
+it("groups multiple same-anchor draft review comments into one draft thread", () => {
+  const anchor = {
+    surface: "source" as const,
+    canonical: { path: "src/app.ts", lineStart: 2, lineEnd: 2 },
+  };
+  const threads = codeCommentThreads([
+    draftReviewCommentAsViviComment(
+      {
+        id: "draft-2",
+        path: "src/app.ts",
+        viewerKind: "text",
+        anchor,
+        body: "Second draft",
+        source: "human",
+        createdAt: "2026-06-20T00:01:00.000Z",
+        updatedAt: "2026-06-20T00:01:00.000Z",
+      },
+      [],
+    ),
+    draftReviewCommentAsViviComment(
+      {
+        id: "draft-1",
+        path: "src/app.ts",
+        viewerKind: "text",
+        anchor,
+        body: "First draft",
+        source: "human",
+        createdAt: "2026-06-20T00:00:00.000Z",
+        updatedAt: "2026-06-20T00:00:00.000Z",
+      },
+      [],
+    ),
+  ]);
+
+  expect(threads).toHaveLength(1);
+  expect(threads[0]?.comments.map((comment) => comment.body)).toEqual([
+    "First draft",
+    "Second draft",
+  ]);
+  expect(threads[0]?.comments.every((comment) => comment.draft)).toBe(true);
 });
 
 it("records and summarizes recent review events by file path", () => {

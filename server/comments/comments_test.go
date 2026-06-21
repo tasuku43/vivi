@@ -222,3 +222,60 @@ func TestStoreKeepsDraftReviewCommentsHiddenUntilBatchPublish(t *testing.T) {
 		t.Fatalf("remaining drafts = %#v, err = %v", remainingDrafts, err)
 	}
 }
+
+func TestStorePublishesSameAnchorDraftsIntoOneThread(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	anchor := map[string]any{
+		"surface": "source",
+		"canonical": map[string]any{
+			"path":      "README.md",
+			"lineStart": float64(4),
+			"lineEnd":   float64(4),
+			"quote":     "same line",
+		},
+	}
+	for _, body := range []string{"First same-line draft", "Second same-line draft"} {
+		if _, err := store.CreateDraft(map[string]any{
+			"path": "README.md", "body": body, "source": "human", "anchor": anchor,
+		}, "sha256:readme", "markdown"); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	batch, err := store.PublishDrafts(nil, map[string]any{"id": "human:tasuku", "kind": "human", "displayName": "Tasuku"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reviewBatchID := batch["reviewBatchId"].(string)
+	threads := batch["threads"].([]map[string]any)
+	if len(threads) != 1 {
+		t.Fatalf("published threads = %#v", threads)
+	}
+	if threads[0]["reviewBatchId"] != reviewBatchID {
+		t.Fatalf("thread missing batch id: %#v", threads[0])
+	}
+	messages := threads[0]["comments"].([]map[string]any)
+	if len(messages) != 2 {
+		t.Fatalf("published messages = %#v", messages)
+	}
+	threadID := stringValue(messages[0]["threadId"])
+	if threadID == "" || stringValue(messages[1]["threadId"]) != threadID {
+		t.Fatalf("messages not threaded together: %#v", messages)
+	}
+	for _, message := range messages {
+		if message["reviewBatchId"] != reviewBatchID {
+			t.Fatalf("message missing batch id: %#v", message)
+		}
+	}
+
+	listed, err := store.ListThreads(Filters{Status: "open"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(listed) != 1 || len(listed[0]["comments"].([]map[string]any)) != 2 {
+		t.Fatalf("listed threads = %#v", listed)
+	}
+}

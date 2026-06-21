@@ -122,6 +122,7 @@ export interface CommentThread {
 
 export interface DraftReviewComment {
   id: string;
+  threadId?: string;
   path: string;
   viewerKind: CommentViewerKind;
   anchor: CommentAnchor;
@@ -135,7 +136,7 @@ export interface DraftReviewComment {
 
 export type CreateDraftReviewCommentInput = Omit<
   CreateCommentInput,
-  "threadId" | "status"
+  "status"
 >;
 
 export interface UpdateDraftReviewCommentInput {

@@ -154,6 +154,7 @@ type ComplexityRoot struct {
 		ID         func(childComplexity int) int
 		Path       func(childComplexity int) int
 		Source     func(childComplexity int) int
+		ThreadID   func(childComplexity int) int
 		UpdatedAt  func(childComplexity int) int
 		ViewerKind func(childComplexity int) int
 	}
@@ -893,6 +894,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DraftReviewComment.Source(childComplexity), true
+	case "DraftReviewComment.threadId":
+		if e.ComplexityRoot.DraftReviewComment.ThreadID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DraftReviewComment.ThreadID(childComplexity), true
 	case "DraftReviewComment.updatedAt":
 		if e.ComplexityRoot.DraftReviewComment.UpdatedAt == nil {
 			break
@@ -2048,6 +2055,7 @@ type Comment {
 
 type DraftReviewComment {
   id: ID!
+  threadId: ID
   path: String!
   viewerKind: String!
   anchor: JSON!
@@ -2105,6 +2113,7 @@ input CommentInput {
 }
 
 input DraftReviewCommentInput {
+  threadId: ID
   path: String!
   viewerKind: String
   anchor: JSON!
@@ -2524,6 +2533,8 @@ func (ec *executionContext) childFields_DraftReviewComment(ctx context.Context, 
 	switch field.Name {
 	case "id":
 		return ec.fieldContext_DraftReviewComment_id(ctx, field)
+	case "threadId":
+		return ec.fieldContext_DraftReviewComment_threadId(ctx, field)
 	case "path":
 		return ec.fieldContext_DraftReviewComment_path(ctx, field)
 	case "viewerKind":
@@ -5276,6 +5287,29 @@ func (ec *executionContext) _DraftReviewComment_id(ctx context.Context, field gr
 	)
 }
 func (ec *executionContext) fieldContext_DraftReviewComment_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DraftReviewComment", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _DraftReviewComment_threadId(ctx context.Context, field graphql.CollectedField, obj *model.DraftReviewComment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DraftReviewComment_threadId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ThreadID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOID2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DraftReviewComment_threadId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("DraftReviewComment", field, false, false, errors.New("field of type ID does not have child fields"))
 }
 
@@ -10419,13 +10453,20 @@ func (ec *executionContext) unmarshalInputDraftReviewCommentInput(ctx context.Co
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"path", "viewerKind", "anchor", "body", "actor", "author", "source"}
+	fieldsInOrder := [...]string{"threadId", "path", "viewerKind", "anchor", "body", "actor", "author", "source"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "threadId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("threadId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ThreadID = data
 		case "path":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("path"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -11298,6 +11339,11 @@ func (ec *executionContext) _DraftReviewComment(ctx context.Context, sel ast.Sel
 		case "id":
 			out.Values[i] = ec._DraftReviewComment_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "threadId":
+			out.Values[i] = ec._DraftReviewComment_threadId(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		case "path":

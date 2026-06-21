@@ -136,6 +136,7 @@ type DiffCommentAnchor struct {
 
 type DraftReviewComment struct {
 	ID         string             `json:"id"`
+	ThreadID   *string            `json:"threadId,omitempty"`
 	Path       string             `json:"path"`
 	ViewerKind string             `json:"viewerKind"`
 	Anchor     map[string]any     `json:"anchor"`
@@ -149,6 +150,7 @@ type DraftReviewComment struct {
 }
 
 type DraftReviewCommentInput struct {
+	ThreadID   *string            `json:"threadId,omitempty"`
 	Path       string             `json:"path"`
 	ViewerKind *string            `json:"viewerKind,omitempty"`
 	Anchor     map[string]any     `json:"anchor"`

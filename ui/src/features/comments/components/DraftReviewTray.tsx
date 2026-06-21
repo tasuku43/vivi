@@ -26,6 +26,7 @@ export function DraftReviewTray({
 
   useEffect(() => {
     if (drafts.length) setOpen(true);
+    else setOpen(false);
     if (editingId && !drafts.some((draft) => draft.id === editingId)) {
       setEditingId(null);
       setBody("");
@@ -42,7 +43,7 @@ export function DraftReviewTray({
       aria-label="Draft review tray"
     >
       <button
-        className="draft-review-tab"
+        className={`draft-review-tab${drafts.length ? "" : " empty"}`}
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}

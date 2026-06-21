@@ -102,7 +102,7 @@ func TestCommentsCLIShowsPublishedReviewBatchAndHidesDrafts(t *testing.T) {
 	defer server.Close()
 	for _, input := range []map[string]any{
 		{"path": "README.md", "body": "Draft one", "anchor": map[string]any{"surface": "source", "canonical": map[string]any{"path": "README.md", "lineStart": float64(1)}}},
-		{"path": "README.md", "body": "Draft two", "anchor": map[string]any{"surface": "source", "canonical": map[string]any{"path": "README.md", "lineStart": float64(3)}}},
+		{"path": "README.md", "body": "Draft two", "anchor": map[string]any{"surface": "source", "canonical": map[string]any{"path": "README.md", "lineStart": float64(1)}}},
 	} {
 		graphqlForCLI(t, server.URL, map[string]any{"operationName": "CreateDraftReviewComment", "query": `mutation CreateDraftReviewComment($input: DraftReviewCommentInput!) { createDraftReviewComment(input: $input) { id } }`, "variables": map[string]any{"input": input}})
 	}
@@ -123,12 +123,15 @@ func TestCommentsCLIShowsPublishedReviewBatchAndHidesDrafts(t *testing.T) {
 		Count   int                   `json:"count"`
 	}
 	decodeCLIJSON(t, after, &afterPayload)
-	if afterPayload.Count != 2 {
+	if afterPayload.Count != 1 {
 		t.Fatalf("active after publish = %s", after.String())
 	}
 	for _, thread := range afterPayload.Threads {
 		if thread.ReviewBatchID != reviewBatchID || thread.Comments[0].ReviewBatchID != reviewBatchID {
 			t.Fatalf("thread missing batch id: %#v", thread)
+		}
+		if len(thread.Comments) != 2 {
+			t.Fatalf("thread did not keep both same-anchor comments: %#v", thread)
 		}
 	}
 }

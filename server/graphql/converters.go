@@ -57,6 +57,7 @@ func draftReviewCommentsFromMaps(items []map[string]any) []*model.DraftReviewCom
 func draftReviewCommentFromMap(item map[string]any) *model.DraftReviewComment {
 	return &model.DraftReviewComment{
 		ID:         stringValue(item["id"]),
+		ThreadID:   optionalStringValue(item["threadId"]),
 		Path:       stringValue(item["path"]),
 		ViewerKind: stringValue(item["viewerKind"]),
 		Anchor:     mapValue(item["anchor"]),
@@ -222,6 +223,9 @@ func commentInputMap(input model.CommentInput) map[string]any {
 		"path":   input.Path,
 		"anchor": input.Anchor,
 		"body":   input.Body,
+	}
+	if input.ThreadID != nil {
+		result["threadId"] = *input.ThreadID
 	}
 	if input.ViewerKind != nil {
 		result["viewerKind"] = *input.ViewerKind

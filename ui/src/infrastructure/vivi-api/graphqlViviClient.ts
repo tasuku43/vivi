@@ -3,6 +3,7 @@ import type {
   CommentListFilters,
   CommentExportFilters,
   CommentStatus,
+  CreateDraftReviewCommentInput,
   CreateCommentInput,
   CommentThreadActivityEvent,
 } from "../../domain/comments.js";
@@ -203,7 +204,7 @@ export class GraphqlViviClient implements ViviClient {
     return adaptGraphqlComment(data.createComment);
   }
 
-  async createDraftReviewComment(input: Omit<CreateCommentInput, "threadId" | "status">) {
+  async createDraftReviewComment(input: CreateDraftReviewCommentInput) {
     const data = await this.graphql<CreateDraftReviewCommentMutation>({
       operationName: "CreateDraftReviewComment",
       query: print(CreateDraftReviewCommentDocument),

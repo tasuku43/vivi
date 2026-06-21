@@ -8,7 +8,7 @@ import type {
   CommentDraft,
   CommentStatusChangeHandler,
 } from "../../../state/comments.js";
-import { statusLabel } from "../../../state/comments.js";
+import { statusLabel, type ThreadComment } from "../../../state/comments.js";
 
 export function CodeCommentThread({
   thread,
@@ -32,13 +32,16 @@ export function CodeCommentThread({
   const [error, setError] = useState<string | null>(null);
   const threadRef = useRef<HTMLElement | null>(null);
   const openComments = thread.comments.filter(
-    (comment) => comment.status === "open",
+    (comment) => !isDraftThreadComment(comment) && comment.status === "open",
   );
   const threadStatus: CommentStatus = openComments.length
     ? "open"
-    : thread.comments.some((comment) => comment.status === "resolved")
+    : thread.comments.some(
+          (comment) =>
+            !isDraftThreadComment(comment) && comment.status === "resolved",
+        )
       ? "resolved"
-      : thread.comments.length
+      : thread.comments.some((comment) => !isDraftThreadComment(comment))
         ? "archived"
         : "open";
   const lineLabel =
@@ -80,7 +83,9 @@ export function CodeCommentThread({
   }
 
   function updateThread(status: CommentStatus) {
-    const first = thread.comments[0];
+    const first = thread.comments.find(
+      (comment) => !isDraftThreadComment(comment),
+    );
     if (first && threadStatus !== status) {
       void onStatusChange?.(first.threadId ?? first.id, status);
     }
@@ -101,7 +106,7 @@ export function CodeCommentThread({
           <strong>{lineLabel}</strong>
           <span>
             {thread.comments.length
-              ? `${thread.comments.length} ${thread.comments.length === 1 ? "comment" : "comments"}`
+              ? `${thread.comments.length} ${thread.comments.length === 1 ? "message" : "messages"}`
               : "New thread"}
           </span>
           {thread.comments.length ? (
@@ -140,13 +145,17 @@ export function CodeCommentThread({
         <div className="code-comment-thread-messages">
           {thread.comments.map((comment, index) => (
             <div
-              className={`code-thread-comment ${comment.status}`}
+              className={`code-thread-comment ${comment.status}${isDraftThreadComment(comment) ? " draft" : ""}`}
               data-comment-id={comment.id}
               key={comment.id}
             >
               <div className="code-thread-comment-meta">
                 <strong>
-                  {index === 0 ? "Started" : "Reply"}
+                  {isDraftThreadComment(comment)
+                    ? "Draft"
+                    : index === 0
+                      ? "Started"
+                      : "Reply"}
                   {comment.author
                     ? ` by ${comment.author}`
                     : comment.source && comment.source !== "human"
@@ -156,7 +165,12 @@ export function CodeCommentThread({
                 <time dateTime={comment.createdAt}>
                   {formatCommentTime(comment.createdAt)}
                 </time>
-                {comment.status !== "open" ? (
+                {isDraftThreadComment(comment) ? (
+                  <span className="comment-status draft">Draft</span>
+                ) : (
+                  <span className="comment-status published">Published</span>
+                )}
+                {!isDraftThreadComment(comment) && comment.status !== "open" ? (
                   <span>{statusLabel(comment.status)}</span>
                 ) : null}
               </div>
@@ -196,7 +210,7 @@ export function CodeCommentThread({
         />
         <div className="code-comment-thread-footer">
           <div>
-            {thread.comments.length ? (
+            {thread.comments.some((comment) => !isDraftThreadComment(comment)) ? (
               <>
                 <button
                   type="button"
@@ -239,4 +253,10 @@ function formatCommentTime(value: string): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
+
+function isDraftThreadComment(
+  comment: ThreadComment,
+): comment is ThreadComment & { draft: true } {
+  return comment.draft === true || comment.id.startsWith("draft:");
 }

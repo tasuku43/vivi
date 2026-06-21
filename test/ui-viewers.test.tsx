@@ -6,6 +6,7 @@ import type { ViviComment } from "../ui/src/domain/comments.js";
 import type { FilePayload } from "../ui/src/domain/fs-node.js";
 import { CodeCommentThread } from "../ui/src/features/comments/components/CodeCommentThread.js";
 import { CommentsPanel } from "../ui/src/features/comments/components/CommentsPanel.js";
+import { DraftReviewTray } from "../ui/src/features/comments/components/DraftReviewTray.js";
 import { FileViewer } from "../ui/src/features/file-context/components/FileViewer.js";
 import { Inspector } from "../ui/src/features/review-queue/Inspector.js";
 import { ShortcutHelp } from "../ui/src/shared/components/ShortcutHelp.js";
@@ -193,7 +194,7 @@ it("renders code line comments as an inline thread with replies", () => {
   expect(html).toContain('aria-label="Open comment thread on line 2"');
   expect(html).toContain('aria-label="Add comment on line 1"');
   expect(html).toContain('aria-label="Comment thread for line 2"');
-  expect(html).toContain("2 comments");
+  expect(html).toContain("2 messages");
   expect(html.indexOf("Check this return")).toBeLessThan(
     html.indexOf("Agreed, keep it explicit"),
   );
@@ -243,7 +244,7 @@ it("projects diff-surface comments onto source code comment threads", () => {
 
   expect(html).toContain("Check this return");
   expect(html).toContain("Only visible in diff mode");
-  expect(html).toContain("2 comments");
+  expect(html).toContain("2 messages");
   expect(html).toContain('class="code-line-comment-count">2</span>');
 });
 
@@ -797,6 +798,53 @@ it("renders comment activity in inline thread headers without changing lifecycle
   expect(html).toContain("Codex replied 1m ago");
   expect(html).toContain('class="comment-status open">Open</span>');
   expect(html).not.toContain("read</span></span>");
+});
+
+it("renders draft and published messages in the same inline thread", () => {
+  const html = renderToStaticMarkup(
+    <CodeCommentThread
+      thread={{
+        key: "thread-1",
+        path: "src/app.ts",
+        lineStart: 2,
+        lineEnd: 2,
+        comments: [
+          { ...codeLineComment, threadId: "thread-1" },
+          {
+            ...codeLineReply,
+            id: "draft:draft-1",
+            draftId: "draft-1",
+            draft: true,
+            threadId: "thread-1",
+            body: "Still unpublished in this thread",
+          },
+        ],
+      }}
+      draft={{
+        threadId: "thread-1",
+        path: "src/app.ts",
+        viewerKind: "text",
+        anchor: codeLineComment.anchor,
+      }}
+      onClose={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("2 messages");
+  expect(html).toContain("Check this return");
+  expect(html).toContain("Still unpublished in this thread");
+  expect(html).toContain('class="comment-status published">Published</span>');
+  expect(html).toContain('class="comment-status draft">Draft</span>');
+  expect(html).toContain("Resolve thread");
+});
+
+it("renders the empty draft review tray as a compact tab only", () => {
+  const html = renderToStaticMarkup(<DraftReviewTray drafts={[]} />);
+
+  expect(html).toContain("draft-review-tab empty");
+  expect(html).toContain("<strong>0</strong>");
+  expect(html).not.toContain("draft-review-panel");
+  expect(html).not.toContain("No draft comments.");
 });
 
 it("renders comment activity in workspace comments rows", () => {

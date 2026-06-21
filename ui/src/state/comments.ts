@@ -1,5 +1,6 @@
 import type {
   CommentAnchor,
+  DraftReviewComment,
   SourceAnchor,
   CommentStatus,
   CommentViewerKind,
@@ -31,8 +32,13 @@ export interface CodeCommentThread {
   path: string;
   lineStart: number;
   lineEnd: number;
-  comments: ViviComment[];
+  comments: ThreadComment[];
 }
+
+export type ThreadComment = ViviComment & {
+  draft?: boolean;
+  draftId?: string;
+};
 
 export interface SelectionCommentTarget {
   text: string;
@@ -100,8 +106,63 @@ export function codeCommentThreadKey(
   return JSON.stringify([path, lineStart, lineEnd]);
 }
 
+export function commentAnchorThreadKey(
+  path: string,
+  anchor: CommentAnchor,
+): string {
+  const canonical = anchor.canonical;
+  return JSON.stringify([
+    path,
+    anchor.surface,
+    canonical.lineStart ?? null,
+    canonical.lineEnd ?? canonical.lineStart ?? null,
+    anchor.rendered?.blockId ?? null,
+    anchor.rendered?.selector ?? null,
+    anchor.diff?.base ?? null,
+    anchor.diff?.ref ?? null,
+    anchor.diff?.hunkId ?? null,
+    anchor.diff?.side ?? null,
+    anchor.diff?.oldLineStart ?? null,
+    anchor.diff?.oldLineEnd ?? null,
+    anchor.diff?.newLineStart ?? null,
+    anchor.diff?.newLineEnd ?? null,
+  ]);
+}
+
+export function draftReviewCommentAsViviComment(
+  draft: DraftReviewComment,
+  publishedComments: ViviComment[],
+): ThreadComment {
+  const matchingPublishedThread = publishedComments.find(
+    (comment) =>
+      comment.path === draft.path &&
+      commentAnchorThreadKey(comment.path, comment.anchor) ===
+        commentAnchorThreadKey(draft.path, draft.anchor),
+  );
+  return {
+    id: `draft:${draft.id}`,
+    draftId: draft.id,
+    draft: true,
+    threadId:
+      draft.threadId ??
+      matchingPublishedThread?.threadId ??
+      matchingPublishedThread?.id ??
+      `draft-thread:${commentAnchorThreadKey(draft.path, draft.anchor)}`,
+    path: draft.path,
+    viewerKind: draft.viewerKind,
+    anchor: draft.anchor,
+    body: draft.body,
+    createdBy: draft.createdBy,
+    author: draft.author,
+    source: draft.source,
+    status: "open",
+    createdAt: draft.createdAt,
+    updatedAt: draft.updatedAt,
+  };
+}
+
 export function codeCommentThreads(
-  comments: ViviComment[],
+  comments: ThreadComment[],
 ): CodeCommentThread[] {
   const byKey = new Map<string, CodeCommentThread>();
   for (const comment of comments) {

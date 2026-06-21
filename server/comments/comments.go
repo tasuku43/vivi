@@ -239,11 +239,45 @@ func (store *Store) PublishDrafts(ids []string, actor map[string]any) (map[strin
 	if err != nil {
 		return nil, err
 	}
+	existingThreads, err := store.projectThreads(comments)
+	if err != nil {
+		return nil, err
+	}
+	existingByID := map[string]map[string]any{}
+	for _, thread := range existingThreads {
+		existingByID[stringValue(thread["id"])] = thread
+	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	reviewBatchID := "review-batch-" + randomID()
 	published := make([]map[string]any, 0, len(selected))
 	batchActor := normalizeActor(actor)
+	newThreadByAnchor := map[string]string{}
+	threadCreatedInBatch := map[string]bool{}
+	impactedThreadIDs := map[string]struct{}{}
 	for _, draft := range selected {
+		threadID := strings.TrimSpace(stringValue(draft["threadId"]))
+		if threadID != "" {
+			thread := existingByID[threadID]
+			if thread == nil {
+				return nil, errors.New("draft target thread not found")
+			}
+			if stringValue(thread["status"]) != "open" {
+				return nil, errors.New("draft target thread must be open")
+			}
+		} else {
+			key, err := draftThreadKey(draft)
+			if err != nil {
+				return nil, err
+			}
+			threadID = newThreadByAnchor[key]
+			if threadID == "" {
+				threadID = randomID()
+				newThreadByAnchor[key] = threadID
+				threadCreatedInBatch[threadID] = true
+			}
+			draft = copyMap(draft)
+			draft["threadId"] = threadID
+		}
 		comment, err := store.publicCommentFromInput(draft, stringValue(mapValue(mapValue(draft["anchor"])["canonical"])["fileHash"]), stringValue(draft["viewerKind"]), now, reviewBatchID)
 		if err != nil {
 			return nil, err
@@ -253,11 +287,20 @@ func (store *Store) PublishDrafts(ids []string, actor map[string]any) (map[strin
 		comment["source"] = stringValue(draft["source"])
 		published = append(published, comment)
 		comments = append(comments, comment)
+		impactedThreadIDs[stringValue(comment["threadId"])] = struct{}{}
 	}
 	for _, comment := range published {
-		thread := map[string]any{"id": comment["threadId"], "path": comment["path"], "anchor": comment["anchor"], "status": comment["status"], "createdAt": now, "updatedAt": now, "reviewBatchId": reviewBatchID}
-		if err := store.appendThreadEvent(map[string]any{"schemaVersion": 1, "type": "thread.created", "threadId": comment["threadId"], "at": now, "thread": thread, "actor": actorForComment(comment), "reviewBatchId": reviewBatchID}); err != nil {
-			return nil, err
+		threadID := stringValue(comment["threadId"])
+		if threadCreatedInBatch[threadID] {
+			thread := map[string]any{"id": threadID, "path": comment["path"], "anchor": comment["anchor"], "status": comment["status"], "createdAt": now, "updatedAt": now, "reviewBatchId": reviewBatchID}
+			if err := store.appendThreadEvent(map[string]any{"schemaVersion": 1, "type": "thread.created", "threadId": threadID, "at": now, "thread": thread, "actor": actorForComment(comment), "reviewBatchId": reviewBatchID}); err != nil {
+				return nil, err
+			}
+			threadCreatedInBatch[threadID] = false
+		} else {
+			if err := store.appendThreadEvent(map[string]any{"schemaVersion": 1, "type": "comment.added", "threadId": threadID, "commentId": comment["id"], "at": now, "actor": actorForComment(comment), "reviewBatchId": reviewBatchID}); err != nil {
+				return nil, err
+			}
 		}
 	}
 	if err := store.writeAll(comments); err != nil {
@@ -266,11 +309,17 @@ func (store *Store) PublishDrafts(ids []string, actor map[string]any) (map[strin
 	if err := store.writeDrafts(remaining); err != nil {
 		return nil, err
 	}
-	threads, err := store.projectThreads(published)
+	threads, err := store.projectThreads(comments)
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{"reviewBatchId": reviewBatchID, "publishedAt": now, "threads": threads}, nil
+	publishedThreads := make([]map[string]any, 0, len(impactedThreadIDs))
+	for _, thread := range threads {
+		if _, ok := impactedThreadIDs[stringValue(thread["id"])]; ok {
+			publishedThreads = append(publishedThreads, thread)
+		}
+	}
+	return map[string]any{"reviewBatchId": reviewBatchID, "publishedAt": now, "threads": publishedThreads}, nil
 }
 
 func (store *Store) Update(id string, input map[string]any) (map[string]any, error) {
@@ -636,6 +685,18 @@ func selectDrafts(drafts []map[string]any, ids []string) ([]map[string]any, []ma
 		}
 	}
 	return selected, remaining
+}
+
+func draftThreadKey(draft map[string]any) (string, error) {
+	value := map[string]any{
+		"path":   draft["path"],
+		"anchor": draft["anchor"],
+	}
+	bytes, err := json.Marshal(value)
+	if err != nil {
+		return "", err
+	}
+	return string(bytes), nil
 }
 
 func actorForDraft(draft map[string]any, fallback map[string]any) map[string]any {
