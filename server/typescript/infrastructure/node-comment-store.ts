@@ -123,6 +123,7 @@ export class NodeCommentStore implements CommentStorePort {
     id: string,
     status: CommentStatus,
     at: string,
+    actor: CommentActor = { id: "unknown", kind: "unknown" },
   ): Promise<CommentThread> {
     const thread = (await this.listCommentThreads()).find(
       (item) => item.id === id,
@@ -134,7 +135,7 @@ export class NodeCommentStore implements CommentStorePort {
       type: "thread.status_changed",
       threadId: id,
       previousStatus: thread.status,
-      actor: { id: "unknown", kind: "unknown" },
+      actor,
       status,
       at,
     });

@@ -136,6 +136,11 @@ npm run verify:comment-ui
 node scripts/validate-scaffold.mjs
 ```
 
+The fixture-driven fake agent loop is documented in
+[`docs/23-local-agent-loop-harness.md`](docs/23-local-agent-loop-harness.md).
+Against a running Vivi server, run `npm run harness:agent-loop` to verify the
+human comment, actor-aware read receipt, agent reply, and terminal lifecycle.
+
 The Go backend is the distribution target. The TypeScript server remains useful
 while the migration is in progress because the same API contract tests can be
 run against both implementations.

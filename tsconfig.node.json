@@ -12,5 +12,5 @@
     "rootDir": ".",
     "types": ["node"]
   },
-  "include": ["cli/typescript", "server/typescript"]
+  "include": ["cli/typescript", "server/typescript", "harness"]
 }

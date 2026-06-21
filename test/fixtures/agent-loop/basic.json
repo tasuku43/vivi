@@ -1,0 +1,31 @@
+{
+  "name": "human comment to resolved agent reply",
+  "human": {
+    "actor": {
+      "id": "human:fixture",
+      "kind": "human",
+      "displayName": "Fixture Human"
+    },
+    "path": "README.md",
+    "body": "Please verify the generated overview.",
+    "anchor": {
+      "surface": "source",
+      "canonical": {
+        "path": "README.md",
+        "lineStart": 1,
+        "lineEnd": 1,
+        "quote": "# Vivi Fixture"
+      }
+    }
+  },
+  "agent": {
+    "actor": {
+      "id": "codex:fake-agent-loop",
+      "kind": "codex",
+      "displayName": "Fake Codex"
+    },
+    "clientEventId": "agent-loop-read-basic-v1",
+    "replyBody": "Verified the overview and completed the fixture task.",
+    "terminalAction": "resolve"
+  }
+}

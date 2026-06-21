@@ -622,6 +622,7 @@ async function executeGraphqlOperation(
         resolveThread: await options.service.updateCommentThreadStatus({
           id: requiredString(variables, "id"),
           status: "resolved",
+          actor: graphqlActor(variables.actor),
         }),
       };
     case "ArchiveThread":
@@ -629,6 +630,7 @@ async function executeGraphqlOperation(
         archiveThread: await options.service.updateCommentThreadStatus({
           id: requiredString(variables, "id"),
           status: "archived",
+          actor: graphqlActor(variables.actor),
         }),
       };
     case "ReopenThread":
@@ -636,6 +638,7 @@ async function executeGraphqlOperation(
         reopenThread: await options.service.updateCommentThreadStatus({
           id: requiredString(variables, "id"),
           status: "open",
+          actor: graphqlActor(variables.actor),
         }),
       };
     case "UpdateComment":
@@ -652,6 +655,7 @@ async function executeGraphqlOperation(
         updateCommentThread: await options.service.updateCommentThreadStatus({
           id: requiredString(variables, "id"),
           status: requiredString(variables, "status") as CommentStatus,
+          actor: graphqlActor(variables.actor),
         }),
       };
     default:
@@ -714,6 +718,27 @@ function isGraphqlMutation(operationName: string, query?: string): boolean {
     operationName === "UpdateCommentThreadStatus" ||
     query?.includes("mutation") === true
   );
+}
+
+function graphqlActor(value: unknown): CommentActor | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+  const actor = value as Record<string, unknown>;
+  if (typeof actor.id !== "string" || !actor.id.trim()) return undefined;
+  return {
+    id: actor.id.trim(),
+    kind:
+      actor.kind === "claude_code"
+        ? "claude-code"
+        : actor.kind === "human" || actor.kind === "codex"
+          ? actor.kind
+          : "unknown",
+    displayName:
+      typeof actor.displayName === "string" && actor.displayName.trim()
+        ? actor.displayName.trim()
+        : undefined,
+  };
 }
 
 function isGraphqlWorkspaceEventsRequest(input: {

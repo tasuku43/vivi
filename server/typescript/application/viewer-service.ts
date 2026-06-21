@@ -266,6 +266,7 @@ export class ViewerService {
   async updateCommentThreadStatus(input: {
     id: string;
     status: ViviComment["status"];
+    actor?: CommentActor;
   }): Promise<CommentThread> {
     if (!input.id.trim()) throw new Error("comment thread id is required");
     const store = this.requireCommentStore();
@@ -280,6 +281,7 @@ export class ViewerService {
         input.id,
         input.status,
         now,
+        input.actor,
       );
       await this.publishLatestActivity(input.id, "thread_status_changed");
       return thread;

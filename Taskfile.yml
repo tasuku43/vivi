@@ -126,6 +126,11 @@ tasks:
     cmds:
       - npm run e2e
 
+  agent-loop:
+    desc: Run the fake local agent loop against a running Vivi server
+    cmds:
+      - npm run harness:agent-loop
+
   build:
     desc: Build the browser app and local vivi binary
     cmds:

@@ -77,6 +77,7 @@ export interface CommentStorePort {
     id: string,
     status: CommentStatus,
     at: string,
+    actor?: CommentActor,
   ): Promise<CommentThread>;
   listCommentThreadActivities?(
     threadId: string,
