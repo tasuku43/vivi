@@ -10,6 +10,9 @@ vivi [root] --open
 vivi [root] --include md,html,ts,tsx,json
 vivi [root] --max-file-size 1048576
 vivi [root] --allow-html-scripts
+vivi comments active --actor claude-code --json
+vivi comments reply <thread-id> --body "Implemented" --actor codex --json
+vivi comments resolve <thread-id> --actor codex --json
 ```
 
 Default root: `.`
@@ -19,6 +22,45 @@ Default host: `127.0.0.1`
 Default security posture: local-only, sandboxed HTML preview, local CSS enabled for practical artifact inspection, and HTML script execution disabled. Use `--allow-html-scripts` only when intentionally reviewing generated HTML that needs script execution.
 
 Default rich preview limit: `1048576` bytes. Use `--max-file-size <bytes>` to change it for the current local run.
+
+### Agent comments CLI
+
+`vivi comments` is the stable JSON-first CLI surface for coding agents that
+need to work through local comment threads. It talks to a running Vivi server
+through GraphQL and does not edit comment storage directly. The server URL is
+resolved from `--url`, then `VIVI_URL`, then `http://127.0.0.1:4317`.
+
+The v1 commands are:
+
+```bash
+vivi comments active --actor claude-code --client-event-id fetch-open-1 --json
+vivi comments list --status resolved --json
+vivi comments show <thread-id> --json
+vivi comments reply <thread-id> --body "Fixed in this branch" --actor codex --json
+vivi comments resolve <thread-id> --actor codex --json
+vivi comments archive <thread-id> --actor codex --json
+vivi comments reopen <thread-id> --actor codex --json
+```
+
+`active`, `list`, and `show` are read queries. When `--actor` is provided,
+those reads include `X-Vivi-Actor-Id`, inferred or explicit
+`X-Vivi-Actor-Kind`, optional `X-Vivi-Actor-Name`, and optional
+`X-Vivi-Client-Event-Id`, so the existing read-side observer records
+`thread_read` activity. There is no public read-receipt mutation. `reply`,
+`resolve`, `archive`, and `reopen` use the GraphQL comment lifecycle mutations
+and include an actor input when `--actor` is set.
+
+All `vivi comments` commands currently emit JSON. List-like commands return:
+
+```json
+{
+  "threads": [],
+  "count": 0
+}
+```
+
+Single-thread lifecycle commands return `{ "thread": ... }`; `reply` returns
+`{ "comment": ... }`; `show` returns `{ "thread": ..., "activities": [...] }`.
 
 ## GraphQL data API
 

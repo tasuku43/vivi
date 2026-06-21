@@ -29,6 +29,9 @@ func main() {
 }
 
 func run(args []string) error {
+	if len(args) > 0 && args[0] == "comments" {
+		return runCommentsCommand(context.Background(), args[1:], os.Stdout)
+	}
 	flags := flag.NewFlagSet("vivi", flag.ContinueOnError)
 	flags.SetOutput(os.Stdout)
 	host := flags.String("host", "127.0.0.1", "host to bind")
@@ -108,6 +111,7 @@ func helpText() string {
 		"",
 		"Usage:",
 		"  vivi [root] [--host 127.0.0.1] [--port 4317] [--open] [--include md,html,ts] [--max-file-size 1048576] [--allow-html-scripts]",
+		"  vivi comments <active|list|show|reply|resolve|archive|reopen> [options]",
 		"",
 		"Options:",
 		"  --host <host>              Host to bind (default: 127.0.0.1)",

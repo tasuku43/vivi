@@ -100,6 +100,19 @@ returned thread id while working, add their reply with an explicit origin, then
 call a terminal lifecycle mutation. This makes retries and stale message ids
 safer than updating each message independently.
 
+The CLI wrapper for that workflow is:
+
+```bash
+vivi comments active --actor claude-code --client-event-id fetch-open-1 --json
+vivi comments show <thread-id> --json
+vivi comments reply <thread-id> --body "Implemented in this branch" --actor codex --json
+vivi comments resolve <thread-id> --actor codex --json
+```
+
+Use `archive` instead of `resolve` for intentionally dismissed work, and
+`reopen` before replying to a resolved or archived thread. The CLI uses GraphQL
+queries and mutations only; it does not write `$VIVI_DATA_DIR` files directly.
+
 ## Export and import
 
 JSONL export is thread-aware. Each line is a self-contained schema v2
