@@ -40,13 +40,32 @@ func NewHandler(service *application.Service, safeJSONWrite func(*http.Request) 
 				writeGraphQLError(w, http.StatusBadRequest, err.Error())
 				return
 			}
-			if writeRequest && !safeJSONWrite(r) {
+			activityObserver := activityObserverFromRequest(service, r)
+			if (writeRequest || activityObserver != nil) && !safeJSONWrite(r) {
 				writeGraphQLError(w, http.StatusOK, "invalid Host or Origin header for local write API")
 				return
+			}
+			if activityObserver != nil {
+				r = r.WithContext(application.WithThreadActivityObserver(r.Context(), activityObserver))
 			}
 		}
 		server.ServeHTTP(w, r)
 	})
+}
+
+func activityObserverFromRequest(service *application.Service, r *http.Request) application.ThreadActivityObserver {
+	actorID := strings.TrimSpace(r.Header.Get("X-Vivi-Actor-Id"))
+	if actorID == "" {
+		return nil
+	}
+	actor := map[string]any{
+		"id":   actorID,
+		"kind": strings.TrimSpace(r.Header.Get("X-Vivi-Actor-Kind")),
+	}
+	if displayName := strings.TrimSpace(r.Header.Get("X-Vivi-Actor-Name")); displayName != "" {
+		actor["displayName"] = displayName
+	}
+	return service.NewThreadActivityObserver(actor, r.Header.Get("X-Vivi-Client-Event-Id"))
 }
 
 func isGraphQLWriteRequest(r *http.Request) (bool, error) {

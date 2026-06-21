@@ -247,7 +247,7 @@ func (store *Store) updateThreadStatusLocked(id, status, now string, comments []
 	return current, nil
 }
 
-func (store *Store) RecordThreadRead(threadID string, actor map[string]any, clientEventID string) (map[string]any, error) {
+func (store *Store) AppendThreadReadActivity(threadID string, actor map[string]any, clientEventID string) (map[string]any, error) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
 	if strings.TrimSpace(threadID) == "" {

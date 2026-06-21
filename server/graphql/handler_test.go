@@ -208,14 +208,27 @@ func TestHandlerRecordsActorAwareReadActivityWithoutChangingStatus(t *testing.T)
 	if createdBy["id"] != "human:tasuku" {
 		t.Fatalf("createdBy = %#v", createdBy)
 	}
-	read := graphql(t, handler, map[string]any{"operationName": "RecordThreadRead", "query": `mutation RecordThreadRead($threadId: ID!, $input: RecordThreadReadInput!) { recordThreadRead(threadId: $threadId, input: $input) { id threadId type actor { id kind displayName } clientEventId } }`, "variables": map[string]any{"threadId": threadID, "input": map[string]any{"actor": map[string]any{"id": "claude-code:run-1", "kind": "claude_code", "displayName": "Claude Code"}, "clientEventId": "fetch-open-1"}}})["recordThreadRead"].(map[string]any)
-	if read["type"] != "thread_read" || read["clientEventId"] != "fetch-open-1" {
-		t.Fatalf("read event = %#v", read)
+	readData := graphqlWithHeaders(t, handler, map[string]any{"operationName": "ReadOpenThreads", "query": `query ReadOpenThreads { commentThreads(status: open) { id comments { id } } }`}, map[string]string{
+		"X-Vivi-Actor-Id":        "claude-code:run-1",
+		"X-Vivi-Actor-Kind":      "claude_code",
+		"X-Vivi-Actor-Name":      "Claude Code",
+		"X-Vivi-Client-Event-Id": "fetch-open-1",
+	})
+	if len(readData["commentThreads"].([]any)) != 1 {
+		t.Fatalf("read threads = %#v", readData["commentThreads"])
 	}
 	result := graphql(t, handler, map[string]any{"operationName": "ActivityAndThread", "query": `query ActivityAndThread($threadId: ID!) { commentThreadActivities(threadId: $threadId) { id type actor { id kind } } commentThreads(status: open) { id status } }`, "variables": map[string]any{"threadId": threadID}})
 	activities := result["commentThreadActivities"].([]any)
 	if len(activities) != 2 {
 		t.Fatalf("activities = %#v", activities)
+	}
+	read := activities[1].(map[string]any)
+	if read["type"] != "thread_read" {
+		t.Fatalf("read event = %#v", read)
+	}
+	actor := read["actor"].(map[string]any)
+	if actor["id"] != "claude-code:run-1" || actor["kind"] != "claude_code" {
+		t.Fatalf("read actor = %#v", actor)
 	}
 	threads := result["commentThreads"].([]any)
 	if len(threads) != 1 || threads[0].(map[string]any)["status"] != "open" {
@@ -224,6 +237,10 @@ func TestHandlerRecordsActorAwareReadActivityWithoutChangingStatus(t *testing.T)
 }
 
 func graphql(t *testing.T, handler http.Handler, request map[string]any) map[string]any {
+	return graphqlWithHeaders(t, handler, request, nil)
+}
+
+func graphqlWithHeaders(t *testing.T, handler http.Handler, request map[string]any, headers map[string]string) map[string]any {
 	t.Helper()
 	body, err := json.Marshal(request)
 	if err != nil {
@@ -232,6 +249,9 @@ func graphql(t *testing.T, handler http.Handler, request map[string]any) map[str
 	recorder := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/graphql", bytes.NewReader(body))
 	req.Header.Set("content-type", "application/json")
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
 	handler.ServeHTTP(recorder, req)
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())

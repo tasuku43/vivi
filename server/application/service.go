@@ -18,12 +18,15 @@ type Service struct {
 	Preview       *PreviewService
 	Event         *EventService
 	ActivityEvent *ActivityEventService
+
+	ThreadActivityObserverFactories []ThreadActivityObserverFactory
 }
 
 type Options struct {
-	Workspace *workspace.FS
-	Git       *gitreview.Reviewer
-	Comments  *comments.Store
+	Workspace                       *workspace.FS
+	Git                             *gitreview.Reviewer
+	Comments                        *comments.Store
+	ThreadActivityObserverFactories []ThreadActivityObserverFactory
 }
 
 type CommentThread struct {
@@ -46,7 +49,7 @@ type WorkspaceEvent struct {
 }
 
 func NewService(options Options) *Service {
-	return &Service{
+	service := &Service{
 		Workspace:     &WorkspaceService{workspace: options.Workspace},
 		File:          &FileService{workspace: options.Workspace},
 		Comment:       &CommentService{workspace: options.Workspace, comments: options.Comments},
@@ -57,6 +60,25 @@ func NewService(options Options) *Service {
 		Event:         NewEventService(),
 		ActivityEvent: NewActivityEventService(),
 	}
+	if len(options.ThreadActivityObserverFactories) > 0 {
+		service.ThreadActivityObserverFactories = options.ThreadActivityObserverFactories
+	} else {
+		service.ThreadActivityObserverFactories = []ThreadActivityObserverFactory{
+			NewPersistingThreadActivityObserverFactory(service),
+		}
+	}
+	return service
+}
+
+func (service *Service) NewThreadActivityObserver(actor map[string]any, clientEventID string) ThreadActivityObserver {
+	observers := make([]ThreadActivityObserver, 0, len(service.ThreadActivityObserverFactories))
+	for _, factory := range service.ThreadActivityObserverFactories {
+		if factory == nil {
+			continue
+		}
+		observers = append(observers, factory.NewThreadActivityObserver(actor, clientEventID))
+	}
+	return NewCompositeThreadActivityObserver(observers...)
 }
 
 func (service *Service) Config() workspace.Config {
@@ -165,8 +187,8 @@ func (service *Service) ListCommentThreadActivities(threadID, after string, firs
 	return service.Comment.Activities(comments.ActivityFilters{ThreadID: threadID, After: after, First: first})
 }
 
-func (service *Service) RecordCommentThreadRead(threadID string, actor map[string]any, clientEventID string) (map[string]any, error) {
-	event, err := service.Comment.RecordRead(threadID, actor, clientEventID)
+func (service *Service) ObserveCommentThreadRead(threadID string, actor map[string]any, clientEventID string) (map[string]any, error) {
+	event, err := service.Comment.AppendReadActivity(threadID, actor, clientEventID)
 	if err == nil {
 		service.ActivityEvent.Publish(event)
 	}

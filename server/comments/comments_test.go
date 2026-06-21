@@ -103,7 +103,7 @@ func TestStoreCreatesThreadMetadataWithoutChangingCommentsJSONLShape(t *testing.
 	}
 }
 
-func TestStoreRecordsIdempotentReadActivityWithoutChangingThreadStatus(t *testing.T) {
+func TestStoreAppendsIdempotentReadActivityWithoutChangingThreadStatus(t *testing.T) {
 	store, err := NewStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -114,11 +114,11 @@ func TestStoreRecordsIdempotentReadActivityWithoutChangingThreadStatus(t *testin
 	}
 	threadID := created["threadId"].(string)
 	actor := map[string]any{"id": "claude-code:session-1", "kind": "claude_code", "displayName": "Claude Code"}
-	first, err := store.RecordThreadRead(threadID, actor, "read-request-1")
+	first, err := store.AppendThreadReadActivity(threadID, actor, "read-request-1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	retried, err := store.RecordThreadRead(threadID, actor, "read-request-1")
+	retried, err := store.AppendThreadReadActivity(threadID, actor, "read-request-1")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -265,21 +265,6 @@ mutation AddComment($threadId: ID!, $input: AddCommentInput!) {
     ...CommentFields
   }
 }
-
-mutation RecordThreadRead($threadId: ID!, $input: RecordThreadReadInput!) {
-  recordThreadRead(threadId: $threadId, input: $input) {
-    id
-    threadId
-    type
-    actor {
-      id
-      kind
-      displayName
-    }
-    clientEventId
-    createdAt
-  }
-}
 mutation ResolveThread($id: ID!) {
   resolveThread(id: $id) {
     ...ThreadFields

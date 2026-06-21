@@ -21,20 +21,24 @@ as `unknown`. Actor identity is attribution, not authentication.
 ## Activity events
 
 Activity is append-only observation history and never changes thread status.
-For example, a coding agent records `thread_read` after fetching an open thread;
-the thread remains `open`. The GUI can query the history and subscribe to live
-events to show which actor has observed or changed the conversation.
+For example, a coding agent can fetch open threads with actor request headers;
+the server observes that read and appends `thread_read`, while the thread
+remains `open`. The GUI can query the history and subscribe to live events to
+show which actor has observed or changed the conversation.
 
 The public event kinds are `thread_created`, `thread_read`, `comment_added`,
 `comment_updated`, and `thread_status_changed`. Every event carries the same
 `CommentActor` shape, a server id and timestamp, and relevant optional fields
 such as `commentId`, `previousStatus`, and `status`.
 
-Agents record reads with `recordThreadRead(threadId, input)`. The optional
-`clientEventId` is an idempotency key scoped to the thread, actor, and event
-type, so retrying a CLI request does not create duplicate read receipts.
-`commentThreadActivities(threadId, after, first)` provides bounded history;
-`commentThreadActivity(threadId)` streams new events without replaying history.
+Activity events are not public write resources in GraphQL. Reads are recorded
+automatically when a request includes `X-Vivi-Actor-Id`; optional
+`X-Vivi-Actor-Kind`, `X-Vivi-Actor-Name`, and `X-Vivi-Client-Event-Id` headers
+provide attribution and idempotency. The client event id is scoped to the
+thread, actor, and event type, so retrying a CLI request does not create
+duplicate read receipts. `commentThreadActivities(threadId, after, first)`
+provides bounded history; `commentThreadActivity(threadId)` streams new events
+without replaying history.
 
 ## Status model
 
@@ -91,10 +95,10 @@ New integrations use:
 
 `createComment`, status in `updateComment`, and `updateCommentThread` remain as
 v1 compatibility operations. New coding-agent clients should query
-`commentThreads(status: open)`, preserve the returned thread id while working,
-add their reply with an explicit origin, then call a terminal lifecycle
-mutation. This makes retries and stale message ids safer than updating each
-message independently.
+`commentThreads(status: open)` with `X-Vivi-Actor-*` headers, preserve the
+returned thread id while working, add their reply with an explicit origin, then
+call a terminal lifecycle mutation. This makes retries and stale message ids
+safer than updating each message independently.
 
 ## Export and import
 

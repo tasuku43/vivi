@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import type { ViewerService } from "../application/viewer-service.js";
 import {
   normalizeCommentFilters,
+  type CommentActor,
   type CommentListFilters,
   type CommentStatus,
   type CommentThreadActivityEvent,
@@ -34,9 +35,20 @@ export interface ServerOptions {
   service: ViewerService;
   staticDir?: string;
   allowHtmlScripts?: boolean;
+  threadReadObserverFactories?: ThreadReadObserverFactory[];
 }
 
 const serverCloseGraceMs = 2_000;
+
+export interface ThreadReadObserver {
+  observeThreadRead(threadId: string): Promise<void>;
+}
+
+export type ThreadReadObserverFactory = (input: {
+  actor: CommentActor;
+  clientEventId?: string;
+  service: ViewerService;
+}) => ThreadReadObserver | undefined;
 
 export async function startHttpServer(
   options: ServerOptions,
@@ -361,12 +373,18 @@ async function handleGraphqlRequest(
   };
   const variables = payload.variables ?? {};
   const operationName = graphqlOperation(payload);
-  if (isGraphqlMutation(operationName, payload.query)) {
+  const threadReadObserver = threadReadObserverFromRequest(req, options);
+  if (isGraphqlMutation(operationName, payload.query) || threadReadObserver) {
     assertSafeJsonWriteRequest(req, options);
   }
   try {
     sendJson(res, 200, {
-      data: await executeGraphqlOperation(operationName, variables, options),
+      data: await executeGraphqlOperation(
+        operationName,
+        variables,
+        options,
+        threadReadObserver,
+      ),
     });
   } catch (error) {
     sendJson(res, 200, {
@@ -428,6 +446,7 @@ async function executeGraphqlOperation(
   operationName: string,
   variables: Record<string, unknown>,
   options: ServerOptions,
+  threadReadObserver?: ThreadReadObserver,
 ): Promise<Record<string, unknown>> {
   switch (operationName) {
     case "ViviWorkspace": {
@@ -451,15 +470,21 @@ async function executeGraphqlOperation(
     case "ViviFileContext": {
       const requestedPath = requiredString(variables, "path");
       const includeComments = boolVariable(variables, "includeComments");
+      const comments = includeComments
+        ? await options.service.listComments({ path: requestedPath })
+        : [];
+      const commentThreads = includeComments
+        ? await options.service.listCommentThreads({ path: requestedPath })
+        : [];
+      await observeThreadReads(
+        threadReadObserver,
+        commentThreads.map((thread) => thread.id),
+      );
       return {
         fileContext: {
           file: await options.service.readFile(requestedPath),
-          comments: includeComments
-            ? await options.service.listComments({ path: requestedPath })
-            : [],
-          commentThreads: includeComments
-            ? await options.service.listCommentThreads({ path: requestedPath })
-            : [],
+          comments,
+          commentThreads,
           diff: boolVariable(variables, "includeDiff")
             ? await options.service.readDiff(
                 requestedPath,
@@ -472,17 +497,28 @@ async function executeGraphqlOperation(
     case "ViviComments": {
       const filters = graphqlCommentFilters(variables);
       const comments = await options.service.listComments(filters);
+      const commentThreads = await options.service.listCommentThreads(filters);
+      await observeThreadReads(
+        threadReadObserver,
+        commentThreads.map((thread) => thread.id),
+      );
       return {
         comments,
-        commentThreads: await options.service.listCommentThreads(filters),
+        commentThreads,
       };
     }
-    case "ViviCommentThreads":
+    case "ViviCommentThreads": {
+      const commentThreads = await options.service.listCommentThreads(
+        graphqlCommentFilters(variables),
+      );
+      await observeThreadReads(
+        threadReadObserver,
+        commentThreads.map((thread) => thread.id),
+      );
       return {
-        commentThreads: await options.service.listCommentThreads(
-          graphqlCommentFilters(variables),
-        ),
+        commentThreads,
       };
+    }
     case "ViviCommentThreadActivities":
       return {
         commentThreadActivities: (
@@ -581,18 +617,6 @@ async function executeGraphqlOperation(
           variables.input ?? {},
         ),
       };
-    case "RecordThreadRead": {
-      const input = recordThreadReadInput(variables.input);
-      return {
-        recordThreadRead: activityGraphqlValue(
-          await options.service.recordThreadRead(
-            requiredString(variables, "threadId"),
-            input.actor,
-            input.clientEventId,
-          ),
-        ),
-      };
-    }
     case "ResolveThread":
       return {
         resolveThread: await options.service.updateCommentThreadStatus({
@@ -671,7 +695,6 @@ function graphqlOperation(payload: {
     "CreateComment",
     "CreateThread",
     "AddComment",
-    "RecordThreadRead",
     "UpdateCommentThreadStatus",
     "UpdateCommentThread",
     "UpdateCommentStatus",
@@ -724,43 +747,101 @@ function optionalGraphqlThreadId(url: URL): string | undefined {
   }
 }
 
-function recordThreadReadInput(value: unknown): {
-  actor: {
-    id: string;
-    kind: "human" | "claude-code" | "codex" | "unknown";
-    displayName?: string;
+function threadReadObserverFromRequest(
+  req: IncomingMessage,
+  options: ServerOptions,
+): ThreadReadObserver | undefined {
+  const actorId = headerText(req, "x-vivi-actor-id").trim();
+  if (!actorId) return undefined;
+  const actor: CommentActor = {
+    id: actorId,
+    kind: actorKindFromHeader(headerText(req, "x-vivi-actor-kind")),
+    displayName: headerText(req, "x-vivi-actor-name") || undefined,
   };
-  clientEventId?: string;
-} {
-  if (typeof value !== "object" || value === null || Array.isArray(value))
-    throw new Error("invalid thread read input");
-  const input = value as Record<string, unknown>;
-  const actorValue = input.actor;
-  if (
-    typeof actorValue !== "object" ||
-    actorValue === null ||
-    Array.isArray(actorValue)
-  )
-    throw new Error("activity actor is required");
-  const actor = actorValue as Record<string, unknown>;
-  const id = typeof actor.id === "string" ? actor.id.trim() : "";
-  const rawKind = typeof actor.kind === "string" ? actor.kind : "unknown";
-  if (!id) throw new Error("activity actor id is required");
-  const kind = (rawKind === "claude_code" ? "claude-code" : rawKind) as
-    | "human"
-    | "claude-code"
-    | "codex"
-    | "unknown";
+  const clientEventId = headerText(req, "x-vivi-client-event-id") || undefined;
+  const observer = compositeThreadReadObserver(
+    threadReadObserverFactories(options).map((factory) =>
+      factory({ actor, clientEventId, service: options.service }),
+    ),
+  );
+  if (!observer) return undefined;
+  const seen = new Set<string>();
   return {
-    actor: {
-      id,
-      kind,
-      displayName:
-        typeof actor.displayName === "string" ? actor.displayName : undefined,
+    async observeThreadRead(threadId: string): Promise<void> {
+      const normalizedThreadId = threadId.trim();
+      if (!normalizedThreadId || seen.has(normalizedThreadId)) return;
+      seen.add(normalizedThreadId);
+      try {
+        await observer.observeThreadRead(normalizedThreadId);
+      } catch {
+        // Activity observation must not make the read path fail.
+      }
     },
-    clientEventId:
-      typeof input.clientEventId === "string" ? input.clientEventId : undefined,
   };
+}
+
+function threadReadObserverFactories(
+  options: ServerOptions,
+): ThreadReadObserverFactory[] {
+  return (
+    options.threadReadObserverFactories ?? [
+      ({ actor, clientEventId, service }) => ({
+        observeThreadRead(threadId: string) {
+          return service.observeCommentThreadRead(
+            threadId,
+            actor,
+            clientEventId,
+          );
+        },
+      }),
+    ]
+  );
+}
+
+function compositeThreadReadObserver(
+  observers: Array<ThreadReadObserver | undefined>,
+): ThreadReadObserver | undefined {
+  const filtered = observers.filter(
+    (observer): observer is ThreadReadObserver => Boolean(observer),
+  );
+  if (filtered.length === 0) return undefined;
+  if (filtered.length === 1) return filtered[0];
+  return {
+    async observeThreadRead(threadId: string): Promise<void> {
+      for (const observer of filtered) {
+        await observer.observeThreadRead(threadId);
+      }
+    },
+  };
+}
+
+async function observeThreadReads(
+  observer: ThreadReadObserver | undefined,
+  threadIds: string[],
+): Promise<void> {
+  if (!observer) return;
+  for (const threadId of threadIds) {
+    await observer.observeThreadRead(threadId);
+  }
+}
+
+function headerText(req: IncomingMessage, name: string): string {
+  const value = req.headers[name];
+  if (Array.isArray(value)) return value[0] ?? "";
+  return value ?? "";
+}
+
+function actorKindFromHeader(value: string): CommentActor["kind"] {
+  const kind = value === "claude_code" ? "claude-code" : value;
+  if (
+    kind === "human" ||
+    kind === "claude-code" ||
+    kind === "codex" ||
+    kind === "unknown"
+  ) {
+    return kind;
+  }
+  return "unknown";
 }
 
 function activityGraphqlValue(event: CommentThreadActivityEvent) {

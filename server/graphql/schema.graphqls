@@ -47,10 +47,6 @@ type Mutation {
   resolveThread(id: ID!, actor: CommentActorInput): CommentThread!
   archiveThread(id: ID!, actor: CommentActorInput): CommentThread!
   reopenThread(id: ID!, actor: CommentActorInput): CommentThread!
-  recordThreadRead(
-    threadId: ID!
-    input: RecordThreadReadInput!
-  ): CommentThreadActivityEvent!
   updateCommentThread(id: ID!, input: CommentThreadUpdateInput!): CommentThread!
 }
 
@@ -230,11 +226,6 @@ type CommentThreadActivityEvent {
   status: CommentStatus
   clientEventId: String
   createdAt: String!
-}
-
-input RecordThreadReadInput {
-  actor: CommentActorInput!
-  clientEventId: String
 }
 
 type ChangeReviewSummary {

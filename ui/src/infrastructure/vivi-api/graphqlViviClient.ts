@@ -4,7 +4,6 @@ import type {
   CommentExportFilters,
   CommentStatus,
   CreateCommentInput,
-  CommentActor,
   CommentThreadActivityEvent,
 } from "../../domain/comments.js";
 import {
@@ -39,7 +38,6 @@ import {
   ViviWorkspaceDocument,
   WorkspaceEventsDocument,
   CommentThreadActivityDocument,
-  RecordThreadReadDocument,
   ViviCommentThreadActivitiesDocument,
 } from "./graphql/generated/graphql.js";
 import type {
@@ -59,7 +57,6 @@ import type {
   ViviWorkspaceQuery,
   WorkspaceEventsSubscription,
   CommentThreadActivitySubscription,
-  RecordThreadReadMutation,
   ViviCommentThreadActivitiesQuery,
 } from "./graphql/generated/graphql.js";
 
@@ -218,31 +215,6 @@ export class GraphqlViviClient implements ViviClient {
       variables: input,
     });
     return data.commentThreadActivities.map(adaptGraphqlCommentActivity);
-  }
-
-  async recordThreadRead(input: {
-    threadId: string;
-    actor: CommentActor;
-    clientEventId?: string;
-  }) {
-    const data = await this.graphql<RecordThreadReadMutation>({
-      operationName: "RecordThreadRead",
-      query: print(RecordThreadReadDocument),
-      variables: {
-        threadId: input.threadId,
-        input: {
-          actor: {
-            ...input.actor,
-            kind:
-              input.actor.kind === "claude-code"
-                ? "claude_code"
-                : input.actor.kind,
-          },
-          clientEventId: input.clientEventId,
-        },
-      },
-    });
-    return adaptGraphqlCommentActivity(data.recordThreadRead);
   }
 
   subscribeCommentThreadActivities(

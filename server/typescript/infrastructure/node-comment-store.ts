@@ -156,7 +156,7 @@ export class NodeCommentStore implements CommentStorePort {
       .slice(0, Math.min(Math.max(first, 1), 500));
   }
 
-  async recordThreadRead(
+  async appendThreadReadActivity(
     threadId: string,
     actor: CommentActor,
     clientEventId?: string,

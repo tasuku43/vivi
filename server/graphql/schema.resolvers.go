@@ -79,15 +79,6 @@ func (r *mutationResolver) ReopenThread(ctx context.Context, id string, actor *m
 	return commentThreadsFromDomain([]application.CommentThread{thread})[0], nil
 }
 
-// RecordThreadRead is the resolver for the recordThreadRead field.
-func (r *mutationResolver) RecordThreadRead(ctx context.Context, threadID string, input model.RecordThreadReadInput) (*model.CommentThreadActivityEvent, error) {
-	event, err := r.service.RecordCommentThreadRead(threadID, commentActorInputMap(input.Actor), stringPointerValue(input.ClientEventID))
-	if err != nil {
-		return nil, err
-	}
-	return activityFromMap(event), nil
-}
-
 // UpdateCommentThread is the resolver for the updateCommentThread field.
 func (r *mutationResolver) UpdateCommentThread(ctx context.Context, id string, input model.CommentThreadUpdateInput) (*model.CommentThread, error) {
 	thread, err := r.service.UpdateCommentThread(id, map[string]any{"status": input.Status.String(), "actor": commentActorInputMap(input.Actor)})
@@ -161,6 +152,7 @@ func (r *queryResolver) FileContext(ctx context.Context, path string, includeCom
 		if err != nil {
 			return nil, err
 		}
+		application.ObserveThreadReads(ctx, threadIDsFromDomain(threads))
 		result.CommentThreads = commentThreadsFromDomain(threads)
 	}
 	if includeDiff != nil && *includeDiff {
@@ -181,6 +173,7 @@ func (r *queryResolver) Comments(ctx context.Context, path *string, status *mode
 	if err != nil {
 		return nil, err
 	}
+	application.ObserveThreadReads(ctx, threadIDsFromCommentMaps(items))
 	return commentsFromMaps(items), nil
 }
 
@@ -191,6 +184,7 @@ func (r *queryResolver) CommentThreads(ctx context.Context, path *string, status
 	if err != nil {
 		return nil, err
 	}
+	application.ObserveThreadReads(ctx, threadIDsFromDomain(items))
 	return commentThreadsFromDomain(items), nil
 }
 

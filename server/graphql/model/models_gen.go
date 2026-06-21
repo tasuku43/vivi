@@ -171,11 +171,6 @@ type PreviewResource struct {
 type Query struct {
 }
 
-type RecordThreadReadInput struct {
-	Actor         *CommentActorInput `json:"actor"`
-	ClientEventID *string            `json:"clientEventId,omitempty"`
-}
-
 type Subscription struct {
 }
 

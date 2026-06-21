@@ -6,7 +6,6 @@ import type {
   CommentListFilters,
   CommentExportFilters,
   CommentStatus,
-  CommentActor,
   CommentThreadActivityEvent,
   CommentThread,
   CreateCommentInput,
@@ -53,11 +52,6 @@ export interface ViviClient {
     after?: string;
     first?: number;
   }): Promise<CommentThreadActivityEvent[]>;
-  recordThreadRead?(input: {
-    threadId: string;
-    actor: CommentActor;
-    clientEventId?: string;
-  }): Promise<CommentThreadActivityEvent>;
   subscribeCommentThreadActivities?(
     threadId: string | undefined,
     onEvent: (event: CommentThreadActivityEvent) => void,

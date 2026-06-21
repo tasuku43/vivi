@@ -49,6 +49,13 @@ current supported format is `jsonl`, returned as `CommentExport.content` with
 `contentType: "application/x-ndjson; charset=utf-8"`. The REST export route
 stays available as a compatibility wrapper.
 
+Comment activity is read-only in the GraphQL schema. `commentThreadActivities`
+returns bounded history and `commentThreadActivity` streams new events. Thread
+read events are appended as an observed side effect of `comments`,
+`commentThreads`, or `fileContext(includeComments: true)` when the request
+includes `X-Vivi-Actor-Id`. `X-Vivi-Actor-Kind`, `X-Vivi-Actor-Name`, and
+`X-Vivi-Client-Event-Id` are optional attribution and idempotency headers.
+
 Preview routes remain HTTP rendering transports. GraphQL exposes preview
 resource metadata and URLs, while `/preview/html` and `/preview/raw/*` continue
 to serve sandboxed iframe/raw bytes with the existing security headers and

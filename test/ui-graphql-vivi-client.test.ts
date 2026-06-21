@@ -262,7 +262,7 @@ it("uses GraphQL queries for workspace, review, diff, and search reads", async (
   ]);
 });
 
-it("reads, records, and subscribes to actor-aware comment activity", async () => {
+it("reads and subscribes to actor-aware comment activity", async () => {
   const event = {
     id: "activity-1",
     threadId: "t1",
@@ -280,12 +280,8 @@ it("reads, records, and subscribes to actor-aware comment activity", async () =>
   };
   const request = vi.fn<typeof fetch>(async (_input, init) => {
     const body = JSON.parse(String(init?.body));
-    if (body.operationName === "ViviCommentThreadActivities") {
-      return Response.json({ data: { commentThreadActivities: [event] } });
-    }
-    expect(body.operationName).toBe("RecordThreadRead");
-    expect(body.variables.input.actor.kind).toBe("claude_code");
-    return Response.json({ data: { recordThreadRead: event } });
+    expect(body.operationName).toBe("ViviCommentThreadActivities");
+    return Response.json({ data: { commentThreadActivities: [event] } });
   });
   const sources: FakeEventSource[] = [];
   const client = new GraphqlViviClient({
@@ -304,17 +300,6 @@ it("reads, records, and subscribes to actor-aware comment activity", async () =>
       actor: { id: "claude-code:run-1", kind: "claude-code" },
     },
   ]);
-  await expect(
-    client.recordThreadRead({
-      threadId: "t1",
-      actor: { id: "claude-code:run-1", kind: "claude-code" },
-      clientEventId: "fetch-open-1",
-    }),
-  ).resolves.toMatchObject({
-    id: "activity-1",
-    actor: { kind: "claude-code" },
-  });
-
   const onEvent = vi.fn();
   const unsubscribe = client.subscribeCommentThreadActivities("t1", onEvent);
   const url = new URL(sources[0]!.url, "http://vivi.local");

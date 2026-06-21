@@ -83,7 +83,7 @@ export interface CommentStorePort {
     after?: string,
     first?: number,
   ): Promise<CommentThreadActivityEvent[]>;
-  recordThreadRead?(
+  appendThreadReadActivity?(
     threadId: string,
     actor: CommentActor,
     clientEventId?: string,

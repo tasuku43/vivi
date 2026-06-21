@@ -106,8 +106,8 @@ func (s *CommentService) UpdateThreadAs(id, status string, actor map[string]any)
 func (s *CommentService) Activities(filters comments.ActivityFilters) ([]map[string]any, error) {
 	return s.comments.ListActivities(filters)
 }
-func (s *CommentService) RecordRead(threadID string, actor map[string]any, clientEventID string) (map[string]any, error) {
-	return s.comments.RecordThreadRead(threadID, actor, clientEventID)
+func (s *CommentService) AppendReadActivity(threadID string, actor map[string]any, clientEventID string) (map[string]any, error) {
+	return s.comments.AppendThreadReadActivity(threadID, actor, clientEventID)
 }
 func (s *CommentService) AddComment(threadID string, input map[string]any) (map[string]any, error) {
 	thread, err := s.Thread(threadID)

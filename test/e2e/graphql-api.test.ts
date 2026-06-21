@@ -159,40 +159,45 @@ it("serves the first GraphQL data API slice with REST-equivalent behavior", asyn
     body: "Agent reply",
   });
 
-  const read = await graphql<{
-    recordThreadRead: {
-      id: string;
+  const readThreads = await graphql<{
+    commentThreads: Array<{ id: string; comments: Array<{ id: string }> }>;
+  }>(
+    "ViviComments",
+    { path: "README.md" },
+    {
+      "X-Vivi-Actor-Id": "claude-code:run-1",
+      "X-Vivi-Actor-Kind": "claude_code",
+      "X-Vivi-Actor-Name": "Claude Code",
+      "X-Vivi-Client-Event-Id": "fetch-open-1",
+    },
+  );
+  expect(readThreads.commentThreads).toContainEqual(
+    expect.objectContaining({
+      id: created.createComment.id,
+      path: "README.md",
+      status: "open",
+      comments: expect.arrayContaining([expect.objectContaining({})]),
+    }),
+  );
+  const activity = await graphql<{
+    commentThreadActivities: Array<{
       threadId: string;
       type: string;
       actor: { id: string; kind: string };
-      clientEventId: string;
-    };
-  }>("RecordThreadRead", {
-    threadId: created.createComment.id,
-    input: {
-      actor: {
-        id: "claude-code:run-1",
-        kind: "claude_code",
-        displayName: "Claude Code",
-      },
-      clientEventId: "fetch-open-1",
-    },
-  });
-  expect(read.recordThreadRead).toMatchObject({
-    threadId: created.createComment.id,
-    type: "thread_read",
-    actor: { id: "claude-code:run-1", kind: "claude_code" },
-    clientEventId: "fetch-open-1",
-  });
-  const activity = await graphql<{
-    commentThreadActivities: Array<{ id: string; type: string }>;
+      clientEventId?: string;
+    }>;
   }>("ViviCommentThreadActivities", {
     threadId: created.createComment.id,
   });
   expect(activity.commentThreadActivities).toContainEqual(
     expect.objectContaining({
-      id: read.recordThreadRead.id,
+      threadId: created.createComment.id,
       type: "thread_read",
+      actor: expect.objectContaining({
+        id: "claude-code:run-1",
+        kind: "claude_code",
+      }),
+      clientEventId: "fetch-open-1",
     }),
   );
 
@@ -349,11 +354,12 @@ it("serves the first GraphQL data API slice with REST-equivalent behavior", asyn
 async function graphql<T>(
   operationName: string,
   variables: Record<string, unknown>,
+  headers: Record<string, string> = {},
 ): Promise<T> {
   if (!server) throw new Error("server is not running");
   const response = await fetch(`${server.url}/graphql`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify({
       operationName,
       query: graphqlQuery(operationName),
@@ -408,9 +414,6 @@ function graphqlQuery(operationName: string): string {
     }`,
     AddComment: `mutation AddComment($threadId: ID!, $input: AddCommentInput!) {
       addComment(threadId: $threadId, input: $input) { threadId source body }
-    }`,
-    RecordThreadRead: `mutation RecordThreadRead($threadId: ID!, $input: RecordThreadReadInput!) {
-      recordThreadRead(threadId: $threadId, input: $input) { id threadId type actor { id kind } clientEventId }
     }`,
     ViviCommentThreadActivities: `query ViviCommentThreadActivities($threadId: ID!) {
       commentThreadActivities(threadId: $threadId) { id threadId type actor { id kind } clientEventId createdAt }

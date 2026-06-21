@@ -317,17 +317,19 @@ export class ViewerService {
     return store.listCommentThreadActivities(threadId, after, first);
   }
 
-  async recordThreadRead(
+  async observeCommentThreadRead(
     threadId: string,
     actor: CommentActor,
     clientEventId?: string,
-  ): Promise<CommentThreadActivityEvent> {
+  ): Promise<void> {
     const store = this.requireCommentStore();
-    if (!store.recordThreadRead)
-      throw new Error("comment activity is not configured");
-    const event = await store.recordThreadRead(threadId, actor, clientEventId);
+    if (!store.appendThreadReadActivity) return;
+    const event = await store.appendThreadReadActivity(
+      threadId,
+      actor,
+      clientEventId,
+    );
     for (const subscriber of this.activitySubscribers) subscriber(event);
-    return event;
   }
 
   subscribeCommentThreadActivities(

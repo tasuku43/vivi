@@ -202,7 +202,6 @@ type ComplexityRoot struct {
 		ArchiveThread       func(childComplexity int, id string, actor *model.CommentActorInput) int
 		CreateComment       func(childComplexity int, input model.CommentInput) int
 		CreateThread        func(childComplexity int, input model.CommentInput) int
-		RecordThreadRead    func(childComplexity int, threadID string, input model.RecordThreadReadInput) int
 		ReopenThread        func(childComplexity int, id string, actor *model.CommentActorInput) int
 		ResolveThread       func(childComplexity int, id string, actor *model.CommentActorInput) int
 		UpdateComment       func(childComplexity int, id string, input model.CommentUpdateInput) int
@@ -324,7 +323,6 @@ type MutationResolver interface {
 	ResolveThread(ctx context.Context, id string, actor *model.CommentActorInput) (*model.CommentThread, error)
 	ArchiveThread(ctx context.Context, id string, actor *model.CommentActorInput) (*model.CommentThread, error)
 	ReopenThread(ctx context.Context, id string, actor *model.CommentActorInput) (*model.CommentThread, error)
-	RecordThreadRead(ctx context.Context, threadID string, input model.RecordThreadReadInput) (*model.CommentThreadActivityEvent, error)
 	UpdateCommentThread(ctx context.Context, id string, input model.CommentThreadUpdateInput) (*model.CommentThread, error)
 }
 type QueryResolver interface {
@@ -1069,17 +1067,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateThread(childComplexity, args["input"].(model.CommentInput)), true
-	case "Mutation.recordThreadRead":
-		if e.ComplexityRoot.Mutation.RecordThreadRead == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_recordThreadRead_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Mutation.RecordThreadRead(childComplexity, args["threadId"].(string), args["input"].(model.RecordThreadReadInput)), true
 	case "Mutation.reopenThread":
 		if e.ComplexityRoot.Mutation.ReopenThread == nil {
 			break
@@ -1617,7 +1604,6 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCommentInput,
 		ec.unmarshalInputCommentThreadUpdateInput,
 		ec.unmarshalInputCommentUpdateInput,
-		ec.unmarshalInputRecordThreadReadInput,
 	)
 	first := true
 
@@ -1759,10 +1745,6 @@ type Mutation {
   resolveThread(id: ID!, actor: CommentActorInput): CommentThread!
   archiveThread(id: ID!, actor: CommentActorInput): CommentThread!
   reopenThread(id: ID!, actor: CommentActorInput): CommentThread!
-  recordThreadRead(
-    threadId: ID!
-    input: RecordThreadReadInput!
-  ): CommentThreadActivityEvent!
   updateCommentThread(id: ID!, input: CommentThreadUpdateInput!): CommentThread!
 }
 
@@ -1942,11 +1924,6 @@ type CommentThreadActivityEvent {
   status: CommentStatus
   clientEventId: String
   createdAt: String!
-}
-
-input RecordThreadReadInput {
-  actor: CommentActorInput!
-  clientEventId: String
 }
 
 type ChangeReviewSummary {
@@ -2749,28 +2726,6 @@ func (ec *executionContext) field_Mutation_createThread_args(ctx context.Context
 		return nil, err
 	}
 	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_recordThreadRead_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "threadId",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNID2string(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["threadId"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input",
-		func(ctx context.Context, v any) (model.RecordThreadReadInput, error) {
-			return ec.unmarshalNRecordThreadReadInput2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐRecordThreadReadInput(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg1
 	return args, nil
 }
 
@@ -6119,50 +6074,6 @@ func (ec *executionContext) fieldContext_Mutation_reopenThread(ctx context.Conte
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_reopenThread_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_recordThreadRead(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Mutation_recordThreadRead(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().RecordThreadRead(ctx, fc.Args["threadId"].(string), fc.Args["input"].(model.RecordThreadReadInput))
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.CommentThreadActivityEvent) graphql.Marshaler {
-			return ec.marshalNCommentThreadActivityEvent2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThreadActivityEvent(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Mutation_recordThreadRead(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_CommentThreadActivityEvent(ctx, field)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_recordThreadRead_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -9521,43 +9432,6 @@ func (ec *executionContext) unmarshalInputCommentUpdateInput(ctx context.Context
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputRecordThreadReadInput(ctx context.Context, obj any) (model.RecordThreadReadInput, error) {
-	var it model.RecordThreadReadInput
-	if obj == nil {
-		return it, nil
-	}
-
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"actor", "clientEventId"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "actor":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("actor"))
-			data, err := ec.unmarshalNCommentActorInput2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentActorInput(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Actor = data
-		case "clientEventId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientEventId"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ClientEventID = data
-		}
-	}
-	return it, nil
-}
-
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -10738,13 +10612,6 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "reopenThread":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_reopenThread(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "recordThreadRead":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_recordThreadRead(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -12336,11 +12203,6 @@ func (ec *executionContext) marshalNCommentActor2ᚖgithubᚗcomᚋtasuku43ᚋvi
 	return ec._CommentActor(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNCommentActorInput2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentActorInput(ctx context.Context, v any) (*model.CommentActorInput, error) {
-	res, err := ec.unmarshalInputCommentActorInput(ctx, v)
-	return &res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) unmarshalNCommentActorKind2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentActorKind(ctx context.Context, v any) (model.CommentActorKind, error) {
 	var res model.CommentActorKind
 	err := res.UnmarshalGQL(v)
@@ -12837,11 +12699,6 @@ func (ec *executionContext) marshalNPreviewResource2ᚖgithubᚗcomᚋtasuku43�
 		return graphql.Null
 	}
 	return ec._PreviewResource(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalNRecordThreadReadInput2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐRecordThreadReadInput(ctx context.Context, v any) (model.RecordThreadReadInput, error) {
-	res, err := ec.unmarshalInputRecordThreadReadInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNSearchStats2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋworkspaceᚐSearchStats(ctx context.Context, sel ast.SelectionSet, v workspace.SearchStats) graphql.Marshaler {

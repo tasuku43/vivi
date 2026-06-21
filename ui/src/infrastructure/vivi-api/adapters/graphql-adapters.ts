@@ -30,7 +30,6 @@ import type {
   WorkspaceEventsSubscription,
   CommentThreadActivitySubscription,
   ViviCommentThreadActivitiesQuery,
-  RecordThreadReadMutation,
 } from "../graphql/generated/graphql.js";
 
 export const adaptGraphqlTree = (dto: TreeFieldsFragment): TreeSnapshot =>
@@ -54,8 +53,7 @@ export const adaptGraphqlComment = (
 export const adaptGraphqlCommentActivity = (
   dto:
     | CommentThreadActivitySubscription["commentThreadActivity"]
-    | ViviCommentThreadActivitiesQuery["commentThreadActivities"][number]
-    | RecordThreadReadMutation["recordThreadRead"],
+    | ViviCommentThreadActivitiesQuery["commentThreadActivities"][number],
 ): CommentThreadActivityEvent => ({
   ...(dto as unknown as CommentThreadActivityEvent),
   actor: adaptGraphqlActor(dto.actor),
