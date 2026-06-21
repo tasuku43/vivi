@@ -4,6 +4,8 @@ export type KeyboardShortcutAction =
   | "toggle-diff"
   | "toggle-comments"
   | "open-latest-unread"
+  | "open-next-review"
+  | "open-previous-review"
   | "close-active-tab"
   | "toggle-shortcuts"
   | "dismiss-overlays";
@@ -30,6 +32,8 @@ export function keyboardShortcutAction(
   if (event.shiftKey && key === "c") return "toggle-comments";
   if (!event.shiftKey && key === "d") return "toggle-diff";
   if (event.shiftKey && key === "u") return "open-latest-unread";
+  if (event.shiftKey && key === "j") return "open-next-review";
+  if (event.shiftKey && key === "k") return "open-previous-review";
   if (!event.shiftKey && key === "w") return "close-active-tab";
   if (!event.shiftKey && key === "/") return "toggle-shortcuts";
 

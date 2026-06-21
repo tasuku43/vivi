@@ -133,6 +133,8 @@ it("renders the shortcut guide as one bundled reference", () => {
   expect(html).toContain('aria-label="Keyboard shortcuts"');
   expect(html).toContain("Cmd W");
   expect(html).toContain("Cmd Shift U");
+  expect(html).toContain("Cmd Shift J");
+  expect(html).toContain("Cmd Shift K");
   expect(html).toContain("Cmd /");
   expect(html).toContain("Command palette");
 });
@@ -716,8 +718,10 @@ it("renders the Review Queue before secondary file helpers in the inspector", ()
   expect(html.indexOf("Review Queue")).toBeLessThan(
     html.indexOf("In this file"),
   );
-  expect(html).toContain("Open next");
-  expect(html).toContain("Open previous");
+  expect(html).toContain("Next");
+  expect(html).toContain("Previous");
+  expect(html).toContain("<strong>2</strong> files");
+  expect(html).toContain("1 unseen");
   expect(html).toContain("src/app.ts:2");
   expect(html).toContain("export");
   expect(html).toContain("start");
@@ -857,12 +861,28 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
       reviewChanges={[
         { path: "src/app.ts", status: "modified", source: "git" },
       ]}
+      reviewItems={[
+        {
+          path: "src/app.ts",
+          change: { path: "src/app.ts", status: "modified", source: "git" },
+          threadCounts: { open: 0, resolved: 1, archived: 0 },
+          commentCount: 1,
+          latestActivity: activity.timeline[0],
+          unread: false,
+        },
+        {
+          path: "docs/agent-handoff.md",
+          change: null,
+          threadCounts: { open: 2, resolved: 0, archived: 0 },
+          commentCount: 3,
+          unread: true,
+        },
+      ]}
       reviewDiffStats={{}}
       loadingReviewDiffs={{}}
       unreadReviewPaths={new Set()}
       comments={[{ ...codeLineComment, threadId: "thread-1" }]}
       threadActivities={{ "thread-1": activity }}
-      pathActivities={{ "src/app.ts": [activity] }}
       selectedCodeRange={null}
       activePaneId="main"
       onOutlineSelect={() => undefined}
@@ -877,7 +897,13 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
     />,
   );
 
-  expect(html).toContain("Tasuku marked resolved 30s ago");
+  expect(html).toContain("Tasuku marked resolved");
+  expect(html).toContain("agent-handoff.md");
+  expect(html).toContain("2 open threads");
+  expect(html).toContain("3 messages");
+  expect(html).toContain(
+    "<strong>2</strong> files · 1 unseen · 2 open threads",
+  );
   expect(html).toContain("Review Queue");
   expect(html).toContain("open comments");
 });

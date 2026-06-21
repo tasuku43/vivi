@@ -2,7 +2,9 @@ const globalShortcuts = [
   ["Quick open", "Cmd K"],
   ["Search text", "Cmd Shift F"],
   ["Toggle diff from HEAD", "Cmd D"],
-  ["Open latest unread review file", "Cmd Shift U"],
+  ["Open next unread review item", "Cmd Shift U"],
+  ["Next review item", "Cmd Shift J"],
+  ["Previous review item", "Cmd Shift K"],
   ["Close active tab", "Cmd W"],
   ["Show shortcuts", "Cmd /"],
 ];

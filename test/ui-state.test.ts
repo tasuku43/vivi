@@ -101,6 +101,13 @@ import {
 import { summarizeReviewEvents } from "../ui/src/state/review-events.js";
 import { keyboardShortcutAction } from "../ui/src/state/shortcuts.js";
 import {
+  activityNeedsHumanAttention,
+  buildReviewQueueItems,
+  latestUnreadReviewItemPath,
+  nextReviewQueueItemPath,
+  summarizeReviewQueue,
+} from "../ui/src/state/review-queue.js";
+import {
   boundedVisibleTreeRows,
   countTreeNodes,
   ensureVisibleAncestors,
@@ -518,6 +525,12 @@ it("maps workspace keyboard shortcuts to app actions", () => {
   expect(keyboardShortcutAction({ ...command, key: "d" })).toBe("toggle-diff");
   expect(keyboardShortcutAction({ ...command, key: "U", shiftKey: true })).toBe(
     "open-latest-unread",
+  );
+  expect(keyboardShortcutAction({ ...command, key: "J", shiftKey: true })).toBe(
+    "open-next-review",
+  );
+  expect(keyboardShortcutAction({ ...command, key: "K", shiftKey: true })).toBe(
+    "open-previous-review",
   );
   expect(keyboardShortcutAction({ ...command, key: "w" })).toBe(
     "close-active-tab",
@@ -1110,6 +1123,118 @@ it("selects the latest unread review file while skipping deletions", () => {
   );
   expect(latestUnreadReviewPath(changes, ["b.md"])).toBeNull();
 });
+
+it("builds an agent-aware queue from changes and authoritative open threads", () => {
+  const comments = [
+    {
+      ...makeReviewComment("open-1", "docs/agent.md", "open"),
+      threadId: "thread-open",
+    },
+    {
+      ...makeReviewComment("reply-1", "docs/agent.md", "open"),
+      threadId: "thread-open",
+      updatedAt: "2026-06-20T00:01:00.000Z",
+    },
+    {
+      ...makeReviewComment("resolved-1", "docs/history.md", "resolved"),
+      threadId: "thread-resolved",
+    },
+    {
+      ...makeReviewComment("archived-1", "docs/archive.md", "archived"),
+      threadId: "thread-archived",
+    },
+  ];
+  const items = buildReviewQueueItems(
+    [{ path: "src/app.ts", status: "modified", source: "git" }],
+    comments,
+    {
+      "thread-open": {
+        inline: ["Codex replied 1m ago"],
+        timeline: [
+          {
+            id: "activity-1",
+            threadId: "thread-open",
+            type: "comment_added",
+            actor: { id: "codex:1", kind: "codex" },
+            createdAt: "2026-06-20T00:02:00.000Z",
+          },
+        ],
+      },
+    },
+    new Set(["src/app.ts"]),
+  );
+
+  expect(items.map((item) => item.path)).toEqual([
+    "docs/agent.md",
+    "src/app.ts",
+  ]);
+  expect(items[0]).toMatchObject({
+    change: null,
+    threadCounts: { open: 1, resolved: 0, archived: 0 },
+    commentCount: 2,
+    unread: false,
+  });
+  expect(items[0]?.latestActivity?.type).toBe("comment_added");
+  expect(summarizeReviewQueue(items)).toEqual({
+    total: 2,
+    seen: 1,
+    unread: 1,
+    openThreads: 1,
+    filesWithOpenThreads: 1,
+  });
+});
+
+it("navigates the prioritized work queue and keeps read receipts low-noise", () => {
+  const items = buildReviewQueueItems(
+    [
+      { path: "deleted.md", status: "deleted", source: "git" },
+      { path: "src/app.ts", status: "modified", source: "git" },
+    ],
+    [makeReviewComment("open-1", "README.md", "open")],
+    {},
+    new Set(["README.md", "src/app.ts"]),
+  );
+  expect(nextReviewQueueItemPath(items, null, "next")).toBe("README.md");
+  expect(nextReviewQueueItemPath(items, "README.md", "next")).toBe(
+    "src/app.ts",
+  );
+  expect(latestUnreadReviewItemPath(items)).toBe("README.md");
+  expect(
+    activityNeedsHumanAttention({
+      id: "read-1",
+      threadId: "thread-1",
+      type: "thread_read",
+      actor: { id: "codex:1", kind: "codex" },
+      createdAt: "2026-06-20T00:00:00.000Z",
+    }),
+  ).toBe(false);
+  expect(
+    activityNeedsHumanAttention({
+      id: "reply-1",
+      threadId: "thread-1",
+      type: "comment_added",
+      actor: { id: "codex:1", kind: "codex" },
+      createdAt: "2026-06-20T00:01:00.000Z",
+    }),
+  ).toBe(true);
+});
+
+function makeReviewComment(
+  id: string,
+  path: string,
+  status: "open" | "resolved" | "archived",
+) {
+  return {
+    id,
+    path,
+    viewerKind: "text" as const,
+    anchor: { surface: "source" as const, canonical: { path } },
+    body: "Review note",
+    status,
+    createdAt: "2026-06-20T00:00:00.000Z",
+    updatedAt: "2026-06-20T00:00:00.000Z",
+  };
+}
 
 it("parses unified diff lines for review rendering", () => {
   const parsed = parseUnifiedDiff(

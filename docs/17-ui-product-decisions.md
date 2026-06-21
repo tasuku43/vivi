@@ -90,6 +90,10 @@ The right inspector is primarily a review navigation surface. It should answer w
 Requirements:
 
 - The top section should be Review Queue: a deduplicated file list, primarily from Git working-tree changes against `HEAD` when Git is available.
+- The Review Queue is a file-level work queue: it is the union of Git changes and files with authoritative `open` comment threads. Files with only `resolved` or `archived` threads stay out of the queue and remain available from the corresponding Comments history filters.
+- Each row should keep change kind and diff size visible while adding only the open-thread count, message count, latest attributed activity, and an unseen marker. Agent reads are visible activity but do not create unseen work; new threads, replies, and status changes do.
+- Queue ordering should put files with open threads first, then unseen work and recent activity. The summary progress is explicitly files "seen", not a claim that review is complete.
+- Activity is observation history. The UI must refresh authoritative comments after agent replies or status changes and must never infer a thread lifecycle status from an activity event.
 - Watcher events may feed the queue when Git status is unavailable, but they should be collapsed by file path instead of shown as raw event history.
 - Markdown and HTML documents should expose an H1/H2 outline under "In this file" below the Review Queue.
 - The active heading should be highlightable later as the user scrolls.
@@ -115,6 +119,7 @@ Shortcuts:
 - Cmd/Ctrl + Shift + F opens full-text search across text-previewable files.
 - Cmd/Ctrl + W closes the active vivi tab when one is open.
 - Cmd/Ctrl + / opens a bundled keyboard shortcut reference.
+- Cmd/Ctrl + Shift + J/K moves to the next/previous Review Queue item, and Cmd/Ctrl + Shift + U opens the next unseen item.
 - Cmd/Ctrl + O is avoided because it conflicts with browser and operating-system file-open expectations.
 
 The palette should close on Escape, open selected files with Enter, and preserve the current workspace state.

@@ -3081,9 +3081,33 @@ kbd {
 .review-queue {
   display: grid;
   gap: 5px;
-  max-height: min(340px, 42vh);
+  max-height: min(430px, 48vh);
   overflow: auto;
   padding-right: 2px;
+}
+.review-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 54px;
+  align-items: center;
+  gap: 8px;
+  margin: -2px 0 8px;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+.review-progress strong {
+  color: var(--text);
+}
+.review-progress-track {
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--panel-2);
+}
+.review-progress-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
 }
 .change-open {
   border: 1px solid var(--line);
@@ -3104,6 +3128,9 @@ kbd {
 .change-open:hover:not(:disabled) {
   border-color: var(--accent-line);
   background: var(--accent-soft);
+}
+.change-open.has-open-threads {
+  border-left-color: var(--comment-line);
 }
 .unread-dot {
   width: 7px;
@@ -3146,9 +3173,14 @@ kbd {
 }
 .change-status.added,
 .change-status.modified,
-.change-status.renamed {
+.change-status.renamed,
+.change-status.comment {
   border-color: var(--accent-line);
   color: var(--accent);
+}
+.change-status.comment {
+  border-color: var(--comment-line);
+  color: var(--comment-text);
 }
 .change-status.deleted {
   border-color: color-mix(in srgb, var(--error) 40%, transparent);
@@ -3178,6 +3210,19 @@ kbd {
   display: inline-block;
   margin-left: 6px;
   color: var(--muted);
+}
+.review-thread-summary {
+  color: var(--comment-text) !important;
+}
+.change-activity {
+  padding-left: 8px;
+  border-left: 1px solid var(--soft-line);
+}
+.review-next {
+  align-self: center;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
 }
 .change-open:disabled {
   cursor: default;

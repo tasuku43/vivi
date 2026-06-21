@@ -26,6 +26,9 @@ A build is acceptable when a user can:
 18. Toggle read-only diff-from-`HEAD` independently from rendered/source mode, including with Cmd/Ctrl + D.
 19. See source/code diffs as inline highlighted line rows, and rendered Markdown/HTML diffs as rendered visual panes.
 20. Keep image, text/log, and structured file previews readable without implying editing.
+21. See Git changes and files with open human/agent threads in one prioritized Review Queue, with compact thread/message counts, latest attributed activity, and seen/unseen progress.
+22. Move through the Review Queue with Cmd/Ctrl + Shift + J/K and jump to unseen work with Cmd/Ctrl + Shift + U.
+23. Keep resolved and archived threads in their Comments history filters rather than promoting them into the active Review Queue.
 
 ## Evaluation function
 
@@ -53,6 +56,7 @@ Add or update tests for:
 - HTML preview route preserving sandbox defaults.
 - code viewer line numbers, line selection, copy-reference formatting, and code inspector metadata.
 - Review Queue rendering, HEAD-change lifecycle, watcher-event deduplication, and SSE event transport.
+- agent-aware Review Queue derivation, lifecycle-safe activity display, seen/unseen priority, and next/previous keyboard navigation.
 - JSON/structured formatting and text wrap behavior where feasible.
 - diff-from-`HEAD` toggle rendering inside the open file surface, including inline source/code diffs, rendered Markdown/HTML diffs, and shortcut behavior.
 

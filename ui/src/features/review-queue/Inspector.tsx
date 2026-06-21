@@ -5,19 +5,24 @@ import { activityLabel } from "../../state/comment-activity.js";
 import { buildCodeMetadata, type LineRange } from "../../state/code-viewer.js";
 import {
   changeStatusLabel,
-  isReviewChangeOpenable,
   reviewQueueSourceLabel,
   type DiffStat,
   type ReviewChangeItem,
 } from "../../state/git-review.js";
 import { iconForPath } from "../../state/file-icons.js";
 import type { OutlineHeading } from "../../state/outline.js";
+import {
+  isReviewQueueItemOpenable,
+  summarizeReviewQueue,
+  type ReviewQueueItem,
+} from "../../state/review-queue.js";
 
 interface Props {
   file: FilePayload | null;
   fileRemoved?: boolean;
   outline: OutlineHeading[];
   reviewChanges: ReviewChangeItem[];
+  reviewItems?: ReviewQueueItem[];
   reviewUnavailableReason?: string | null;
   reviewDiffStats: Record<string, DiffStat | null>;
   loadingReviewDiffs: Record<string, boolean>;
@@ -25,7 +30,6 @@ interface Props {
   comments?: ViviComment[];
   commentsLoading?: boolean;
   threadActivities?: Record<string, CommentActivitySummary>;
-  pathActivities?: Record<string, CommentActivitySummary[]>;
   selectedCodeRange: LineRange | null;
   refreshedAt?: number;
   activePaneId: string;
@@ -46,6 +50,7 @@ export function Inspector({
   fileRemoved = false,
   outline,
   reviewChanges,
+  reviewItems,
   reviewUnavailableReason = null,
   reviewDiffStats,
   loadingReviewDiffs,
@@ -53,7 +58,6 @@ export function Inspector({
   comments = [],
   commentsLoading = false,
   threadActivities = {},
-  pathActivities = {},
   selectedCodeRange,
   refreshedAt,
   activePaneId,
@@ -76,6 +80,16 @@ export function Inspector({
   const activeChange = file
     ? reviewChanges.find((change) => change.path === file.path)
     : null;
+  const queueItems: ReviewQueueItem[] =
+    reviewItems ??
+    reviewChanges.map((change) => ({
+      path: change.path,
+      change,
+      threadCounts: { open: 0, resolved: 0, archived: 0 },
+      commentCount: 0,
+      unread: unreadReviewPaths.has(change.path),
+    }));
+  const queueProgress = summarizeReviewQueue(queueItems);
   return (
     <aside className="inspector">
       <div className="panel-title">
@@ -85,84 +99,138 @@ export function Inspector({
       <div className="inspect-body">
         <div className="section-title with-action primary-section">
           <span>Review Queue</span>
-          {reviewChanges.length ? (
+          {queueItems.length ? (
             <span className="queue-actions">
-              <button type="button" onClick={onOpenPreviousChanged}>
-                Open previous
+              <button
+                aria-keyshortcuts="Meta+Shift+K Control+Shift+K"
+                title="Previous review item (Cmd/Ctrl+Shift+K)"
+                type="button"
+                onClick={onOpenPreviousChanged}
+              >
+                Previous
               </button>
-              <button type="button" onClick={onOpenNextChanged}>
-                Open next
+              <button
+                aria-keyshortcuts="Meta+Shift+J Control+Shift+J"
+                title="Next review item (Cmd/Ctrl+Shift+J)"
+                type="button"
+                onClick={onOpenNextChanged}
+              >
+                Next
               </button>
             </span>
           ) : null}
         </div>
-        {reviewChanges.length ? (
+        {queueItems.length ? (
+          <div className="review-progress" aria-label="Review queue progress">
+            <span>
+              <strong>{queueProgress.total}</strong> files
+              {queueProgress.unread
+                ? ` · ${queueProgress.unread} unseen`
+                : " · all seen"}
+              {queueProgress.openThreads
+                ? ` · ${queueProgress.openThreads} open ${queueProgress.openThreads === 1 ? "thread" : "threads"}`
+                : ""}
+            </span>
+            <span
+              className="review-progress-track"
+              role="progressbar"
+              aria-label={`${queueProgress.seen} of ${queueProgress.total} review files seen`}
+              aria-valuemin={0}
+              aria-valuemax={queueProgress.total}
+              aria-valuenow={queueProgress.seen}
+            >
+              <span
+                style={{
+                  width: `${queueProgress.total ? (queueProgress.seen / queueProgress.total) * 100 : 0}%`,
+                }}
+              />
+            </span>
+          </div>
+        ) : null}
+        {queueItems.length ? (
           <div className="review-queue">
-            {reviewChanges.slice(0, 12).map((change) => {
-              const activity = pathActivities[change.path]?.[0];
+            {queueItems.map((item) => {
+              const { change } = item;
+              const statusLabel = change
+                ? changeStatusLabel(change.status, change.kind)
+                : "comment";
               return (
                 <button
-                  className="change-open"
-                  disabled={!isReviewChangeOpenable(change)}
-                  aria-label={`${changeStatusLabel(change.status, change.kind)} ${change.path} from ${reviewQueueSourceLabel(change.source)}`}
-                  key={`${change.source}:${change.path}`}
-                  onClick={() => onOpenEventPath(change.path)}
-                  onDoubleClick={() => onConfirmEventPath(change.path)}
+                  className={`change-open${item.threadCounts.open ? " has-open-threads" : ""}`}
+                  disabled={!isReviewQueueItemOpenable(item)}
+                  aria-label={`${statusLabel} ${item.path}${item.threadCounts.open ? `, ${item.threadCounts.open} open threads` : ""}${change ? ` from ${reviewQueueSourceLabel(change.source)}` : ""}`}
+                  key={`${change?.source ?? "thread"}:${item.path}`}
+                  onClick={() => onOpenEventPath(item.path)}
+                  onDoubleClick={() => onConfirmEventPath(item.path)}
                   title="Double-click to keep open as a tab"
                   type="button"
                 >
                   <span
-                    className={
-                      unreadReviewPaths.has(change.path)
-                        ? "unread-dot"
-                        : "unread-dot read"
-                    }
+                    className={item.unread ? "unread-dot" : "unread-dot read"}
                     aria-hidden="true"
                   />
                   <span className="file-icon change-icon">
-                    {iconForPath(change.path)}
+                    {iconForPath(item.path)}
                   </span>
                   <span className="change-main">
                     <span className="change-heading">
                       <span
-                        className={`change-status ${change.kind ?? change.status}`}
+                        className={`change-status ${change ? (change.kind ?? change.status) : "comment"}`}
                       >
-                        {changeStatusLabel(change.status, change.kind)}
+                        {statusLabel}
                       </span>
-                      <b>{basenameForPath(change.path)}</b>
+                      <b>{basenameForPath(item.path)}</b>
                     </span>
                     <small>
-                      {reviewPathLabel(change)}
-                      <span className="change-source">
-                        {reviewQueueSourceLabel(change.source)}
-                      </span>
+                      {change ? reviewPathLabel(change) : item.path}
+                      {change ? (
+                        <span className="change-source">
+                          {reviewQueueSourceLabel(change.source)}
+                        </span>
+                      ) : null}
                     </small>
-                    {activity?.inline[0] ? (
+                    {item.threadCounts.open || item.commentCount ? (
+                      <small className="review-thread-summary">
+                        {item.threadCounts.open
+                          ? `${item.threadCounts.open} open ${item.threadCounts.open === 1 ? "thread" : "threads"}`
+                          : "No open threads"}
+                        {item.commentCount
+                          ? ` · ${item.commentCount} ${item.commentCount === 1 ? "message" : "messages"}`
+                          : ""}
+                      </small>
+                    ) : null}
+                    {item.latestActivity ? (
                       <small className="change-activity">
-                        {activity.inline[0]}
+                        {activityLabel(item.latestActivity)}
                       </small>
                     ) : null}
                   </span>
-                  <DiffStatBadge
-                    loading={Boolean(loadingReviewDiffs[change.path])}
-                    stat={reviewDiffStats[change.path] ?? null}
-                  />
+                  {change ? (
+                    <DiffStatBadge
+                      loading={Boolean(loadingReviewDiffs[item.path])}
+                      stat={reviewDiffStats[item.path] ?? null}
+                    />
+                  ) : (
+                    <span className="review-next" aria-hidden="true">
+                      ›
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
         ) : null}
-        {reviewChanges.length && reviewUnavailableReason ? (
+        {queueItems.length && reviewUnavailableReason ? (
           <p className="muted compact-empty">
             Git review warning: {reviewUnavailableReason}
           </p>
         ) : null}
-        {!reviewChanges.length && reviewUnavailableReason ? (
+        {!queueItems.length && reviewUnavailableReason ? (
           <p className="muted compact-empty">
             Git review unavailable: {reviewUnavailableReason}
           </p>
         ) : null}
-        {!reviewChanges.length && !reviewUnavailableReason ? (
+        {!queueItems.length && !reviewUnavailableReason ? (
           <p className="muted compact-empty">No files to review.</p>
         ) : null}
 

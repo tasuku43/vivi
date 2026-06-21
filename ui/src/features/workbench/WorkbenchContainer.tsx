@@ -77,11 +77,15 @@ import {
 import {
   buildDiffStat,
   isReviewChangeOpenable,
-  latestUnreadReviewPath,
   mergeReviewChanges,
-  nextReviewQueuePath,
   type GitChangeReviewState,
 } from "../../state/git-review.js";
+import {
+  activityNeedsHumanAttention,
+  buildReviewQueueItems,
+  latestUnreadReviewItemPath,
+  nextReviewQueueItemPath,
+} from "../../state/review-queue.js";
 import {
   shouldLoadInitialGitReview,
   shouldPollGitReview,
@@ -431,24 +435,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       ) as Record<string, CommentActivitySummary>,
     [commentActivity.byThreadId],
   );
-  const commentActivitiesByPath = useMemo(() => {
-    const byPath: Record<string, CommentActivitySummary[]> = {};
-    const seenThreadIds = new Set<string>();
-    for (const comment of comments) {
-      const threadId = comment.threadId ?? comment.id;
-      if (seenThreadIds.has(threadId)) continue;
-      seenThreadIds.add(threadId);
-      const activity = commentActivitySummaries[threadId];
-      if (!activity?.timeline.length) continue;
-      byPath[comment.path] = [...(byPath[comment.path] ?? []), activity];
-    }
-    for (const path of Object.keys(byPath)) {
-      byPath[path].sort((a, b) =>
-        b.timeline[0]!.createdAt.localeCompare(a.timeline[0]!.createdAt),
-      );
-    }
-    return byPath;
-  }, [commentActivitySummaries, comments]);
   const activeComment = activeCommentId
     ? (comments.find((comment) => comment.id === activeCommentId) ?? null)
     : null;
@@ -505,6 +491,16 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     () => new Set(unreadReviewPaths),
     [unreadReviewPaths],
   );
+  const reviewItems = useMemo(
+    () =>
+      buildReviewQueueItems(
+        reviewChanges,
+        comments,
+        commentActivitySummaries,
+        unreadReviewPathSet,
+      ),
+    [commentActivitySummaries, comments, reviewChanges, unreadReviewPathSet],
+  );
   const changedPathSet = useMemo(
     () => new Set(reviewChanges.map((change) => change.path)),
     [reviewChanges],
@@ -517,14 +513,14 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         commentsPanelOpen,
         commentsPanelQuery,
         commentsPanelStatus,
-        reviewPaths: reviewChanges.slice(0, 12).map((change) => change.path),
+        reviewPaths: reviewItems.slice(0, 24).map((item) => item.path),
       }),
     [
       comments,
       commentsPanelOpen,
       commentsPanelQuery,
       commentsPanelStatus,
-      reviewChanges,
+      reviewItems,
       selectedPath,
     ],
   );
@@ -776,7 +772,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }
 
   function openReviewQueueFile(direction: "next" | "previous") {
-    const path = nextReviewQueuePath(reviewChanges, selectedPath, direction);
+    const path = nextReviewQueueItemPath(reviewItems, selectedPath, direction);
     if (path)
       void loadFile(path, layout.activePaneId, "preview").catch((err) =>
         setError(String(err)),
@@ -784,7 +780,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }
 
   function openLatestUnreadReviewFile() {
-    const path = latestUnreadReviewPath(reviewChanges, unreadReviewPaths);
+    const path = latestUnreadReviewItemPath(reviewItems);
     if (path)
       void loadFile(path, layout.activePaneId, "preview").catch((err) =>
         setError(String(err)),
@@ -954,8 +950,16 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     if (!client.subscribeCommentThreadActivities) return undefined;
     return client.subscribeCommentThreadActivities(undefined, (event) => {
       setCommentActivity((state) => addCommentActivity(state, event));
+      const path = comments.find(
+        (comment) => (comment.threadId ?? comment.id) === event.threadId,
+      )?.path;
+      if (path && activityNeedsHumanAttention(event))
+        markReviewPathUnread(path);
+      if (activityNeedsHumanAttention(event)) {
+        void loadComments(null).catch((err) => setError(String(err)));
+      }
     });
-  }, []);
+  }, [comments]);
 
   useEffect(() => {
     if (
@@ -1115,9 +1119,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }, [paletteMode, paletteOpen, paletteQuery]);
 
   useEffect(() => {
-    const currentPaths = new Set(reviewChanges.map((change) => change.path));
-    const newPaths = reviewChanges
-      .map((change) => change.path)
+    const currentPaths = new Set(reviewItems.map((item) => item.path));
+    const newPaths = reviewItems
+      .map((item) => item.path)
       .filter((path) => !knownReviewPaths.current.has(path));
 
     for (const path of [...knownReviewPaths.current]) {
@@ -1131,7 +1135,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         (path) => currentPaths.has(path) && !newPaths.includes(path),
       ),
     ]);
-  }, [reviewChanges]);
+  }, [reviewItems]);
 
   useEffect(() => {
     for (const change of reviewChanges.slice(0, 12)) {
@@ -1413,6 +1417,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               fileRemoved={activeFileRemoved}
               outline={outline}
               reviewChanges={reviewChanges}
+              reviewItems={reviewItems}
               reviewUnavailableReason={gitReview?.reason ?? null}
               reviewDiffStats={reviewDiffStats}
               loadingReviewDiffs={loadingDiffs}
@@ -1420,7 +1425,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               comments={activeFileComments}
               commentsLoading={commentsLoading}
               threadActivities={commentActivitySummaries}
-              pathActivities={commentActivitiesByPath}
               onOpenComments={() => {
                 setCommentsPanelStatus("all");
                 setCommentsPanelQuery(file?.path ?? "");
