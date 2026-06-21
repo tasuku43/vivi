@@ -6,6 +6,7 @@ import type { FilePayload } from "../../../domain/fs-node.js";
 import type { CommentActivitySummary } from "../../../state/comment-activity.js";
 import { CsvViewer, isDelimitedPath } from "../viewers/CsvViewer.js";
 import { DiffViewer } from "../viewers/DiffViewer.js";
+import { BinaryMetadataViewer } from "../viewers/BinaryMetadataViewer.js";
 import { LargeTextPreview } from "../viewers/LargeTextPreview.js";
 import type { LineRange } from "../../../state/code-viewer.js";
 import type {
@@ -50,7 +51,6 @@ const TextViewer = lazy(() =>
     default: module.TextViewer,
   })),
 );
-
 export function FileViewer({
   file,
   removed = false,
@@ -125,13 +125,20 @@ export function FileViewer({
     if (file.encoding === "utf8" && file.content)
       return <LargeTextPreview file={file} />;
     return (
-      <div className="unsupported">
-        <h2>{file.path}</h2>
-        <p>
-          This file is {formatBytes(file.size)}, which is larger than the{" "}
-          {formatBytes(file.maxSizeBytes ?? 0)} preview limit.
-        </p>
-      </div>
+      <BinaryMetadataViewer
+        file={file}
+        theme={theme}
+        diff={diff}
+        diffLoading={diffLoading}
+        diffEnabled={diffEnabled}
+        diffFocusChanges={diffFocusChanges}
+        onDiffToggle={onDiffToggle}
+        onDiffFocusChange={onDiffFocusChange}
+        onCreateComment={onCreateComment}
+        comments={comments}
+        activeCommentId={activeCommentId}
+        onOpenComment={onOpenComment}
+      />
     );
   }
 
@@ -281,6 +288,23 @@ export function FileViewer({
         />
       </LazyViewerFallback>
     );
+  if (file.viewerKind === "binary")
+    return (
+      <BinaryMetadataViewer
+        file={file}
+        theme={theme}
+        diff={diff}
+        diffLoading={diffLoading}
+        diffEnabled={diffEnabled}
+        diffFocusChanges={diffFocusChanges}
+        onDiffToggle={onDiffToggle}
+        onDiffFocusChange={onDiffFocusChange}
+        onCreateComment={onCreateComment}
+        comments={comments}
+        activeCommentId={activeCommentId}
+        onOpenComment={onOpenComment}
+      />
+    );
   if (file.viewerKind === "text")
     return (
       <LazyViewerFallback path={file.path}>
@@ -359,10 +383,4 @@ function LazyViewerFallback({
       {children}
     </Suspense>
   );
-}
-
-function formatBytes(size: number): string {
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }

@@ -195,11 +195,97 @@ export const sampleQueueFile = filePayload(
   ].join("\n"),
 );
 
+export const sampleJsonFile = filePayload(
+  "reports/summary.json",
+  "json",
+  JSON.stringify(
+    {
+      status: "ok",
+      generatedBy: "agent",
+      checks: ["format", "typecheck", "unit"],
+    },
+    null,
+    2,
+  ),
+);
+
+export const sampleCsvFile = filePayload(
+  "reports/results.csv",
+  "text",
+  ["name,status,durationMs", "format,pass,320", "typecheck,pass,1180"].join(
+    "\n",
+  ),
+);
+
+export const sampleMermaidFile = filePayload(
+  "docs/review-flow.mmd",
+  "mermaid",
+  ["flowchart LR", "  Agent --> Vivi", "  Vivi --> Reviewer"].join("\n"),
+);
+
+export const sampleUnknownTextFile = filePayload(
+  "agent-output",
+  "text",
+  ["status=ok", "next=human-review", "fallback=generic-text"].join("\n"),
+);
+
+export const sampleLargeTextFile: FilePayload = {
+  ...filePayload(
+    "logs/agent-run.log",
+    "text",
+    ["[start] agent run", "[info] writing generated files"].join("\n"),
+  ),
+  size: 2_400_000,
+  truncated: true,
+  maxSizeBytes: 1_048_576,
+  previewBytes: 46,
+};
+
+export const sampleBinaryFile: FilePayload = {
+  path: "agent-cache",
+  viewerKind: "binary",
+  encoding: "none",
+  content: "",
+  etag: "sha256:binary-story",
+  size: 4096,
+  mtimeMs: new Date("2026-06-20T09:00:00.000Z").getTime(),
+  mimeType: "application/octet-stream",
+};
+
+export const sampleLargeBinaryFile: FilePayload = {
+  ...sampleBinaryFile,
+  path: "dist/archive.zip",
+  etag: "mtime:story:size:4200000",
+  size: 4_200_000,
+  truncated: true,
+  maxSizeBytes: 1_048_576,
+};
+
+export const sampleImageFile: FilePayload = {
+  path: "assets/vivi-badge.svg",
+  viewerKind: "image",
+  encoding: "base64",
+  content:
+    "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iOTAiIHZpZXdCb3g9IjAgMCAxNjAgOTAiPjxyZWN0IHdpZHRoPSIxNjAiIGhlaWdodD0iOTAiIGZpbGw9IiNmOGZhZmMiLz48cmVjdCB4PSIxOCIgeT0iMTgiIHdpZHRoPSIxMjQiIGhlaWdodD0iNTQiIHJ4PSI4IiBmaWxsPSIjMGYxNzJhIi8+PHRleHQgeD0iODAiIHk9IjUyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjIwIiBmaWxsPSIjZmZmIj52aXZpPC90ZXh0Pjwvc3ZnPg==",
+  etag: "sha256:image-story",
+  size: 358,
+  mtimeMs: new Date("2026-06-20T09:00:00.000Z").getTime(),
+  mimeType: "image/svg+xml",
+};
+
 export const sampleFiles = {
   code: sampleCodeFile,
   markdown: sampleMarkdownFile,
   html: sampleHtmlFile,
   queue: sampleQueueFile,
+  json: sampleJsonFile,
+  csv: sampleCsvFile,
+  mermaid: sampleMermaidFile,
+  unknownText: sampleUnknownTextFile,
+  largeText: sampleLargeTextFile,
+  binary: sampleBinaryFile,
+  largeBinary: sampleLargeBinaryFile,
+  image: sampleImageFile,
 };
 
 export const sampleDiff: TextDiff = {

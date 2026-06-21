@@ -13,6 +13,8 @@ type ViewerKind =
   | "text"
   | "image"
   | "json"
+  | "mermaid"
+  | "binary"
   | "unsupported";
 
 interface FsNode {

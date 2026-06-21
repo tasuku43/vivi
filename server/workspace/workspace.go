@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 type Node struct {
@@ -223,34 +224,47 @@ func (fsys *FS) ReadFile(relativePath string) (FilePayload, error) {
 	viewerKind := ClassifyViewer(resolved.relative)
 	mimeType := mimeTypeFor(resolved.relative, viewerKind)
 	if info.Size() > fsys.maxFileSizeBytes {
-		if supportsPartialTextPreview(viewerKind) {
-			content, err := readLeadingBytes(resolved.absolute, fsys.maxFileSizeBytes)
-			if err != nil {
-				return FilePayload{}, err
-			}
+		previewLimit := fsys.maxFileSizeBytes
+		if previewLimit <= 0 {
+			previewLimit = 1
+		}
+		content, err := readLeadingBytes(resolved.absolute, previewLimit)
+		if err != nil {
+			return FilePayload{}, err
+		}
+		if viewerKind == "unsupported" {
+			viewerKind = sniffFallbackViewerKind(content, true)
+			mimeType = mimeTypeFor(resolved.relative, viewerKind)
+		}
+		if supportsPartialTextPreview(viewerKind) && isSafeUTF8Text(content, true) {
+			text, previewBytes := utf8PreviewString(content)
 			return FilePayload{
 				Path:         resolved.relative,
 				ViewerKind:   viewerKind,
 				Encoding:     "utf8",
-				Content:      string(content),
-				Etag:         mtimeEtag(info, int64(len(content))),
+				Content:      text,
+				Etag:         mtimeEtag(info, int64(previewBytes)),
 				Size:         info.Size(),
 				MtimeMs:      mtimeMs(info),
 				MimeType:     mimeType,
 				Truncated:    true,
 				MaxSizeBytes: fsys.maxFileSizeBytes,
-				PreviewBytes: int64(len(content)),
+				PreviewBytes: int64(previewBytes),
 			}, nil
+		}
+		metadataViewerKind := viewerKind
+		if viewerKind == "binary" || (supportsPartialTextPreview(viewerKind) && !isSafeUTF8Text(content, true)) {
+			metadataViewerKind = "binary"
 		}
 		return FilePayload{
 			Path:         resolved.relative,
-			ViewerKind:   viewerKind,
+			ViewerKind:   metadataViewerKind,
 			Encoding:     "none",
 			Content:      "",
 			Etag:         mtimeEtag(info, 0),
 			Size:         info.Size(),
 			MtimeMs:      mtimeMs(info),
-			MimeType:     mimeType,
+			MimeType:     mimeTypeFor(resolved.relative, metadataViewerKind),
 			Truncated:    true,
 			MaxSizeBytes: fsys.maxFileSizeBytes,
 		}, nil
@@ -259,12 +273,23 @@ func (fsys *FS) ReadFile(relativePath string) (FilePayload, error) {
 	if err != nil {
 		return FilePayload{}, err
 	}
+	if viewerKind == "unsupported" {
+		viewerKind = sniffFallbackViewerKind(content, false)
+		mimeType = mimeTypeFor(resolved.relative, viewerKind)
+	}
 	hash := sha256.Sum256(content)
 	encoding := "utf8"
 	body := string(content)
 	if viewerKind == "image" {
 		encoding = "base64"
 		body = base64.StdEncoding.EncodeToString(content)
+	} else if viewerKind == "binary" || !isSafeUTF8Text(content, false) {
+		viewerKind = "binary"
+		mimeType = mimeTypeFor(resolved.relative, viewerKind)
+		encoding = "none"
+		body = ""
+	} else {
+		body, _ = utf8PreviewString(content)
 	}
 	return FilePayload{
 		Path:       resolved.relative,
@@ -702,6 +727,8 @@ func ClassifyViewer(pathname string) string {
 		return "mermaid"
 	case inSet(ext, ".txt", ".log", ".csv", ".tsv"):
 		return "text"
+	case inSet(ext, ".pdf", ".zip", ".gz", ".tgz", ".wasm", ".sqlite", ".db", ".bin", ".exe", ".dmg", ".mp3", ".mp4", ".mov"):
+		return "binary"
 	case base == "dockerfile" || inSet(ext, ".js", ".jsx", ".ts", ".tsx", ".css", ".scss", ".go", ".rs", ".py", ".rb", ".java", ".kt", ".c", ".cpp", ".h", ".hpp", ".sh", ".zsh", ".bash", ".yml", ".yaml", ".toml", ".xml", ".sql"):
 		return "code"
 	default:
@@ -728,6 +755,8 @@ func mimeTypeFor(relativePath, viewerKind string) string {
 		return "application/json; charset=utf-8"
 	case "code", "text", "mermaid":
 		return "text/plain; charset=utf-8"
+	case "binary":
+		return "application/octet-stream"
 	}
 	ext := strings.ToLower(filepath.Ext(relativePath))
 	if mimeType := mime.TypeByExtension(ext); mimeType != "" {
@@ -759,6 +788,57 @@ func readLeadingBytes(pathname string, limit int64) ([]byte, error) {
 		return nil, err
 	}
 	return buffer[:n], nil
+}
+
+func sniffFallbackViewerKind(content []byte, allowTrailingPartial bool) string {
+	if isSafeUTF8Text(content, allowTrailingPartial) {
+		return "text"
+	}
+	return "binary"
+}
+
+func isSafeUTF8Text(content []byte, allowTrailingPartial bool) bool {
+	if len(content) == 0 {
+		return true
+	}
+	content = bytes.TrimPrefix(content, []byte{0xEF, 0xBB, 0xBF})
+	if bytes.IndexByte(content, 0) >= 0 {
+		return false
+	}
+	if !utf8.Valid(content) {
+		if !allowTrailingPartial {
+			return false
+		}
+		trimmed := content
+		for len(trimmed) > 0 && !utf8.Valid(trimmed) {
+			trimmed = trimmed[:len(trimmed)-1]
+		}
+		if len(trimmed) == 0 && len(content) > 0 {
+			return false
+		}
+		content = trimmed
+	}
+	control := 0
+	runes := 0
+	for len(content) > 0 {
+		r, size := utf8.DecodeRune(content)
+		if r == utf8.RuneError && size == 1 {
+			return false
+		}
+		runes++
+		if r < 0x20 && r != '\n' && r != '\r' && r != '\t' && r != '\f' {
+			control++
+		}
+		content = content[size:]
+	}
+	return runes == 0 || control*100/runes <= 2
+}
+
+func utf8PreviewString(content []byte) (string, int) {
+	for !utf8.Valid(content) && len(content) > 0 {
+		content = content[:len(content)-1]
+	}
+	return string(content), len(content)
 }
 
 func fileSearchScore(pathname string, terms []string) int {

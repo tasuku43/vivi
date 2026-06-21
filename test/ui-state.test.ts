@@ -1974,6 +1974,9 @@ it("models diff support by viewer kind and keeps unsupported extensions visible"
   expect(supportsDiffMode({ viewerKind: "image", encoding: "base64" })).toBe(
     true,
   );
+  expect(supportsDiffMode({ viewerKind: "binary", encoding: "none" })).toBe(
+    false,
+  );
   expect(diffSupportForFile({ viewerKind: "json", encoding: "utf8" })).toEqual({
     supported: true,
     renderKind: "source",

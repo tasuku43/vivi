@@ -503,6 +503,7 @@ export function commentViewerKindFor(
   if (viewerKind === "markdown") return "markdown";
   if (viewerKind === "html") return "html";
   if (viewerKind === "image") return "image";
+  if (viewerKind === "binary") return "binary";
   if (viewerKind === "json") return "json";
   if (viewerKind === "text" && /\.(csv|tsv)$/i.test(path)) return "csv";
   if (viewerKind === "text" && /\.(ya?ml)$/i.test(path)) return "yaml";

@@ -60,6 +60,14 @@ export async function createContractFixture(): Promise<ContractFixture> {
     ].join("\n"),
   );
   await writeFile(path.join(rootDir, "src.ts"), "export const value = 1;\n");
+  await writeFile(
+    path.join(rootDir, "agent-output"),
+    "status=ok\nnext=review\n",
+  );
+  await writeFile(
+    path.join(rootDir, "agent-cache"),
+    Buffer.from([0x00, 0x01, 0x02, 0x03]),
+  );
   await writeFile(path.join(rootDir, ".hidden.txt"), "hidden text\n");
   await writeFile(
     path.join(rootDir, "large.log"),

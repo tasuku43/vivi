@@ -49,6 +49,8 @@ it("serves the language-independent workspace API contract", async () => {
       "assets",
       "docs",
       "empty-dir",
+      "agent-cache",
+      "agent-output",
       "index.html",
       "large.log",
       "readme-link.md",
@@ -96,6 +98,23 @@ it("serves the language-independent workspace API contract", async () => {
     mimeType: "image/png",
   });
   expect(binary.content.length).toBeGreaterThan(0);
+
+  await expect(fetchJson("/api/file?path=agent-output")).resolves.toMatchObject(
+    {
+      path: "agent-output",
+      viewerKind: "text",
+      encoding: "utf8",
+      content: expect.stringContaining("next=review"),
+      mimeType: "text/plain; charset=utf-8",
+    },
+  );
+  await expect(fetchJson("/api/file?path=agent-cache")).resolves.toMatchObject({
+    path: "agent-cache",
+    viewerKind: "binary",
+    encoding: "none",
+    content: "",
+    mimeType: "application/octet-stream",
+  });
 
   const large = await fetchJson<{
     path: string;

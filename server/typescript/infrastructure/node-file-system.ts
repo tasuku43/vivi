@@ -103,55 +103,85 @@ export class NodeFileSystem implements FileSystemPort {
     const resolved = await this.resolveInsideRoot(relativePath);
     const stat = await fs.stat(resolved.absolutePath);
     if (!stat.isFile()) throw new Error("path is not a file");
-    const viewerKind = classifyViewer(resolved.relativePath);
+    let viewerKind = classifyViewer(resolved.relativePath);
     const mimeType = mimeTypeFor(resolved.relativePath, viewerKind);
 
     if (stat.size > this.maxFileSizeBytes) {
+      const bytes = await readLeadingBytes(
+        resolved.absolutePath,
+        Math.max(1, this.maxFileSizeBytes),
+      );
+      if (viewerKind === "unsupported") {
+        viewerKind = sniffFallbackViewerKind(bytes);
+      }
       if (supportsPartialTextPreview(viewerKind)) {
-        const bytes = await readLeadingBytes(
-          resolved.absolutePath,
-          this.maxFileSizeBytes,
-        );
+        const safeText = safeUtf8Text(bytes, { allowTrailingPartial: true });
+        if (!safeText.ok) {
+          return {
+            path: resolved.relativePath,
+            viewerKind: "binary",
+            encoding: "none",
+            content: "",
+            etag: `mtime:${stat.mtimeMs}:size:${stat.size}`,
+            size: stat.size,
+            mtimeMs: stat.mtimeMs,
+            mimeType: mimeTypeFor(resolved.relativePath, "binary"),
+            truncated: true,
+            maxSizeBytes: this.maxFileSizeBytes,
+          };
+        }
         return {
           path: resolved.relativePath,
           viewerKind,
           encoding: "utf8",
-          content: bytes.toString("utf8"),
-          etag: `mtime:${stat.mtimeMs}:size:${stat.size}:preview:${bytes.length}`,
+          content: safeText.text,
+          etag: `mtime:${stat.mtimeMs}:size:${stat.size}:preview:${safeText.bytes}`,
           size: stat.size,
           mtimeMs: stat.mtimeMs,
-          mimeType,
+          mimeType: mimeTypeFor(resolved.relativePath, viewerKind),
           truncated: true,
           maxSizeBytes: this.maxFileSizeBytes,
-          previewBytes: bytes.length,
+          previewBytes: safeText.bytes,
         };
       }
+      const metadataViewerKind =
+        viewerKind === "binary" ? "binary" : viewerKind;
       return {
         path: resolved.relativePath,
-        viewerKind,
+        viewerKind: metadataViewerKind,
         encoding: "none",
         content: "",
         etag: `mtime:${stat.mtimeMs}:size:${stat.size}`,
         size: stat.size,
         mtimeMs: stat.mtimeMs,
-        mimeType,
+        mimeType: mimeTypeFor(resolved.relativePath, metadataViewerKind),
         truncated: true,
         maxSizeBytes: this.maxFileSizeBytes,
       };
     }
 
     const bytes = await fs.readFile(resolved.absolutePath);
+    if (viewerKind === "unsupported") {
+      viewerKind = sniffFallbackViewerKind(bytes);
+    }
     const etag = `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
-    const binary = viewerKind === "image";
+    const binaryImage = viewerKind === "image";
+    const safeText = binaryImage ? null : safeUtf8Text(bytes);
+    const binaryPayload = viewerKind === "binary" || safeText?.ok === false;
+    if (binaryPayload) viewerKind = "binary";
     return {
       path: resolved.relativePath,
       viewerKind,
-      encoding: binary ? "base64" : "utf8",
-      content: binary ? bytes.toString("base64") : bytes.toString("utf8"),
+      encoding: binaryImage ? "base64" : binaryPayload ? "none" : "utf8",
+      content: binaryImage
+        ? bytes.toString("base64")
+        : binaryPayload
+          ? ""
+          : (safeText?.text ?? ""),
       etag,
       size: stat.size,
       mtimeMs: stat.mtimeMs,
-      mimeType,
+      mimeType: mimeTypeFor(resolved.relativePath, viewerKind),
     };
   }
 
@@ -588,6 +618,7 @@ function mimeTypeFor(
     viewerKind === "mermaid"
   )
     return "text/plain; charset=utf-8";
+  if (viewerKind === "binary") return "application/octet-stream";
   if (extension === ".png") return "image/png";
   if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
   if (extension === ".gif") return "image/gif";
@@ -618,6 +649,58 @@ function supportsPartialTextPreview(viewerKind: ViewerKind): boolean {
     viewerKind === "json" ||
     viewerKind === "mermaid"
   );
+}
+
+function sniffFallbackViewerKind(bytes: Buffer): ViewerKind {
+  return safeUtf8Text(bytes, { allowTrailingPartial: true }).ok
+    ? "text"
+    : "binary";
+}
+
+function safeUtf8Text(
+  bytes: Buffer,
+  options: { allowTrailingPartial?: boolean } = {},
+): { ok: true; text: string; bytes: number } | { ok: false } {
+  if (bytes.length === 0) return { ok: true, text: "", bytes: 0 };
+  let content = bytes;
+  if (
+    content.length >= 3 &&
+    content[0] === 0xef &&
+    content[1] === 0xbb &&
+    content[2] === 0xbf
+  ) {
+    content = content.subarray(3);
+  }
+  if (content.includes(0)) return { ok: false };
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  let validLength = content.length;
+  let text = "";
+  while (validLength >= 0) {
+    try {
+      text = decoder.decode(content.subarray(0, validLength));
+      break;
+    } catch {
+      if (!options.allowTrailingPartial) return { ok: false };
+      validLength -= 1;
+    }
+  }
+  let control = 0;
+  let total = 0;
+  for (const char of text) {
+    total += 1;
+    const code = char.charCodeAt(0);
+    if (
+      code < 0x20 &&
+      char !== "\n" &&
+      char !== "\r" &&
+      char !== "\t" &&
+      char !== "\f"
+    ) {
+      control += 1;
+    }
+  }
+  if (total > 0 && (control * 100) / total > 2) return { ok: false };
+  return { ok: true, text, bytes: validLength };
 }
 
 async function realpathOrResolve(pathname: string): Promise<string> {

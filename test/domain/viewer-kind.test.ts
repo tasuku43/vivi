@@ -9,6 +9,8 @@ it("classifies common viewer kinds", () => {
   expect(classifyViewer("notes.txt")).toBe("text");
   expect(classifyViewer("diagram.mmd")).toBe("mermaid");
   expect(classifyViewer("image.png")).toBe("image");
+  expect(classifyViewer("archive.zip")).toBe("binary");
   expect(classifyViewer("Dockerfile")).toBe("code");
   expect(classifyViewer("infra/Dockerfile")).toBe("code");
+  expect(classifyViewer("artifact.generated")).toBe("unsupported");
 });

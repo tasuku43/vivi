@@ -241,7 +241,7 @@ Returns file content and metadata for a relative path under the root.
 }
 ```
 
-Image payloads use `encoding: "base64"` and include a MIME type suitable for browser display. Files larger than the configured preview limit use `truncated: true`. Text-like large files may include a bounded leading UTF-8 `content` chunk with `previewBytes`; non-text large files use `encoding: "none"` and empty `content`.
+Image payloads use `encoding: "base64"` and include a MIME type suitable for browser display. Unknown files are sniffed from a bounded leading byte sample: safe UTF-8 text falls back to `viewerKind: "text"`, while NUL bytes, invalid UTF-8, or a high control-character ratio fall back to `viewerKind: "binary"` with `encoding: "none"` and empty `content`. Files larger than the configured preview limit use `truncated: true`. Text-like large files may include a bounded leading UTF-8 `content` chunk with `previewBytes`; HTML, image, binary, and other non-text large files use `encoding: "none"` and empty `content`.
 
 ### `GET /api/search?q=<query>&limit=<count>`
 

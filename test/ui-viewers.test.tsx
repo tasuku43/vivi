@@ -22,6 +22,7 @@ import {
   CodeViewer,
   extractHighlightedLines,
 } from "../ui/src/features/file-context/viewers/CodeViewer.js";
+import { BinaryMetadataViewer } from "../ui/src/features/file-context/viewers/BinaryMetadataViewer.js";
 import {
   CsvViewer,
   parseDelimitedText,
@@ -488,7 +489,7 @@ it("renders large text files as explicit partial previews", () => {
   expect(html).toContain("larger than the 10 B rich preview limit");
 });
 
-it("keeps non-text large files in the safe unsupported state", () => {
+it("keeps non-text large files in the safe metadata state", () => {
   const html = renderToStaticMarkup(
     <FileViewer
       file={{
@@ -508,8 +509,32 @@ it("keeps non-text large files in the safe unsupported state", () => {
     />,
   );
 
-  expect(html).toContain("larger than the");
+  expect(html).toContain("metadata only");
+  expect(html).toContain("10 B");
+  expect(html).toContain("Preview limit");
   expect(html).not.toContain("partial preview");
+});
+
+it("renders binary metadata without loading unsafe content", () => {
+  const html = renderToStaticMarkup(
+    <BinaryMetadataViewer
+      file={{
+        ...codeFile,
+        path: "agent-cache",
+        viewerKind: "binary",
+        encoding: "none",
+        content: "",
+        size: 4096,
+        mimeType: "application/octet-stream",
+      }}
+      theme="dark"
+    />,
+  );
+
+  expect(html).toContain("metadata only");
+  expect(html).toContain("application/octet-stream");
+  expect(html).toContain("Vivi did not load file contents");
+  expect(html).not.toContain("This file type is not supported yet.");
 });
 
 it("shows an explicit removed-file state instead of stale content", () => {

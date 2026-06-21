@@ -17,6 +17,15 @@ beforeEach(async () => {
     Buffer.from([0x89, 0x50, 0x4e, 0x47]),
   );
   await writeFile(path.join(dir, "large.txt"), "too large");
+  await writeFile(path.join(dir, "agent-note"), "status=ok\nnext=review\n");
+  await writeFile(
+    path.join(dir, "agent-cache"),
+    Buffer.from([0x00, 0x01, 0x02, 0x03]),
+  );
+  await writeFile(
+    path.join(dir, "archive.zip"),
+    Buffer.from([0x50, 0x4b, 0x03, 0x04]),
+  );
   await mkdir(path.join(dir, "node_modules"));
   await writeFile(path.join(dir, "node_modules", "ignored.js"), "ignored");
 });
@@ -101,6 +110,38 @@ it("returns image payloads as base64 with a mime type", async () => {
   );
 });
 
+it("sniffs unknown UTF-8 payloads into the generic text viewer", async () => {
+  const fs = new NodeFileSystem({ rootDir: dir });
+  const file = await fs.readFile("agent-note");
+  expect(file).toMatchObject({
+    path: "agent-note",
+    viewerKind: "text",
+    encoding: "utf8",
+    mimeType: "text/plain; charset=utf-8",
+  });
+  expect(file.content).toContain("next=review");
+});
+
+it("keeps unknown binary payloads as metadata without content", async () => {
+  const fs = new NodeFileSystem({ rootDir: dir });
+  const file = await fs.readFile("agent-cache");
+  expect(file).toMatchObject({
+    path: "agent-cache",
+    viewerKind: "binary",
+    encoding: "none",
+    content: "",
+    mimeType: "application/octet-stream",
+  });
+});
+
+it("classifies common binary extensions without reading them as text", async () => {
+  const fs = new NodeFileSystem({ rootDir: dir });
+  const file = await fs.readFile("archive.zip");
+  expect(file.viewerKind).toBe("binary");
+  expect(file.encoding).toBe("none");
+  expect(file.content).toBe("");
+});
+
 it("returns a bounded partial preview for large text files", async () => {
   const fs = new NodeFileSystem({ rootDir: dir, maxFileSizeBytes: 4 });
   const file = await fs.readFile("large.txt");
@@ -109,6 +150,26 @@ it("returns a bounded partial preview for large text files", async () => {
   expect(file.truncated).toBe(true);
   expect(file.maxSizeBytes).toBe(4);
   expect(file.previewBytes).toBe(4);
+});
+
+it("returns a bounded partial preview for large unknown text files", async () => {
+  const fs = new NodeFileSystem({ rootDir: dir, maxFileSizeBytes: 7 });
+  const file = await fs.readFile("agent-note");
+  expect(file.viewerKind).toBe("text");
+  expect(file.encoding).toBe("utf8");
+  expect(file.content).toBe("status=");
+  expect(file.truncated).toBe(true);
+  expect(file.previewBytes).toBe(7);
+});
+
+it("keeps large unknown binary files as metadata-only payloads", async () => {
+  const fs = new NodeFileSystem({ rootDir: dir, maxFileSizeBytes: 2 });
+  const file = await fs.readFile("agent-cache");
+  expect(file.viewerKind).toBe("binary");
+  expect(file.encoding).toBe("none");
+  expect(file.content).toBe("");
+  expect(file.truncated).toBe(true);
+  expect(file.previewBytes).toBeUndefined();
 });
 
 it("does not read large HTML files into preview content", async () => {
