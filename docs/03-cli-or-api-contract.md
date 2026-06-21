@@ -61,6 +61,9 @@ All `vivi comments` commands currently emit JSON. List-like commands return:
 
 Single-thread lifecycle commands return `{ "thread": ... }`; `reply` returns
 `{ "comment": ... }`; `show` returns `{ "thread": ..., "activities": [...] }`.
+Published review batches add `reviewBatchId` to returned threads and comments
+so agents can group work that was published together. Draft review comments are
+not returned by `active`, `list`, or `show`.
 
 ## GraphQL data API
 
@@ -85,6 +88,15 @@ treats each existing comment as its own thread. New comments receive a
 `threadId` matching their first comment id unless a caller supplies an existing
 thread id. `updateCommentThread` updates the status of every comment currently
 in that thread and returns the updated `CommentThread`.
+
+Draft review comments are a separate pre-publish resource, not a
+`CommentStatus`. `draftReviewComments(path)` lists unpublished draft comments
+for the UI. `createDraftReviewComment`, `updateDraftReviewComment`, and
+`deleteDraftReviewComment` manage that draft set. `publishDraftReviewComments`
+converts all drafts, or the supplied `draftIds`, into `open` `CommentThread`
+objects in one review batch and returns `{ reviewBatchId, publishedAt,
+threads }`. Before publish, drafts are intentionally absent from `comments`,
+`commentThreads(status: open)`, and the agent comments CLI.
 
 `commentExport` exposes the comment export data path through GraphQL. The
 current supported format is `jsonl`, returned as `CommentExport.content` with

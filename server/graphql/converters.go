@@ -27,8 +27,36 @@ func commentsFromMaps(items []map[string]any) []*model.Comment {
 
 func commentFromMap(item map[string]any) *model.Comment {
 	return &model.Comment{
+		ID:            stringValue(item["id"]),
+		ThreadID:      optionalStringValue(item["threadId"]),
+		Path:          stringValue(item["path"]),
+		ViewerKind:    stringValue(item["viewerKind"]),
+		ReviewBatchID: optionalStringValue(item["reviewBatchId"]),
+		Anchor:        mapValue(item["anchor"]),
+		DiffAnchor:    diffAnchorValue(item["anchor"]),
+		Body:          stringValue(item["body"]),
+		CreatedBy:     commentActorValue(item),
+		Author:        optionalStringValue(item["author"]),
+		Source:        commentSourceValue(item["source"]),
+		Status:        commentStatusValue(item["status"]),
+		CreatedAt:     stringValue(item["createdAt"]),
+		UpdatedAt:     stringValue(item["updatedAt"]),
+		ResolvedAt:    optionalStringValue(item["resolvedAt"]),
+		ArchivedAt:    optionalStringValue(item["archivedAt"]),
+	}
+}
+
+func draftReviewCommentsFromMaps(items []map[string]any) []*model.DraftReviewComment {
+	drafts := make([]*model.DraftReviewComment, 0, len(items))
+	for _, item := range items {
+		drafts = append(drafts, draftReviewCommentFromMap(item))
+	}
+	return drafts
+}
+
+func draftReviewCommentFromMap(item map[string]any) *model.DraftReviewComment {
+	return &model.DraftReviewComment{
 		ID:         stringValue(item["id"]),
-		ThreadID:   optionalStringValue(item["threadId"]),
 		Path:       stringValue(item["path"]),
 		ViewerKind: stringValue(item["viewerKind"]),
 		Anchor:     mapValue(item["anchor"]),
@@ -37,11 +65,8 @@ func commentFromMap(item map[string]any) *model.Comment {
 		CreatedBy:  commentActorValue(item),
 		Author:     optionalStringValue(item["author"]),
 		Source:     commentSourceValue(item["source"]),
-		Status:     commentStatusValue(item["status"]),
 		CreatedAt:  stringValue(item["createdAt"]),
 		UpdatedAt:  stringValue(item["updatedAt"]),
-		ResolvedAt: optionalStringValue(item["resolvedAt"]),
-		ArchivedAt: optionalStringValue(item["archivedAt"]),
 	}
 }
 
@@ -49,16 +74,17 @@ func commentThreadsFromDomain(items []application.CommentThread) []*model.Commen
 	threads := make([]*model.CommentThread, 0, len(items))
 	for _, item := range items {
 		threads = append(threads, &model.CommentThread{
-			ID:         item.ID,
-			Path:       item.Path,
-			Status:     commentStatusValue(item.Status),
-			Anchor:     mapValue(item.Anchor),
-			DiffAnchor: diffAnchorValue(item.Anchor),
-			UpdatedAt:  optionalStringValue(item.UpdatedAt),
-			CreatedAt:  item.CreatedAt,
-			ResolvedAt: optionalStringValue(item.ResolvedAt),
-			ArchivedAt: optionalStringValue(item.ArchivedAt),
-			Comments:   commentsFromMaps(item.Comments),
+			ID:            item.ID,
+			Path:          item.Path,
+			Status:        commentStatusValue(item.Status),
+			ReviewBatchID: optionalStringValue(item.ReviewBatchID),
+			Anchor:        mapValue(item.Anchor),
+			DiffAnchor:    diffAnchorValue(item.Anchor),
+			UpdatedAt:     optionalStringValue(item.UpdatedAt),
+			CreatedAt:     item.CreatedAt,
+			ResolvedAt:    optionalStringValue(item.ResolvedAt),
+			ArchivedAt:    optionalStringValue(item.ArchivedAt),
+			Comments:      commentsFromMaps(item.Comments),
 		})
 	}
 	return threads
@@ -138,6 +164,35 @@ func reviewSummaryFromDomain(summary gitreview.Summary) *model.ChangeReviewSumma
 	}
 }
 
+func publishedReviewBatchFromMap(item map[string]any) *model.PublishedReviewBatch {
+	return &model.PublishedReviewBatch{
+		ReviewBatchID: stringValue(item["reviewBatchId"]),
+		PublishedAt:   stringValue(item["publishedAt"]),
+		Threads:       commentThreadsFromDomain(threadsFromMaps(item["threads"])),
+	}
+}
+
+func threadsFromMaps(value any) []application.CommentThread {
+	items, _ := value.([]map[string]any)
+	threads := make([]application.CommentThread, 0, len(items))
+	for _, item := range items {
+		commentsValue, _ := item["comments"].([]map[string]any)
+		threads = append(threads, application.CommentThread{
+			ID:            stringValue(item["id"]),
+			Path:          stringValue(item["path"]),
+			Status:        stringValue(item["status"]),
+			ReviewBatchID: stringValue(item["reviewBatchId"]),
+			Anchor:        item["anchor"],
+			UpdatedAt:     stringValue(item["updatedAt"]),
+			CreatedAt:     stringValue(item["createdAt"]),
+			ResolvedAt:    stringValue(item["resolvedAt"]),
+			ArchivedAt:    stringValue(item["archivedAt"]),
+			Comments:      commentsValue,
+		})
+	}
+	return threads
+}
+
 func nodesFromDomain(nodes []workspace.Node) []*model.FsNode {
 	result := make([]*model.FsNode, 0, len(nodes))
 	for _, node := range nodes {
@@ -176,6 +231,29 @@ func commentInputMap(input model.CommentInput) map[string]any {
 	}
 	if input.Status != nil {
 		result["status"] = input.Status.String()
+	}
+	if input.Author != nil {
+		result["author"] = *input.Author
+	}
+	if input.Source != nil {
+		result["source"] = commentSourceStorageValue(*input.Source)
+	}
+	if input.Actor != nil {
+		result["actor"] = commentActorInputMap(input.Actor)
+		result["author"] = optionalStringDereference(input.Actor.DisplayName)
+		result["source"] = actorKindStorageValue(input.Actor.Kind)
+	}
+	return result
+}
+
+func draftReviewCommentInputMap(input model.DraftReviewCommentInput) map[string]any {
+	result := map[string]any{
+		"path":   input.Path,
+		"anchor": input.Anchor,
+		"body":   input.Body,
+	}
+	if input.ViewerKind != nil {
+		result["viewerKind"] = *input.ViewerKind
 	}
 	if input.Author != nil {
 		result["author"] = *input.Author

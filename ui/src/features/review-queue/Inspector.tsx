@@ -1,4 +1,4 @@
-import type { ViviComment } from "../../domain/comments.js";
+import type { DraftReviewComment, ViviComment } from "../../domain/comments.js";
 import type { FilePayload } from "../../domain/fs-node.js";
 import type { CommentActivitySummary } from "../../state/comment-activity.js";
 import { activityLabel } from "../../state/comment-activity.js";
@@ -28,6 +28,7 @@ interface Props {
   loadingReviewDiffs: Record<string, boolean>;
   unreadReviewPaths: Set<string>;
   comments?: ViviComment[];
+  draftComments?: DraftReviewComment[];
   commentsLoading?: boolean;
   threadActivities?: Record<string, CommentActivitySummary>;
   selectedCodeRange: LineRange | null;
@@ -56,6 +57,7 @@ export function Inspector({
   loadingReviewDiffs,
   unreadReviewPaths,
   comments = [],
+  draftComments = [],
   commentsLoading = false,
   threadActivities = {},
   selectedCodeRange,
@@ -90,6 +92,7 @@ export function Inspector({
       unread: unreadReviewPaths.has(change.path),
     }));
   const queueProgress = summarizeReviewQueue(queueItems);
+  const publishedBatches = publishedBatchSummary(comments);
   return (
     <aside className="inspector">
       <div className="panel-title">
@@ -264,6 +267,23 @@ export function Inspector({
               open comments
             </strong>
             <span>{comments.length} total in this file</span>
+            {draftComments.length ? (
+              <span className="draft-comment-summary">
+                {draftComments.length} draft{" "}
+                {draftComments.length === 1 ? "comment" : "comments"} not
+                visible to agents
+              </span>
+            ) : null}
+            {publishedBatches.length ? (
+              <div className="published-batch-summary">
+                {publishedBatches.map((batch) => (
+                  <span key={batch.id}>
+                    Batch {shortBatchId(batch.id)} · {batch.threadCount}{" "}
+                    {batch.threadCount === 1 ? "thread" : "threads"}
+                  </span>
+                ))}
+              </div>
+            ) : null}
             <button
               disabled={!comments.length}
               type="button"
@@ -420,6 +440,26 @@ export function Inspector({
       </div>
     </aside>
   );
+}
+
+function publishedBatchSummary(comments: ViviComment[]): Array<{
+  id: string;
+  threadCount: number;
+}> {
+  const byBatch = new Map<string, Set<string>>();
+  for (const comment of comments) {
+    if (!comment.reviewBatchId) continue;
+    const threads = byBatch.get(comment.reviewBatchId) ?? new Set<string>();
+    threads.add(comment.threadId ?? comment.id);
+    byBatch.set(comment.reviewBatchId, threads);
+  }
+  return [...byBatch.entries()]
+    .map(([id, threads]) => ({ id, threadCount: threads.size }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function shortBatchId(id: string): string {
+  return id.replace(/^review-batch-/, "").slice(0, 8);
 }
 
 function DiffStatBadge({

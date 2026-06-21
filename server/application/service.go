@@ -30,15 +30,16 @@ type Options struct {
 }
 
 type CommentThread struct {
-	ID         string           `json:"id"`
-	Path       string           `json:"path"`
-	Status     string           `json:"status"`
-	Anchor     any              `json:"anchor,omitempty"`
-	UpdatedAt  string           `json:"updatedAt,omitempty"`
-	CreatedAt  string           `json:"createdAt,omitempty"`
-	ResolvedAt string           `json:"resolvedAt,omitempty"`
-	ArchivedAt string           `json:"archivedAt,omitempty"`
-	Comments   []map[string]any `json:"comments"`
+	ID            string           `json:"id"`
+	Path          string           `json:"path"`
+	Status        string           `json:"status"`
+	ReviewBatchID string           `json:"reviewBatchId,omitempty"`
+	Anchor        any              `json:"anchor,omitempty"`
+	UpdatedAt     string           `json:"updatedAt,omitempty"`
+	CreatedAt     string           `json:"createdAt,omitempty"`
+	ResolvedAt    string           `json:"resolvedAt,omitempty"`
+	ArchivedAt    string           `json:"archivedAt,omitempty"`
+	Comments      []map[string]any `json:"comments"`
 }
 
 type WorkspaceEvent struct {
@@ -131,6 +132,33 @@ func (service *Service) CreateComment(input map[string]any) (map[string]any, err
 		service.publishLatestActivity(stringValue(comment["threadId"]), eventType)
 	}
 	return comment, err
+}
+
+func (service *Service) ListDraftReviewComments(filters comments.Filters) ([]map[string]any, error) {
+	return service.Comment.ListDrafts(filters)
+}
+
+func (service *Service) CreateDraftReviewComment(input map[string]any) (map[string]any, error) {
+	return service.Comment.CreateDraft(input)
+}
+
+func (service *Service) UpdateDraftReviewComment(id string, input map[string]any) (map[string]any, error) {
+	return service.Comment.UpdateDraft(id, input)
+}
+
+func (service *Service) DeleteDraftReviewComment(id string) (map[string]any, error) {
+	return service.Comment.DeleteDraft(id)
+}
+
+func (service *Service) PublishDraftReviewComments(ids []string, actor map[string]any) (map[string]any, error) {
+	batch, err := service.Comment.PublishDrafts(ids, actor)
+	if err != nil {
+		return nil, err
+	}
+	for _, thread := range threadsFromAny(batch["threads"]) {
+		service.publishLatestActivity(thread.ID, "thread_created")
+	}
+	return batch, nil
 }
 
 func (service *Service) CreateCommentThread(input map[string]any) (CommentThread, error) {

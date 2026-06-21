@@ -8,7 +8,11 @@ import type {
   CommentStatus,
   CommentThreadActivityEvent,
   CommentThread,
+  CreateDraftReviewCommentInput,
   CreateCommentInput,
+  DraftReviewComment,
+  PublishedReviewBatch,
+  UpdateDraftReviewCommentInput,
   ViviComment,
 } from "../../domain/comments.js";
 import type { FileContext } from "../../domain/file-context.js";
@@ -36,9 +40,20 @@ export interface ViviClient {
   getComments(input?: CommentListFilters): Promise<ViviComment[]>;
   getCommentThreads(input?: CommentListFilters): Promise<CommentThread[]>;
   exportComments(input?: CommentExportFilters): Promise<string>;
+  getDraftReviewComments(input?: { path?: string }): Promise<DraftReviewComment[]>;
   getReviewQueue(): Promise<ChangeReviewSummary>;
   getDiff(input: { path: string; base?: string }): Promise<TextDiff>;
   createComment(input: CreateCommentInput): Promise<ViviComment>;
+  createDraftReviewComment(
+    input: CreateDraftReviewCommentInput,
+  ): Promise<DraftReviewComment>;
+  updateDraftReviewComment(
+    input: UpdateDraftReviewCommentInput,
+  ): Promise<DraftReviewComment>;
+  deleteDraftReviewComment(id: string): Promise<DraftReviewComment>;
+  publishDraftReviewComments(input?: {
+    draftIds?: string[];
+  }): Promise<PublishedReviewBatch>;
   updateCommentStatus(input: {
     id: string;
     status: CommentStatus;

@@ -18,18 +18,24 @@ import {
   adaptGraphqlTextSearch,
   adaptGraphqlWorkspaceEvent,
   adaptGraphqlCommentActivity,
+  adaptGraphqlDraftReviewComment,
 } from "./adapters/graphql-adapters.js";
 import type { GraphqlResponse } from "./dto/graphql-dto.js";
 import { print } from "graphql";
 import {
   CreateCommentDocument,
+  CreateDraftReviewCommentDocument,
+  DeleteDraftReviewCommentDocument,
+  PublishDraftReviewCommentsDocument,
   UpdateCommentStatusDocument,
   UpdateCommentThreadStatusDocument,
+  UpdateDraftReviewCommentDocument,
   ViviCommentExportDocument,
   ViviCommentsDocument,
   ViviCommentThreadsDocument,
   ViviConfigDocument,
   ViviDiffDocument,
+  ViviDraftReviewCommentsDocument,
   ViviFileContextDocument,
   ViviFileSearchDocument,
   ViviReviewQueueDocument,
@@ -42,13 +48,18 @@ import {
 } from "./graphql/generated/graphql.js";
 import type {
   CreateCommentMutation,
+  CreateDraftReviewCommentMutation,
+  DeleteDraftReviewCommentMutation,
+  PublishDraftReviewCommentsMutation,
   UpdateCommentStatusMutation,
   UpdateCommentThreadStatusMutation,
+  UpdateDraftReviewCommentMutation,
   ViviCommentExportQuery,
   ViviCommentsQuery,
   ViviCommentThreadsQuery,
   ViviConfigQuery,
   ViviDiffQuery,
+  ViviDraftReviewCommentsQuery,
   ViviFileContextQuery,
   ViviFileSearchQuery,
   ViviReviewQueueQuery,
@@ -148,6 +159,15 @@ export class GraphqlViviClient implements ViviClient {
     return data.commentThreads.map(adaptGraphqlCommentThread);
   }
 
+  async getDraftReviewComments(input: { path?: string } = {}) {
+    const data = await this.graphql<ViviDraftReviewCommentsQuery>({
+      operationName: "ViviDraftReviewComments",
+      query: print(ViviDraftReviewCommentsDocument),
+      variables: input,
+    });
+    return data.draftReviewComments.map(adaptGraphqlDraftReviewComment);
+  }
+
   async exportComments(input: CommentExportFilters = {}) {
     const data = await this.graphql<ViviCommentExportQuery>({
       operationName: "ViviCommentExport",
@@ -181,6 +201,48 @@ export class GraphqlViviClient implements ViviClient {
       variables: { input },
     });
     return adaptGraphqlComment(data.createComment);
+  }
+
+  async createDraftReviewComment(input: Omit<CreateCommentInput, "threadId" | "status">) {
+    const data = await this.graphql<CreateDraftReviewCommentMutation>({
+      operationName: "CreateDraftReviewComment",
+      query: print(CreateDraftReviewCommentDocument),
+      variables: { input },
+    });
+    return adaptGraphqlDraftReviewComment(data.createDraftReviewComment);
+  }
+
+  async updateDraftReviewComment(input: { id: string; body: string }) {
+    const data = await this.graphql<UpdateDraftReviewCommentMutation>({
+      operationName: "UpdateDraftReviewComment",
+      query: print(UpdateDraftReviewCommentDocument),
+      variables: { id: input.id, input: { body: input.body } },
+    });
+    return adaptGraphqlDraftReviewComment(data.updateDraftReviewComment);
+  }
+
+  async deleteDraftReviewComment(id: string) {
+    const data = await this.graphql<DeleteDraftReviewCommentMutation>({
+      operationName: "DeleteDraftReviewComment",
+      query: print(DeleteDraftReviewCommentDocument),
+      variables: { id },
+    });
+    return adaptGraphqlDraftReviewComment(data.deleteDraftReviewComment);
+  }
+
+  async publishDraftReviewComments(input: { draftIds?: string[] } = {}) {
+    const data = await this.graphql<PublishDraftReviewCommentsMutation>({
+      operationName: "PublishDraftReviewComments",
+      query: print(PublishDraftReviewCommentsDocument),
+      variables: { input },
+    });
+    return {
+      reviewBatchId: data.publishDraftReviewComments.reviewBatchId,
+      publishedAt: data.publishDraftReviewComments.publishedAt,
+      threads: data.publishDraftReviewComments.threads.map(
+        adaptGraphqlCommentThread,
+      ),
+    };
   }
 
   async updateCommentStatus(input: { id: string; status: CommentStatus }) {

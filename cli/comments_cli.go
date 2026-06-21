@@ -192,6 +192,7 @@ func commentsList(ctx context.Context, stdout io.Writer, options commentsCommand
 				id
 				path
 				status
+				reviewBatchId
 				anchor
 				createdAt
 				updatedAt
@@ -202,6 +203,7 @@ func commentsList(ctx context.Context, stdout io.Writer, options commentsCommand
 					threadId
 					path
 					viewerKind
+					reviewBatchId
 					anchor
 					body
 					createdAt
@@ -233,6 +235,7 @@ func commentsShow(ctx context.Context, stdout io.Writer, options commentsCommand
 				id
 				path
 				status
+				reviewBatchId
 				anchor
 				createdAt
 				updatedAt
@@ -243,6 +246,7 @@ func commentsShow(ctx context.Context, stdout io.Writer, options commentsCommand
 					threadId
 					path
 					viewerKind
+					reviewBatchId
 					anchor
 					body
 					createdAt
@@ -332,6 +336,7 @@ func commentsLifecycle(ctx context.Context, stdout io.Writer, options commentsCo
 			id
 			path
 			status
+			reviewBatchId
 			anchor
 			createdAt
 			updatedAt
@@ -342,6 +347,7 @@ func commentsLifecycle(ctx context.Context, stdout io.Writer, options commentsCo
 				threadId
 				path
 				viewerKind
+				reviewBatchId
 				anchor
 				body
 				createdAt
@@ -504,30 +510,32 @@ func commentsHelpText() string {
 }
 
 type commentThreadOutput struct {
-	ID         string          `json:"id"`
-	Path       string          `json:"path"`
-	Status     string          `json:"status"`
-	Anchor     json.RawMessage `json:"anchor,omitempty"`
-	CreatedAt  string          `json:"createdAt"`
-	UpdatedAt  string          `json:"updatedAt,omitempty"`
-	ResolvedAt string          `json:"resolvedAt,omitempty"`
-	ArchivedAt string          `json:"archivedAt,omitempty"`
-	Comments   []commentOutput `json:"comments"`
+	ID            string          `json:"id"`
+	Path          string          `json:"path"`
+	Status        string          `json:"status"`
+	ReviewBatchID string          `json:"reviewBatchId,omitempty"`
+	Anchor        json.RawMessage `json:"anchor,omitempty"`
+	CreatedAt     string          `json:"createdAt"`
+	UpdatedAt     string          `json:"updatedAt,omitempty"`
+	ResolvedAt    string          `json:"resolvedAt,omitempty"`
+	ArchivedAt    string          `json:"archivedAt,omitempty"`
+	Comments      []commentOutput `json:"comments"`
 }
 
 type commentOutput struct {
-	ID         string          `json:"id"`
-	ThreadID   string          `json:"threadId,omitempty"`
-	Path       string          `json:"path"`
-	ViewerKind string          `json:"viewerKind"`
-	Anchor     json.RawMessage `json:"anchor,omitempty"`
-	Body       string          `json:"body"`
-	Status     string          `json:"status"`
-	CreatedAt  string          `json:"createdAt"`
-	UpdatedAt  string          `json:"updatedAt"`
-	ResolvedAt string          `json:"resolvedAt,omitempty"`
-	ArchivedAt string          `json:"archivedAt,omitempty"`
-	CreatedBy  actorOutput     `json:"createdBy"`
+	ID            string          `json:"id"`
+	ThreadID      string          `json:"threadId,omitempty"`
+	Path          string          `json:"path"`
+	ViewerKind    string          `json:"viewerKind"`
+	ReviewBatchID string          `json:"reviewBatchId,omitempty"`
+	Anchor        json.RawMessage `json:"anchor,omitempty"`
+	Body          string          `json:"body"`
+	Status        string          `json:"status"`
+	CreatedAt     string          `json:"createdAt"`
+	UpdatedAt     string          `json:"updatedAt"`
+	ResolvedAt    string          `json:"resolvedAt,omitempty"`
+	ArchivedAt    string          `json:"archivedAt,omitempty"`
+	CreatedBy     actorOutput     `json:"createdBy"`
 }
 
 type commentActivityOutput struct {

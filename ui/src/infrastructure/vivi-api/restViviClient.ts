@@ -111,6 +111,10 @@ export class RestViviClient implements ViviClient {
     return response.text();
   }
 
+  async getDraftReviewComments() {
+    return [];
+  }
+
   async getReviewQueue() {
     return adaptReviewQueue(
       await this.getJson<RestReviewQueueDto>("/api/changes"),
@@ -133,6 +137,22 @@ export class RestViviClient implements ViviClient {
         body: JSON.stringify(input),
       }),
     );
+  }
+
+  async createDraftReviewComment(): Promise<never> {
+    throw new Error("draft review comments require the GraphQL Vivi client");
+  }
+
+  async updateDraftReviewComment(): Promise<never> {
+    throw new Error("draft review comments require the GraphQL Vivi client");
+  }
+
+  async deleteDraftReviewComment(): Promise<never> {
+    throw new Error("draft review comments require the GraphQL Vivi client");
+  }
+
+  async publishDraftReviewComments(): Promise<never> {
+    throw new Error("draft review comments require the GraphQL Vivi client");
   }
 
   async updateCommentStatus(input: {

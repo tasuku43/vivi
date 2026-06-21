@@ -26,21 +26,22 @@ type ChangeReviewSummary struct {
 }
 
 type Comment struct {
-	ID         string             `json:"id"`
-	ThreadID   *string            `json:"threadId,omitempty"`
-	Path       string             `json:"path"`
-	ViewerKind string             `json:"viewerKind"`
-	Anchor     map[string]any     `json:"anchor"`
-	DiffAnchor *DiffCommentAnchor `json:"diffAnchor,omitempty"`
-	Body       string             `json:"body"`
-	CreatedBy  *CommentActor      `json:"createdBy"`
-	Author     *string            `json:"author,omitempty"`
-	Source     CommentSource      `json:"source"`
-	Status     CommentStatus      `json:"status"`
-	CreatedAt  string             `json:"createdAt"`
-	UpdatedAt  string             `json:"updatedAt"`
-	ResolvedAt *string            `json:"resolvedAt,omitempty"`
-	ArchivedAt *string            `json:"archivedAt,omitempty"`
+	ID            string             `json:"id"`
+	ThreadID      *string            `json:"threadId,omitempty"`
+	Path          string             `json:"path"`
+	ViewerKind    string             `json:"viewerKind"`
+	ReviewBatchID *string            `json:"reviewBatchId,omitempty"`
+	Anchor        map[string]any     `json:"anchor"`
+	DiffAnchor    *DiffCommentAnchor `json:"diffAnchor,omitempty"`
+	Body          string             `json:"body"`
+	CreatedBy     *CommentActor      `json:"createdBy"`
+	Author        *string            `json:"author,omitempty"`
+	Source        CommentSource      `json:"source"`
+	Status        CommentStatus      `json:"status"`
+	CreatedAt     string             `json:"createdAt"`
+	UpdatedAt     string             `json:"updatedAt"`
+	ResolvedAt    *string            `json:"resolvedAt,omitempty"`
+	ArchivedAt    *string            `json:"archivedAt,omitempty"`
 }
 
 type CommentActor struct {
@@ -82,16 +83,17 @@ type CommentMeta struct {
 }
 
 type CommentThread struct {
-	ID         string             `json:"id"`
-	Path       string             `json:"path"`
-	Status     CommentStatus      `json:"status"`
-	Anchor     map[string]any     `json:"anchor,omitempty"`
-	DiffAnchor *DiffCommentAnchor `json:"diffAnchor,omitempty"`
-	UpdatedAt  *string            `json:"updatedAt,omitempty"`
-	CreatedAt  string             `json:"createdAt"`
-	ResolvedAt *string            `json:"resolvedAt,omitempty"`
-	ArchivedAt *string            `json:"archivedAt,omitempty"`
-	Comments   []*Comment         `json:"comments"`
+	ID            string             `json:"id"`
+	Path          string             `json:"path"`
+	Status        CommentStatus      `json:"status"`
+	ReviewBatchID *string            `json:"reviewBatchId,omitempty"`
+	Anchor        map[string]any     `json:"anchor,omitempty"`
+	DiffAnchor    *DiffCommentAnchor `json:"diffAnchor,omitempty"`
+	UpdatedAt     *string            `json:"updatedAt,omitempty"`
+	CreatedAt     string             `json:"createdAt"`
+	ResolvedAt    *string            `json:"resolvedAt,omitempty"`
+	ArchivedAt    *string            `json:"archivedAt,omitempty"`
+	Comments      []*Comment         `json:"comments"`
 }
 
 type CommentThreadActivityEvent struct {
@@ -132,6 +134,34 @@ type DiffCommentAnchor struct {
 	FileHash     *string  `json:"fileHash,omitempty"`
 }
 
+type DraftReviewComment struct {
+	ID         string             `json:"id"`
+	Path       string             `json:"path"`
+	ViewerKind string             `json:"viewerKind"`
+	Anchor     map[string]any     `json:"anchor"`
+	DiffAnchor *DiffCommentAnchor `json:"diffAnchor,omitempty"`
+	Body       string             `json:"body"`
+	CreatedBy  *CommentActor      `json:"createdBy"`
+	Author     *string            `json:"author,omitempty"`
+	Source     CommentSource      `json:"source"`
+	CreatedAt  string             `json:"createdAt"`
+	UpdatedAt  string             `json:"updatedAt"`
+}
+
+type DraftReviewCommentInput struct {
+	Path       string             `json:"path"`
+	ViewerKind *string            `json:"viewerKind,omitempty"`
+	Anchor     map[string]any     `json:"anchor"`
+	Body       string             `json:"body"`
+	Actor      *CommentActorInput `json:"actor,omitempty"`
+	Author     *string            `json:"author,omitempty"`
+	Source     *CommentSource     `json:"source,omitempty"`
+}
+
+type DraftReviewCommentUpdateInput struct {
+	Body string `json:"body"`
+}
+
 type FileContext struct {
 	File           *workspace.FilePayload `json:"file"`
 	Comments       []*Comment             `json:"comments"`
@@ -166,6 +196,17 @@ type PreviewResource struct {
 	ContentType    *string `json:"contentType,omitempty"`
 	ScriptsAllowed bool    `json:"scriptsAllowed"`
 	Transport      string  `json:"transport"`
+}
+
+type PublishDraftReviewCommentsInput struct {
+	DraftIds []string           `json:"draftIds,omitempty"`
+	Actor    *CommentActorInput `json:"actor,omitempty"`
+}
+
+type PublishedReviewBatch struct {
+	ReviewBatchID string           `json:"reviewBatchId"`
+	PublishedAt   string           `json:"publishedAt"`
+	Threads       []*CommentThread `json:"threads"`
 }
 
 type Query struct {

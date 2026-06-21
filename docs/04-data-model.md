@@ -71,6 +71,9 @@ Comments are stored outside the viewed workspace so read-only mounts remain
 compatible. The first storage adapter writes JSONL to the Vivi data directory:
 `$VIVI_DATA_DIR/comments.jsonl` when set, then `$XDG_DATA_HOME/vivi/comments.jsonl`,
 then the platform user data fallback.
+Unpublished draft review comments live in the same data directory as
+`comment-drafts.jsonl`; they are not projected into public comment threads until
+publish.
 
 The canonical comment anchor is a source file location:
 
@@ -80,7 +83,9 @@ type CommentSurface = "source" | "rendered" | "diff";
 
 interface ViviComment {
   id: string;
+  threadId?: string;
   path: string;
+  reviewBatchId?: string;
   anchor: {
     surface: CommentSurface;
     canonical: {
@@ -112,6 +117,21 @@ interface ViviComment {
 }
 ```
 
+Draft review comments use the same path, body, actor, and anchor shape without
+`status`, `threadId`, or lifecycle timestamps:
+
+```ts
+interface DraftReviewComment {
+  id: string;
+  path: string;
+  viewerKind: string;
+  anchor: ViviComment["anchor"];
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
 Rendered Markdown and HTML comments store selected rendered text and any
 best-effort source line mapping available at creation time. Diff comments only
 target current-file lines. Deleted lines from the old file are not valid comment
@@ -128,6 +148,10 @@ New comments carry an explicit `threadId`; legacy comments without one project
 to a one-message thread whose id is the comment id. UI anchor grouping remains
 only as a fallback for old flat records. Thread lifecycle is the authoritative
 status; message status fields are compatibility projections.
+
+Publishing draft review comments assigns one `reviewBatchId` to every resulting
+thread and first message. Agents use that id to read all threads from the same
+human review batch together.
 
 Code comment ranges can be created by dragging across the fixed line-number
 gutter, Shift-selecting line numbers, or selecting part of the source text. The

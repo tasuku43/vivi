@@ -11,6 +11,7 @@ import { NodeFileSystem } from "../../server/typescript/infrastructure/node-file
 import { startHttpServer } from "../../server/typescript/http/http-server.js";
 import { CommentedSourceLines } from "../../ui/src/features/comments/components/CommentedSourceLines.js";
 import { CommentsPanel } from "../../ui/src/features/comments/components/CommentsPanel.js";
+import { DraftReviewTray } from "../../ui/src/features/comments/components/DraftReviewTray.js";
 import { Inspector } from "../../ui/src/features/review-queue/Inspector.js";
 import { renderedCommentDraft } from "../../ui/src/state/comments.js";
 
@@ -287,6 +288,26 @@ it("creates a comment from the UI anchor model and renders it after retrieval", 
   );
   expect(sourceHtml).toContain("has-comment");
   expect(sourceHtml).toContain(`data-comment-id="${created.id}"`);
+
+  const draftTrayHtml = renderToStaticMarkup(
+    <DraftReviewTray
+      drafts={[
+        {
+          id: "draft-1",
+          path: "README.md",
+          viewerKind: "markdown",
+          anchor: draft.anchor,
+          body: "Unpublished batch note",
+          source: "human",
+          createdAt: "2026-06-20T00:00:00.000Z",
+          updatedAt: "2026-06-20T00:00:00.000Z",
+        },
+      ]}
+    />,
+  );
+  expect(draftTrayHtml).toContain("Draft Review");
+  expect(draftTrayHtml).toContain("Publish all");
+  expect(draftTrayHtml).toContain("Unpublished batch note");
 });
 
 async function fetchJson<T>(route: string): Promise<T> {

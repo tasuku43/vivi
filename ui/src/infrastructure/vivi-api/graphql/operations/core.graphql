@@ -58,6 +58,7 @@ fragment CommentFields on Comment {
   threadId
   path
   viewerKind
+  reviewBatchId
   anchor
   diffAnchor {
     path
@@ -90,6 +91,7 @@ fragment ThreadFields on CommentThread {
   id
   path
   status
+  reviewBatchId
   anchor
   diffAnchor {
     path
@@ -111,6 +113,35 @@ fragment ThreadFields on CommentThread {
   comments {
     ...CommentFields
   }
+}
+fragment DraftReviewCommentFields on DraftReviewComment {
+  id
+  path
+  viewerKind
+  anchor
+  diffAnchor {
+    path
+    base
+    ref
+    hunkId
+    side
+    oldLineStart
+    oldLineEnd
+    newLineStart
+    newLineEnd
+    diffHash
+    fileHash
+  }
+  body
+  createdBy {
+    id
+    kind
+    displayName
+  }
+  author
+  source
+  createdAt
+  updatedAt
 }
 fragment DiffFields on TextDiff {
   path
@@ -178,6 +209,11 @@ query ViviComments($path: String, $status: CommentStatus) {
 query ViviCommentThreads($path: String, $status: CommentStatus) {
   commentThreads(path: $path, status: $status) {
     ...ThreadFields
+  }
+}
+query ViviDraftReviewComments($path: String) {
+  draftReviewComments(path: $path) {
+    ...DraftReviewCommentFields
   }
 }
 
@@ -253,6 +289,33 @@ query ViviTextSearch($query: String!, $limit: Int) {
 mutation CreateComment($input: CommentInput!) {
   createComment(input: $input) {
     ...CommentFields
+  }
+}
+mutation CreateDraftReviewComment($input: DraftReviewCommentInput!) {
+  createDraftReviewComment(input: $input) {
+    ...DraftReviewCommentFields
+  }
+}
+mutation UpdateDraftReviewComment(
+  $id: ID!
+  $input: DraftReviewCommentUpdateInput!
+) {
+  updateDraftReviewComment(id: $id, input: $input) {
+    ...DraftReviewCommentFields
+  }
+}
+mutation DeleteDraftReviewComment($id: ID!) {
+  deleteDraftReviewComment(id: $id) {
+    ...DraftReviewCommentFields
+  }
+}
+mutation PublishDraftReviewComments($input: PublishDraftReviewCommentsInput) {
+  publishDraftReviewComments(input: $input) {
+    reviewBatchId
+    publishedAt
+    threads {
+      ...ThreadFields
+    }
   }
 }
 mutation CreateThread($input: CommentInput!) {

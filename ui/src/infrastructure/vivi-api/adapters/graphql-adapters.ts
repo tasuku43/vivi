@@ -5,6 +5,7 @@ import type {
 import type {
   CommentThread,
   CommentThreadActivityEvent,
+  DraftReviewComment,
   ViviComment,
 } from "../../../domain/comments.js";
 import type {
@@ -21,6 +22,7 @@ import type {
   CommentFieldsFragment,
   ConfigFieldsFragment,
   DiffFieldsFragment,
+  DraftReviewCommentFieldsFragment,
   FileFieldsFragment,
   ThreadFieldsFragment,
   TreeFieldsFragment,
@@ -42,6 +44,18 @@ export const adaptGraphqlComment = (
   dto: CommentFieldsFragment,
 ): ViviComment => {
   const result = { ...(dto as unknown as ViviComment) };
+  if (dto.source) {
+    result.source = dto.source === "claude_code" ? "claude-code" : dto.source;
+  }
+  if (dto.createdBy) {
+    result.createdBy = adaptGraphqlActor(dto.createdBy, dto.source, dto.author);
+  }
+  return result;
+};
+export const adaptGraphqlDraftReviewComment = (
+  dto: DraftReviewCommentFieldsFragment,
+): DraftReviewComment => {
+  const result = { ...(dto as unknown as DraftReviewComment) };
   if (dto.source) {
     result.source = dto.source === "claude_code" ? "claude-code" : dto.source;
   }

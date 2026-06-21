@@ -72,6 +72,7 @@ export interface ViviComment {
   threadId?: string;
   path: string;
   viewerKind: CommentViewerKind;
+  reviewBatchId?: string;
   anchor: CommentAnchor;
   body: string;
   createdBy?: CommentActor;
@@ -110,12 +111,42 @@ export interface CommentThread {
   id: string;
   path: string;
   status: CommentStatus;
+  reviewBatchId?: string;
   anchor: CommentAnchor;
   updatedAt: string;
   createdAt: string;
   resolvedAt?: string;
   archivedAt?: string;
   comments: ViviComment[];
+}
+
+export interface DraftReviewComment {
+  id: string;
+  path: string;
+  viewerKind: CommentViewerKind;
+  anchor: CommentAnchor;
+  body: string;
+  createdBy?: CommentActor;
+  author?: string;
+  source?: CommentSource;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateDraftReviewCommentInput = Omit<
+  CreateCommentInput,
+  "threadId" | "status"
+>;
+
+export interface UpdateDraftReviewCommentInput {
+  id: string;
+  body: string;
+}
+
+export interface PublishedReviewBatch {
+  reviewBatchId: string;
+  publishedAt: string;
+  threads: CommentThread[];
 }
 
 export interface CommentExportFilters {

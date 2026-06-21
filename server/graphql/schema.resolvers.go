@@ -43,6 +43,48 @@ func (r *mutationResolver) CreateComment(ctx context.Context, input model.Commen
 	return commentFromMap(comment), nil
 }
 
+// CreateDraftReviewComment is the resolver for the createDraftReviewComment field.
+func (r *mutationResolver) CreateDraftReviewComment(ctx context.Context, input model.DraftReviewCommentInput) (*model.DraftReviewComment, error) {
+	draft, err := r.service.CreateDraftReviewComment(draftReviewCommentInputMap(input))
+	if err != nil {
+		return nil, err
+	}
+	return draftReviewCommentFromMap(draft), nil
+}
+
+// UpdateDraftReviewComment is the resolver for the updateDraftReviewComment field.
+func (r *mutationResolver) UpdateDraftReviewComment(ctx context.Context, id string, input model.DraftReviewCommentUpdateInput) (*model.DraftReviewComment, error) {
+	draft, err := r.service.UpdateDraftReviewComment(id, map[string]any{"body": input.Body})
+	if err != nil {
+		return nil, err
+	}
+	return draftReviewCommentFromMap(draft), nil
+}
+
+// DeleteDraftReviewComment is the resolver for the deleteDraftReviewComment field.
+func (r *mutationResolver) DeleteDraftReviewComment(ctx context.Context, id string) (*model.DraftReviewComment, error) {
+	draft, err := r.service.DeleteDraftReviewComment(id)
+	if err != nil {
+		return nil, err
+	}
+	return draftReviewCommentFromMap(draft), nil
+}
+
+// PublishDraftReviewComments is the resolver for the publishDraftReviewComments field.
+func (r *mutationResolver) PublishDraftReviewComments(ctx context.Context, input *model.PublishDraftReviewCommentsInput) (*model.PublishedReviewBatch, error) {
+	draftIDs := []string{}
+	actor := map[string]any{"id": "unknown", "kind": "unknown"}
+	if input != nil {
+		draftIDs = input.DraftIds
+		actor = commentActorInputMap(input.Actor)
+	}
+	batch, err := r.service.PublishDraftReviewComments(draftIDs, actor)
+	if err != nil {
+		return nil, err
+	}
+	return publishedReviewBatchFromMap(batch), nil
+}
+
 // UpdateComment is the resolver for the updateComment field.
 func (r *mutationResolver) UpdateComment(ctx context.Context, id string, input model.CommentUpdateInput) (*model.Comment, error) {
 	comment, err := r.service.UpdateComment(id, commentUpdateInputMap(input))
@@ -186,6 +228,19 @@ func (r *queryResolver) CommentThreads(ctx context.Context, path *string, status
 	}
 	application.ObserveThreadReads(ctx, threadIDsFromDomain(items))
 	return commentThreadsFromDomain(items), nil
+}
+
+// DraftReviewComments is the resolver for the draftReviewComments field.
+func (r *queryResolver) DraftReviewComments(ctx context.Context, path *string) ([]*model.DraftReviewComment, error) {
+	pathValue := ""
+	if path != nil {
+		pathValue = *path
+	}
+	items, err := r.service.ListDraftReviewComments(comments.Filters{Path: pathValue})
+	if err != nil {
+		return nil, err
+	}
+	return draftReviewCommentsFromMaps(items), nil
 }
 
 // CommentThreadActivities is the resolver for the commentThreadActivities field.

@@ -19,6 +19,7 @@ type Query {
   ): FileContext!
   comments(path: String, status: CommentStatus): [Comment!]!
   commentThreads(path: String, status: CommentStatus): [CommentThread!]!
+  draftReviewComments(path: String): [DraftReviewComment!]!
   commentThreadActivities(
     threadId: ID!
     after: ID
@@ -43,6 +44,15 @@ type Mutation {
   createThread(input: CommentInput!): CommentThread!
   addComment(threadId: ID!, input: AddCommentInput!): Comment!
   createComment(input: CommentInput!): Comment!
+  createDraftReviewComment(input: DraftReviewCommentInput!): DraftReviewComment!
+  updateDraftReviewComment(
+    id: ID!
+    input: DraftReviewCommentUpdateInput!
+  ): DraftReviewComment!
+  deleteDraftReviewComment(id: ID!): DraftReviewComment!
+  publishDraftReviewComments(
+    input: PublishDraftReviewCommentsInput
+  ): PublishedReviewBatch!
   updateComment(id: ID!, input: CommentUpdateInput!): Comment!
   resolveThread(id: ID!, actor: CommentActorInput): CommentThread!
   archiveThread(id: ID!, actor: CommentActorInput): CommentThread!
@@ -121,6 +131,7 @@ type CommentThread {
   id: ID!
   path: String!
   status: CommentStatus!
+  reviewBatchId: ID
   anchor: JSON
   diffAnchor: DiffCommentAnchor
   updatedAt: String
@@ -135,6 +146,7 @@ type Comment {
   threadId: ID
   path: String!
   viewerKind: String!
+  reviewBatchId: ID
   anchor: JSON!
   diffAnchor: DiffCommentAnchor
   body: String!
@@ -146,6 +158,26 @@ type Comment {
   updatedAt: String!
   resolvedAt: String
   archivedAt: String
+}
+
+type DraftReviewComment {
+  id: ID!
+  path: String!
+  viewerKind: String!
+  anchor: JSON!
+  diffAnchor: DiffCommentAnchor
+  body: String!
+  createdBy: CommentActor!
+  author: String @deprecated(reason: "Use createdBy.displayName")
+  source: CommentSource! @deprecated(reason: "Use createdBy.kind")
+  createdAt: String!
+  updatedAt: String!
+}
+
+type PublishedReviewBatch {
+  reviewBatchId: ID!
+  publishedAt: String!
+  threads: [CommentThread!]!
 }
 
 "Stable location of a comment in a unified diff. Line numbers are 1-based."
@@ -184,6 +216,25 @@ input CommentInput {
   author: String
   source: CommentSource
   status: CommentStatus
+}
+
+input DraftReviewCommentInput {
+  path: String!
+  viewerKind: String
+  anchor: JSON!
+  body: String!
+  actor: CommentActorInput
+  author: String
+  source: CommentSource
+}
+
+input DraftReviewCommentUpdateInput {
+  body: String!
+}
+
+input PublishDraftReviewCommentsInput {
+  draftIds: [ID!]
+  actor: CommentActorInput
 }
 
 input AddCommentInput {

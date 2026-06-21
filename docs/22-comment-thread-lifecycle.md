@@ -18,6 +18,11 @@ client-supplied `id`, a `kind` (`human`, `claude_code`, `codex`, or `unknown`),
 and an optional display name. Missing actor data on legacy records is projected
 as `unknown`. Actor identity is attribution, not authentication.
 
+`DraftReviewComment` is outside the public thread lifecycle. It is a
+pre-publish human review note with a path, body, actor, and anchor, but no
+`open`, `resolved`, or `archived` status. Publishing drafts creates normal
+`open` threads; it does not add `draft` to `CommentStatus`.
+
 ## Activity events
 
 Activity is append-only observation history and never changes thread status.
@@ -59,11 +64,21 @@ candidates. They are deliberately not statuses now; clients can safely reason
 about the three-state lifecycle without guessing whether a transient agent
 state is terminal.
 
+Draft review comments are also deliberately not statuses. They are hidden from
+`comments`, `commentThreads(status: open)`, and agent CLI worklists until the
+user publishes the batch.
+
 ## Storage
 
 Vivi keeps `$VIVI_DATA_DIR/comments.jsonl` as the message store. Its historical
 one-message-per-line shape is unchanged. New messages add `threadId`, `source`,
-and optional `author`; old rows remain valid.
+optional `author`, and optional `reviewBatchId`; old rows remain valid.
+
+Unpublished review drafts are stored separately in
+`$VIVI_DATA_DIR/comment-drafts.jsonl`. Keeping drafts out of `comments.jsonl`
+and the thread event log makes recovery, discard, and publish behavior explicit:
+delete removes the draft row, while publish creates public comments and clears
+the corresponding drafts.
 
 Thread metadata is projected from messages and an append-only
 `comment-threads.jsonl` event log:
@@ -92,6 +107,9 @@ New integrations use:
 - `addComment(threadId, input)` to reply to an open thread.
 - `updateComment(id, input)` to edit a message body.
 - `resolveThread(id)`, `archiveThread(id)`, and `reopenThread(id)` for lifecycle.
+- `draftReviewComments`, `createDraftReviewComment`,
+  `updateDraftReviewComment`, `deleteDraftReviewComment`, and
+  `publishDraftReviewComments` for the UI's pre-publish review batch.
 
 `createComment`, status in `updateComment`, and `updateCommentThread` remain as
 v1 compatibility operations. New coding-agent clients should query
@@ -99,6 +117,10 @@ v1 compatibility operations. New coding-agent clients should query
 returned thread id while working, add their reply with an explicit origin, then
 call a terminal lifecycle mutation. This makes retries and stale message ids
 safer than updating each message independently.
+
+`publishDraftReviewComments` returns a `PublishedReviewBatch` with one
+`reviewBatchId`. Every resulting open thread and first comment carries that id,
+allowing coding agents to group all threads from the same human publish action.
 
 The CLI wrapper for that workflow is:
 

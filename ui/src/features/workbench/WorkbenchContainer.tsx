@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import type { TextDiff } from "../../domain/change-review.js";
-import type { CommentStatus, ViviComment } from "../../domain/comments.js";
+import type {
+  CommentStatus,
+  DraftReviewComment,
+  ViviComment,
+} from "../../domain/comments.js";
 import type {
   FilePayload,
   FsEvent,
@@ -23,6 +27,7 @@ import {
   type CommentStatusFilter,
 } from "../comments/components/CommentsPanel.js";
 import { InlineCommentCard } from "../comments/components/InlineCommentCard.js";
+import { DraftReviewTray } from "../comments/components/DraftReviewTray.js";
 import { CommandPalette } from "../command-palette/CommandPalette.js";
 import { ShortcutHelp } from "../../shared/components/ShortcutHelp.js";
 import { WorkspaceRestoreNotice } from "../../shared/components/WorkspaceRestoreNotice.js";
@@ -181,6 +186,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     Record<string, boolean>
   >({});
   const [comments, setComments] = useState<ViviComment[]>([]);
+  const [draftComments, setDraftComments] = useState<DraftReviewComment[]>([]);
+  const [draftPublishing, setDraftPublishing] = useState(false);
   const [commentActivity, setCommentActivity] = useState(
     emptyCommentActivityState,
   );
@@ -339,6 +346,13 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     }
   }
 
+  async function loadDraftReviewComments(path?: string) {
+    const loaded = await client.getDraftReviewComments(
+      path ? { path } : undefined,
+    );
+    setDraftComments((items) => mergeDraftComments(items, loaded, path ?? null));
+  }
+
   async function loadThreadActivities(threadIds: string[]) {
     if (!client.getCommentThreadActivities) return;
     const targets = threadIds
@@ -372,14 +386,43 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   ) {
     const trimmedBody = body.trim();
     if (!trimmedBody) return;
-    const comment = await client.createComment({
+    const draftComment = await client.createDraftReviewComment({
       ...draft,
       body: trimmedBody,
       source: "human",
     });
-    setComments((items) => mergeComments(items, [comment], null));
-    setActiveCommentId(comment.id);
+    setDraftComments((items) => mergeDraftComments(items, [draftComment], null));
+    setActiveCommentId(null);
     setActiveCommentRect(rect ?? null);
+  }
+
+  async function updateDraftReviewComment(id: string, body: string) {
+    const draft = await client.updateDraftReviewComment({ id, body });
+    setDraftComments((items) => mergeDraftComments(items, [draft], null));
+  }
+
+  async function deleteDraftReviewComment(id: string) {
+    await client.deleteDraftReviewComment(id);
+    setDraftComments((items) => items.filter((draft) => draft.id !== id));
+  }
+
+  async function publishDraftReviewComments() {
+    if (!draftComments.length) return;
+    setDraftPublishing(true);
+    try {
+      const batch = await client.publishDraftReviewComments();
+      setComments((items) =>
+        mergeComments(
+          items,
+          batch.threads.flatMap((thread) => thread.comments),
+          null,
+        ),
+      );
+      setDraftComments([]);
+      await loadComments(null);
+    } finally {
+      setDraftPublishing(false);
+    }
   }
 
   async function updateCommentStatus(id: string, status: CommentStatus) {
@@ -424,6 +467,13 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const activeFileComments = useMemo(
     () => (selectedPath ? activeCommentsForPath(comments, selectedPath) : []),
     [comments, selectedPath],
+  );
+  const activeFileDraftComments = useMemo(
+    () =>
+      selectedPath
+        ? draftComments.filter((draft) => draft.path === selectedPath)
+        : [],
+    [draftComments, selectedPath],
   );
   const commentActivitySummaries = useMemo(
     () =>
@@ -937,6 +987,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     loadConfig().catch((err) => setError(String(err)));
     loadTree().catch((err) => setError(String(err)));
     loadComments(null).catch((err) => setError(String(err)));
+    loadDraftReviewComments().catch((err) => setError(String(err)));
   }, []);
 
   useEffect(() => {
@@ -1423,6 +1474,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               loadingReviewDiffs={loadingDiffs}
               unreadReviewPaths={unreadReviewPathSet}
               comments={activeFileComments}
+              draftComments={activeFileDraftComments}
               commentsLoading={commentsLoading}
               threadActivities={commentActivitySummaries}
               onOpenComments={() => {
@@ -1539,6 +1591,30 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         onClose={() => setCommentsPanelOpen(false)}
         onOpenComment={(comment) =>
           void openCommentFromPanel(comment).catch((err) =>
+            setError(String(err)),
+          )
+        }
+      />
+      <DraftReviewTray
+        drafts={draftComments}
+        publishing={draftPublishing}
+        onOpenPath={(path) =>
+          void loadFile(path, layout.activePaneId, "preview").catch((err) =>
+            setError(String(err)),
+          )
+        }
+        onUpdateDraft={(id, body) =>
+          void updateDraftReviewComment(id, body).catch((err) =>
+            setError(String(err)),
+          )
+        }
+        onDeleteDraft={(id) =>
+          void deleteDraftReviewComment(id).catch((err) =>
+            setError(String(err)),
+          )
+        }
+        onPublishAll={() =>
+          void publishDraftReviewComments().catch((err) =>
             setError(String(err)),
           )
         }
@@ -1915,6 +1991,22 @@ function mergeComments(
   for (const comment of incoming) byId.set(comment.id, comment);
   return [...byId.values()].sort((a, b) =>
     b.createdAt.localeCompare(a.createdAt),
+  );
+}
+
+function mergeDraftComments(
+  current: DraftReviewComment[],
+  incoming: DraftReviewComment[],
+  replacedPath: string | null,
+): DraftReviewComment[] {
+  const byId = new Map<string, DraftReviewComment>();
+  for (const draft of current) {
+    if (replacedPath && draft.path === replacedPath) continue;
+    byId.set(draft.id, draft);
+  }
+  for (const draft of incoming) byId.set(draft.id, draft);
+  return [...byId.values()].sort((a, b) =>
+    b.updatedAt.localeCompare(a.updatedAt),
   );
 }
 

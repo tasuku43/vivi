@@ -16,6 +16,7 @@ import (
 type Store struct {
 	path       string
 	threadPath string
+	draftPath  string
 	mu         sync.Mutex
 }
 
@@ -34,7 +35,7 @@ func NewStore(dataDir string) (*Store, error) {
 	if dataDir == "" {
 		dataDir = defaultDataDir()
 	}
-	return &Store{path: filepath.Join(dataDir, "comments.jsonl"), threadPath: filepath.Join(dataDir, "comment-threads.jsonl")}, nil
+	return &Store{path: filepath.Join(dataDir, "comments.jsonl"), threadPath: filepath.Join(dataDir, "comment-threads.jsonl"), draftPath: filepath.Join(dataDir, "comment-drafts.jsonl")}, nil
 }
 
 func (store *Store) List(filters Filters) ([]map[string]any, error) {
@@ -98,21 +99,12 @@ func (store *Store) ListThreads(filters Filters) ([]map[string]any, error) {
 func (store *Store) Create(input map[string]any, fileHash, viewerKind string) (map[string]any, error) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
-	pathValue, _ := input["path"].(string)
-	body, _ := input["body"].(string)
-	if strings.TrimSpace(pathValue) == "" {
-		return nil, errors.New("path is required")
-	}
-	if strings.TrimSpace(body) == "" {
-		return nil, errors.New("body is required")
-	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	id := randomID()
-	comment := copyMap(input)
-	comment["id"] = id
-	comment["path"] = strings.TrimSpace(pathValue)
-	comment["body"] = strings.TrimSpace(body)
-	comment["viewerKind"] = viewerKind
+	comment, err := store.publicCommentFromInput(input, fileHash, viewerKind, now, "")
+	if err != nil {
+		return nil, err
+	}
+	id := stringValue(comment["id"])
 	if _, ok := comment["source"].(string); !ok {
 		comment["source"] = "unknown"
 	}
@@ -142,6 +134,143 @@ func (store *Store) Create(input map[string]any, fileHash, viewerKind string) (m
 		return nil, err
 	}
 	return comment, nil
+}
+
+func (store *Store) ListDrafts(filters Filters) ([]map[string]any, error) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	drafts, err := store.readDrafts()
+	if err != nil {
+		return nil, err
+	}
+	filtered := []map[string]any{}
+	for _, draft := range drafts {
+		if filters.Path != "" && draft["path"] != filters.Path {
+			continue
+		}
+		filtered = append(filtered, draft)
+	}
+	return filtered, nil
+}
+
+func (store *Store) CreateDraft(input map[string]any, fileHash, viewerKind string) (map[string]any, error) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	draft, err := store.draftFromInput(input, fileHash, viewerKind, now)
+	if err != nil {
+		return nil, err
+	}
+	drafts, err := store.readDrafts()
+	if err != nil {
+		return nil, err
+	}
+	drafts = append(drafts, draft)
+	if err := store.writeDrafts(drafts); err != nil {
+		return nil, err
+	}
+	return draft, nil
+}
+
+func (store *Store) UpdateDraft(id string, input map[string]any) (map[string]any, error) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if strings.TrimSpace(id) == "" {
+		return nil, errors.New("draft comment id is required")
+	}
+	drafts, err := store.readDrafts()
+	if err != nil {
+		return nil, err
+	}
+	for index, draft := range drafts {
+		if draft["id"] != id {
+			continue
+		}
+		if body, ok := input["body"].(string); ok {
+			if strings.TrimSpace(body) == "" {
+				return nil, errors.New("body is required")
+			}
+			draft["body"] = strings.TrimSpace(body)
+		}
+		draft["updatedAt"] = time.Now().UTC().Format(time.RFC3339Nano)
+		drafts[index] = draft
+		return draft, store.writeDrafts(drafts)
+	}
+	return nil, errors.New("draft comment not found")
+}
+
+func (store *Store) DeleteDraft(id string) (map[string]any, error) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if strings.TrimSpace(id) == "" {
+		return nil, errors.New("draft comment id is required")
+	}
+	drafts, err := store.readDrafts()
+	if err != nil {
+		return nil, err
+	}
+	next := make([]map[string]any, 0, len(drafts))
+	var deleted map[string]any
+	for _, draft := range drafts {
+		if draft["id"] == id {
+			deleted = draft
+			continue
+		}
+		next = append(next, draft)
+	}
+	if deleted == nil {
+		return nil, errors.New("draft comment not found")
+	}
+	return deleted, store.writeDrafts(next)
+}
+
+func (store *Store) PublishDrafts(ids []string, actor map[string]any) (map[string]any, error) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	drafts, err := store.readDrafts()
+	if err != nil {
+		return nil, err
+	}
+	selected, remaining := selectDrafts(drafts, ids)
+	if len(selected) == 0 {
+		return nil, errors.New("no draft comments to publish")
+	}
+	comments, err := store.readAll()
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	reviewBatchID := "review-batch-" + randomID()
+	published := make([]map[string]any, 0, len(selected))
+	batchActor := normalizeActor(actor)
+	for _, draft := range selected {
+		comment, err := store.publicCommentFromInput(draft, stringValue(mapValue(mapValue(draft["anchor"])["canonical"])["fileHash"]), stringValue(draft["viewerKind"]), now, reviewBatchID)
+		if err != nil {
+			return nil, err
+		}
+		comment["actor"] = actorForDraft(draft, batchActor)
+		comment["author"] = stringValue(draft["author"])
+		comment["source"] = stringValue(draft["source"])
+		published = append(published, comment)
+		comments = append(comments, comment)
+	}
+	for _, comment := range published {
+		thread := map[string]any{"id": comment["threadId"], "path": comment["path"], "anchor": comment["anchor"], "status": comment["status"], "createdAt": now, "updatedAt": now, "reviewBatchId": reviewBatchID}
+		if err := store.appendThreadEvent(map[string]any{"schemaVersion": 1, "type": "thread.created", "threadId": comment["threadId"], "at": now, "thread": thread, "actor": actorForComment(comment), "reviewBatchId": reviewBatchID}); err != nil {
+			return nil, err
+		}
+	}
+	if err := store.writeAll(comments); err != nil {
+		return nil, err
+	}
+	if err := store.writeDrafts(remaining); err != nil {
+		return nil, err
+	}
+	threads, err := store.projectThreads(published)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"reviewBatchId": reviewBatchID, "publishedAt": now, "threads": threads}, nil
 }
 
 func (store *Store) Update(id string, input map[string]any) (map[string]any, error) {
@@ -361,9 +490,12 @@ func (store *Store) projectThreads(comments []map[string]any) ([]map[string]any,
 		}
 		thread := byID[id]
 		if thread == nil {
-			thread = map[string]any{"id": id, "path": comment["path"], "anchor": comment["anchor"], "status": normalizedStatus(comment["status"]), "createdAt": comment["createdAt"], "updatedAt": comment["updatedAt"], "comments": []map[string]any{}}
+			thread = map[string]any{"id": id, "path": comment["path"], "anchor": comment["anchor"], "status": normalizedStatus(comment["status"]), "createdAt": comment["createdAt"], "updatedAt": comment["updatedAt"], "reviewBatchId": comment["reviewBatchId"], "comments": []map[string]any{}}
 			byID[id] = thread
 			threads = append(threads, thread)
+		}
+		if thread["reviewBatchId"] == nil && comment["reviewBatchId"] != nil {
+			thread["reviewBatchId"] = comment["reviewBatchId"]
 		}
 		if value := stringValue(comment["resolvedAt"]); value > stringValue(thread["resolvedAt"]) {
 			thread["resolvedAt"] = value
@@ -390,7 +522,7 @@ func (store *Store) projectThreads(comments []map[string]any) ([]map[string]any,
 			id := stringValue(metadata["id"])
 			thread := byID[id]
 			if thread != nil {
-				for _, key := range []string{"path", "anchor", "status", "createdAt", "updatedAt"} {
+				for _, key := range []string{"path", "anchor", "status", "createdAt", "updatedAt", "reviewBatchId"} {
 					if metadata[key] != nil {
 						thread[key] = metadata[key]
 					}
@@ -432,6 +564,88 @@ func (store *Store) projectThreads(comments []map[string]any) ([]map[string]any,
 		}
 	}
 	return threads, nil
+}
+
+func (store *Store) publicCommentFromInput(input map[string]any, fileHash, viewerKind, now, reviewBatchID string) (map[string]any, error) {
+	pathValue, _ := input["path"].(string)
+	body, _ := input["body"].(string)
+	if strings.TrimSpace(pathValue) == "" {
+		return nil, errors.New("path is required")
+	}
+	if strings.TrimSpace(body) == "" {
+		return nil, errors.New("body is required")
+	}
+	comment := copyMap(input)
+	comment["id"] = randomID()
+	comment["path"] = strings.TrimSpace(pathValue)
+	comment["body"] = strings.TrimSpace(body)
+	comment["viewerKind"] = viewerKind
+	if threadID, ok := comment["threadId"].(string); !ok || strings.TrimSpace(threadID) == "" {
+		comment["threadId"] = comment["id"]
+	}
+	if _, ok := comment["status"].(string); !ok {
+		comment["status"] = "open"
+	}
+	comment["createdAt"] = now
+	comment["updatedAt"] = now
+	if reviewBatchID != "" {
+		comment["reviewBatchId"] = reviewBatchID
+	}
+	addFileHash(comment, fileHash)
+	return comment, nil
+}
+
+func (store *Store) draftFromInput(input map[string]any, fileHash, viewerKind, now string) (map[string]any, error) {
+	pathValue, _ := input["path"].(string)
+	body, _ := input["body"].(string)
+	if strings.TrimSpace(pathValue) == "" {
+		return nil, errors.New("path is required")
+	}
+	if strings.TrimSpace(body) == "" {
+		return nil, errors.New("body is required")
+	}
+	draft := copyMap(input)
+	draft["id"] = randomID()
+	draft["path"] = strings.TrimSpace(pathValue)
+	draft["body"] = strings.TrimSpace(body)
+	draft["viewerKind"] = viewerKind
+	if _, ok := draft["source"].(string); !ok {
+		draft["source"] = "human"
+	}
+	draft["createdAt"] = now
+	draft["updatedAt"] = now
+	addFileHash(draft, fileHash)
+	return draft, nil
+}
+
+func selectDrafts(drafts []map[string]any, ids []string) ([]map[string]any, []map[string]any) {
+	if len(ids) == 0 {
+		return drafts, []map[string]any{}
+	}
+	wanted := map[string]struct{}{}
+	for _, id := range ids {
+		wanted[id] = struct{}{}
+	}
+	selected := []map[string]any{}
+	remaining := []map[string]any{}
+	for _, draft := range drafts {
+		if _, ok := wanted[stringValue(draft["id"])]; ok {
+			selected = append(selected, draft)
+		} else {
+			remaining = append(remaining, draft)
+		}
+	}
+	return selected, remaining
+}
+
+func actorForDraft(draft map[string]any, fallback map[string]any) map[string]any {
+	if actor, ok := draft["actor"].(map[string]any); ok && stringValue(actor["id"]) != "" {
+		return normalizeActor(actor)
+	}
+	if stringValue(fallback["id"]) != "unknown" {
+		return fallback
+	}
+	return normalizeActor(map[string]any{"kind": draft["source"], "displayName": draft["author"]})
 }
 
 func (store *Store) readThreadEvents() ([]map[string]any, error) {
@@ -530,6 +744,10 @@ func threadIDForComment(comment map[string]any) string {
 	return stringValue(comment["id"])
 }
 func stringValue(value any) string { text, _ := value.(string); return text }
+func mapValue(value any) map[string]any {
+	result, _ := value.(map[string]any)
+	return result
+}
 func normalizedStatus(value any) string {
 	status := stringValue(value)
 	if status == "resolved" || status == "archived" {
@@ -584,6 +802,31 @@ func (store *Store) readAll() ([]map[string]any, error) {
 	return comments, scanner.Err()
 }
 
+func (store *Store) readDrafts() ([]map[string]any, error) {
+	file, err := os.Open(store.draftPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return []map[string]any{}, nil
+		}
+		return nil, err
+	}
+	defer file.Close()
+	drafts := []map[string]any{}
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		var draft map[string]any
+		if err := json.Unmarshal([]byte(line), &draft); err != nil {
+			return nil, err
+		}
+		drafts = append(drafts, draft)
+	}
+	return drafts, scanner.Err()
+}
+
 func (store *Store) writeAll(comments []map[string]any) error {
 	if err := os.MkdirAll(filepath.Dir(store.path), 0o755); err != nil {
 		return err
@@ -604,6 +847,28 @@ func (store *Store) writeAll(comments []map[string]any) error {
 		return err
 	}
 	return os.Rename(tmp, store.path)
+}
+
+func (store *Store) writeDrafts(drafts []map[string]any) error {
+	if err := os.MkdirAll(filepath.Dir(store.draftPath), 0o755); err != nil {
+		return err
+	}
+	tmp := store.draftPath + ".tmp"
+	file, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+	encoder := json.NewEncoder(file)
+	for _, draft := range drafts {
+		if err := encoder.Encode(draft); err != nil {
+			file.Close()
+			return err
+		}
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp, store.draftPath)
 }
 
 func addFileHash(comment map[string]any, fileHash string) {

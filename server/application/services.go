@@ -54,6 +54,9 @@ type CommentService struct {
 func (s *CommentService) List(filters comments.Filters) ([]map[string]any, error) {
 	return s.comments.List(filters)
 }
+func (s *CommentService) ListDrafts(filters comments.Filters) ([]map[string]any, error) {
+	return s.comments.ListDrafts(filters)
+}
 func (s *CommentService) Threads(filters comments.Filters) ([]CommentThread, error) {
 	items, err := s.comments.ListThreads(filters)
 	if err != nil {
@@ -83,6 +86,22 @@ func (s *CommentService) Create(input map[string]any) (map[string]any, error) {
 		return nil, err
 	}
 	return s.comments.Create(input, file.Etag, file.ViewerKind)
+}
+func (s *CommentService) CreateDraft(input map[string]any) (map[string]any, error) {
+	file, err := s.workspace.ReadFile(stringValue(input["path"]))
+	if err != nil {
+		return nil, err
+	}
+	return s.comments.CreateDraft(input, file.Etag, file.ViewerKind)
+}
+func (s *CommentService) UpdateDraft(id string, input map[string]any) (map[string]any, error) {
+	return s.comments.UpdateDraft(id, input)
+}
+func (s *CommentService) DeleteDraft(id string) (map[string]any, error) {
+	return s.comments.DeleteDraft(id)
+}
+func (s *CommentService) PublishDrafts(ids []string, actor map[string]any) (map[string]any, error) {
+	return s.comments.PublishDrafts(ids, actor)
 }
 func (s *CommentService) Update(id string, input map[string]any) (map[string]any, error) {
 	return s.comments.Update(id, input)
@@ -129,7 +148,16 @@ func (s *CommentService) Export(filters comments.Filters) (string, error) {
 
 func threadFromMap(item map[string]any) CommentThread {
 	commentsValue, _ := item["comments"].([]map[string]any)
-	return CommentThread{ID: stringValue(item["id"]), Path: stringValue(item["path"]), Status: stringValue(item["status"]), Anchor: item["anchor"], UpdatedAt: stringValue(item["updatedAt"]), CreatedAt: stringValue(item["createdAt"]), ResolvedAt: stringValue(item["resolvedAt"]), ArchivedAt: stringValue(item["archivedAt"]), Comments: commentsValue}
+	return CommentThread{ID: stringValue(item["id"]), Path: stringValue(item["path"]), Status: stringValue(item["status"]), ReviewBatchID: stringValue(item["reviewBatchId"]), Anchor: item["anchor"], UpdatedAt: stringValue(item["updatedAt"]), CreatedAt: stringValue(item["createdAt"]), ResolvedAt: stringValue(item["resolvedAt"]), ArchivedAt: stringValue(item["archivedAt"]), Comments: commentsValue}
+}
+
+func threadsFromAny(value any) []CommentThread {
+	items, _ := value.([]map[string]any)
+	threads := make([]CommentThread, 0, len(items))
+	for _, item := range items {
+		threads = append(threads, threadFromMap(item))
+	}
+	return threads
 }
 
 type EventService struct {

@@ -54,21 +54,22 @@ type ComplexityRoot struct {
 	}
 
 	Comment struct {
-		Anchor     func(childComplexity int) int
-		ArchivedAt func(childComplexity int) int
-		Author     func(childComplexity int) int
-		Body       func(childComplexity int) int
-		CreatedAt  func(childComplexity int) int
-		CreatedBy  func(childComplexity int) int
-		DiffAnchor func(childComplexity int) int
-		ID         func(childComplexity int) int
-		Path       func(childComplexity int) int
-		ResolvedAt func(childComplexity int) int
-		Source     func(childComplexity int) int
-		Status     func(childComplexity int) int
-		ThreadID   func(childComplexity int) int
-		UpdatedAt  func(childComplexity int) int
-		ViewerKind func(childComplexity int) int
+		Anchor        func(childComplexity int) int
+		ArchivedAt    func(childComplexity int) int
+		Author        func(childComplexity int) int
+		Body          func(childComplexity int) int
+		CreatedAt     func(childComplexity int) int
+		CreatedBy     func(childComplexity int) int
+		DiffAnchor    func(childComplexity int) int
+		ID            func(childComplexity int) int
+		Path          func(childComplexity int) int
+		ResolvedAt    func(childComplexity int) int
+		ReviewBatchID func(childComplexity int) int
+		Source        func(childComplexity int) int
+		Status        func(childComplexity int) int
+		ThreadID      func(childComplexity int) int
+		UpdatedAt     func(childComplexity int) int
+		ViewerKind    func(childComplexity int) int
 	}
 
 	CommentActor struct {
@@ -92,16 +93,17 @@ type ComplexityRoot struct {
 	}
 
 	CommentThread struct {
-		Anchor     func(childComplexity int) int
-		ArchivedAt func(childComplexity int) int
-		Comments   func(childComplexity int) int
-		CreatedAt  func(childComplexity int) int
-		DiffAnchor func(childComplexity int) int
-		ID         func(childComplexity int) int
-		Path       func(childComplexity int) int
-		ResolvedAt func(childComplexity int) int
-		Status     func(childComplexity int) int
-		UpdatedAt  func(childComplexity int) int
+		Anchor        func(childComplexity int) int
+		ArchivedAt    func(childComplexity int) int
+		Comments      func(childComplexity int) int
+		CreatedAt     func(childComplexity int) int
+		DiffAnchor    func(childComplexity int) int
+		ID            func(childComplexity int) int
+		Path          func(childComplexity int) int
+		ResolvedAt    func(childComplexity int) int
+		ReviewBatchID func(childComplexity int) int
+		Status        func(childComplexity int) int
+		UpdatedAt     func(childComplexity int) int
 	}
 
 	CommentThreadActivityEvent struct {
@@ -140,6 +142,20 @@ type ComplexityRoot struct {
 		Path         func(childComplexity int) int
 		Ref          func(childComplexity int) int
 		Side         func(childComplexity int) int
+	}
+
+	DraftReviewComment struct {
+		Anchor     func(childComplexity int) int
+		Author     func(childComplexity int) int
+		Body       func(childComplexity int) int
+		CreatedAt  func(childComplexity int) int
+		CreatedBy  func(childComplexity int) int
+		DiffAnchor func(childComplexity int) int
+		ID         func(childComplexity int) int
+		Path       func(childComplexity int) int
+		Source     func(childComplexity int) int
+		UpdatedAt  func(childComplexity int) int
+		ViewerKind func(childComplexity int) int
 	}
 
 	FileContext struct {
@@ -198,14 +214,18 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddComment          func(childComplexity int, threadID string, input model.AddCommentInput) int
-		ArchiveThread       func(childComplexity int, id string, actor *model.CommentActorInput) int
-		CreateComment       func(childComplexity int, input model.CommentInput) int
-		CreateThread        func(childComplexity int, input model.CommentInput) int
-		ReopenThread        func(childComplexity int, id string, actor *model.CommentActorInput) int
-		ResolveThread       func(childComplexity int, id string, actor *model.CommentActorInput) int
-		UpdateComment       func(childComplexity int, id string, input model.CommentUpdateInput) int
-		UpdateCommentThread func(childComplexity int, id string, input model.CommentThreadUpdateInput) int
+		AddComment                 func(childComplexity int, threadID string, input model.AddCommentInput) int
+		ArchiveThread              func(childComplexity int, id string, actor *model.CommentActorInput) int
+		CreateComment              func(childComplexity int, input model.CommentInput) int
+		CreateDraftReviewComment   func(childComplexity int, input model.DraftReviewCommentInput) int
+		CreateThread               func(childComplexity int, input model.CommentInput) int
+		DeleteDraftReviewComment   func(childComplexity int, id string) int
+		PublishDraftReviewComments func(childComplexity int, input *model.PublishDraftReviewCommentsInput) int
+		ReopenThread               func(childComplexity int, id string, actor *model.CommentActorInput) int
+		ResolveThread              func(childComplexity int, id string, actor *model.CommentActorInput) int
+		UpdateComment              func(childComplexity int, id string, input model.CommentUpdateInput) int
+		UpdateCommentThread        func(childComplexity int, id string, input model.CommentThreadUpdateInput) int
+		UpdateDraftReviewComment   func(childComplexity int, id string, input model.DraftReviewCommentUpdateInput) int
 	}
 
 	PreviewResource struct {
@@ -213,6 +233,12 @@ type ComplexityRoot struct {
 		ScriptsAllowed func(childComplexity int) int
 		Transport      func(childComplexity int) int
 		URL            func(childComplexity int) int
+	}
+
+	PublishedReviewBatch struct {
+		PublishedAt   func(childComplexity int) int
+		ReviewBatchID func(childComplexity int) int
+		Threads       func(childComplexity int) int
 	}
 
 	Query struct {
@@ -223,6 +249,7 @@ type ComplexityRoot struct {
 		Config                  func(childComplexity int) int
 		Diff                    func(childComplexity int, path string, base *string) int
 		DiffBases               func(childComplexity int) int
+		DraftReviewComments     func(childComplexity int, path *string) int
 		File                    func(childComplexity int, path string) int
 		FileContext             func(childComplexity int, path string, includeComments *bool, includeDiff *bool, diffBase *string) int
 		FileSearch              func(childComplexity int, query string, limit *int) int
@@ -319,6 +346,10 @@ type MutationResolver interface {
 	CreateThread(ctx context.Context, input model.CommentInput) (*model.CommentThread, error)
 	AddComment(ctx context.Context, threadID string, input model.AddCommentInput) (*model.Comment, error)
 	CreateComment(ctx context.Context, input model.CommentInput) (*model.Comment, error)
+	CreateDraftReviewComment(ctx context.Context, input model.DraftReviewCommentInput) (*model.DraftReviewComment, error)
+	UpdateDraftReviewComment(ctx context.Context, id string, input model.DraftReviewCommentUpdateInput) (*model.DraftReviewComment, error)
+	DeleteDraftReviewComment(ctx context.Context, id string) (*model.DraftReviewComment, error)
+	PublishDraftReviewComments(ctx context.Context, input *model.PublishDraftReviewCommentsInput) (*model.PublishedReviewBatch, error)
 	UpdateComment(ctx context.Context, id string, input model.CommentUpdateInput) (*model.Comment, error)
 	ResolveThread(ctx context.Context, id string, actor *model.CommentActorInput) (*model.CommentThread, error)
 	ArchiveThread(ctx context.Context, id string, actor *model.CommentActorInput) (*model.CommentThread, error)
@@ -333,6 +364,7 @@ type QueryResolver interface {
 	FileContext(ctx context.Context, path string, includeComments *bool, includeDiff *bool, diffBase *string) (*model.FileContext, error)
 	Comments(ctx context.Context, path *string, status *model.CommentStatus) ([]*model.Comment, error)
 	CommentThreads(ctx context.Context, path *string, status *model.CommentStatus) ([]*model.CommentThread, error)
+	DraftReviewComments(ctx context.Context, path *string) ([]*model.DraftReviewComment, error)
 	CommentThreadActivities(ctx context.Context, threadID string, after *string, first *int) ([]*model.CommentThreadActivityEvent, error)
 	CommentExport(ctx context.Context, path *string, status *model.CommentStatus, format *model.CommentExportFormat) (*model.CommentExport, error)
 	ReviewQueue(ctx context.Context) (*model.ChangeReviewSummary, error)
@@ -474,6 +506,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Comment.ResolvedAt(childComplexity), true
+	case "Comment.reviewBatchId":
+		if e.ComplexityRoot.Comment.ReviewBatchID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Comment.ReviewBatchID(childComplexity), true
 	case "Comment.source":
 		if e.ComplexityRoot.Comment.Source == nil {
 			break
@@ -622,6 +660,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.CommentThread.ResolvedAt(childComplexity), true
+	case "CommentThread.reviewBatchId":
+		if e.ComplexityRoot.CommentThread.ReviewBatchID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CommentThread.ReviewBatchID(childComplexity), true
 	case "CommentThread.status":
 		if e.ComplexityRoot.CommentThread.Status == nil {
 			break
@@ -794,6 +838,73 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DiffCommentAnchor.Side(childComplexity), true
+
+	case "DraftReviewComment.anchor":
+		if e.ComplexityRoot.DraftReviewComment.Anchor == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DraftReviewComment.Anchor(childComplexity), true
+	case "DraftReviewComment.author":
+		if e.ComplexityRoot.DraftReviewComment.Author == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DraftReviewComment.Author(childComplexity), true
+	case "DraftReviewComment.body":
+		if e.ComplexityRoot.DraftReviewComment.Body == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DraftReviewComment.Body(childComplexity), true
+	case "DraftReviewComment.createdAt":
+		if e.ComplexityRoot.DraftReviewComment.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DraftReviewComment.CreatedAt(childComplexity), true
+	case "DraftReviewComment.createdBy":
+		if e.ComplexityRoot.DraftReviewComment.CreatedBy == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DraftReviewComment.CreatedBy(childComplexity), true
+	case "DraftReviewComment.diffAnchor":
+		if e.ComplexityRoot.DraftReviewComment.DiffAnchor == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DraftReviewComment.DiffAnchor(childComplexity), true
+	case "DraftReviewComment.id":
+		if e.ComplexityRoot.DraftReviewComment.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DraftReviewComment.ID(childComplexity), true
+	case "DraftReviewComment.path":
+		if e.ComplexityRoot.DraftReviewComment.Path == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DraftReviewComment.Path(childComplexity), true
+	case "DraftReviewComment.source":
+		if e.ComplexityRoot.DraftReviewComment.Source == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DraftReviewComment.Source(childComplexity), true
+	case "DraftReviewComment.updatedAt":
+		if e.ComplexityRoot.DraftReviewComment.UpdatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DraftReviewComment.UpdatedAt(childComplexity), true
+	case "DraftReviewComment.viewerKind":
+		if e.ComplexityRoot.DraftReviewComment.ViewerKind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DraftReviewComment.ViewerKind(childComplexity), true
 
 	case "FileContext.commentThreads":
 		if e.ComplexityRoot.FileContext.CommentThreads == nil {
@@ -1056,6 +1167,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateComment(childComplexity, args["input"].(model.CommentInput)), true
+	case "Mutation.createDraftReviewComment":
+		if e.ComplexityRoot.Mutation.CreateDraftReviewComment == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createDraftReviewComment_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateDraftReviewComment(childComplexity, args["input"].(model.DraftReviewCommentInput)), true
 	case "Mutation.createThread":
 		if e.ComplexityRoot.Mutation.CreateThread == nil {
 			break
@@ -1067,6 +1189,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateThread(childComplexity, args["input"].(model.CommentInput)), true
+	case "Mutation.deleteDraftReviewComment":
+		if e.ComplexityRoot.Mutation.DeleteDraftReviewComment == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteDraftReviewComment_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeleteDraftReviewComment(childComplexity, args["id"].(string)), true
+	case "Mutation.publishDraftReviewComments":
+		if e.ComplexityRoot.Mutation.PublishDraftReviewComments == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_publishDraftReviewComments_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.PublishDraftReviewComments(childComplexity, args["input"].(*model.PublishDraftReviewCommentsInput)), true
 	case "Mutation.reopenThread":
 		if e.ComplexityRoot.Mutation.ReopenThread == nil {
 			break
@@ -1111,6 +1255,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateCommentThread(childComplexity, args["id"].(string), args["input"].(model.CommentThreadUpdateInput)), true
+	case "Mutation.updateDraftReviewComment":
+		if e.ComplexityRoot.Mutation.UpdateDraftReviewComment == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateDraftReviewComment_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateDraftReviewComment(childComplexity, args["id"].(string), args["input"].(model.DraftReviewCommentUpdateInput)), true
 
 	case "PreviewResource.contentType":
 		if e.ComplexityRoot.PreviewResource.ContentType == nil {
@@ -1136,6 +1291,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.PreviewResource.URL(childComplexity), true
+
+	case "PublishedReviewBatch.publishedAt":
+		if e.ComplexityRoot.PublishedReviewBatch.PublishedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PublishedReviewBatch.PublishedAt(childComplexity), true
+	case "PublishedReviewBatch.reviewBatchId":
+		if e.ComplexityRoot.PublishedReviewBatch.ReviewBatchID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PublishedReviewBatch.ReviewBatchID(childComplexity), true
+	case "PublishedReviewBatch.threads":
+		if e.ComplexityRoot.PublishedReviewBatch.Threads == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PublishedReviewBatch.Threads(childComplexity), true
 
 	case "Query.commentExport":
 		if e.ComplexityRoot.Query.CommentExport == nil {
@@ -1204,6 +1378,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.DiffBases(childComplexity), true
+	case "Query.draftReviewComments":
+		if e.ComplexityRoot.Query.DraftReviewComments == nil {
+			break
+		}
+
+		args, err := ec.field_Query_draftReviewComments_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.DraftReviewComments(childComplexity, args["path"].(*string)), true
 	case "Query.file":
 		if e.ComplexityRoot.Query.File == nil {
 			break
@@ -1604,6 +1789,9 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCommentInput,
 		ec.unmarshalInputCommentThreadUpdateInput,
 		ec.unmarshalInputCommentUpdateInput,
+		ec.unmarshalInputDraftReviewCommentInput,
+		ec.unmarshalInputDraftReviewCommentUpdateInput,
+		ec.unmarshalInputPublishDraftReviewCommentsInput,
 	)
 	first := true
 
@@ -1717,6 +1905,7 @@ type Query {
   ): FileContext!
   comments(path: String, status: CommentStatus): [Comment!]!
   commentThreads(path: String, status: CommentStatus): [CommentThread!]!
+  draftReviewComments(path: String): [DraftReviewComment!]!
   commentThreadActivities(
     threadId: ID!
     after: ID
@@ -1741,6 +1930,15 @@ type Mutation {
   createThread(input: CommentInput!): CommentThread!
   addComment(threadId: ID!, input: AddCommentInput!): Comment!
   createComment(input: CommentInput!): Comment!
+  createDraftReviewComment(input: DraftReviewCommentInput!): DraftReviewComment!
+  updateDraftReviewComment(
+    id: ID!
+    input: DraftReviewCommentUpdateInput!
+  ): DraftReviewComment!
+  deleteDraftReviewComment(id: ID!): DraftReviewComment!
+  publishDraftReviewComments(
+    input: PublishDraftReviewCommentsInput
+  ): PublishedReviewBatch!
   updateComment(id: ID!, input: CommentUpdateInput!): Comment!
   resolveThread(id: ID!, actor: CommentActorInput): CommentThread!
   archiveThread(id: ID!, actor: CommentActorInput): CommentThread!
@@ -1819,6 +2017,7 @@ type CommentThread {
   id: ID!
   path: String!
   status: CommentStatus!
+  reviewBatchId: ID
   anchor: JSON
   diffAnchor: DiffCommentAnchor
   updatedAt: String
@@ -1833,6 +2032,7 @@ type Comment {
   threadId: ID
   path: String!
   viewerKind: String!
+  reviewBatchId: ID
   anchor: JSON!
   diffAnchor: DiffCommentAnchor
   body: String!
@@ -1844,6 +2044,26 @@ type Comment {
   updatedAt: String!
   resolvedAt: String
   archivedAt: String
+}
+
+type DraftReviewComment {
+  id: ID!
+  path: String!
+  viewerKind: String!
+  anchor: JSON!
+  diffAnchor: DiffCommentAnchor
+  body: String!
+  createdBy: CommentActor!
+  author: String @deprecated(reason: "Use createdBy.displayName")
+  source: CommentSource! @deprecated(reason: "Use createdBy.kind")
+  createdAt: String!
+  updatedAt: String!
+}
+
+type PublishedReviewBatch {
+  reviewBatchId: ID!
+  publishedAt: String!
+  threads: [CommentThread!]!
 }
 
 "Stable location of a comment in a unified diff. Line numbers are 1-based."
@@ -1882,6 +2102,25 @@ input CommentInput {
   author: String
   source: CommentSource
   status: CommentStatus
+}
+
+input DraftReviewCommentInput {
+  path: String!
+  viewerKind: String
+  anchor: JSON!
+  body: String!
+  actor: CommentActorInput
+  author: String
+  source: CommentSource
+}
+
+input DraftReviewCommentUpdateInput {
+  body: String!
+}
+
+input PublishDraftReviewCommentsInput {
+  draftIds: [ID!]
+  actor: CommentActorInput
 }
 
 input AddCommentInput {
@@ -2109,6 +2348,8 @@ func (ec *executionContext) childFields_Comment(ctx context.Context, field graph
 		return ec.fieldContext_Comment_path(ctx, field)
 	case "viewerKind":
 		return ec.fieldContext_Comment_viewerKind(ctx, field)
+	case "reviewBatchId":
+		return ec.fieldContext_Comment_reviewBatchId(ctx, field)
 	case "anchor":
 		return ec.fieldContext_Comment_anchor(ctx, field)
 	case "diffAnchor":
@@ -2183,6 +2424,8 @@ func (ec *executionContext) childFields_CommentThread(ctx context.Context, field
 		return ec.fieldContext_CommentThread_path(ctx, field)
 	case "status":
 		return ec.fieldContext_CommentThread_status(ctx, field)
+	case "reviewBatchId":
+		return ec.fieldContext_CommentThread_reviewBatchId(ctx, field)
 	case "anchor":
 		return ec.fieldContext_CommentThread_anchor(ctx, field)
 	case "diffAnchor":
@@ -2275,6 +2518,34 @@ func (ec *executionContext) childFields_DiffCommentAnchor(ctx context.Context, f
 		return ec.fieldContext_DiffCommentAnchor_fileHash(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type DiffCommentAnchor", field.Name)
+}
+
+func (ec *executionContext) childFields_DraftReviewComment(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_DraftReviewComment_id(ctx, field)
+	case "path":
+		return ec.fieldContext_DraftReviewComment_path(ctx, field)
+	case "viewerKind":
+		return ec.fieldContext_DraftReviewComment_viewerKind(ctx, field)
+	case "anchor":
+		return ec.fieldContext_DraftReviewComment_anchor(ctx, field)
+	case "diffAnchor":
+		return ec.fieldContext_DraftReviewComment_diffAnchor(ctx, field)
+	case "body":
+		return ec.fieldContext_DraftReviewComment_body(ctx, field)
+	case "createdBy":
+		return ec.fieldContext_DraftReviewComment_createdBy(ctx, field)
+	case "author":
+		return ec.fieldContext_DraftReviewComment_author(ctx, field)
+	case "source":
+		return ec.fieldContext_DraftReviewComment_source(ctx, field)
+	case "createdAt":
+		return ec.fieldContext_DraftReviewComment_createdAt(ctx, field)
+	case "updatedAt":
+		return ec.fieldContext_DraftReviewComment_updatedAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type DraftReviewComment", field.Name)
 }
 
 func (ec *executionContext) childFields_FileContext(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -2399,6 +2670,18 @@ func (ec *executionContext) childFields_PreviewResource(ctx context.Context, fie
 		return ec.fieldContext_PreviewResource_transport(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type PreviewResource", field.Name)
+}
+
+func (ec *executionContext) childFields_PublishedReviewBatch(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "reviewBatchId":
+		return ec.fieldContext_PublishedReviewBatch_reviewBatchId(ctx, field)
+	case "publishedAt":
+		return ec.fieldContext_PublishedReviewBatch_publishedAt(ctx, field)
+	case "threads":
+		return ec.fieldContext_PublishedReviewBatch_threads(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type PublishedReviewBatch", field.Name)
 }
 
 func (ec *executionContext) childFields_SearchStats(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -2715,12 +2998,54 @@ func (ec *executionContext) field_Mutation_createComment_args(ctx context.Contex
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_createDraftReviewComment_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.DraftReviewCommentInput, error) {
+			return ec.unmarshalNDraftReviewCommentInput2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDraftReviewCommentInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_createThread_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
 		func(ctx context.Context, v any) (model.CommentInput, error) {
 			return ec.unmarshalNCommentInput2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteDraftReviewComment_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_publishDraftReviewComments_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (*model.PublishDraftReviewCommentsInput, error) {
+			return ec.unmarshalOPublishDraftReviewCommentsInput2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐPublishDraftReviewCommentsInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -2809,6 +3134,28 @@ func (ec *executionContext) field_Mutation_updateComment_args(ctx context.Contex
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input",
 		func(ctx context.Context, v any) (model.CommentUpdateInput, error) {
 			return ec.unmarshalNCommentUpdateInput2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentUpdateInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateDraftReviewComment_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.DraftReviewCommentUpdateInput, error) {
+			return ec.unmarshalNDraftReviewCommentUpdateInput2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDraftReviewCommentUpdateInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -2954,6 +3301,20 @@ func (ec *executionContext) field_Query_diff_args(ctx context.Context, rawArgs m
 		return nil, err
 	}
 	args["base"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_draftReviewComments_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "path",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["path"] = arg0
 	return args, nil
 }
 
@@ -3459,6 +3820,29 @@ func (ec *executionContext) _Comment_viewerKind(ctx context.Context, field graph
 }
 func (ec *executionContext) fieldContext_Comment_viewerKind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Comment", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Comment_reviewBatchId(ctx context.Context, field graphql.CollectedField, obj *model.Comment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Comment_reviewBatchId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ReviewBatchID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOID2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Comment_reviewBatchId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Comment", field, false, false, errors.New("field of type ID does not have child fields"))
 }
 
 func (ec *executionContext) _Comment_anchor(ctx context.Context, field graphql.CollectedField, obj *model.Comment) (ret graphql.Marshaler) {
@@ -4052,6 +4436,29 @@ func (ec *executionContext) _CommentThread_status(ctx context.Context, field gra
 }
 func (ec *executionContext) fieldContext_CommentThread_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("CommentThread", field, false, false, errors.New("field of type CommentStatus does not have child fields"))
+}
+
+func (ec *executionContext) _CommentThread_reviewBatchId(ctx context.Context, field graphql.CollectedField, obj *model.CommentThread) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CommentThread_reviewBatchId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ReviewBatchID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOID2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_CommentThread_reviewBatchId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CommentThread", field, false, false, errors.New("field of type ID does not have child fields"))
 }
 
 func (ec *executionContext) _CommentThread_anchor(ctx context.Context, field graphql.CollectedField, obj *model.CommentThread) (ret graphql.Marshaler) {
@@ -4847,6 +5254,277 @@ func (ec *executionContext) _DiffCommentAnchor_fileHash(ctx context.Context, fie
 }
 func (ec *executionContext) fieldContext_DiffCommentAnchor_fileHash(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("DiffCommentAnchor", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DraftReviewComment_id(ctx context.Context, field graphql.CollectedField, obj *model.DraftReviewComment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DraftReviewComment_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DraftReviewComment_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DraftReviewComment", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _DraftReviewComment_path(ctx context.Context, field graphql.CollectedField, obj *model.DraftReviewComment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DraftReviewComment_path(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Path, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DraftReviewComment_path(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DraftReviewComment", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DraftReviewComment_viewerKind(ctx context.Context, field graphql.CollectedField, obj *model.DraftReviewComment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DraftReviewComment_viewerKind(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ViewerKind, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DraftReviewComment_viewerKind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DraftReviewComment", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DraftReviewComment_anchor(ctx context.Context, field graphql.CollectedField, obj *model.DraftReviewComment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DraftReviewComment_anchor(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Anchor, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v map[string]any) graphql.Marshaler {
+			return ec.marshalNJSON2map(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DraftReviewComment_anchor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DraftReviewComment", field, false, false, errors.New("field of type JSON does not have child fields"))
+}
+
+func (ec *executionContext) _DraftReviewComment_diffAnchor(ctx context.Context, field graphql.CollectedField, obj *model.DraftReviewComment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DraftReviewComment_diffAnchor(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DiffAnchor, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.DiffCommentAnchor) graphql.Marshaler {
+			return ec.marshalODiffCommentAnchor2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDiffCommentAnchor(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DraftReviewComment_diffAnchor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DraftReviewComment",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DiffCommentAnchor(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DraftReviewComment_body(ctx context.Context, field graphql.CollectedField, obj *model.DraftReviewComment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DraftReviewComment_body(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Body, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DraftReviewComment_body(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DraftReviewComment", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DraftReviewComment_createdBy(ctx context.Context, field graphql.CollectedField, obj *model.DraftReviewComment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DraftReviewComment_createdBy(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedBy, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.CommentActor) graphql.Marshaler {
+			return ec.marshalNCommentActor2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentActor(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DraftReviewComment_createdBy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DraftReviewComment",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CommentActor(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DraftReviewComment_author(ctx context.Context, field graphql.CollectedField, obj *model.DraftReviewComment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DraftReviewComment_author(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Author, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DraftReviewComment_author(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DraftReviewComment", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DraftReviewComment_source(ctx context.Context, field graphql.CollectedField, obj *model.DraftReviewComment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DraftReviewComment_source(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Source, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.CommentSource) graphql.Marshaler {
+			return ec.marshalNCommentSource2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentSource(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DraftReviewComment_source(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DraftReviewComment", field, false, false, errors.New("field of type CommentSource does not have child fields"))
+}
+
+func (ec *executionContext) _DraftReviewComment_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.DraftReviewComment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DraftReviewComment_createdAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DraftReviewComment_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DraftReviewComment", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DraftReviewComment_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.DraftReviewComment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DraftReviewComment_updatedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.UpdatedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DraftReviewComment_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DraftReviewComment", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _FileContext_file(ctx context.Context, field graphql.CollectedField, obj *model.FileContext) (ret graphql.Marshaler) {
@@ -5904,6 +6582,182 @@ func (ec *executionContext) fieldContext_Mutation_createComment(ctx context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_createDraftReviewComment(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_createDraftReviewComment(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CreateDraftReviewComment(ctx, fc.Args["input"].(model.DraftReviewCommentInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.DraftReviewComment) graphql.Marshaler {
+			return ec.marshalNDraftReviewComment2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDraftReviewComment(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_createDraftReviewComment(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DraftReviewComment(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createDraftReviewComment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateDraftReviewComment(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_updateDraftReviewComment(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateDraftReviewComment(ctx, fc.Args["id"].(string), fc.Args["input"].(model.DraftReviewCommentUpdateInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.DraftReviewComment) graphql.Marshaler {
+			return ec.marshalNDraftReviewComment2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDraftReviewComment(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_updateDraftReviewComment(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DraftReviewComment(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateDraftReviewComment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteDraftReviewComment(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_deleteDraftReviewComment(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeleteDraftReviewComment(ctx, fc.Args["id"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.DraftReviewComment) graphql.Marshaler {
+			return ec.marshalNDraftReviewComment2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDraftReviewComment(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_deleteDraftReviewComment(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DraftReviewComment(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteDraftReviewComment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_publishDraftReviewComments(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_publishDraftReviewComments(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().PublishDraftReviewComments(ctx, fc.Args["input"].(*model.PublishDraftReviewCommentsInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.PublishedReviewBatch) graphql.Marshaler {
+			return ec.marshalNPublishedReviewBatch2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐPublishedReviewBatch(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_publishDraftReviewComments(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_PublishedReviewBatch(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_publishDraftReviewComments_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_updateComment(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6216,6 +7070,84 @@ func (ec *executionContext) fieldContext_PreviewResource_transport(_ context.Con
 	return graphql.NewScalarFieldContext("PreviewResource", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _PublishedReviewBatch_reviewBatchId(ctx context.Context, field graphql.CollectedField, obj *model.PublishedReviewBatch) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PublishedReviewBatch_reviewBatchId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ReviewBatchID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PublishedReviewBatch_reviewBatchId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PublishedReviewBatch", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _PublishedReviewBatch_publishedAt(ctx context.Context, field graphql.CollectedField, obj *model.PublishedReviewBatch) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PublishedReviewBatch_publishedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.PublishedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PublishedReviewBatch_publishedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PublishedReviewBatch", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _PublishedReviewBatch_threads(ctx context.Context, field graphql.CollectedField, obj *model.PublishedReviewBatch) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PublishedReviewBatch_threads(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Threads, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.CommentThread) graphql.Marshaler {
+			return ec.marshalNCommentThread2ᚕᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThreadᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PublishedReviewBatch_threads(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PublishedReviewBatch",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CommentThread(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_workspace(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6506,6 +7438,50 @@ func (ec *executionContext) fieldContext_Query_commentThreads(ctx context.Contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_commentThreads_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_draftReviewComments(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_draftReviewComments(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().DraftReviewComments(ctx, fc.Args["path"].(*string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.DraftReviewComment) graphql.Marshaler {
+			return ec.marshalNDraftReviewComment2ᚕᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDraftReviewCommentᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_draftReviewComments(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DraftReviewComment(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_draftReviewComments_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -9432,6 +10408,145 @@ func (ec *executionContext) unmarshalInputCommentUpdateInput(ctx context.Context
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputDraftReviewCommentInput(ctx context.Context, obj any) (model.DraftReviewCommentInput, error) {
+	var it model.DraftReviewCommentInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"path", "viewerKind", "anchor", "body", "actor", "author", "source"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "path":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("path"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Path = data
+		case "viewerKind":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("viewerKind"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ViewerKind = data
+		case "anchor":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("anchor"))
+			data, err := ec.unmarshalNJSON2map(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Anchor = data
+		case "body":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("body"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Body = data
+		case "actor":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("actor"))
+			data, err := ec.unmarshalOCommentActorInput2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentActorInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Actor = data
+		case "author":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("author"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Author = data
+		case "source":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("source"))
+			data, err := ec.unmarshalOCommentSource2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentSource(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Source = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputDraftReviewCommentUpdateInput(ctx context.Context, obj any) (model.DraftReviewCommentUpdateInput, error) {
+	var it model.DraftReviewCommentUpdateInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"body"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "body":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("body"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Body = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputPublishDraftReviewCommentsInput(ctx context.Context, obj any) (model.PublishDraftReviewCommentsInput, error) {
+	var it model.PublishDraftReviewCommentsInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"draftIds", "actor"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "draftIds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("draftIds"))
+			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DraftIds = data
+		case "actor":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("actor"))
+			data, err := ec.unmarshalOCommentActorInput2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentActorInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Actor = data
+		}
+	}
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -9572,6 +10687,11 @@ func (ec *executionContext) _Comment(ctx context.Context, sel ast.SelectionSet, 
 		case "viewerKind":
 			out.Values[i] = ec._Comment_viewerKind(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reviewBatchId":
+			out.Values[i] = ec._Comment_reviewBatchId(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		case "anchor":
@@ -9833,6 +10953,11 @@ func (ec *executionContext) _CommentThread(ctx context.Context, sel ast.Selectio
 		case "status":
 			out.Values[i] = ec._CommentThread_status(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reviewBatchId":
+			out.Values[i] = ec._CommentThread_reviewBatchId(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		case "anchor":
@@ -10134,6 +11259,95 @@ func (ec *executionContext) _DiffCommentAnchor(ctx context.Context, sel ast.Sele
 		case "fileHash":
 			out.Values[i] = ec._DiffCommentAnchor_fileHash(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var draftReviewCommentImplementors = []string{"DraftReviewComment"}
+
+func (ec *executionContext) _DraftReviewComment(ctx context.Context, sel ast.SelectionSet, obj *model.DraftReviewComment) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, draftReviewCommentImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DraftReviewComment")
+		case "id":
+			out.Values[i] = ec._DraftReviewComment_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "path":
+			out.Values[i] = ec._DraftReviewComment_path(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "viewerKind":
+			out.Values[i] = ec._DraftReviewComment_viewerKind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "anchor":
+			out.Values[i] = ec._DraftReviewComment_anchor(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "diffAnchor":
+			out.Values[i] = ec._DraftReviewComment_diffAnchor(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "body":
+			out.Values[i] = ec._DraftReviewComment_body(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdBy":
+			out.Values[i] = ec._DraftReviewComment_createdBy(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "author":
+			out.Values[i] = ec._DraftReviewComment_author(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "source":
+			out.Values[i] = ec._DraftReviewComment_source(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._DraftReviewComment_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updatedAt":
+			out.Values[i] = ec._DraftReviewComment_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		default:
@@ -10588,6 +11802,34 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "createDraftReviewComment":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createDraftReviewComment(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateDraftReviewComment":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateDraftReviewComment(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteDraftReviewComment":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteDraftReviewComment(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "publishDraftReviewComments":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_publishDraftReviewComments(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "updateComment":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateComment(ctx, field)
@@ -10674,6 +11916,55 @@ func (ec *executionContext) _PreviewResource(ctx context.Context, sel ast.Select
 			}
 		case "transport":
 			out.Values[i] = ec._PreviewResource_transport(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var publishedReviewBatchImplementors = []string{"PublishedReviewBatch"}
+
+func (ec *executionContext) _PublishedReviewBatch(ctx context.Context, sel ast.SelectionSet, obj *model.PublishedReviewBatch) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, publishedReviewBatchImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PublishedReviewBatch")
+		case "reviewBatchId":
+			out.Values[i] = ec._PublishedReviewBatch_reviewBatchId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "publishedAt":
+			out.Values[i] = ec._PublishedReviewBatch_publishedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "threads":
+			out.Values[i] = ec._PublishedReviewBatch_threads(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -10861,6 +12152,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_commentThreads(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "draftReviewComments":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_draftReviewComments(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -12489,6 +13802,46 @@ func (ec *executionContext) marshalNDiffSide2githubᚗcomᚋtasuku43ᚋviviᚋse
 	return v
 }
 
+func (ec *executionContext) marshalNDraftReviewComment2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDraftReviewComment(ctx context.Context, sel ast.SelectionSet, v model.DraftReviewComment) graphql.Marshaler {
+	return ec._DraftReviewComment(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDraftReviewComment2ᚕᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDraftReviewCommentᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.DraftReviewComment) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNDraftReviewComment2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDraftReviewComment(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDraftReviewComment2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDraftReviewComment(ctx context.Context, sel ast.SelectionSet, v *model.DraftReviewComment) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DraftReviewComment(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNDraftReviewCommentInput2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDraftReviewCommentInput(ctx context.Context, v any) (model.DraftReviewCommentInput, error) {
+	res, err := ec.unmarshalInputDraftReviewCommentInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNDraftReviewCommentUpdateInput2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDraftReviewCommentUpdateInput(ctx context.Context, v any) (model.DraftReviewCommentUpdateInput, error) {
+	res, err := ec.unmarshalInputDraftReviewCommentUpdateInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNFileContext2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐFileContext(ctx context.Context, sel ast.SelectionSet, v model.FileContext) graphql.Marshaler {
 	return ec._FileContext(ctx, sel, &v)
 }
@@ -12699,6 +14052,20 @@ func (ec *executionContext) marshalNPreviewResource2ᚖgithubᚗcomᚋtasuku43�
 		return graphql.Null
 	}
 	return ec._PreviewResource(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNPublishedReviewBatch2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐPublishedReviewBatch(ctx context.Context, sel ast.SelectionSet, v model.PublishedReviewBatch) graphql.Marshaler {
+	return ec._PublishedReviewBatch(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNPublishedReviewBatch2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐPublishedReviewBatch(ctx context.Context, sel ast.SelectionSet, v *model.PublishedReviewBatch) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._PublishedReviewBatch(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNSearchStats2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋworkspaceᚐSearchStats(ctx context.Context, sel ast.SelectionSet, v workspace.SearchStats) graphql.Marshaler {
@@ -13136,6 +14503,42 @@ func (ec *executionContext) marshalOFsNode2ᚕᚖgithubᚗcomᚋtasuku43ᚋvivi�
 	return ret
 }
 
+func (ec *executionContext) unmarshalOID2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNID2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOID2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNID2string(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v any) (*string, error) {
 	if v == nil {
 		return nil, nil
@@ -13228,6 +14631,14 @@ func (ec *executionContext) marshalONodeKind2ᚖgithubᚗcomᚋtasuku43ᚋvivi�
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) unmarshalOPublishDraftReviewCommentsInput2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐPublishDraftReviewCommentsInput(ctx context.Context, v any) (*model.PublishDraftReviewCommentsInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputPublishDraftReviewCommentsInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalOString2string(ctx context.Context, v any) (string, error) {

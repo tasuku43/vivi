@@ -97,6 +97,42 @@ func TestCommentsCLIReadsRepliesAndMovesThreadLifecycle(t *testing.T) {
 	}
 }
 
+func TestCommentsCLIShowsPublishedReviewBatchAndHidesDrafts(t *testing.T) {
+	server := newCommentsCLITestServer(t)
+	defer server.Close()
+	for _, input := range []map[string]any{
+		{"path": "README.md", "body": "Draft one", "anchor": map[string]any{"surface": "source", "canonical": map[string]any{"path": "README.md", "lineStart": float64(1)}}},
+		{"path": "README.md", "body": "Draft two", "anchor": map[string]any{"surface": "source", "canonical": map[string]any{"path": "README.md", "lineStart": float64(3)}}},
+	} {
+		graphqlForCLI(t, server.URL, map[string]any{"operationName": "CreateDraftReviewComment", "query": `mutation CreateDraftReviewComment($input: DraftReviewCommentInput!) { createDraftReviewComment(input: $input) { id } }`, "variables": map[string]any{"input": input}})
+	}
+	before := runCommentsCLIForTest(t, "active", "--url", server.URL, "--actor", "codex:agent", "--actor-kind", "codex", "--json")
+	var beforePayload struct {
+		Threads []commentThreadOutput `json:"threads"`
+		Count   int                   `json:"count"`
+	}
+	decodeCLIJSON(t, before, &beforePayload)
+	if beforePayload.Count != 0 {
+		t.Fatalf("drafts leaked to active CLI = %s", before.String())
+	}
+	published := graphqlForCLI(t, server.URL, map[string]any{"operationName": "PublishDraftReviewComments", "query": `mutation PublishDraftReviewComments { publishDraftReviewComments { reviewBatchId threads { id } } }`})["publishDraftReviewComments"].(map[string]any)
+	reviewBatchID := published["reviewBatchId"].(string)
+	after := runCommentsCLIForTest(t, "active", "--url", server.URL, "--actor", "codex:agent", "--actor-kind", "codex", "--json")
+	var afterPayload struct {
+		Threads []commentThreadOutput `json:"threads"`
+		Count   int                   `json:"count"`
+	}
+	decodeCLIJSON(t, after, &afterPayload)
+	if afterPayload.Count != 2 {
+		t.Fatalf("active after publish = %s", after.String())
+	}
+	for _, thread := range afterPayload.Threads {
+		if thread.ReviewBatchID != reviewBatchID || thread.Comments[0].ReviewBatchID != reviewBatchID {
+			t.Fatalf("thread missing batch id: %#v", thread)
+		}
+	}
+}
+
 type commentsCLITestServer struct {
 	URL        string
 	oldClient  *http.Client

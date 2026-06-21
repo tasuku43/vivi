@@ -153,6 +153,95 @@ it("uses GraphQL mutations for comment creation and status updates", async () =>
   expect(thirdBody.variables).toEqual({ id: "t1", status: "archived" });
 });
 
+it("uses GraphQL operations for draft review batches", async () => {
+  const draft = {
+    id: "draft-1",
+    path: "README.md",
+    viewerKind: "markdown" as const,
+    anchor: comment.anchor,
+    body: "Hold until batch publish",
+    source: "human" as const,
+    createdBy: { id: "human", kind: "human" as const },
+    createdAt: "2026-06-20T00:00:00.000Z",
+    updatedAt: "2026-06-20T00:00:00.000Z",
+  };
+  const request = vi.fn<typeof fetch>(async (_input, init) => {
+    const body = JSON.parse(String(init?.body));
+    switch (body.operationName) {
+      case "ViviDraftReviewComments":
+        return Response.json({ data: { draftReviewComments: [draft] } });
+      case "CreateDraftReviewComment":
+        return Response.json({ data: { createDraftReviewComment: draft } });
+      case "UpdateDraftReviewComment":
+        return Response.json({
+          data: {
+            updateDraftReviewComment: {
+              ...draft,
+              body: body.variables.input.body,
+            },
+          },
+        });
+      case "DeleteDraftReviewComment":
+        return Response.json({ data: { deleteDraftReviewComment: draft } });
+      case "PublishDraftReviewComments":
+        return Response.json({
+          data: {
+            publishDraftReviewComments: {
+              reviewBatchId: "review-batch-1",
+              publishedAt: "2026-06-20T00:01:00.000Z",
+              threads: [
+                {
+                  ...commentThread,
+                  reviewBatchId: "review-batch-1",
+                  comments: [
+                    { ...comment, reviewBatchId: "review-batch-1" },
+                  ],
+                },
+              ],
+            },
+          },
+        });
+      default:
+        return Response.json({ errors: [{ message: "unexpected operation" }] });
+    }
+  });
+  const client = new GraphqlViviClient({ fetch: request });
+
+  await expect(client.getDraftReviewComments()).resolves.toEqual([draft]);
+  await client.createDraftReviewComment({
+    path: draft.path,
+    viewerKind: draft.viewerKind,
+    anchor: draft.anchor,
+    body: draft.body,
+  });
+  await client.updateDraftReviewComment({
+    id: draft.id,
+    body: "Edited draft",
+  });
+  await client.deleteDraftReviewComment(draft.id);
+  await expect(client.publishDraftReviewComments()).resolves.toMatchObject({
+    reviewBatchId: "review-batch-1",
+    threads: [
+      {
+        reviewBatchId: "review-batch-1",
+        comments: [{ reviewBatchId: "review-batch-1" }],
+      },
+    ],
+  });
+
+  expect(
+    request.mock.calls.map(
+      ([, init]) => JSON.parse(String(init?.body)).operationName,
+    ),
+  ).toEqual([
+    "ViviDraftReviewComments",
+    "CreateDraftReviewComment",
+    "UpdateDraftReviewComment",
+    "DeleteDraftReviewComment",
+    "PublishDraftReviewComments",
+  ]);
+});
+
 it("uses GraphQL queries for workspace, review, diff, and search reads", async () => {
   const request = vi.fn<typeof fetch>(async (_input, init) => {
     const body = JSON.parse(String(init?.body));

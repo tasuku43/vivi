@@ -236,6 +236,57 @@ func TestHandlerRecordsActorAwareReadActivityWithoutChangingStatus(t *testing.T)
 	}
 }
 
+func TestHandlerPublishesDraftReviewCommentsAsHiddenBatch(t *testing.T) {
+	root := t.TempDir()
+	dataDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# Vivi\n\nHello\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "index.html"), []byte("<h1>Hello</h1>\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fsys, _ := workspace.New(workspace.Options{Root: root})
+	reviewer, _ := gitreview.New(root, time.Second)
+	store, _ := comments.NewStore(dataDir)
+	handler := NewHandler(application.NewService(application.Options{Workspace: fsys, Git: reviewer, Comments: store}), func(*http.Request) bool { return true })
+
+	for _, input := range []map[string]any{
+		{"path": "README.md", "body": "Source draft", "anchor": map[string]any{"surface": "source", "canonical": map[string]any{"path": "README.md", "lineStart": float64(1), "lineEnd": float64(1)}}},
+		{"path": "index.html", "body": "HTML draft", "anchor": map[string]any{"surface": "rendered", "canonical": map[string]any{"path": "index.html"}, "rendered": map[string]any{"kind": "html", "selector": "h1", "textQuote": "Hello", "sourceLineStart": float64(1), "sourceLineEnd": float64(1)}}},
+	} {
+		graphql(t, handler, map[string]any{"operationName": "CreateDraftReviewComment", "query": `mutation CreateDraftReviewComment($input: DraftReviewCommentInput!) { createDraftReviewComment(input: $input) { id path body createdBy { kind } } }`, "variables": map[string]any{"input": input}})
+	}
+
+	before := graphql(t, handler, map[string]any{"operationName": "BeforePublish", "query": `query BeforePublish { draftReviewComments { id body } commentThreads(status: open) { id } comments(status: open) { id } }`})
+	if len(before["draftReviewComments"].([]any)) != 2 {
+		t.Fatalf("drafts before publish = %#v", before["draftReviewComments"])
+	}
+	if len(before["commentThreads"].([]any)) != 0 || len(before["comments"].([]any)) != 0 {
+		t.Fatalf("drafts leaked before publish: %#v", before)
+	}
+
+	published := graphql(t, handler, map[string]any{"operationName": "PublishDraftReviewComments", "query": `mutation PublishDraftReviewComments($input: PublishDraftReviewCommentsInput) { publishDraftReviewComments(input: $input) { reviewBatchId threads { id path reviewBatchId status comments { body reviewBatchId } } } }`, "variables": map[string]any{"input": map[string]any{"actor": map[string]any{"id": "human:tasuku", "kind": "human", "displayName": "Tasuku"}}}})["publishDraftReviewComments"].(map[string]any)
+	reviewBatchID := published["reviewBatchId"].(string)
+	threads := published["threads"].([]any)
+	if len(threads) != 2 {
+		t.Fatalf("published threads = %#v", threads)
+	}
+	for _, value := range threads {
+		thread := value.(map[string]any)
+		if thread["status"] != "open" || thread["reviewBatchId"] != reviewBatchID {
+			t.Fatalf("published thread = %#v", thread)
+		}
+		comment := thread["comments"].([]any)[0].(map[string]any)
+		if comment["reviewBatchId"] != reviewBatchID {
+			t.Fatalf("published comment = %#v", comment)
+		}
+	}
+	after := graphql(t, handler, map[string]any{"operationName": "AfterPublish", "query": `query AfterPublish { draftReviewComments { id } commentThreads(status: open) { id reviewBatchId } }`})
+	if len(after["draftReviewComments"].([]any)) != 0 || len(after["commentThreads"].([]any)) != 2 {
+		t.Fatalf("after publish = %#v", after)
+	}
+}
+
 func graphql(t *testing.T, handler http.Handler, request map[string]any) map[string]any {
 	return graphqlWithHeaders(t, handler, request, nil)
 }

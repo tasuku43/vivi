@@ -152,7 +152,7 @@ export function SelectionCommentComposer({
       <textarea
         autoFocus
         value={body}
-        placeholder="Leave a comment"
+        placeholder="Draft a review comment"
         onChange={(event) => setBody(event.currentTarget.value)}
         onKeyDown={(event) => {
           if (
@@ -165,13 +165,13 @@ export function SelectionCommentComposer({
         }}
       />
       <div className="selection-comment-footer">
-        <span>Shift+Enter to save</span>
+        <span>Shift+Enter to save draft</span>
         <div>
           <button type="button" onClick={onDismiss}>
             Cancel
           </button>
           <button disabled={!body.trim()} type="submit">
-            Save
+            Save draft
           </button>
         </div>
       </div>

@@ -150,3 +150,75 @@ func TestStoreAppendsIdempotentReadActivityWithoutChangingThreadStatus(t *testin
 		t.Fatalf("read changed status to %v", threads[0]["status"])
 	}
 }
+
+func TestStoreKeepsDraftReviewCommentsHiddenUntilBatchPublish(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sourceDraft, err := store.CreateDraft(map[string]any{
+		"path": "README.md", "body": "Draft source note", "source": "human",
+		"anchor": map[string]any{"surface": "source", "canonical": map[string]any{"path": "README.md", "lineStart": float64(1), "lineEnd": float64(1)}},
+	}, "sha256:readme", "markdown")
+	if err != nil {
+		t.Fatal(err)
+	}
+	diffDraft, err := store.CreateDraft(map[string]any{
+		"path": "src/app.ts", "body": "Draft diff note", "source": "human",
+		"anchor": map[string]any{"surface": "diff", "canonical": map[string]any{"path": "src/app.ts"}, "diff": map[string]any{"path": "src/app.ts", "base": "HEAD", "ref": "working-tree", "hunkId": "h1", "side": "new", "newLineStart": float64(2), "newLineEnd": float64(2)}},
+	}, "sha256:app", "text")
+	if err != nil {
+		t.Fatal(err)
+	}
+	threadsBefore, err := store.ListThreads(Filters{Status: "open"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(threadsBefore) != 0 {
+		t.Fatalf("drafts leaked as open threads: %#v", threadsBefore)
+	}
+	drafts, err := store.ListDrafts(Filters{})
+	if err != nil || len(drafts) != 2 {
+		t.Fatalf("drafts = %#v, err = %v", drafts, err)
+	}
+	if _, err := store.UpdateDraft(sourceDraft["id"].(string), map[string]any{"body": "Edited source draft"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.DeleteDraft(diffDraft["id"].(string)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateDraft(map[string]any{
+		"path": "index.html", "body": "Draft HTML note", "source": "human",
+		"anchor": map[string]any{"surface": "rendered", "canonical": map[string]any{"path": "index.html"}, "rendered": map[string]any{"kind": "html", "selector": "h1", "textQuote": "Hello", "sourceLineStart": float64(1), "sourceLineEnd": float64(1)}},
+	}, "sha256:html", "html"); err != nil {
+		t.Fatal(err)
+	}
+	batch, err := store.PublishDrafts(nil, map[string]any{"id": "human:tasuku", "kind": "human", "displayName": "Tasuku"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reviewBatchID := batch["reviewBatchId"].(string)
+	if !strings.HasPrefix(reviewBatchID, "review-batch-") {
+		t.Fatalf("reviewBatchId = %q", reviewBatchID)
+	}
+	threads, err := store.ListThreads(Filters{Status: "open"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(threads) != 2 {
+		t.Fatalf("published threads = %#v", threads)
+	}
+	for _, thread := range threads {
+		if thread["reviewBatchId"] != reviewBatchID {
+			t.Fatalf("thread missing batch id: %#v", thread)
+		}
+		messages := thread["comments"].([]map[string]any)
+		if messages[0]["reviewBatchId"] != reviewBatchID {
+			t.Fatalf("comment missing batch id: %#v", messages[0])
+		}
+	}
+	remainingDrafts, err := store.ListDrafts(Filters{})
+	if err != nil || len(remainingDrafts) != 0 {
+		t.Fatalf("remaining drafts = %#v, err = %v", remainingDrafts, err)
+	}
+}
