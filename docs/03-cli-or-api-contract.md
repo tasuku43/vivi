@@ -11,8 +11,60 @@ vivi [root] --include md,html,ts,tsx,json
 vivi [root] --max-file-size 1048576
 vivi [root] --allow-html-scripts
 vivi comments active --actor claude-code --json
+vivi comments active --actor claude-code --full --json
+vivi comments active --actor claude-code --review-batch review-batch-... --full --json
+vivi comments next --actor codex --json
+vivi comments next --actor codex --with-context --json
+vivi comments next --actor codex --full --json
+vivi comments claim --actor codex --review-batch review-batch-... --full --json
+vivi comments claim <thread-id> --actor codex --lease 10m --json
+vivi comments claim --wait --actor codex --full --json
+vivi comments work --wait --actor codex --full --json
+vivi comments work --loop --actor codex --idle-events --full --json
+vivi comments renew <thread-id> --actor codex --lease 10m --json
+vivi comments hold <thread-id> --actor codex --interval 2m --lease 10m --json
+vivi comments inbox --actor codex --full --json
+vivi comments batch review-batch-... --actor codex --full --json
+vivi comments mine --actor codex --full --json
+vivi comments release <thread-id> --actor codex --json
+vivi comments release <thread-id> --actor codex --body-file /tmp/vivi-handoff.md --json
+vivi comments release <thread-id> --actor codex --triage-file /tmp/vivi-triage.json --require-claim --json
+vivi comments done <thread-id> --actor codex --body-file /tmp/vivi-reply.md --require-claim --json
+vivi comments done <thread-id> --actor codex --result-file /tmp/vivi-result.json --require-claim --json
+vivi comments doctor --actor codex --client-event-id doctor-start-1 --json
+vivi comments doctor --actor codex --receipt-log /tmp/vivi-agent-receipts.jsonl --json
+vivi comments schema commentProtocolManifest --json
+vivi comments schema commentDoctorOutput --json
+vivi comments schema commentTriageFileInput --json
+vivi comments schema commentResultFileInput --json
+vivi comments schema commentInboxOutput --json
+vivi comments schema commentBatchOutput --json
+vivi comments schema commentSuggestedCommand --json
+vivi comments schema commentWriteReceipt --json
+vivi comments schema commentWriteReceiptVerification --json
+vivi comments schema commentActivityBatchEvent --json
+vivi comments schema commentWorkClaimedEvent --json
+vivi comments schema commentWorkIdleEvent --json
+vivi comments schema commentOpenWorklistEvent --json
+vivi comments watch --actor claude-code --full --json
 vivi comments watch --actor claude-code --json
+vivi comments follow <thread-id> --no-initial --json
+vivi comments context <thread-id> --full --context-lines 6 --json
+vivi comments check <thread-id> --actor codex --json
+vivi comments verify-receipt --receipt-file /tmp/vivi-receipt.json --json
+vivi comments verify-receipts --receipt-log /tmp/vivi-agent-receipts.jsonl --json
 vivi comments reply <thread-id> --body "Implemented" --actor codex --json
+vivi comments reply <thread-id> --body-file - --actor codex --receipt-log /tmp/vivi-agent-receipts.jsonl --json
+vivi comments reply <thread-id> --body-file /tmp/vivi-reply.md --actor codex --json
+vivi comments triage <thread-id> --actor codex --decision accepted --summary "Investigating" --json
+vivi comments triage <thread-id> --actor codex --triage-file /tmp/vivi-triage.json --json
+vivi comments schema triage --json
+vivi comments schema result --json
+vivi comments done <thread-id> --body "Implemented" --actor codex --json
+vivi comments done <thread-id> --body-file /tmp/vivi-reply.md --actor codex --json
+vivi comments done <thread-id> --result-file - --actor codex --json
+vivi comments dismiss <thread-id> --body "Not applicable" --actor codex --json
+vivi comments dismiss <thread-id> --body-file - --actor codex --json
 vivi comments resolve <thread-id> --actor codex --json
 ```
 
@@ -30,15 +82,71 @@ Default rich preview limit: `1048576` bytes. Use `--max-file-size <bytes>` to ch
 need to work through local comment threads. It talks to a running Vivi server
 through GraphQL and does not edit comment storage directly. The server URL is
 resolved from `--url`, then `VIVI_URL`, then `http://127.0.0.1:4317`.
+`vivi comments --help` is part of that agent contract: its first screen gives
+the recommended startup order (`protocol`, `schema all`, `doctor`, `mine`,
+`work`) and the write rules for claim-guarded triage, release, done, and
+dismiss commands, so adapters can orient from help text before relying on
+hard-coded command recipes.
 
 The v1 commands are:
 
 ```bash
 vivi comments active --actor claude-code --client-event-id fetch-open-1 --json
+vivi comments active --actor claude-code --client-event-id fetch-open-1 --full --json
+vivi comments active --actor claude-code --client-event-id fetch-open-1 --review-batch review-batch-... --full --json
+vivi comments next --actor codex --client-event-id next-open-1 --json
+vivi comments next --actor codex --with-context --context-lines 6 --json
+vivi comments next --actor codex --full --diff-base HEAD --json
+vivi comments claim --actor codex --client-event-id claim-open-1 --review-batch review-batch-... --full --json
+vivi comments claim <thread-id> --actor codex --lease 10m --json
+vivi comments claim --wait --actor codex --client-event-id claim-wait-1 --full --json
+vivi comments work --wait --actor codex --client-event-id work-open-1 --full --json
+vivi comments work --loop --actor codex --client-event-id work-loop-1 --idle-events --full --json
+vivi comments renew <thread-id> --actor codex --client-event-id renew-open-1 --lease 10m --json
+vivi comments hold <thread-id> --actor codex --client-event-id hold-open-1 --interval 2m --lease 10m --json
+vivi comments inbox --actor codex --full --json
+vivi comments batch review-batch-... --actor codex --full --json
+vivi comments mine --actor codex --full --json
+vivi comments release <thread-id> --actor codex --client-event-id release-open-1 --json
+vivi comments release <thread-id> --actor codex --body-file /tmp/vivi-handoff.md --client-event-id release-open-1 --json
+vivi comments release <thread-id> --actor codex --triage-file - --require-claim --client-event-id release-open-1 --json
+vivi comments done <thread-id> --actor codex --body-file /tmp/vivi-reply.md --require-claim --json
+vivi comments done <thread-id> --actor codex --result-file /tmp/vivi-result.json --require-claim --json
+vivi comments protocol --json
+vivi comments protocol --receipt-log /tmp/vivi-agent-receipts.jsonl --json
+vivi comments schema all --json
+vivi comments doctor --actor codex --client-event-id doctor-start-1 --json
+vivi comments watch --actor claude-code --full --json
 vivi comments watch --actor claude-code --json
+vivi comments follow <thread-id> --no-initial --json
+vivi comments list --status open --full --json
 vivi comments list --status resolved --json
 vivi comments show <thread-id> --json
+vivi comments check <thread-id> --actor codex --json
+vivi comments context <thread-id> --full --context-lines 6 --json
 vivi comments reply <thread-id> --body "Fixed in this branch" --actor codex --json
+vivi comments reply <thread-id> --body-file /tmp/vivi-reply.md --actor codex --json
+vivi comments triage <thread-id> --actor codex --decision accepted --summary "Actionable feedback" --next-action "Patch and verify" --json
+vivi comments triage <thread-id> --actor codex --triage-file - --require-claim --json
+vivi comments schema commentProtocolManifest --json
+vivi comments schema commentDoctorOutput --json
+vivi comments schema commentTriageFileInput --json
+vivi comments schema commentResultFileInput --json
+vivi comments schema commentInboxOutput --json
+vivi comments schema commentBatchOutput --json
+vivi comments schema commentSuggestedCommand --json
+vivi comments schema commentWriteReceipt --json
+vivi comments schema commentWriteReceiptVerification --json
+vivi comments schema commentWriteReceiptLedgerVerification --json
+vivi comments schema commentActivityBatchEvent --json
+vivi comments schema commentWorkClaimedEvent --json
+vivi comments schema commentWorkIdleEvent --json
+vivi comments schema commentOpenWorklistEvent --json
+vivi comments done <thread-id> --body "Fixed in this branch" --actor codex --json
+vivi comments done <thread-id> --body-file /tmp/vivi-reply.md --actor codex --json
+vivi comments done <thread-id> --result-file - --actor codex --json
+vivi comments dismiss <thread-id> --body "Not applicable to this workspace" --actor codex --json
+vivi comments dismiss <thread-id> --body-file - --actor codex --json
 vivi comments resolve <thread-id> --actor codex --json
 vivi comments archive <thread-id> --actor codex --json
 vivi comments reopen <thread-id> --actor codex --json
@@ -61,8 +169,854 @@ All `vivi comments` commands currently emit JSON. List-like commands return:
 }
 ```
 
+Pass `--full` to `active` or `list` to add an `items` array aligned with the
+returned threads. This is the one-shot rich worklist path for agents that start
+after a GUI feedback publish and want every currently matching thread without
+staying attached to `watch`:
+
+```json
+{
+  "threads": [],
+  "count": 0,
+  "items": [
+    {
+      "thread": {},
+      "file": {},
+      "source": {},
+      "diff": {},
+      "activities": []
+    }
+  ]
+}
+```
+
+Pass `--review-batch <id>` to `active`, `list`, `next`, `claim`, or `watch` to limit
+the worklist to threads created by one published GUI review batch. The filter
+is applied by the server query, so actor-attributed read receipts are recorded
+only for the matching batch threads.
+
+`next` is the shortest read-only coding-agent intake command. It queries the current
+open worklist, records the same actor-aware read receipts as other read
+commands, orders threads by oldest `createdAt` with stable tie-breakers, and
+returns one thread plus worklist metadata:
+
+```json
+{
+  "thread": null,
+  "cursor": "open:...",
+  "count": 0,
+  "remaining": 0
+}
+```
+
+When work exists, `thread` is the selected `CommentThread` and `remaining` is
+the number of other open threads left after that selection. `next` does not
+claim an exclusive lease, mark work in progress, or change thread status; an
+agent should use `claim` when multiple background agents may be watching the
+same GUI feedback queue.
+
+`claim` is the preferred intake command for background coding agents that will
+act on GUI feedback. With no thread id, it reads the current open worklist
+without recording read receipts, tries the oldest matching thread first, skips
+threads that have a non-expired claim by another actor, appends one
+`thread_claimed` activity to the selected thread, and returns the claimed work
+item:
+
+```json
+{
+  "thread": {},
+  "claim": {
+    "type": "thread_claimed",
+    "actor": { "id": "codex", "kind": "codex" },
+    "clientEventId": "claim-open-1",
+    "leaseExpiresAt": "2026-06-21T00:10:00Z"
+  },
+  "cursor": "open:...",
+  "count": 2,
+  "remaining": 1
+}
+```
+
+With a thread id, `claim <thread-id>` attempts to claim exactly that thread and
+returns an error if another actor already holds a live lease. `--lease`
+controls the lease duration and defaults to `10m`. `--client-event-id` makes a
+claim retry idempotent for the same actor and thread. Claims are activity
+events, not lifecycle statuses: the thread remains `open`, the GUI can show
+who is currently working, and an abandoned claim naturally becomes stale after
+`leaseExpiresAt`. Pass `--full` for the same source, diff, and activity shape
+as `next --full`; the returned activity history includes the claim. The output
+is described by `commentClaimOutput` and, on a successful claim, includes
+`summary.recommendedAction: "start_work"` plus suggested structured
+`triage`, `release`, `done`, and `dismiss` commands for the newly owned thread.
+
+`claim --wait` is the blocking intake command for a resident background agent.
+It polls the open worklist using `--interval`, skips threads currently claimed
+by another live actor, and returns only after it successfully appends a
+`thread_claimed` activity. The payload is the same as `claim --full` when
+`--full` is set. Use it when the agent wants to sleep until human GUI feedback
+is ready to handle, rather than separately running `watch` and `claim`; the
+returned suggestions are enough to immediately post an acknowledgement back to
+the GUI before editing.
+
+`work` is the integrated work-session intake command for coding-agent adapters
+that want one process to claim work, keep the lease warm, and listen for human
+follow-up on that same thread. It accepts the same selection flags as `claim`,
+including `--wait`, `--review-batch`, `--lease`, and `--full`. When it claims
+a thread it emits one newline-delimited JSON event:
+
+```json
+{
+  "type": "comment_work_claimed",
+  "schemaVersion": 1,
+  "eventSchema": "commentWorkClaimedEvent",
+  "eventSchemaCommand": ["comments", "schema", "commentWorkClaimedEvent", "--json"],
+  "sessionId": "comments-work-...",
+  "sequence": 1,
+  "thread": {},
+  "claim": { "id": "activity-id", "type": "thread_claimed" },
+  "summary": {
+    "kinds": ["claimed_work", "human_comment", "own_claim"],
+    "requiresAttention": true,
+    "attentionReasons": ["claimed_open_thread"],
+    "recommendedAction": "start_work",
+    "suggestedCommands": [
+      {
+        "intent": "acknowledge_initial_feedback",
+        "command": "comments triage",
+        "args": ["comments", "triage", "comment-thread-...", "--actor", "codex", "--triage-file", "-", "--require-claim", "--client-event-id", "activity:comment-thread-...:triage:activity-id", "--json"],
+        "clientEventId": "activity:comment-thread-...:triage:activity-id",
+        "stdinSchema": "commentTriageFileInput",
+        "reason": "Post a structured acknowledgement that the agent has started the claimed work."
+      },
+      {
+        "intent": "complete_after_verification",
+        "command": "comments done",
+        "args": ["comments", "done", "comment-thread-...", "--actor", "codex", "--result-file", "-", "--require-claim", "--client-event-id", "activity:comment-thread-...:done:activity-id", "--json"],
+        "clientEventId": "activity:comment-thread-...:done:activity-id",
+        "stdinSchema": "commentResultFileInput",
+        "reason": "Resolve the thread with structured verification after the fix is complete."
+      },
+      {
+        "intent": "archive_after_decision",
+        "command": "comments dismiss",
+        "args": ["comments", "dismiss", "comment-thread-...", "--actor", "codex", "--result-file", "-", "--require-claim", "--client-event-id", "activity:comment-thread-...:dismiss:activity-id", "--json"],
+        "clientEventId": "activity:comment-thread-...:dismiss:activity-id",
+        "stdinSchema": "commentResultFileInput",
+        "reason": "Archive the thread with a structured explanation when the feedback is intentionally not fixed."
+      }
+    ]
+  },
+  "cursor": "open:...",
+  "remaining": 0
+}
+```
+
+`summary.recommendedAction` is `start_work` on the claimed event, so adapters
+can acknowledge the initial GUI feedback with the suggested structured triage
+command and later close it with the suggested structured done or dismiss
+command. The command
+then resumes from the claim activity id and emits normal
+`comment_thread_activity_batch` events for later human comments, lifecycle
+activity, and the session's own lease renewals. Renewal uses
+`--renew-interval`, defaulting to `min(lease/2, 2m)`, and appends fresh
+`thread_claimed` activities with `--client-event-id` suffixed as
+`:renew:<n>`. `--max-events` counts the claimed event plus activity batches, so
+`--max-events 1` claims and exits while `--max-events 2` claims and waits for
+one later batch. If no claimable work exists and `--wait` is not set, it emits
+`{ "type": "comment_work_idle", "eventSchema": "commentWorkIdleEvent",
+"reason": "no_claimable_work" }` and exits. Pass `--idle-events` with
+`--wait` or `--loop` to keep that same schema-bearing idle event in the stream
+while the agent is waiting. The idle summary uses
+`recommendedAction: "wait_for_gui_feedback"` when the queue is empty and
+`recommendedAction: "wait_for_claim_release"` when open threads exist but are
+currently claimed by other actors, with `comments inbox` and `comments watch`
+suggestions for inspection.
+When a later activity batch contains `thread_status_changed` to `resolved` or
+`archived`, `work` emits that batch and exits successfully, giving adapters a
+natural stop signal after `done` or `dismiss`.
+
+The `work`/`follow` stream events emit protocol metadata on each NDJSON line:
+`schemaVersion` is the numeric stream schema version, `eventSchema` names the
+runtime JSON Schema for that event type, `eventSchemaCommand` is the exact argv
+that returns that schema, `sessionId` is stable for one CLI process, and
+`sequence` starts at `1` and increments for each event emitted by that process.
+`work --loop` keeps the same `sessionId` while moving across
+threads, so adapters can persist `(sessionId, sequence, cursor)` for durable
+logs, duplicate suppression, and crash diagnostics.
+
+Every `comment_thread_activity_batch` event includes a `summary` object so
+adapters can branch before inspecting the full activity list:
+
+```json
+{
+  "type": "comment_thread_activity_batch",
+  "schemaVersion": 1,
+  "eventSchema": "commentActivityBatchEvent",
+  "eventSchemaCommand": ["comments", "schema", "commentActivityBatchEvent", "--json"],
+  "sessionId": "comments-work-...",
+  "sequence": 2,
+  "summary": {
+    "kinds": ["human_comment", "terminal_status"],
+    "requiresAttention": true,
+    "attentionReasons": ["external_human_comment", "terminal_status"],
+    "recommendedAction": "reconsider_work",
+    "suggestedCommands": [
+      {
+        "intent": "acknowledge_follow_up",
+        "command": "comments triage",
+        "args": [
+          "comments",
+          "triage",
+          "comment-thread-...",
+          "--actor",
+          "codex",
+          "--triage-file",
+          "-",
+          "--require-claim",
+          "--json"
+        ],
+        "stdinSchema": "commentTriageFileInput",
+        "stdinSchemaCommand": [
+          "comments",
+          "schema",
+          "commentTriageFileInput",
+          "--json"
+        ],
+        "stdinExample": {
+          "decision": "fixing",
+          "summary": "The feedback is actionable and reproducible.",
+          "nextAction": "Patch the file and run task check.",
+          "details": "- Source anchor confirmed\n- No clarification needed"
+        },
+        "reason": "Post a structured non-terminal acknowledgement before continuing work."
+      },
+      {
+        "intent": "complete_after_verification",
+        "command": "comments done",
+        "args": [
+          "comments",
+          "done",
+          "comment-thread-...",
+          "--actor",
+          "codex",
+          "--result-file",
+          "-",
+          "--require-claim",
+          "--json"
+        ],
+        "stdinSchema": "commentResultFileInput",
+        "stdinSchemaCommand": [
+          "comments",
+          "schema",
+          "commentResultFileInput",
+          "--json"
+        ],
+        "stdinExample": {
+          "summary": "Implemented the requested behavior.",
+          "verification": ["go test ./cli passed", "task check passed"],
+          "details": "- Completion reply is retry-safe"
+        },
+        "reason": "Resolve the thread with structured verification after the fix is complete."
+      },
+      {
+        "intent": "archive_after_decision",
+        "command": "comments dismiss",
+        "args": [
+          "comments",
+          "dismiss",
+          "comment-thread-...",
+          "--actor",
+          "codex",
+          "--result-file",
+          "-",
+          "--require-claim",
+          "--json"
+        ],
+        "stdinSchema": "commentResultFileInput",
+        "stdinSchemaCommand": [
+          "comments",
+          "schema",
+          "commentResultFileInput",
+          "--json"
+        ],
+        "stdinExample": {
+          "summary": "The feedback is intentionally not applicable to this workspace.",
+          "verification": ["Reviewed the source anchor and current requirements."],
+          "details": "- No code change was needed"
+        },
+        "reason": "Archive the thread with a structured explanation when the feedback is intentionally not fixed."
+      }
+    ],
+    "ownActivityCount": 0,
+    "externalActivityCount": 2,
+    "humanCommentCount": 1,
+    "agentCommentCount": 0,
+    "triageCommentCount": 0,
+    "ownCommentCount": 0,
+    "externalCommentCount": 1,
+    "externalAgentCommentCount": 0,
+    "ownTriageCommentCount": 0,
+    "externalTriageCommentCount": 0,
+    "commentUpdateCount": 0,
+    "claimCount": 0,
+    "ownClaimCount": 0,
+    "externalClaimCount": 0,
+    "releaseCount": 0,
+    "ownReleaseCount": 0,
+    "externalReleaseCount": 0,
+    "statusChangeCount": 1,
+    "ownStatusChangeCount": 0,
+    "externalStatusChangeCount": 1,
+    "readCount": 0,
+    "threadCreatedCount": 0,
+    "terminalStatus": "resolved"
+  },
+  "activities": [],
+  "comments": [
+    {
+      "id": "comment-...",
+      "threadId": "comment-thread-...",
+      "body": "One more note from the human while the agent is working.",
+      "createdBy": { "id": "human:tasuku", "kind": "human" },
+      "anchor": {}
+    }
+  ],
+  "source": {
+    "path": "README.md",
+    "available": true,
+    "anchorStartLine": 1,
+    "anchorEndLine": 1,
+    "lines": [{ "number": 1, "text": "# Title", "anchor": true }]
+  },
+  "diff": { "path": "README.md", "status": "available" }
+}
+```
+
+`kinds` is sorted and can contain `human_comment`, `agent_comment`,
+`triage_comment`, `own_comment`, `own_triage_comment`, `comment_update`,
+`claim`, `own_claim`, `claim_release`, `own_claim_release`, `status_change`,
+`terminal_status`, `read`, `thread_created`, or `other`. `triage_comment` is
+set when a comment body was generated by `comments triage`, which lets
+adapters distinguish a structured agent acknowledgement from free-form agent
+discussion. When the stream has `--actor`, the `own*` counts refer to that
+actor id and `external*` counts refer to every other actor; when no actor is
+supplied, activities are treated as external.
+When a delivered batch contains `comment_added` or `comment_updated`,
+`comments` contains the matching comment snapshots in activity order. This
+lets a resident agent read the human follow-up body, actor, and anchor directly
+from the stream without immediately calling `comments show`. Batches that only
+contain claims, releases, reads, or lifecycle changes omit `comments`.
+When `follow` or `work` is run with `--with-context` or `--full`, comment
+batches also include the same `file`, `source`, and optional `diff` shape used
+by claimed work items. This keeps the human follow-up body and the relevant
+source lines in one NDJSON event for agent triage.
+
+`recommendedAction` is the first field an adapter should branch on:
+`start_work` means this stream has claimed an open GUI feedback item and should
+acknowledge it before editing, `reconsider_work` means new external feedback
+should be folded into the active
+task, `ignore_own_heartbeat` means the batch only reflects this agent's lease
+renewal, `ignore_own_activity` means the batch only reflects this agent's own
+non-heartbeat activity such as its own triage reply, `inspect_external_activity`
+means another actor changed claim/lifecycle state or posted a structured triage
+reply, `finish_current_work` means a terminal status was observed, and
+`observe` means no stronger recommendation applies.
+`suggestedCommands` is the command-level companion for adapters. It returns
+subcommand argv that can be prefixed with the adapter's own Vivi launcher, plus
+`clientEventId` when the suggested action has a stable retry/correlation id,
+and `stdinSchema`, `stdinSchemaCommand`, and `stdinExample` when the command
+expects structured JSON on stdin. Runtime write suggestions include the same
+`clientEventId` in both the top-level field and the argv's
+`--client-event-id`; execute the argv as-is and reuse that id for retries of
+that logical write. The reusable recipe object is available as
+`comments schema commentSuggestedCommand --json` and is also exposed through
+the startup protocol's `componentSchemas.commentSuggestedCommand`. Agent write
+and runtime-routing suggestions carry the resolved `--url` when the emitting
+command targeted a non-default Vivi server, so adapters can execute suggested
+argv as-is without accidentally returning to `http://127.0.0.1:4317`.
+Agent write
+commands return a `receipt` object described by
+`comments schema commentWriteReceipt --json`; the receipt links the command,
+thread, actor, `clientEventId`, returned comment, terminal status when present,
+and activity effects such as `comment_added`, `thread_claim_released`, or
+`thread_status_changed`. Each receipt also carries `receiptSchema`,
+`receiptSchemaCommand`, `verificationCommand`, `verificationSchema`, and
+`verificationSchemaCommand`, so adapters can validate and later re-check the
+receipt without hard-coded schema names or command recipes. Use
+`comments verify-receipt --receipt-file <path|-> --json` after an adapter
+restart or long-running work segment to verify that a saved receipt still
+matches the server's thread, comment, status, and activity history. Agents can
+execute the receipt's own `verificationCommand` directly; it carries the same
+resolved `--url` used by the write so verification returns to the same Vivi
+server even when the adapter is not using the default port.
+Agents can also pass `--receipt-log <path>` to `reply`, `triage`, `release`, `done`, or
+`dismiss`; the CLI appends each successful write receipt as one JSONL line so a
+resident adapter has a restart ledger independent of stdout handling. Use
+`comments verify-receipts --receipt-log <path|-> --json` to validate every
+saved JSONL receipt before resuming a loop; its output summarizes total,
+verified, and failed entries and includes the individual receipt verification
+payloads. Failed receipt and ledger verification responses also keep the same
+`--url` in their recovery `suggestedCommands`. For
+`reconsider_work`, agents should usually acknowledge the human update with the
+suggested `comments triage --triage-file -` command, hand off blocked or
+needs-info work with the suggested `comments release --triage-file -` command,
+then later finish with the suggested `comments done --result-file -` command
+or intentionally archive with the suggested `comments dismiss --result-file -`
+command. For
+`inspect_external_activity`, the suggestion is
+`comments show <thread-id> --actor <actor> --json`. Actions such as
+`ignore_own_heartbeat`, `ignore_own_activity`, and `finish_current_work`
+intentionally have no suggested write command.
+Use `comments protocol --json` at adapter startup to discover the preferred
+resident loop (`comments work --wait --loop --idle-events --actor <actor>
+--full --json`),
+restart recovery commands (`comments mine --actor <actor> --full --json`),
+passive intake alternatives, single-thread companion commands, structured write
+recipes, schema lookup commands, and the JSON error policy. The protocol
+manifest is server-independent; it tells the adapter how to drive the CLI,
+while runtime events and `comments check` can still return more specific
+`suggestedCommands` for the current thread.
+The manifest is self-describing: `manifestSchema` is
+`commentProtocolManifest`, and `manifestSchemaCommand` is the exact argv for
+fetching the JSON Schema that validates `comments protocol --json`.
+Pass `--receipt-log <path>` to personalize the offline manifest for a durable
+agent restart ledger. The manifest's `receiptLedger` field then records the
+path plus `comments verify-receipts --receipt-log <path> --json`, and its
+startup, preferred loop, intake, companion, and structured write recipes carry
+the same `--receipt-log` flag where those commands can propagate or append
+receipts. Without `--receipt-log`, `receiptLedger.enabled` is false and the
+verification command contains a `<receipt-log-path>` placeholder.
+After caching the server-independent protocol and schemas, use
+`comments doctor --actor <actor> --client-event-id <id> --json` as the online
+readiness check for the selected Vivi server. It reads the open worklist cursor
+and count without recording read receipts, claims, or comments, then returns
+`recommendedAction` and startup `suggestedCommands` such as
+`comments mine --full --json`,
+`comments work --wait --loop --idle-events --full --json` or
+`comments inbox --full --json`.
+This gives a resident adapter a safe first server touch and an explicit
+restart-resume probe before it starts a long-running work loop. Pass
+`--receipt-log <path>` to include `receiptLedger` verification in the same
+startup payload; if any saved receipt no longer matches server state,
+`recommendedAction` becomes `reconcile_receipt_ledger` and the first suggested
+command is `comments verify-receipts --receipt-log <path> --json`. A missing
+ledger file is treated as an empty successful ledger for first startup. When a
+readiness, routing, watch, work, follow, or preflight command receives
+`--url <server>`, its runtime `suggestedCommands` carry the same resolved URL;
+when it receives `--receipt-log <path>`, write-oriented suggestions also carry
+the same ledger argument so adapters can execute suggested `triage`, `release`,
+`done`, `dismiss`, or `reply` commands as-is and still persist receipts. The protocol
+manifest exposes
+`startupSchemas.commentDoctorOutput`, and
+`comments schema commentDoctorOutput --json` validates the readiness payload.
+Protocol commands that start a durable read/claim loop and the generic
+structured write recipes include a `<client-event-id>` placeholder. Replace it
+with a stable id for one logical attempt and reuse that id only for retries of
+that attempt.
+The same retry key is honored by agent write commands: `reply`, `triage`,
+`done`, and `dismiss` send `--client-event-id` as an idempotency header, and
+the server stores it on the resulting `comment_added` and
+`thread_status_changed` activities. Replaying the same write with the same
+actor, thread, and client event id returns the existing comment or lifecycle
+effect instead of appending a second agent reply.
+Use `comments schema <name> --json` to fetch machine-readable JSON Schema,
+accepted command flags, and a minimal example for adapter-facing contracts.
+`commentProtocolManifest` validates the startup manifest itself, and
+`commentDoctorOutput` validates the online startup readiness check. For
+suggested stdin payloads, adapters can run the exact `stdinSchemaCommand` from the
+suggestion instead of constructing it themselves. `stdinRequired: true` marks
+recipes whose argv expects JSON on stdin, usually because it contains
+`--triage-file -` or `--result-file -`. `stdinExample` is intentionally small
+and is a shape hint, not a response template; it is tuned to the suggestion
+intent, so initial acknowledgements say the feedback has been claimed, human
+follow-up acknowledgements say the new note is being incorporated, release
+handoffs use a blocked triage example, completions use verification-oriented
+result JSON, and dismissals use an archival result example. The stable stdin schema names are `commentTriageFileInput` and
+`commentResultFileInput`; aliases `triage`, `triage-file`, `result`, and
+`result-file` are accepted for shell convenience.
+Snapshot adapters can fetch output schemas with
+`comments schema commentClaimOutput --json`,
+`comments schema commentInboxOutput --json`,
+`comments schema commentMineOutput --json`,
+`comments schema commentBatchOutput --json`, and
+`comments schema commentCheckOutput --json`. Structured acknowledgement output
+is described by `comments schema commentTriageOutput --json`, blocked or
+needs-info handoff releases are described by
+`comments schema commentReleaseOutput --json`, and terminal completion and
+archival replies are described by `comments schema commentResultOutput --json`.
+Aliases `claim`, `inbox`, `mine`, `batch`, and `check` are accepted for the
+corresponding snapshot and preflight schemas; use the full
+`commentTriageOutput`, `commentReleaseOutput`, and `commentResultOutput` names
+for write outputs so `schema triage` and `schema result` can keep meaning the
+stdin file contracts. The
+reusable suggested command recipe schema is
+`comments schema commentSuggestedCommand --json`, with aliases
+`suggestedCommand` and `suggested-command`. The reusable write command receipt
+schema is `comments schema commentWriteReceipt --json`, with aliases
+`writeReceipt` and `write-receipt`. Receipt verification output is described by
+`comments schema commentWriteReceiptVerification --json`, with aliases
+`receiptVerification` and `write-receipt-verification`. Receipt ledger
+verification output is described by
+`comments schema commentWriteReceiptLedgerVerification --json`, with aliases
+`receiptLedgerVerification` and `write-receipt-ledger-verification`. Stream adapters can
+fetch event output schemas with
+`comments schema commentActivityBatchEvent --json`,
+`comments schema commentWorkClaimedEvent --json`, and
+`comments schema commentWorkIdleEvent --json`, and
+`comments schema commentOpenWorklistEvent --json`. The aliases
+`activityBatch`, `workClaimed`, `workIdle`, and `openWorklist` are accepted
+for the common event schemas.
+Non-zero JSON exits use `comments schema commentErrorEvent --json`; aliases
+`error`, `commentError`, and `commentErrorEvent` are accepted.
+The protocol manifest also includes `errorPolicy`, which tells adapters that
+non-zero JSON exits are written to stdout, identifies `commentErrorEvent` as
+the validation schema, and enumerates stable `error.code` values with
+recoverability guidance. Branch on `error.suggestedCommands` first when it is
+present; the policy is the fallback decision table for stale claims, other
+owners, stale thread ids, server reachability, argument bugs, and retryable
+upstream failures. Recovery `suggestedCommands` preserve an explicit `--url`
+or `VIVI_URL`-resolved server where available, and carry `--receipt-log` into
+commands such as `doctor`, `check`, `follow`, and `inbox` that may emit the
+next write-oriented suggestions.
+`comments schema all --json` returns the protocol manifest, doctor readiness,
+snapshot output schemas, stdin schemas, reusable component schemas, stream event
+schemas, receipt verification schemas, and error envelope schema for adapter
+startup caching and does not contact the Vivi server.
+
+When `vivi comments ... --json` fails through the CLI entrypoint, it exits
+non-zero and writes a machine-readable error envelope instead of plain text:
+
+```json
+{
+  "error": {
+    "schemaVersion": 1,
+    "code": "no_live_claim",
+    "message": "comment thread \"...\" has no live claim for actor \"codex\"; renew or claim it before writing",
+    "command": "comments done",
+    "args": ["comments", "done", "...", "--actor", "codex", "--require-claim", "--url", "http://127.0.0.1:4317", "--json"],
+    "recoverable": true,
+    "suggestedCommands": [
+      {
+        "intent": "claim_thread_before_retrying",
+        "command": "comments claim",
+        "args": ["comments", "claim", "...", "--actor", "codex", "--full", "--client-event-id", "error:...:claim", "--url", "http://127.0.0.1:4317", "--json"],
+        "clientEventId": "error:...:claim",
+        "reason": "Claim this thread before retrying the failed guarded write."
+      },
+      {
+        "intent": "check_thread_before_retrying",
+        "command": "comments check",
+        "args": ["comments", "check", "...", "--actor", "codex", "--full", "--url", "http://127.0.0.1:4317", "--json"],
+        "reason": "Inspect live claim ownership and use write.suggestedCommands for the next safe write."
+      }
+    ],
+    "schemaCommand": ["comments", "schema", "commentErrorEvent", "--json"]
+  }
+}
+```
+
+Known `error.code` values include `server_unreachable`, `invalid_arguments`,
+`no_live_claim`, `claimed_by_other_actor`, `not_found`,
+`upstream_graphql_error`, and `comments_command_failed`. Adapters should branch on `code` and
+`suggestedCommands` before falling back to the human-readable `message`.
+When a failed command was pointed at a non-default server, execute those
+suggested argv as-is so recovery stays attached to the same GUI feedback
+session.
+Adapters can validate this envelope with
+`comments schema commentErrorEvent --json`, or cache it from
+`comments schema all --json` at startup.
+Passing `--json=false` keeps legacy plain-text stderr behavior.
+`requiresAttention` is true for external comments, updates, claims, releases,
+or status changes; terminal status is still reported in `attentionReasons` and
+`terminalStatus`, but it is handled by the work-session stop/loop contract.
+
+Pass `--loop` to keep `work` resident as a queue worker. After a terminal
+status batch for the current thread, the same process returns to the claim
+loop and emits the next `comment_work_claimed` event when another matching
+thread is available. `--loop` is for queue selection, so it cannot be combined
+with an explicit thread id or `--once`; use `--max-events` to bound a loop in
+harnesses. This lets a coding-agent adapter consume one NDJSON stream for the
+whole GUI feedback queue instead of supervising an outer shell loop around
+`work --wait`. Add `--idle-events` to make the resident loop observable while
+it is between claims; each idle event has the same `sessionId`/`sequence`
+metadata as claimed and activity events.
+
+`renew <thread-id>` is the explicit heartbeat command for long-running agent
+work. It appends another `thread_claimed` activity for the same actor and
+returns it as `renewal`:
+
+```json
+{
+  "thread": {},
+  "renewal": {
+    "type": "thread_claimed",
+    "actor": { "id": "codex", "kind": "codex" },
+    "clientEventId": "renew-open-1",
+    "leaseExpiresAt": "2026-06-21T00:20:00Z"
+  }
+}
+```
+
+Use `renew` while an agent is still triaging, editing, or waiting on tests so
+the GUI can keep showing a live owner. The command returns an error if another
+actor already holds the live lease. If the previous lease expired or was
+released before another actor claimed it, `renew` reacquires the open thread.
+Use `--client-event-id` for idempotent heartbeat retries.
+
+`hold <thread-id>` is the long-running lease keeper for coding-agent work that
+may outlive one lease window, such as implementation plus `task check`. It
+renews immediately, then renews again every `--interval` until interrupted, and
+emits newline-delimited JSON renewal events:
+
+```json
+{
+  "type": "comment_claim_renewed",
+  "sequence": 1,
+  "emittedAt": "2026-06-21T00:00:00Z",
+  "thread": {},
+  "renewal": {
+    "type": "thread_claimed",
+    "clientEventId": "hold-open-1:1",
+    "leaseExpiresAt": "2026-06-21T00:10:00Z"
+  }
+}
+```
+
+Use `--max-events <count>` for bounded harnesses or tests, and `--once` for a
+single streamed renewal. When `--client-event-id` is supplied, `hold` appends a
+sequence suffix so every heartbeat extends the lease instead of reusing one
+idempotent claim event.
+
+`inbox` is the startup snapshot for background agents. It reads the open
+worklist without creating read receipts, classifies threads by their latest live
+claim, and returns three groups:
+
+```json
+{
+  "actor": { "id": "codex", "kind": "codex" },
+  "cursor": "open:...",
+  "count": 3,
+  "summary": {
+    "requiresAttention": true,
+    "attentionReasons": ["owned_live_claims"],
+    "recommendedAction": "resume_owned_work",
+    "openThreadCount": 3,
+    "mineCount": 1,
+    "unclaimedCount": 1,
+    "claimedByOthersCount": 1,
+    "suggestedCommands": []
+  },
+  "mine": { "threads": [], "claims": [], "count": 1 },
+  "unclaimed": { "threads": [], "count": 1 },
+  "claimedByOthers": { "threads": [], "claims": [], "count": 1 }
+}
+```
+
+Use `mine` first when the agent only wants its resumable work. Use `inbox` when
+the agent needs the whole routing picture: work it already owns, work it may
+claim next, and work another live actor is handling. `summary.recommendedAction`
+is the adapter branch: `resume_owned_work` when live claims already belong to
+the actor, `claim_open_work` when unclaimed GUI feedback is ready,
+`wait_for_claim_release` when all open work is owned by other actors, and
+`wait_for_gui_feedback` when the queue is empty. `summary.suggestedCommands`
+contains the next safe CLI recipes, such as renewing and following recovered
+owned work or starting `comments work` for claimable feedback. Those recipes
+preserve the selected `--url`, plus `--receipt-log` where relevant, so a
+resident agent can continue against the same GUI/server session. Pass `--full`
+to add rich `items` inside each group.
+
+`batch <review-batch-id>` is the publish-batch snapshot for agents that are
+responding to one human GUI review action. It reads all threads in the batch
+without creating read receipts, summarizes terminal progress, and classifies
+the still-open subset with the same claim routing used by `inbox`:
+
+```json
+{
+  "reviewBatchId": "review-batch-...",
+  "actor": { "id": "codex", "kind": "codex" },
+  "cursor": "batch:...",
+  "count": 2,
+  "summary": {
+    "total": 2,
+    "open": 1,
+    "resolved": 1,
+    "archived": 0,
+    "complete": false
+  },
+  "threads": [],
+  "open": {
+    "count": 1,
+    "summary": {
+      "requiresAttention": true,
+      "attentionReasons": ["owned_live_claims"],
+      "recommendedAction": "resume_owned_work",
+      "openThreadCount": 1,
+      "mineCount": 1,
+      "unclaimedCount": 0,
+      "claimedByOthersCount": 0,
+      "suggestedCommands": []
+    },
+    "mine": { "threads": [], "claims": [], "count": 1 },
+    "unclaimed": { "threads": [], "count": 0 },
+    "claimedByOthers": { "threads": [], "claims": [], "count": 0 }
+  }
+}
+```
+
+Pass `--full` to add rich `items` for every batch thread and for each open
+routing group. This keeps the human's publish action as a coherent unit while
+still letting a background agent pick the next claimable thread. The
+`open.summary` shape matches `inbox.summary`, so a batch-oriented adapter can
+use the same `resume_owned_work`, `claim_open_work`,
+`wait_for_claim_release`, and `wait_for_gui_feedback` branches while preserving
+the human's review batch as the reporting unit.
+
+`mine` is the restart/resume command for agents. It returns open threads whose
+latest live `thread_claimed` activity belongs to `--actor`, plus the matching
+claim activities:
+
+```json
+{
+  "threads": [],
+  "claims": [],
+  "count": 0,
+  "cursor": "open:..."
+}
+```
+
+Pass `--full` to include `items` for those claimed threads. `mine` does not
+create read receipts or extend leases; use `renew <thread-id>` with a new
+`--client-event-id` to keep long-running work live.
+
+`release <thread-id>` is the non-terminal handoff command. It appends a
+`thread_claim_released` activity for the current actor, leaves the thread
+`open`, and makes the thread claimable by another agent immediately instead of
+waiting for `leaseExpiresAt`. Use it when an agent claimed work but decides not
+to handle it in this run. `release` requires the latest live claim to belong to
+the releasing actor and supports `--client-event-id` for idempotent retries.
+Pass `--body` or `--body-file` to add a handoff reply before releasing the
+claim. Body-backed release first verifies the live claim, so a stale agent does
+not leave a stray comment when another actor has already taken over. The
+response includes `comment` only when a handoff reply was created.
+For resident adapters, prefer `--triage-file <path|-> --require-claim` when
+the handoff reason is structured as `needs-info` or `blocked`: the command
+renders the same triage Markdown body, posts it, and releases the live claim in
+one guarded operation so another agent can pick up the open thread.
+
+```json
+{
+  "thread": {},
+  "triage": {},
+  "comment": {},
+  "release": { "type": "thread_claim_released" }
+}
+```
+
+Pass `--full` for the background-agent triage shape: source context, current
+per-file diff, and activity history in one response. It is shorthand for
+`--with-context --with-diff --with-activities` and is the preferred intake mode
+when a coding agent is responding to GUI feedback.
+
+Pass `--with-context` to include the same `file` and `source` payload returned
+by `context` on the selected thread. If no open thread exists, `thread`,
+`file`, and `source` are `null` while `count` and `remaining` are `0`. This is
+the shortest polling intake path for agents that want one actionable item and
+its local source context in a single JSON response.
+
+Pass `--with-diff` to include the current Git diff for the selected thread path
+as `diff`. `--diff-base <ref>` selects one of the server-allowed recent diff
+bases; the default is `HEAD`. When no open thread exists, `diff` is `null`.
+
+Pass `--with-activities` to include the selected thread's activity history as
+`activities`. For actor-attributed `next` calls this includes the read receipt
+created by that delivery, so an agent can triage with the human thread, source,
+diff, and observation history in one response.
+
+`context` is the focused source-reading command for coding agents. It resolves
+the selected thread, loads the referenced file through GraphQL, extracts the
+line range from the thread anchor, and returns the thread, file metadata, and a
+bounded source snippet:
+
+```json
+{
+  "thread": {},
+  "file": {
+    "path": "README.md",
+    "viewerKind": "markdown",
+    "encoding": "utf8",
+    "etag": "sha256:...",
+    "size": 42,
+    "mtimeMs": 1710000000000
+  },
+  "source": {
+    "path": "README.md",
+    "viewerKind": "markdown",
+    "encoding": "utf8",
+    "available": true,
+    "startLine": 1,
+    "endLine": 3,
+    "anchorStartLine": 2,
+    "anchorEndLine": 2,
+    "lines": [
+      { "number": 1, "text": "# Title", "anchor": false },
+      { "number": 2, "text": "Needs work", "anchor": true }
+    ]
+  }
+}
+```
+
+`--context-lines <count>` controls the number of source lines before and after
+the anchor. Non-UTF-8 or missing-anchor cases return `source.available: false`
+with a machine-readable `reason` instead of guessing at a snippet.
+
+Pass `--full` to `context` for the same rich triage shape on a known thread id.
+Pass `--with-diff` to add only the `TextDiff` payload for the thread path, and
+`--with-activities` to add only the thread activity history. This lets a
+background agent triage a human comment with the human's anchor, current
+source, current working-tree diff, and conversation history in one response.
+
+`check <thread-id>` is the machine-readable write preflight for agents that are
+about to use `--require-claim`. It reads the thread and activity history
+without creating read receipts, reports the latest live claim, and returns a
+stable reason code:
+
+```json
+{
+  "thread": {},
+  "liveClaim": null,
+  "write": {
+    "actor": { "id": "codex", "kind": "codex" },
+    "canWrite": false,
+    "reason": "no_live_claim",
+    "recommendedAction": "claim_before_writing",
+    "suggestedCommands": [
+      {
+        "intent": "claim_thread_before_writing",
+        "command": "comments claim",
+        "args": ["comments", "claim", "<thread-id>", "--actor", "codex", "--full", "--json"],
+        "reason": "Claim this open thread and receive source, diff, and activity context before writing."
+      }
+    ]
+  }
+}
+```
+
+`write.reason` is `owned_live_claim`, `no_live_claim`,
+`claimed_by_other_actor`, or `thread_not_open`. Use it immediately before a
+terminal reply when an agent wants to decide whether to proceed, renew, release,
+or refetch the work item. `write.recommendedAction` and
+`write.suggestedCommands` are the higher-level adapter path: no-claim checks
+suggest `comments claim <thread-id> --full`, owned-claim checks suggest
+`renew`, guarded `reply`, structured `triage`, `done`, and `dismiss`,
+other-owner checks suggest `show` plus `follow`, and terminal threads suggest
+`show` plus `reopen`. Suggestions preserve the check command's resolved
+`--url`, and write suggestions also preserve `--receipt-log`. The output is
+described by `commentCheckOutput`, including the nested write preflight reason,
+recommended action, and suggested command recipes. Pass `--full` to include the same source, diff, and
+activity payloads as `context --full`.
+
 `watch` emits newline-delimited JSON events. It is an open worklist watcher,
-not a draft or review-batch intake. It polls `commentThreads(status: open)`,
+not a claim operation. It polls `commentThreads(status: open)`,
 emits the current open worklist on startup by default, and then emits another
 full open-worklist snapshot whenever the cursor changes. Pass
 `--no-initial` to wait for future changes only, or `--cursor <cursor>` with a
@@ -72,11 +1026,28 @@ event is shaped as:
 ```json
 {
   "type": "comments_open_worklist",
+  "schemaVersion": 1,
+  "eventSchema": "commentOpenWorklistEvent",
+  "eventSchemaCommand": ["comments", "schema", "commentOpenWorklistEvent", "--json"],
   "reason": "initial",
   "changes": ["open_thread_added"],
   "cursor": "open:...",
   "emittedAt": "2026-06-21T00:00:00Z",
   "count": 1,
+  "summary": {
+    "requiresAttention": true,
+    "attentionReasons": ["open_threads_available"],
+    "recommendedAction": "claim_open_work",
+    "openThreadCount": 1,
+    "suggestedCommands": [
+      {
+        "intent": "claim_next_open_thread",
+        "command": "comments work",
+        "args": ["comments", "work", "--actor", "codex:agent", "--full", "--json"],
+        "reason": "Claim the next open thread and receive a self-describing work event."
+      }
+    ]
+  },
   "threads": []
 }
 ```
@@ -90,6 +1061,41 @@ delivered snapshots, `--interval <duration>` controls the polling cadence, and
 `--no-initial` records the current cursor as the baseline before waiting for a
 future open-worklist change. If delivery can be duplicated across process
 restarts, agents should key their own work by `cursor` and thread ids.
+When open threads are available, `summary.recommendedAction` is
+`claim_open_work` and `summary.suggestedCommands` includes
+`comments work --actor <actor> --full --json` so a resident adapter can claim
+the next thread without hard-coding the handoff. That suggestion includes a
+cursor-derived `clientEventId` and matching `--client-event-id` argv for
+retry-safe claim correlation. It also preserves the watch command's resolved
+`--url` and receipt ledger flag when present. When the worklist is empty the
+recommended action is `wait_for_open_work`.
+
+Pass `--full` to add the complete `items` array to each delivered watch event.
+Pass `--with-context` and/or `--with-diff` for narrower item payloads. When
+`--with-activities` is also set, each item includes activity history. The item
+shape is:
+
+```json
+{
+  "items": [
+    {
+      "thread": {},
+      "file": {},
+      "source": {},
+      "diff": {},
+      "activities": []
+    }
+  ]
+}
+```
+
+Each item is aligned with one open thread and is intended as the background
+agent's triage unit: the human comment thread, the anchored source snippet when
+requested, the current per-file diff when requested, and the thread activity
+history when requested. For actor-attributed watch deliveries, the activity
+list includes the delivered read receipt keyed by the event cursor. The legacy
+`threads` array remains present for clients that only need the worklist
+snapshot.
 
 When `--actor` is set, watch records read receipts only for delivered
 snapshots. The client event id is derived from `--client-event-id` when
@@ -99,12 +1105,194 @@ server disconnect or network failure does not produce a worklist event; a
 long-running watch retries on the next interval, while `--once` surfaces the
 request failure as a non-zero command error.
 
+`follow <thread-id>` emits newline-delimited JSON activity batches for one
+thread. It is for an agent that already claimed work and wants to notice human
+follow-up comments, claim releases, terminal status changes, or other activity
+while editing:
+
+```json
+{
+  "type": "comment_thread_activity_batch",
+  "reason": "activity_changed",
+  "threadId": "comment-thread-...",
+  "cursor": "activity-id",
+  "emittedAt": "2026-06-21T00:00:00Z",
+  "count": 1,
+  "activities": []
+}
+```
+
+On startup, `follow` emits the current activity history unless `--no-initial`
+is set. Pass `--cursor <activity-id>` to resume after the last delivered
+activity; the next event uses reason `resumed` when new activity exists. Use
+`--once` for a single poll and `--max-events <count>` for bounded harnesses.
+The robust agent pattern is to read the current thread activity cursor after
+`claim` or `renew`, start `follow --cursor <activity-id>`, and then keep that
+stream beside long edits so human GUI follow-up is not lost.
+
 Single-thread lifecycle commands return `{ "thread": ... }`; `reply` returns
-`{ "comment": ... }`; `show` returns `{ "thread": ..., "activities": [...] }`.
-Published review batches add `reviewBatchId` to returned threads and comments
-as auxiliary metadata. Draft review comments are not returned by `active`,
-`watch`, `list`, or `show`; after publish, the resulting `open` threads appear
-as ordinary open worklist items.
+`{ "comment": ... }`; `triage` returns
+`{ "triage": ..., "comment": ..., "thread": ... }`; `done` and `dismiss` return
+`{ "comment": ..., "thread": ... }`, plus `{ "result": ... }` when
+`--result-file` is used;
+`show` returns `{ "thread": ..., "activities": [...] }`. Published review
+batches add `reviewBatchId` to returned threads and comments as auxiliary
+metadata. Draft review comments are not returned by `active`, `next`, `watch`,
+`list`, or `show`; after publish, the resulting `open` threads appear as
+ordinary open worklist items.
+
+`claim --review-batch <id> --full` is the safest default intake for background
+agents that are responding to one published GUI review batch. It returns one
+claimed thread, a `thread_claimed` activity with `leaseExpiresAt`, and the same
+source, diff, and activity payloads used by rich work items. The thread remains
+`open` until the agent replies with `done` or `dismiss`, and its
+`commentClaimOutput.summary` carries the same initial structured write
+suggestions as the integrated `work` claimed event.
+Use `claim --wait --full` for a resident agent that should block until one
+claimable feedback item exists.
+Use `work --wait --full` when an adapter wants one stream that claims work,
+renews the lease, and follows human updates on the claimed thread. Add
+`--idle-events` for a supervisor-visible resident process that reports waiting
+state before the next GUI feedback arrives.
+Use `batch <review-batch-id> --full` when the agent is responding to one
+published GUI review batch and needs progress plus routing in one payload.
+Use `mine --full` after an agent restart to recover the same live claims before
+claiming more work. `mine` includes a `summary` with `recommendedAction` and
+`suggestedCommands`; when owned work exists the suggested path is renew the
+claim, follow the thread, then run a guarded `check` before writing.
+Use `renew <thread-id>` as a heartbeat while triage, edits, or verification are
+still in flight.
+Use `hold <thread-id>` while running long edits or checks so the GUI keeps
+showing a live owner and `--require-claim` terminal writes do not fail after
+the lease expires.
+Use `check <thread-id>` right before a guarded write when the agent wants a
+JSON preflight instead of discovering stale ownership from a terminal error.
+Use `inbox --full` when an agent needs one snapshot of owned, unclaimed, and
+other-claimed feedback before deciding its next command.
+Use `release <thread-id> --triage-file <path|-> --require-claim` to explain a
+blocked or needs-info handoff with structured JSON and release the claim
+without resolving or archiving it. Use `release <thread-id> --body-file <path>`
+for a free-form handoff.
+
+`reply`, `done`, and `dismiss` accept exactly one of `--body <text>` or
+`--body-file <path|->`. `--body-file` is the general Markdown path for coding
+agents when the reply contains verification output or multi-line detail,
+because it avoids shell quoting and sends the file or stdin content through
+the normal comment body validation. For terminal agent adapters, prefer
+`done`/`dismiss --result-file <path|->` so completion data stays structured
+until the CLI renders the human-readable comment body.
+
+`triage <thread-id>` is the non-terminal acknowledgement path for resident
+agents. It posts a structured agent comment and leaves the thread `open`, so a
+human can see that feedback was received before the final `done` or `dismiss`.
+The command requires `--actor` and a decision; supported decisions are
+`accepted`, `fixing`, `needs-info`, `blocked`, and `not-applicable`. For shell
+use it accepts `--decision`, `--summary`, `--next-action`, and optional `--body`
+or `--body-file` details, then renders a human-readable Markdown comment:
+
+```json
+{
+  "triage": {
+    "decision": "accepted",
+    "summary": "The feedback is actionable.",
+    "nextAction": "Patch the copy and run task check.",
+    "body": "Triage: accepted\n\nSummary: ..."
+  },
+  "comment": {},
+  "thread": { "status": "open" }
+}
+```
+
+For adapters, prefer `--triage-file <path|->` with JSON so the model can emit
+one structured artifact without shell quoting. The same payload is accepted by
+`triage` to keep ownership and by `release` to post the explanation and hand
+the still-open thread back to the queue. Suggested triage commands include an
+intent-specific `stdinExample`, so a resident adapter can distinguish initial
+claim acknowledgement, human follow-up acknowledgement, generic acknowledgement,
+needs-info, and blocked handoff without inventing its own wording table:
+
+```json
+{
+  "decision": "accepted",
+  "summary": "The feedback is actionable.",
+  "nextAction": "Patch the copy and run task check.",
+  "details": "- Source anchor confirmed\n- No clarification needed"
+}
+```
+
+`--triage-file` is mutually exclusive with `--decision`, `--summary`,
+`--next-action`, `--body`, and `--body-file`; pass `--triage-file -` to read
+that JSON from stdin. The output is described by `commentTriageOutput`: it
+contains the rendered `triage` object, the created or reused agent `comment`,
+the still-open `thread`, and the write `receipt`.
+
+For retry safety, if the same actor has already posted the same generated
+triage body on that thread, `triage` returns the existing comment instead of
+creating a duplicate. Pass `--require-claim` in background-agent loops so a
+stale process cannot acknowledge feedback after another actor has taken over.
+
+For terminal replies, `done` and `dismiss` also accept `--result-file
+<path|->` with JSON fields `summary`, `verification`, and `details`:
+
+```json
+{
+  "summary": "Fixed the requested behavior.",
+  "verification": ["go test ./cli passed", "task check passed"],
+  "details": "- Source anchor confirmed\n- Completion reply is retry-safe"
+}
+```
+
+The terminal reply output is described by `commentResultOutput`. It always
+contains the created or reused agent `comment`, the terminal `thread`, and the
+write `receipt`; when `--result-file` is used it also includes the rendered
+`result` object with `outcome`, `summary`, `verification`, `details`, and
+`body`.
+
+The CLI renders that into a Markdown comment beginning with `Result: resolved`
+for `done` or `Result: archived` for `dismiss`, and returns a `result` object
+alongside `comment` and `thread`:
+
+```json
+{
+  "result": {
+    "outcome": "resolved",
+    "summary": "Fixed the requested behavior.",
+    "verification": ["go test ./cli passed"],
+    "body": "Result: resolved\n\nSummary: ..."
+  },
+  "comment": {},
+  "thread": { "status": "resolved" }
+}
+```
+
+`--result-file` is mutually exclusive with `--body`, `--body-file`, and
+`--triage-file`; pass `--result-file -` to read the JSON from stdin. At least
+one of `summary`, `verification`, or `details` must be non-empty.
+
+Pass `--require-claim` to `reply`, `triage`, `done`, `dismiss`, `resolve`, or `archive`
+when the command is part of a background-agent loop that previously used
+`claim`. The CLI fetches the latest activity history without creating a read
+receipt and refuses to write unless the current `--actor` owns the latest live
+`thread_claimed` lease. This guards against stale agent processes replying or
+closing feedback after another actor has claimed the same thread. Use `renew`
+before the terminal command if a long edit or test run may have let the lease
+expire.
+
+`done` is the shortest terminal path for coding agents. It adds the supplied
+reply to an open thread and then resolves that thread, using the same actor
+input as `reply` and `resolve`. If the same actor has already posted the same
+completion reply and the thread is already resolved, `done` returns the
+existing comment and resolved thread instead of adding a duplicate reply.
+When `--client-event-id` is supplied, the underlying reply and resolve
+activities also become retry-safe for that logical attempt.
+
+`dismiss` is the archived counterpart for triage decisions where the agent is
+intentionally not making a code change. It adds the supplied explanation to an
+open thread and then archives that thread. If the same actor has already posted
+the same explanation and the thread is already archived, `dismiss` returns the
+existing comment and archived thread instead of adding a duplicate reply.
+When `--client-event-id` is supplied, the underlying explanation and archive
+activities also become retry-safe for that logical attempt.
 
 ## GraphQL data API
 
@@ -129,6 +1317,10 @@ treats each existing comment as its own thread. New comments receive a
 `threadId` matching their first comment id unless a caller supplies an existing
 thread id. `updateCommentThread` updates the status of every comment currently
 in that thread and returns the updated `CommentThread`.
+`comments(path, status, reviewBatchId)` and
+`commentThreads(path, status, reviewBatchId)` support filtering by the
+published review batch id, which is the same server-side filter used by
+`vivi comments --review-batch`.
 
 Draft review comments are a separate pre-publish resource, not a
 `CommentStatus`. `draftReviewComments(path)` lists unpublished draft comments

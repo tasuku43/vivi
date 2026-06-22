@@ -7,6 +7,7 @@ import (
 )
 
 type threadActivityObserverKey struct{}
+type clientEventIDKey struct{}
 
 type ThreadActivityObserver interface {
 	ObserveThreadRead(threadID string)
@@ -51,6 +52,19 @@ func WithThreadActivityObserver(ctx context.Context, observer ThreadActivityObse
 		return ctx
 	}
 	return context.WithValue(ctx, threadActivityObserverKey{}, observer)
+}
+
+func WithClientEventID(ctx context.Context, clientEventID string) context.Context {
+	clientEventID = strings.TrimSpace(clientEventID)
+	if clientEventID == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, clientEventIDKey{}, clientEventID)
+}
+
+func ClientEventIDFromContext(ctx context.Context) string {
+	clientEventID, _ := ctx.Value(clientEventIDKey{}).(string)
+	return strings.TrimSpace(clientEventID)
 }
 
 func ObserveThreadRead(ctx context.Context, threadID string) {

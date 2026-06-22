@@ -1,0 +1,45 @@
+{
+  "name": "human follow-up during claimed agent work",
+  "human": {
+    "actor": {
+      "id": "human:fixture",
+      "kind": "human",
+      "displayName": "Fixture Human"
+    },
+    "path": "README.md",
+    "body": "Please verify the generated overview.",
+    "anchor": {
+      "surface": "source",
+      "canonical": {
+        "path": "README.md",
+        "lineStart": 1,
+        "lineEnd": 1,
+        "quote": "# Vivi Fixture"
+      }
+    },
+    "followUp": {
+      "body": "One more note: make sure the reply mentions the verification result."
+    }
+  },
+  "agent": {
+    "actor": {
+      "id": "codex:fake-agent-loop",
+      "kind": "codex",
+      "displayName": "Fake Codex"
+    },
+    "clientEventId": "agent-loop-read-follow-up-v1",
+    "triage": {
+      "decision": "accepted",
+      "summary": "The follow-up is actionable and should be reflected in the final reply.",
+      "nextAction": "Mention verification in the completion comment.",
+      "details": "- Human follow-up received\n- No clarification needed"
+    },
+    "result": {
+      "summary": "Verified the overview and included the requested verification result.",
+      "verification": ["task check passed"],
+      "details": "- Human follow-up reflected in the completion comment"
+    },
+    "replyBody": "Verified the overview and included the requested verification result.",
+    "terminalAction": "resolve"
+  }
+}

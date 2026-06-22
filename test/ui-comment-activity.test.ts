@@ -56,6 +56,19 @@ it("summarizes the newest two activity events inline and keeps the rest in the t
     [
       event({
         id: "activity-1",
+        type: "thread_claim_released",
+        actor: { id: "codex:run-1", kind: "codex", displayName: "Codex" },
+        createdAt: "2026-06-20T00:00:55.000Z",
+      }),
+      event({
+        id: "activity-2",
+        type: "thread_claimed",
+        actor: { id: "codex:run-1", kind: "codex", displayName: "Codex" },
+        leaseExpiresAt: "2026-06-20T00:10:48.000Z",
+        createdAt: "2026-06-20T00:00:50.000Z",
+      }),
+      event({
+        id: "activity-3",
         type: "thread_read",
         actor: {
           id: "claude-code:run-1",
@@ -65,13 +78,13 @@ it("summarizes the newest two activity events inline and keeps the rest in the t
         createdAt: "2026-06-20T00:00:48.000Z",
       }),
       event({
-        id: "activity-2",
+        id: "activity-4",
         type: "comment_added",
         actor: { id: "codex:run-1", kind: "codex", displayName: "Codex" },
         createdAt: "2026-06-20T00:00:00.000Z",
       }),
       event({
-        id: "activity-3",
+        id: "activity-5",
         type: "thread_status_changed",
         actor: { id: "human:tasuku", kind: "human", displayName: "Tasuku" },
         status: "resolved",
@@ -83,13 +96,15 @@ it("summarizes the newest two activity events inline and keeps the rest in the t
   );
 
   expect(summary.inline).toEqual([
-    "Claude Code read 12s ago",
-    "Codex replied 1m ago",
+    "Codex released 5s ago",
+    "Codex claimed 10s ago",
   ]);
   expect(summary.timeline.map((item) => item.id)).toEqual([
     "activity-1",
     "activity-2",
     "activity-3",
+    "activity-4",
+    "activity-5",
   ]);
 });
 

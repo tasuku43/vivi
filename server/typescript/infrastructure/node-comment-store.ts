@@ -45,7 +45,9 @@ export class NodeCommentStore implements CommentStorePort {
           (!filters.path || comment.path === filters.path) &&
           (!filters.status ||
             threadById.get(comment.threadId ?? comment.id)?.status ===
-              filters.status),
+              filters.status) &&
+          (!filters.reviewBatchId ||
+            comment.reviewBatchId === filters.reviewBatchId),
       )
       .map((comment) => {
         const thread = threadById.get(comment.threadId ?? comment.id);
@@ -102,7 +104,9 @@ export class NodeCommentStore implements CommentStorePort {
       .filter(
         (thread) =>
           (!filters.path || thread.path === filters.path) &&
-          (!filters.status || thread.status === filters.status),
+          (!filters.status || thread.status === filters.status) &&
+          (!filters.reviewBatchId ||
+            thread.reviewBatchId === filters.reviewBatchId),
       );
   }
 
@@ -301,6 +305,8 @@ interface ThreadEvent {
   type:
     | "thread.created"
     | "thread.status_changed"
+    | "thread.claimed"
+    | "thread.claim_released"
     | "thread.read"
     | "comment.added"
     | "comment.updated";
@@ -311,6 +317,7 @@ interface ThreadEvent {
   previousStatus?: CommentStatus;
   commentId?: string;
   clientEventId?: string;
+  leaseExpiresAt?: string;
   actor?: CommentActor;
   id?: string;
 }
@@ -328,6 +335,7 @@ function publicActivityEvent(
     previousStatus: event.previousStatus,
     status: event.status,
     clientEventId: event.clientEventId,
+    leaseExpiresAt: event.leaseExpiresAt,
     createdAt: event.at ?? event.thread?.createdAt ?? "",
   };
 }

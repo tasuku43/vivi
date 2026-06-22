@@ -13,7 +13,9 @@ export type CommentThreadActivityType =
   | "thread_read"
   | "comment_added"
   | "comment_updated"
-  | "thread_status_changed";
+  | "thread_status_changed"
+  | "thread_claimed"
+  | "thread_claim_released";
 export type CommentSurface = "source" | "rendered" | "diff";
 export type CommentViewerKind =
   | "text"
@@ -105,6 +107,7 @@ export interface UpdateCommentInput {
 export interface CommentListFilters {
   path?: string;
   status?: CommentStatus;
+  reviewBatchId?: string;
 }
 
 export interface CommentThread {
@@ -162,6 +165,7 @@ export interface CommentThreadActivityEvent {
   previousStatus?: CommentStatus;
   status?: CommentStatus;
   clientEventId?: string;
+  leaseExpiresAt?: string;
   createdAt: string;
 }
 
@@ -249,10 +253,12 @@ export function normalizeCommentUpdateInput(
 export function normalizeCommentFilters(input: {
   path?: string | null;
   status?: string | null;
+  reviewBatchId?: string | null;
 }): CommentListFilters {
   return {
     path: input.path?.trim() || undefined,
     status: parseCommentStatus(input.status ?? null),
+    reviewBatchId: input.reviewBatchId?.trim() || undefined,
   };
 }
 

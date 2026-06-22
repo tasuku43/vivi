@@ -892,6 +892,7 @@ function graphqlCommentFilters(
   return normalizeCommentFilters({
     path: optionalString(variables, "path") ?? null,
     status: optionalString(variables, "status") ?? null,
+    reviewBatchId: optionalString(variables, "reviewBatchId") ?? null,
   });
 }
 

@@ -105,7 +105,29 @@ type CommentThreadActivityEvent struct {
 	PreviousStatus *CommentStatus            `json:"previousStatus,omitempty"`
 	Status         *CommentStatus            `json:"status,omitempty"`
 	ClientEventID  *string                   `json:"clientEventId,omitempty"`
+	LeaseExpiresAt *string                   `json:"leaseExpiresAt,omitempty"`
 	CreatedAt      string                    `json:"createdAt"`
+}
+
+type CommentThreadClaim struct {
+	Thread   *CommentThread              `json:"thread"`
+	Activity *CommentThreadActivityEvent `json:"activity"`
+}
+
+type CommentThreadClaimInput struct {
+	Actor         *CommentActorInput `json:"actor"`
+	ClientEventID *string            `json:"clientEventId,omitempty"`
+	LeaseSeconds  *int               `json:"leaseSeconds,omitempty"`
+}
+
+type CommentThreadClaimRelease struct {
+	Thread   *CommentThread              `json:"thread"`
+	Activity *CommentThreadActivityEvent `json:"activity"`
+}
+
+type CommentThreadClaimReleaseInput struct {
+	Actor         *CommentActorInput `json:"actor"`
+	ClientEventID *string            `json:"clientEventId,omitempty"`
 }
 
 type CommentThreadUpdateInput struct {
@@ -471,6 +493,8 @@ const (
 	CommentThreadActivityTypeCommentAdded        CommentThreadActivityType = "comment_added"
 	CommentThreadActivityTypeCommentUpdated      CommentThreadActivityType = "comment_updated"
 	CommentThreadActivityTypeThreadStatusChanged CommentThreadActivityType = "thread_status_changed"
+	CommentThreadActivityTypeThreadClaimed       CommentThreadActivityType = "thread_claimed"
+	CommentThreadActivityTypeThreadClaimReleased CommentThreadActivityType = "thread_claim_released"
 )
 
 var AllCommentThreadActivityType = []CommentThreadActivityType{
@@ -479,11 +503,13 @@ var AllCommentThreadActivityType = []CommentThreadActivityType{
 	CommentThreadActivityTypeCommentAdded,
 	CommentThreadActivityTypeCommentUpdated,
 	CommentThreadActivityTypeThreadStatusChanged,
+	CommentThreadActivityTypeThreadClaimed,
+	CommentThreadActivityTypeThreadClaimReleased,
 }
 
 func (e CommentThreadActivityType) IsValid() bool {
 	switch e {
-	case CommentThreadActivityTypeThreadCreated, CommentThreadActivityTypeThreadRead, CommentThreadActivityTypeCommentAdded, CommentThreadActivityTypeCommentUpdated, CommentThreadActivityTypeThreadStatusChanged:
+	case CommentThreadActivityTypeThreadCreated, CommentThreadActivityTypeThreadRead, CommentThreadActivityTypeCommentAdded, CommentThreadActivityTypeCommentUpdated, CommentThreadActivityTypeThreadStatusChanged, CommentThreadActivityTypeThreadClaimed, CommentThreadActivityTypeThreadClaimReleased:
 		return true
 	}
 	return false

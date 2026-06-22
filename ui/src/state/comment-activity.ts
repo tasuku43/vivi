@@ -130,6 +130,8 @@ function activityVerb(event: {
   status?: string;
 }): string {
   if (event.type === "thread_read") return "read";
+  if (event.type === "thread_claimed") return "claimed";
+  if (event.type === "thread_claim_released") return "released";
   if (event.type === "comment_added") return "replied";
   if (event.type === "thread_status_changed") {
     return event.status ? `marked ${event.status}` : "changed status";

@@ -342,6 +342,8 @@ function anchorDetail(line: number | undefined, body: string): string {
 function activityDetail(event: CommentThreadActivityEvent): string {
   if (event.type === "comment_added") return "Agent or reviewer reply";
   if (event.type === "thread_status_changed") return "Status changed";
+  if (event.type === "thread_claimed") return "Agent claimed thread";
+  if (event.type === "thread_claim_released") return "Agent released thread";
   if (event.type === "thread_created") return "New thread";
   if (event.type === "comment_updated") return "Comment updated";
   return "Thread read";

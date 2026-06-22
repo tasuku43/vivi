@@ -336,7 +336,7 @@ func commentActorValue(item map[string]any) *model.CommentActor {
 }
 
 func activityFromMap(item map[string]any) *model.CommentThreadActivityEvent {
-	return &model.CommentThreadActivityEvent{ID: stringValue(item["id"]), ThreadID: stringValue(item["threadId"]), Type: model.CommentThreadActivityType(stringValue(item["type"])), Actor: commentActorValue(map[string]any{"actor": item["actor"]}), CommentID: optionalStringValue(item["commentId"]), PreviousStatus: optionalCommentStatus(item["previousStatus"]), Status: optionalCommentStatus(item["status"]), ClientEventID: optionalStringValue(item["clientEventId"]), CreatedAt: stringValue(item["createdAt"])}
+	return &model.CommentThreadActivityEvent{ID: stringValue(item["id"]), ThreadID: stringValue(item["threadId"]), Type: model.CommentThreadActivityType(stringValue(item["type"])), Actor: commentActorValue(map[string]any{"actor": item["actor"]}), CommentID: optionalStringValue(item["commentId"]), PreviousStatus: optionalCommentStatus(item["previousStatus"]), Status: optionalCommentStatus(item["status"]), ClientEventID: optionalStringValue(item["clientEventId"]), LeaseExpiresAt: optionalStringValue(item["leaseExpiresAt"]), CreatedAt: stringValue(item["createdAt"])}
 }
 func activitiesFromMaps(items []map[string]any) []*model.CommentThreadActivityEvent {
 	result := make([]*model.CommentThreadActivityEvent, 0, len(items))
@@ -371,7 +371,7 @@ func stringPointerValue(value *string) string {
 	return *value
 }
 
-func commentFilters(path *string, status *model.CommentStatus) (string, string) {
+func commentFilters(path *string, status *model.CommentStatus, reviewBatchID *string) (string, string, string) {
 	statusValue := ""
 	if status != nil {
 		statusValue = status.String()
@@ -380,7 +380,11 @@ func commentFilters(path *string, status *model.CommentStatus) (string, string) 
 	if path != nil {
 		pathValue = *path
 	}
-	return pathValue, statusValue
+	batchValue := ""
+	if reviewBatchID != nil {
+		batchValue = *reviewBatchID
+	}
+	return pathValue, statusValue, batchValue
 }
 
 func commentStatusValue(value any) model.CommentStatus {

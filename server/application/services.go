@@ -107,16 +107,16 @@ func (s *CommentService) Update(id string, input map[string]any) (map[string]any
 	return s.comments.Update(id, input)
 }
 func (s *CommentService) UpdateThread(id, status string) (CommentThread, error) {
-	return s.UpdateThreadAs(id, status, map[string]any{"id": "unknown", "kind": "unknown"})
+	return s.UpdateThreadAs(id, status, map[string]any{"id": "unknown", "kind": "unknown"}, "")
 }
-func (s *CommentService) UpdateThreadAs(id, status string, actor map[string]any) (CommentThread, error) {
+func (s *CommentService) UpdateThreadAs(id, status string, actor map[string]any, clientEventID string) (CommentThread, error) {
 	if id == "" {
 		return CommentThread{}, fmt.Errorf("comment thread id is required")
 	}
 	if status == "" {
 		return CommentThread{}, fmt.Errorf("comment thread status is required")
 	}
-	item, err := s.comments.UpdateThreadStatusAs(id, status, actor)
+	item, err := s.comments.UpdateThreadStatusAs(id, status, actor, clientEventID)
 	if err != nil {
 		return CommentThread{}, err
 	}
@@ -127,6 +127,12 @@ func (s *CommentService) Activities(filters comments.ActivityFilters) ([]map[str
 }
 func (s *CommentService) AppendReadActivity(threadID string, actor map[string]any, clientEventID string) (map[string]any, error) {
 	return s.comments.AppendThreadReadActivity(threadID, actor, clientEventID)
+}
+func (s *CommentService) ClaimThread(threadID string, actor map[string]any, clientEventID string, leaseSeconds int) (map[string]any, error) {
+	return s.comments.AppendThreadClaimActivity(threadID, actor, clientEventID, leaseSeconds)
+}
+func (s *CommentService) ReleaseThreadClaim(threadID string, actor map[string]any, clientEventID string) (map[string]any, error) {
+	return s.comments.AppendThreadClaimReleaseActivity(threadID, actor, clientEventID)
 }
 func (s *CommentService) AddComment(threadID string, input map[string]any) (map[string]any, error) {
 	thread, err := s.Thread(threadID)

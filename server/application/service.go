@@ -175,7 +175,7 @@ func (service *Service) CreateCommentThread(input map[string]any) (CommentThread
 
 func (service *Service) AddComment(threadID string, input map[string]any) (map[string]any, error) {
 	comment, err := service.Comment.AddComment(threadID, input)
-	if err == nil {
+	if err == nil && comment[comments.ReusedClientEventKey] != true {
 		service.publishLatestActivity(threadID, "comment_added")
 	}
 	return comment, err
@@ -190,21 +190,21 @@ func (service *Service) UpdateComment(id string, input map[string]any) (map[stri
 }
 
 func (service *Service) UpdateCommentThread(id string, input map[string]any) (CommentThread, error) {
-	return service.updateCommentThread(id, stringValue(input["status"]), mapValue(input["actor"]))
+	return service.updateCommentThread(id, stringValue(input["status"]), mapValue(input["actor"]), stringValue(input["clientEventId"]))
 }
 
-func (service *Service) ResolveCommentThread(id string, actors ...map[string]any) (CommentThread, error) {
-	return service.updateCommentThread(id, "resolved", firstActor(actors))
+func (service *Service) ResolveCommentThread(id string, actor map[string]any, clientEventID string) (CommentThread, error) {
+	return service.updateCommentThread(id, "resolved", actor, clientEventID)
 }
-func (service *Service) ArchiveCommentThread(id string, actors ...map[string]any) (CommentThread, error) {
-	return service.updateCommentThread(id, "archived", firstActor(actors))
+func (service *Service) ArchiveCommentThread(id string, actor map[string]any, clientEventID string) (CommentThread, error) {
+	return service.updateCommentThread(id, "archived", actor, clientEventID)
 }
-func (service *Service) ReopenCommentThread(id string, actors ...map[string]any) (CommentThread, error) {
-	return service.updateCommentThread(id, "open", firstActor(actors))
+func (service *Service) ReopenCommentThread(id string, actor map[string]any, clientEventID string) (CommentThread, error) {
+	return service.updateCommentThread(id, "open", actor, clientEventID)
 }
 
-func (service *Service) updateCommentThread(id, status string, actor map[string]any) (CommentThread, error) {
-	thread, err := service.Comment.UpdateThreadAs(id, status, actor)
+func (service *Service) updateCommentThread(id, status string, actor map[string]any, clientEventID string) (CommentThread, error) {
+	thread, err := service.Comment.UpdateThreadAs(id, status, actor, clientEventID)
 	if err == nil {
 		service.publishLatestActivity(id, "thread_status_changed")
 	}
@@ -221,6 +221,32 @@ func (service *Service) ObserveCommentThreadRead(threadID string, actor map[stri
 		service.ActivityEvent.Publish(event)
 	}
 	return event, err
+}
+
+func (service *Service) ClaimCommentThread(threadID string, actor map[string]any, clientEventID string, leaseSeconds int) (CommentThread, map[string]any, error) {
+	event, err := service.Comment.ClaimThread(threadID, actor, clientEventID, leaseSeconds)
+	if err != nil {
+		return CommentThread{}, nil, err
+	}
+	thread, err := service.Comment.Thread(threadID)
+	if err != nil {
+		return CommentThread{}, nil, err
+	}
+	service.ActivityEvent.Publish(event)
+	return thread, event, nil
+}
+
+func (service *Service) ReleaseCommentThreadClaim(threadID string, actor map[string]any, clientEventID string) (CommentThread, map[string]any, error) {
+	event, err := service.Comment.ReleaseThreadClaim(threadID, actor, clientEventID)
+	if err != nil {
+		return CommentThread{}, nil, err
+	}
+	thread, err := service.Comment.Thread(threadID)
+	if err != nil {
+		return CommentThread{}, nil, err
+	}
+	service.ActivityEvent.Publish(event)
+	return thread, event, nil
 }
 
 func (service *Service) SubscribeCommentThreadActivities() (<-chan map[string]any, func()) {
@@ -257,9 +283,3 @@ func stringValue(value any) string {
 	return text
 }
 func mapValue(value any) map[string]any { result, _ := value.(map[string]any); return result }
-func firstActor(actors []map[string]any) map[string]any {
-	if len(actors) > 0 {
-		return actors[0]
-	}
-	return map[string]any{"id": "unknown", "kind": "unknown"}
-}

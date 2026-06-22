@@ -27,7 +27,11 @@ func (r *mutationResolver) CreateThread(ctx context.Context, input model.Comment
 
 // AddComment is the resolver for the addComment field.
 func (r *mutationResolver) AddComment(ctx context.Context, threadID string, input model.AddCommentInput) (*model.Comment, error) {
-	comment, err := r.service.AddComment(threadID, addCommentInputMap(input))
+	mapped := addCommentInputMap(input)
+	if clientEventID := application.ClientEventIDFromContext(ctx); clientEventID != "" {
+		mapped["clientEventId"] = clientEventID
+	}
+	comment, err := r.service.AddComment(threadID, mapped)
 	if err != nil {
 		return nil, err
 	}
@@ -87,16 +91,56 @@ func (r *mutationResolver) PublishDraftReviewComments(ctx context.Context, input
 
 // UpdateComment is the resolver for the updateComment field.
 func (r *mutationResolver) UpdateComment(ctx context.Context, id string, input model.CommentUpdateInput) (*model.Comment, error) {
-	comment, err := r.service.UpdateComment(id, commentUpdateInputMap(input))
+	mapped := commentUpdateInputMap(input)
+	if clientEventID := application.ClientEventIDFromContext(ctx); clientEventID != "" {
+		mapped["clientEventId"] = clientEventID
+	}
+	comment, err := r.service.UpdateComment(id, mapped)
 	if err != nil {
 		return nil, err
 	}
 	return commentFromMap(comment), nil
 }
 
+// ClaimThread is the resolver for the claimThread field.
+func (r *mutationResolver) ClaimThread(ctx context.Context, id string, input model.CommentThreadClaimInput) (*model.CommentThreadClaim, error) {
+	leaseSeconds := 600
+	if input.LeaseSeconds != nil {
+		leaseSeconds = *input.LeaseSeconds
+	}
+	clientEventID := ""
+	if input.ClientEventID != nil {
+		clientEventID = *input.ClientEventID
+	}
+	thread, activity, err := r.service.ClaimCommentThread(id, commentActorInputMap(input.Actor), clientEventID, leaseSeconds)
+	if err != nil {
+		return nil, err
+	}
+	return &model.CommentThreadClaim{
+		Thread:   commentThreadsFromDomain([]application.CommentThread{thread})[0],
+		Activity: activityFromMap(activity),
+	}, nil
+}
+
+// ReleaseThreadClaim is the resolver for the releaseThreadClaim field.
+func (r *mutationResolver) ReleaseThreadClaim(ctx context.Context, id string, input model.CommentThreadClaimReleaseInput) (*model.CommentThreadClaimRelease, error) {
+	clientEventID := ""
+	if input.ClientEventID != nil {
+		clientEventID = *input.ClientEventID
+	}
+	thread, activity, err := r.service.ReleaseCommentThreadClaim(id, commentActorInputMap(input.Actor), clientEventID)
+	if err != nil {
+		return nil, err
+	}
+	return &model.CommentThreadClaimRelease{
+		Thread:   commentThreadsFromDomain([]application.CommentThread{thread})[0],
+		Activity: activityFromMap(activity),
+	}, nil
+}
+
 // ResolveThread is the resolver for the resolveThread field.
 func (r *mutationResolver) ResolveThread(ctx context.Context, id string, actor *model.CommentActorInput) (*model.CommentThread, error) {
-	thread, err := r.service.ResolveCommentThread(id, commentActorInputMap(actor))
+	thread, err := r.service.ResolveCommentThread(id, commentActorInputMap(actor), application.ClientEventIDFromContext(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +149,7 @@ func (r *mutationResolver) ResolveThread(ctx context.Context, id string, actor *
 
 // ArchiveThread is the resolver for the archiveThread field.
 func (r *mutationResolver) ArchiveThread(ctx context.Context, id string, actor *model.CommentActorInput) (*model.CommentThread, error) {
-	thread, err := r.service.ArchiveCommentThread(id, commentActorInputMap(actor))
+	thread, err := r.service.ArchiveCommentThread(id, commentActorInputMap(actor), application.ClientEventIDFromContext(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +158,7 @@ func (r *mutationResolver) ArchiveThread(ctx context.Context, id string, actor *
 
 // ReopenThread is the resolver for the reopenThread field.
 func (r *mutationResolver) ReopenThread(ctx context.Context, id string, actor *model.CommentActorInput) (*model.CommentThread, error) {
-	thread, err := r.service.ReopenCommentThread(id, commentActorInputMap(actor))
+	thread, err := r.service.ReopenCommentThread(id, commentActorInputMap(actor), application.ClientEventIDFromContext(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +167,11 @@ func (r *mutationResolver) ReopenThread(ctx context.Context, id string, actor *m
 
 // UpdateCommentThread is the resolver for the updateCommentThread field.
 func (r *mutationResolver) UpdateCommentThread(ctx context.Context, id string, input model.CommentThreadUpdateInput) (*model.CommentThread, error) {
-	thread, err := r.service.UpdateCommentThread(id, map[string]any{"status": input.Status.String(), "actor": commentActorInputMap(input.Actor)})
+	mapped := map[string]any{"status": input.Status.String(), "actor": commentActorInputMap(input.Actor)}
+	if clientEventID := application.ClientEventIDFromContext(ctx); clientEventID != "" {
+		mapped["clientEventId"] = clientEventID
+	}
+	thread, err := r.service.UpdateCommentThread(id, mapped)
 	if err != nil {
 		return nil, err
 	}
@@ -209,9 +257,9 @@ func (r *queryResolver) FileContext(ctx context.Context, path string, includeCom
 }
 
 // Comments is the resolver for the comments field.
-func (r *queryResolver) Comments(ctx context.Context, path *string, status *model.CommentStatus) ([]*model.Comment, error) {
-	pathValue, statusValue := commentFilters(path, status)
-	items, err := r.service.ListComments(comments.Filters{Path: pathValue, Status: statusValue})
+func (r *queryResolver) Comments(ctx context.Context, path *string, status *model.CommentStatus, reviewBatchID *string) ([]*model.Comment, error) {
+	pathValue, statusValue, batchValue := commentFilters(path, status, reviewBatchID)
+	items, err := r.service.ListComments(comments.Filters{Path: pathValue, Status: statusValue, ReviewBatchID: batchValue})
 	if err != nil {
 		return nil, err
 	}
@@ -220,9 +268,9 @@ func (r *queryResolver) Comments(ctx context.Context, path *string, status *mode
 }
 
 // CommentThreads is the resolver for the commentThreads field.
-func (r *queryResolver) CommentThreads(ctx context.Context, path *string, status *model.CommentStatus) ([]*model.CommentThread, error) {
-	pathValue, statusValue := commentFilters(path, status)
-	items, err := r.service.ListCommentThreads(comments.Filters{Path: pathValue, Status: statusValue})
+func (r *queryResolver) CommentThreads(ctx context.Context, path *string, status *model.CommentStatus, reviewBatchID *string) ([]*model.CommentThread, error) {
+	pathValue, statusValue, batchValue := commentFilters(path, status, reviewBatchID)
+	items, err := r.service.ListCommentThreads(comments.Filters{Path: pathValue, Status: statusValue, ReviewBatchID: batchValue})
 	if err != nil {
 		return nil, err
 	}
@@ -259,7 +307,7 @@ func (r *queryResolver) CommentThreadActivities(ctx context.Context, threadID st
 // CommentExport is the resolver for the commentExport field.
 func (r *queryResolver) CommentExport(ctx context.Context, path *string, status *model.CommentStatus, format *model.CommentExportFormat) (*model.CommentExport, error) {
 	_ = format
-	pathValue, statusValue := commentFilters(path, status)
+	pathValue, statusValue, _ := commentFilters(path, status, nil)
 	content, err := r.service.ExportCommentsJSONL(comments.Filters{Path: pathValue, Status: statusValue})
 	if err != nil {
 		return nil, err

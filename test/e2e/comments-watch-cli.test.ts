@@ -1,5 +1,4 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { existsSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import {
@@ -18,6 +17,17 @@ interface WatchEvent {
     path: string;
     status: string;
     comments: Array<{ body: string }>;
+  }>;
+  items?: Array<{
+    thread: { id: string; path: string; status: string };
+    file?: { path: string; viewerKind: string; encoding: string };
+    source?: {
+      path: string;
+      available: boolean;
+      lines?: Array<{ number: number; text: string; anchor: boolean }>;
+    };
+    diff?: { path: string; status: string; content?: string };
+    activities?: Array<{ type: string; clientEventId?: string }>;
   }>;
 }
 
@@ -83,6 +93,32 @@ it(
     const changed = await watch.nextEvent();
     expect(changed.count).toBe(1);
     expect(changed.changes).toContain("open_thread_added");
+    expect(changed).toMatchObject({
+      schemaVersion: 1,
+      eventSchema: "commentOpenWorklistEvent",
+      eventSchemaCommand: expect.arrayContaining([
+        "comments",
+        "schema",
+        "commentOpenWorklistEvent",
+      ]),
+      summary: expect.objectContaining({
+        recommendedAction: "claim_open_work",
+        openThreadCount: 1,
+        suggestedCommands: expect.arrayContaining([
+          expect.objectContaining({
+            intent: "claim_next_open_thread",
+            command: "comments work",
+            clientEventId: expect.stringContaining("watch:"),
+            args: expect.arrayContaining([
+              "comments",
+              "work",
+              "--client-event-id",
+              "--full",
+            ]),
+          }),
+        ]),
+      }),
+    });
     expect(changed.threads[0]).toMatchObject({
       id: created.createThread.id,
       path: "README.md",
@@ -91,6 +127,41 @@ it(
         expect.objectContaining({ body: "Please review the fixture intro" }),
       ],
     });
+    expect(changed.items).toHaveLength(1);
+    expect(changed.items?.[0]).toMatchObject({
+      thread: {
+        id: created.createThread.id,
+        path: "README.md",
+        status: "open",
+      },
+      file: {
+        path: "README.md",
+        viewerKind: "markdown",
+        encoding: "utf8",
+      },
+      source: {
+        path: "README.md",
+        available: true,
+      },
+      diff: {
+        path: "README.md",
+        status: "available",
+      },
+    });
+    expect(changed.items?.[0]?.source?.lines?.some((line) => line.anchor)).toBe(
+      true,
+    );
+    expect(changed.items?.[0]?.diff?.content).toContain(
+      "Contract workspace changed",
+    );
+    expect(changed.items?.[0]?.activities).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "thread_read",
+          clientEventId: `comments-watch:${changed.cursor}`,
+        }),
+      ]),
+    );
     expect(changed.cursor).not.toBe(initial.cursor);
 
     await expect(watch.done).resolves.toBe(0);
@@ -170,6 +241,7 @@ function startGoCommentsWatch(baseUrl: string): {
     "25ms",
     "--max-events",
     "2",
+    "--full",
     "--json",
   ]);
   const child = spawn(invocation.command, invocation.args, {
@@ -282,11 +354,8 @@ async function closeChild(
 }
 
 function goCliInvocation(args: string[]): { command: string; args: string[] } {
-  const binaryPath =
-    process.env.VIVI_GO_CLI ??
-    path.resolve(process.platform === "win32" ? "vivi.exe" : "vivi");
-  if (existsSync(binaryPath)) {
-    return { command: binaryPath, args };
+  if (process.env.VIVI_GO_CLI) {
+    return { command: process.env.VIVI_GO_CLI, args };
   }
   return { command: "go", args: ["run", "./cli", ...args] };
 }

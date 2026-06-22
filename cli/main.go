@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"net/url"
@@ -24,14 +25,22 @@ var version = "0.0.0"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		if payload, ok := cliErrorPayload(err); ok {
+			_ = writeJSON(os.Stdout, payload)
+		} else {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		os.Exit(1)
 	}
 }
 
 func run(args []string) error {
 	if len(args) > 0 && args[0] == "comments" {
-		return runCommentsCommand(context.Background(), args[1:], os.Stdout)
+		err := runCommentsCommand(context.Background(), args[1:], os.Stdout)
+		if err != nil && commentsWantsJSON(args[1:]) {
+			return newCommentsCommandError(args[1:], err)
+		}
+		return err
 	}
 	flags := flag.NewFlagSet("vivi", flag.ContinueOnError)
 	flags.SetOutput(os.Stdout)
@@ -115,13 +124,26 @@ func run(args []string) error {
 	return httpServer.Close(shutdownCtx)
 }
 
+type cliErrorPayloadProvider interface {
+	CLIPayload() any
+}
+
+func cliErrorPayload(err error) (any, bool) {
+	var provider cliErrorPayloadProvider
+	if errors.As(err, &provider) {
+		return provider.CLIPayload(), true
+	}
+	return nil, false
+}
+
 func helpText() string {
 	return strings.Join([]string{
 		"vivi - read-only visual workspace viewer",
 		"",
 		"Usage:",
 		"  vivi [root] [--host 127.0.0.1] [--port 4317] [--open] [--include md,html,ts] [--max-file-size 1048576] [--allow-html-scripts]",
-		"  vivi comments <active|watch|list|show|reply|resolve|archive|reopen> [options]",
+		"  vivi comments <protocol|schema|doctor|inbox|batch|mine|claim|work|renew|hold|watch|follow|check> [options]",
+		"  vivi comments <active|next|list|show|context|reply|done|dismiss|resolve|archive|reopen> [options]",
 		"",
 		"Options:",
 		"  --host <host>              Host to bind (default: 127.0.0.1)",

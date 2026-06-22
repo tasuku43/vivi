@@ -45,6 +45,9 @@ func NewHandler(service *application.Service, safeJSONWrite func(*http.Request) 
 				writeGraphQLError(w, http.StatusOK, "invalid Host or Origin header for local write API")
 				return
 			}
+			if clientEventID := strings.TrimSpace(r.Header.Get("X-Vivi-Client-Event-Id")); clientEventID != "" {
+				r = r.WithContext(application.WithClientEventID(r.Context(), clientEventID))
+			}
 			if activityObserver != nil {
 				r = r.WithContext(application.WithThreadActivityObserver(r.Context(), activityObserver))
 			}

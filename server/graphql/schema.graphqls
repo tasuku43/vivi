@@ -17,8 +17,8 @@ type Query {
     includeDiff: Boolean = false
     diffBase: String
   ): FileContext!
-  comments(path: String, status: CommentStatus): [Comment!]!
-  commentThreads(path: String, status: CommentStatus): [CommentThread!]!
+  comments(path: String, status: CommentStatus, reviewBatchId: ID): [Comment!]!
+  commentThreads(path: String, status: CommentStatus, reviewBatchId: ID): [CommentThread!]!
   draftReviewComments(path: String): [DraftReviewComment!]!
   commentThreadActivities(
     threadId: ID!
@@ -54,6 +54,11 @@ type Mutation {
     input: PublishDraftReviewCommentsInput
   ): PublishedReviewBatch!
   updateComment(id: ID!, input: CommentUpdateInput!): Comment!
+  claimThread(id: ID!, input: CommentThreadClaimInput!): CommentThreadClaim!
+  releaseThreadClaim(
+    id: ID!
+    input: CommentThreadClaimReleaseInput!
+  ): CommentThreadClaimRelease!
   resolveThread(id: ID!, actor: CommentActorInput): CommentThread!
   archiveThread(id: ID!, actor: CommentActorInput): CommentThread!
   reopenThread(id: ID!, actor: CommentActorInput): CommentThread!
@@ -257,6 +262,27 @@ input CommentThreadUpdateInput {
   actor: CommentActorInput
 }
 
+input CommentThreadClaimInput {
+  actor: CommentActorInput!
+  clientEventId: String
+  leaseSeconds: Int = 600
+}
+
+type CommentThreadClaim {
+  thread: CommentThread!
+  activity: CommentThreadActivityEvent!
+}
+
+input CommentThreadClaimReleaseInput {
+  actor: CommentActorInput!
+  clientEventId: String
+}
+
+type CommentThreadClaimRelease {
+  thread: CommentThread!
+  activity: CommentThreadActivityEvent!
+}
+
 type CommentActor {
   id: ID!
   kind: CommentActorKind!
@@ -278,6 +304,7 @@ type CommentThreadActivityEvent {
   previousStatus: CommentStatus
   status: CommentStatus
   clientEventId: String
+  leaseExpiresAt: String
   createdAt: String!
 }
 
@@ -415,6 +442,8 @@ enum CommentThreadActivityType {
   comment_added
   comment_updated
   thread_status_changed
+  thread_claimed
+  thread_claim_released
 }
 
 enum CommentExportFormat {

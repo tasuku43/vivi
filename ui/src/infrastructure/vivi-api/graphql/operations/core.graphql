@@ -232,6 +232,7 @@ query ViviCommentThreadActivities($threadId: ID!, $after: ID, $first: Int) {
     previousStatus
     status
     clientEventId
+    leaseExpiresAt
     createdAt
   }
 }
@@ -377,6 +378,7 @@ subscription CommentThreadActivity($threadId: ID) {
     previousStatus
     status
     clientEventId
+    leaseExpiresAt
     createdAt
   }
 }

@@ -151,6 +151,74 @@ func TestStoreAppendsIdempotentReadActivityWithoutChangingThreadStatus(t *testin
 	}
 }
 
+func TestStoreAppendsThreadClaimActivityAsLeaseWithoutChangingStatus(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	created, err := store.Create(map[string]any{"path": "README.md", "body": "please fix", "actor": map[string]any{"id": "human:tasuku", "kind": "human"}, "anchor": map[string]any{"surface": "source", "canonical": map[string]any{"path": "README.md"}}}, "sha256:file", "markdown")
+	if err != nil {
+		t.Fatal(err)
+	}
+	threadID := created["threadId"].(string)
+	actor := map[string]any{"id": "codex:session-1", "kind": "codex", "displayName": "Codex"}
+	first, err := store.AppendThreadClaimActivity(threadID, actor, "claim-request-1", 60)
+	if err != nil {
+		t.Fatal(err)
+	}
+	retried, err := store.AppendThreadClaimActivity(threadID, actor, "claim-request-1", 60)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first["id"] != retried["id"] {
+		t.Fatalf("idempotent claim ids differ: %v != %v", first["id"], retried["id"])
+	}
+	if first["type"] != "thread_claimed" || first["leaseExpiresAt"] == "" {
+		t.Fatalf("claim activity = %#v", first)
+	}
+	if _, err := store.AppendThreadClaimActivity(threadID, map[string]any{"id": "claude-code:session-2", "kind": "claude_code"}, "claim-request-2", 60); err == nil || !strings.Contains(err.Error(), "already claimed") {
+		t.Fatalf("second actor claim err = %v", err)
+	}
+	released, err := store.AppendThreadClaimReleaseActivity(threadID, actor, "release-request-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	retriedRelease, err := store.AppendThreadClaimReleaseActivity(threadID, actor, "release-request-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if released["id"] != retriedRelease["id"] || released["type"] != "thread_claim_released" {
+		t.Fatalf("release activity = %#v, retried = %#v", released, retriedRelease)
+	}
+	if _, err := store.AppendThreadClaimActivity(threadID, map[string]any{"id": "claude-code:session-2", "kind": "claude_code"}, "claim-request-2", 60); err != nil {
+		t.Fatalf("claim after release failed: %v", err)
+	}
+	threads, err := store.ListThreads(Filters{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if threads[0]["status"] != "open" {
+		t.Fatalf("claim changed status to %v", threads[0]["status"])
+	}
+	activities, err := store.ListActivities(ActivityFilters{ThreadID: threadID, First: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimCount := 0
+	releaseCount := 0
+	for _, event := range activities {
+		if event["type"] == "thread_claimed" {
+			claimCount++
+		}
+		if event["type"] == "thread_claim_released" {
+			releaseCount++
+		}
+	}
+	if claimCount != 2 || releaseCount != 1 {
+		t.Fatalf("claim activity count = %d, activities = %#v", claimCount, activities)
+	}
+}
+
 func TestStoreKeepsDraftReviewCommentsHiddenUntilBatchPublish(t *testing.T) {
 	store, err := NewStore(t.TempDir())
 	if err != nil {

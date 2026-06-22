@@ -1,0 +1,36 @@
+{
+  "name": "human comment to archived agent dismissal",
+  "human": {
+    "actor": {
+      "id": "human:fixture",
+      "kind": "human",
+      "displayName": "Fixture Human"
+    },
+    "path": "README.md",
+    "body": "Please check whether this applies to the generated overview.",
+    "anchor": {
+      "surface": "source",
+      "canonical": {
+        "path": "README.md",
+        "lineStart": 1,
+        "lineEnd": 1,
+        "quote": "# Vivi Fixture"
+      }
+    }
+  },
+  "agent": {
+    "actor": {
+      "id": "codex:fake-agent-loop",
+      "kind": "codex",
+      "displayName": "Fake Codex"
+    },
+    "clientEventId": "agent-loop-read-archive-v1",
+    "result": {
+      "summary": "Checked the generated overview; this feedback does not apply to the current workspace.",
+      "verification": ["source anchor inspected"],
+      "details": "- No code change needed"
+    },
+    "replyBody": "Checked the generated overview; this feedback does not apply to the current workspace.",
+    "terminalAction": "archive"
+  }
+}

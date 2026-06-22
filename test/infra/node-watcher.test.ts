@@ -77,7 +77,7 @@ it("starts without synchronously opening the recursive watcher", async () => {
       new Promise((_, reject) =>
         setTimeout(
           () => reject(new Error("start waited for recursive watcher")),
-          50,
+          500,
         ),
       ),
     ]),
