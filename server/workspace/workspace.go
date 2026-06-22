@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -15,6 +16,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/tasuku43/vivi/internal/telemetry"
 )
 
 type Node struct {
@@ -111,6 +114,13 @@ type WatchEntry struct {
 	Kind    string
 	Size    int64
 	MtimeNs int64
+}
+
+type WatchStats struct {
+	DurationMs         int64
+	ScannedDirectories int
+	ScannedFiles       int
+	ReturnedEntries    int
 }
 
 type FS struct {
@@ -347,6 +357,13 @@ func (fsys *FS) SearchFiles(query string, limit int) (FileSearchResponse, error)
 		return true
 	})
 	stats.DurationMs = time.Since(started).Milliseconds()
+	telemetry.RecordOperation(context.Background(), "workspace.file_search", telemetry.OperationStats{
+		DurationMs:         stats.DurationMs,
+		ScannedDirectories: stats.ScannedDirectories,
+		ScannedFiles:       stats.ScannedFiles,
+		ResultCount:        len(results),
+		Error:              err != nil,
+	})
 	return FileSearchResponse{Query: strings.TrimSpace(query), Results: results, Stats: stats}, err
 }
 
@@ -400,13 +417,37 @@ func (fsys *FS) SearchText(query string, limit int) (TextSearchResponse, error) 
 		return len(results) < limit
 	})
 	stats.DurationMs = time.Since(started).Milliseconds()
+	telemetry.RecordOperation(context.Background(), "workspace.content_search", telemetry.OperationStats{
+		DurationMs:         stats.DurationMs,
+		ScannedDirectories: stats.ScannedDirectories,
+		ScannedFiles:       stats.ScannedFiles,
+		ReadFiles:          stats.ReadFiles,
+		ResultCount:        len(results),
+		Error:              err != nil,
+	})
 	return TextSearchResponse{Query: normalized, Results: results, Stats: stats}, err
 }
 
 func (fsys *FS) WatchEntries() (map[string]WatchEntry, error) {
-	entries := map[string]WatchEntry{}
-	err := fsys.walkWatchEntries("", entries)
+	entries, _, err := fsys.WatchEntriesWithStats()
 	return entries, err
+}
+
+func (fsys *FS) WatchEntriesWithStats() (map[string]WatchEntry, WatchStats, error) {
+	started := time.Now()
+	entries := map[string]WatchEntry{}
+	stats := WatchStats{}
+	err := fsys.walkWatchEntries("", entries, &stats)
+	stats.DurationMs = time.Since(started).Milliseconds()
+	stats.ReturnedEntries = len(entries)
+	telemetry.RecordOperation(context.Background(), "workspace.watch_entries", telemetry.OperationStats{
+		DurationMs:         stats.DurationMs,
+		ScannedDirectories: stats.ScannedDirectories,
+		ScannedFiles:       stats.ScannedFiles,
+		ResultCount:        stats.ReturnedEntries,
+		Error:              err != nil,
+	})
+	return entries, stats, err
 }
 
 type resolvedPath struct {
@@ -596,12 +637,13 @@ func (fsys *FS) walkFiles(relativeDir string, stats *SearchStats, onFile func(Fi
 	return nil
 }
 
-func (fsys *FS) walkWatchEntries(relativeDir string, entries map[string]WatchEntry) error {
+func (fsys *FS) walkWatchEntries(relativeDir string, entries map[string]WatchEntry, stats *WatchStats) error {
 	absoluteDir := filepath.Join(fsys.root, filepath.FromSlash(relativeDir))
 	dirEntries, err := os.ReadDir(absoluteDir)
 	if err != nil {
 		return nil
 	}
+	stats.ScannedDirectories++
 	for _, entry := range dirEntries {
 		relative := entry.Name()
 		if relativeDir != "" {
@@ -628,7 +670,7 @@ func (fsys *FS) walkWatchEntries(relativeDir string, entries map[string]WatchEnt
 				Kind:    "directory",
 				MtimeNs: info.ModTime().UnixNano(),
 			}
-			if err := fsys.walkWatchEntries(relative, entries); err != nil {
+			if err := fsys.walkWatchEntries(relative, entries, stats); err != nil {
 				return err
 			}
 			continue
@@ -636,6 +678,7 @@ func (fsys *FS) walkWatchEntries(relativeDir string, entries map[string]WatchEnt
 		if !info.Mode().IsRegular() || !fsys.isIncluded(relative) {
 			continue
 		}
+		stats.ScannedFiles++
 		entries[relative] = WatchEntry{
 			Path:    relative,
 			Kind:    "file",

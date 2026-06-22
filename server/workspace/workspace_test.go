@@ -88,6 +88,38 @@ func TestReadFileKeepsLargeKnownHTMLMetadataSafe(t *testing.T) {
 	}
 }
 
+func TestWatchEntriesWithStatsCountsWorkspaceScan(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, root, "docs/guide.md", []byte("# Guide\n"))
+	mustWrite(t, root, "src/app.ts", []byte("export const ok = true\n"))
+	mustWrite(t, root, "node_modules/ignored.js", []byte("ignored\n"))
+
+	fsys, err := New(Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries, stats, err := fsys.WatchEntriesWithStats()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := entries["docs/guide.md"]; !ok {
+		t.Fatalf("expected docs/guide.md in watch entries: %#v", entries)
+	}
+	if _, ok := entries["node_modules/ignored.js"]; ok {
+		t.Fatalf("ignored file should not be included: %#v", entries)
+	}
+	if stats.ScannedDirectories != 3 {
+		t.Fatalf("scanned directories = %d, want 3", stats.ScannedDirectories)
+	}
+	if stats.ScannedFiles != 2 {
+		t.Fatalf("scanned files = %d, want 2", stats.ScannedFiles)
+	}
+	if stats.ReturnedEntries != len(entries) {
+		t.Fatalf("returned entries = %d, len(entries) = %d", stats.ReturnedEntries, len(entries))
+	}
+}
+
 func mustWrite(t *testing.T, root, relative string, content []byte) {
 	t.Helper()
 	pathname := filepath.Join(root, relative)

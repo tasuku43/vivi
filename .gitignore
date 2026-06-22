@@ -1,12 +1,14 @@
 node_modules/
 dist/
 /vivi
+/vivi-otel
 .tmp-go-build-cache/
 .tmp-go-mod-cache/
 public/vivi/vendor/mermaid.min.js
 ui/public/vivi/vendor/mermaid.min.js
 ui/storybook-static/
 coverage/
+artifacts/perf/
 .vite/
 .DS_Store
 *.log

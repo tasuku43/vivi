@@ -136,6 +136,16 @@ npm run verify:comment-ui
 node scripts/validate-scaffold.mjs
 ```
 
+Optional performance instrumentation is build-tag gated and documented in
+[`docs/16-performance-model.md`](docs/16-performance-model.md):
+
+```bash
+npm run build:go
+npm run build:go:otel
+docker compose -f docker-compose.otel.yml up
+npm run perf:otel
+```
+
 The fixture-driven fake agent loop is documented in
 [`docs/23-local-agent-loop-harness.md`](docs/23-local-agent-loop-harness.md).
 Against a running Vivi server, run `npm run harness:agent-loop` to verify the

@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tasuku43/vivi/internal/telemetry"
 	"github.com/tasuku43/vivi/server/application"
 	"github.com/tasuku43/vivi/server/comments"
 	"github.com/tasuku43/vivi/server/gitreview"
@@ -349,26 +350,44 @@ func (server *Server) watch(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			current, err := server.options.Workspace.WatchEntries()
+			started := time.Now()
+			current, stats, err := server.options.Workspace.WatchEntriesWithStats()
 			if err != nil {
+				telemetry.RecordOperation(ctx, "server.watch_loop", telemetry.OperationStats{
+					DurationMs:         time.Since(started).Milliseconds(),
+					ScannedDirectories: stats.ScannedDirectories,
+					ScannedFiles:       stats.ScannedFiles,
+					Error:              true,
+				})
 				fmt.Fprintf(os.Stderr, "[vivi] watcher scan failed: %v\n", err)
 				continue
 			}
+			emittedEvents := 0
 			for pathname, entry := range current {
 				old, ok := previous[pathname]
 				if !ok {
 					server.publish(application.WorkspaceEvent{Type: "add", Path: pathname, Kind: entry.Kind})
+					emittedEvents++
 					continue
 				}
 				if entry.Kind == "file" && (entry.Size != old.Size || entry.MtimeNs != old.MtimeNs) {
 					server.publish(application.WorkspaceEvent{Type: "change", Path: pathname})
+					emittedEvents++
 				}
 			}
 			for pathname, old := range previous {
 				if _, ok := current[pathname]; !ok {
 					server.publish(application.WorkspaceEvent{Type: "unlink", Path: pathname, Kind: old.Kind})
+					emittedEvents++
 				}
 			}
+			telemetry.RecordOperation(ctx, "server.watch_loop", telemetry.OperationStats{
+				DurationMs:         time.Since(started).Milliseconds(),
+				ScannedDirectories: stats.ScannedDirectories,
+				ScannedFiles:       stats.ScannedFiles,
+				EmittedEvents:      emittedEvents,
+				ResultCount:        len(current),
+			})
 			previous = current
 		}
 	}

@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/tasuku43/vivi/internal/telemetry"
 	"github.com/tasuku43/vivi/server"
 	"github.com/tasuku43/vivi/server/comments"
 	"github.com/tasuku43/vivi/server/gitreview"
@@ -60,6 +61,15 @@ func run(args []string) error {
 	if *noHTMLScripts {
 		*allowHTMLScripts = false
 	}
+	telemetryShutdown, err := telemetry.Init(context.Background(), os.Stderr)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = telemetryShutdown(shutdownCtx)
+	}()
 	root := "."
 	if len(positional) > 0 {
 		root = positional[0]

@@ -143,7 +143,7 @@ if (existsSync(readmePath)) {
 
 for (const file of walk(root)) {
   const rel = path.relative(root, file).split(path.sep).join("/");
-  if (rel === "vivi") continue;
+  if (rel === "vivi" || rel === "vivi-otel") continue;
   if (
     rel.startsWith(".git/") ||
     rel.startsWith("node_modules/") ||
@@ -154,6 +154,7 @@ for (const file of walk(root)) {
     rel.startsWith("ui/storybook-static/") ||
     rel.startsWith("ui/public/vivi/vendor/") ||
     rel.startsWith("coverage/") ||
+    rel.startsWith("artifacts/perf/") ||
     rel.startsWith("public/vivi/vendor/")
   ) {
     continue;

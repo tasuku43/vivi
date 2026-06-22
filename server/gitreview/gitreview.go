@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/tasuku43/vivi/internal/telemetry"
 	"github.com/tasuku43/vivi/server/workspace"
 )
 
@@ -82,20 +83,31 @@ func New(root string, timeout time.Duration) (*Reviewer, error) {
 	}, nil
 }
 
-func (reviewer *Reviewer) ReadChanges(ctx context.Context) Summary {
+func (reviewer *Reviewer) ReadChanges(ctx context.Context) (summary Summary) {
+	started := time.Now()
+	defer func() {
+		telemetry.RecordOperation(ctx, "git.review_status_refresh", telemetry.OperationStats{
+			DurationMs:  time.Since(started).Milliseconds(),
+			ResultCount: len(summary.Changes),
+			Error:       !summary.Available,
+		})
+	}()
 	if time.Now().Before(reviewer.suppressedTill) {
-		return unavailable(timeoutReason)
+		summary = unavailable(timeoutReason)
+		return summary
 	}
 	gitRoot, prefix, reason, ok := reviewer.workspace(ctx)
 	if !ok {
-		return unavailable(reason)
+		summary = unavailable(reason)
+		return summary
 	}
 	output, reason, ok := reviewer.git(ctx, "status", "--porcelain=v1", "--untracked-files=all", "-z", "--", ".")
 	if !ok {
 		if reason == timeoutReason {
 			reviewer.suppressedTill = time.Now().Add(30 * time.Second)
 		}
-		return unavailable(reason)
+		summary = unavailable(reason)
+		return summary
 	}
 	_ = gitRoot
 	changes := parseStatus(output)
@@ -111,7 +123,8 @@ func (reviewer *Reviewer) ReadChanges(ctx context.Context) Summary {
 	sort.Slice(workspaceChanges, func(i, j int) bool {
 		return workspaceChanges[i].Path < workspaceChanges[j].Path
 	})
-	return Summary{Available: true, Changes: workspaceChanges}
+	summary = Summary{Available: true, Changes: workspaceChanges}
+	return summary
 }
 
 func (reviewer *Reviewer) ReadDiffBases(ctx context.Context) DiffBaseSummary {
