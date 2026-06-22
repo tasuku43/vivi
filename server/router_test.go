@@ -52,3 +52,57 @@ func TestHTMLPreviewRuntimeHandlesRepeatedBodyLikeInput(t *testing.T) {
 		t.Fatalf("rendered preview should preserve the local HTML body")
 	}
 }
+
+func TestRenderedHTMLCommentBlocksAreAnnotatedSafely(t *testing.T) {
+	html := addRenderedCommentBlockIDsToHTML(`<script>const example = "<p>not markup</p>";</script>
+<template><p>not rendered</p></template>
+<h1>Hello</h1>
+<p title="one > two">Visible</p>`)
+
+	if strings.Contains(html, `not markup" data-vivi-comment-block-id`) {
+		t.Fatalf("script text was annotated: %s", html)
+	}
+	if strings.Contains(html, `<template><p data-vivi-comment-block-id`) {
+		t.Fatalf("template content was annotated: %s", html)
+	}
+	for _, want := range []string{
+		`<h1 data-vivi-comment-block-id="vivi-block-1" data-vivi-source-line-start="3" data-vivi-source-line-end="3">Hello</h1>`,
+		`<p title="one > two" data-vivi-comment-block-id="vivi-block-2" data-vivi-source-line-start="4" data-vivi-source-line-end="4">Visible</p>`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("annotated html missing %q in %s", want, html)
+		}
+	}
+}
+
+func TestHTMLPreviewRuntimeUsesRenderedThreadContract(t *testing.T) {
+	html := renderEmbeddedMermaidPreviewHTML(
+		addRenderedCommentBlockIDsToHTML(`<h1>Hello</h1>`),
+		"index.html",
+		"nonce-test",
+		"dark",
+		false,
+	)
+
+	for _, want := range []string{
+		`data-vivi-comment-block-id="vivi-block-1"`,
+		`vivi-html-block-target`,
+		`vivi-html-comment-open`,
+		`vivi-html-thread-layout`,
+		`drafting-rendered-comment`,
+		`rendered-comment-marker`,
+		`--rendered-comment-block-left:-12px`,
+		`.vivi-rendered-comment-block:not(tr)::before`,
+		`rendered-comment-range-join-after:not(tr)::after`,
+		`--rendered-comment-join-after`,
+		`block.style.setProperty("--rendered-comment-block-left"`,
+		`block.style.setProperty("--rendered-comment-block-right"`,
+		`blockquote.vivi-rendered-comment-block.has-rendered-comment`,
+		`li.vivi-rendered-comment-block{--rendered-comment-block-left:calc(-1.45em - 12px);}`,
+		`Open comment thread with `,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("preview runtime missing %q", want)
+		}
+	}
+}

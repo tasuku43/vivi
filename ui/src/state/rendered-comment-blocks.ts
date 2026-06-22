@@ -163,6 +163,7 @@ export function applyRenderedCommentHighlights(
   comments: ViviComment[],
   activeCommentId?: string | null,
   draftingBlockIds?: string[] | null,
+  kind: "markdown" | "html" = "markdown",
 ): void {
   if (!root) return;
   const blocks = commentableRenderedBlocks(root);
@@ -184,7 +185,7 @@ export function applyRenderedCommentHighlights(
   }
 
   const summaries = comments
-    .map((comment) => renderedCommentSummaryForComment(comment, "markdown"))
+    .map((comment) => renderedCommentSummaryForComment(comment, kind))
     .filter((comment): comment is RenderedCommentSummary => Boolean(comment));
 
   const commentsByBlock = new Map<HTMLElement, RenderedCommentSummary[]>();

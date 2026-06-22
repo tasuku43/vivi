@@ -130,14 +130,18 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   expect(previewHtml).toContain('data-vivi-source-line-start="1"');
   expect(previewHtml).toContain('data-vivi-source-line-end="1"');
   expect(previewHtml).toContain("vivi-html-block-target");
-  expect(previewHtml).toContain("if (event.source !== parent) return;");
+  expect(previewHtml).toContain("vivi-html-comment-open");
+  expect(previewHtml).toContain("vivi-html-thread-layout");
   expect(previewHtml).toContain(
-    'action.setAttribute("aria-label", actionLabel(0))',
+    "if (event.source && event.source !== parent) return;",
   );
-  expect(previewHtml).toContain("drafting-vivi-comment");
+  expect(previewHtml).toContain("Open comment thread with ");
+  expect(previewHtml).toContain("drafting-rendered-comment");
+  expect(previewHtml).toContain("rendered-comment-marker");
   expect(previewHtml).toContain(
-    "block.dataset.viviCommentBlockId === comment.blockId",
+    'document.querySelector(`[data-vivi-comment-block-id="${escapeSelectorValue(comment.blockId)}"]`)',
   );
+  expect(previewHtml).toContain("spansMultipleLines");
   expect(previewHtml).toContain('data-vivi-html-theme="dark"');
   expect(previewHtml).toContain("background:#0e1316");
 
