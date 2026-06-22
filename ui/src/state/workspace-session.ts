@@ -23,7 +23,6 @@ export interface WorkspaceSessionState {
   sidebarWidth?: number;
   inspectorWidth?: number;
   diffEnabled?: boolean;
-  diffFocusByPath?: Record<string, boolean>;
 }
 
 export interface StoredWorkspaceSessionV1 extends WorkspaceSessionState {
@@ -35,7 +34,6 @@ export interface StoredWorkspaceSessionV1 extends WorkspaceSessionState {
 type StoredWorkspaceSessionInputV1 = Omit<
   StoredWorkspaceSessionV1,
   | "diffEnabled"
-  | "diffFocusByPath"
   | "sidebarVisible"
   | "inspectorVisible"
   | "sidebarWidth"
@@ -99,7 +97,6 @@ export function buildWorkspaceSession(
         ? undefined
         : clampInspectorWidth(state.inspectorWidth),
     diffEnabled: state.diffEnabled ?? false,
-    diffFocusByPath: state.diffFocusByPath ?? {},
   };
 }
 
@@ -110,10 +107,11 @@ export function parseWorkspaceSession(
   try {
     const value = JSON.parse(raw) as unknown;
     if (!isStoredWorkspaceSession(value)) return null;
+    const session = { ...value };
+    delete session.diffFocusByPath;
     return {
-      ...value,
+      ...session,
       diffEnabled: value.diffEnabled ?? false,
-      diffFocusByPath: value.diffFocusByPath ?? {},
       sidebarVisible: value.sidebarVisible ?? true,
       inspectorVisible: value.inspectorVisible ?? true,
       sidebarWidth:
@@ -146,11 +144,6 @@ export function restoreWorkspaceSession(
     stored.recentFiles.filter((file) => isValidPath(file.path)),
   );
   const layout = sanitizeLayout(stored.layout, openTabs);
-  const diffFocusByPath = Object.fromEntries(
-    Object.entries(stored.diffFocusByPath ?? {}).filter(
-      ([path, enabled]) => isValidPath(path) && enabled,
-    ),
-  );
 
   return {
     openTabs,
@@ -161,7 +154,6 @@ export function restoreWorkspaceSession(
     sidebarWidth: stored.sidebarWidth,
     inspectorWidth: stored.inspectorWidth,
     diffEnabled: stored.diffEnabled,
-    diffFocusByPath,
   };
 }
 

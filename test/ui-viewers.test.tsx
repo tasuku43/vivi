@@ -3236,7 +3236,7 @@ it("renders HEAD diffs inside the file viewer surface", () => {
   expect(html).toContain("rendered-markdown-diff");
   expect(html).toContain("rendered-markdown-diff-block remove");
   expect(html).toContain("rendered-markdown-diff-block add");
-  expect(html).toContain("Focus changes");
+  expect(html).not.toContain("Focus changes");
   expect(html).not.toContain("diff-line-no");
   expect(html).not.toContain("rendered-diff-pane");
   expect(html).not.toContain("@@ -1,2 +1,2 @@");

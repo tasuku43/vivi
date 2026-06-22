@@ -225,7 +225,6 @@ export function ReviewWorkbenchStory({
                   diff={diff}
                   diffLoading={false}
                   diffEnabled={diffEnabled}
-                  diffFocusChanges
                   outline={outline}
                   comments={viewerComments}
                   activeCommentId={activeCommentId}
@@ -233,7 +232,6 @@ export function ReviewWorkbenchStory({
                   onCodeSelectionChange={noop}
                   onViewerModeChange={noop}
                   onDiffToggle={noop}
-                  onDiffFocusChange={noop}
                   onOpenComment={noop}
                   onCloseComment={noop}
                   onCommentStatusChange={noop}

@@ -26,7 +26,6 @@ const meta = {
     onCloseComment: () => undefined,
     onCommentStatusChange: () => undefined,
     onDiffToggle: () => undefined,
-    onDiffFocusChange: () => undefined,
   },
 } satisfies Meta<typeof CodeViewer>;
 
@@ -49,7 +48,6 @@ export const DiffMode: Story = {
   args: {
     diffEnabled: true,
     diff: sampleDiff,
-    diffFocusChanges: true,
     activeCommentId: "comment-diff-added",
   },
 };

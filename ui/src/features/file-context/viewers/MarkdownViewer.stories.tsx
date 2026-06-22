@@ -21,7 +21,6 @@ const meta = {
     threadActivities: sampleThreadActivities,
     onModeChange: () => undefined,
     onDiffToggle: () => undefined,
-    onDiffFocusChange: () => undefined,
     onCreateComment: () => undefined,
     onOpenComment: () => undefined,
     onCloseComment: () => undefined,
@@ -51,7 +50,6 @@ export const RenderedDiffMode: Story = {
     mode: "rendered",
     diffEnabled: true,
     diff: markdownDiff,
-    diffFocusChanges: true,
     activeCommentId: "comment-md-rendered",
   },
 };
@@ -61,6 +59,5 @@ export const SourceDiffMode: Story = {
     mode: "source",
     diffEnabled: true,
     diff: markdownDiff,
-    diffFocusChanges: true,
   },
 };

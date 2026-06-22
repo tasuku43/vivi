@@ -4953,21 +4953,6 @@ kbd {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.diff-focus-toggle {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 7px;
-  color: var(--text);
-  cursor: pointer;
-  user-select: none;
-}
-.diff-focus-toggle input {
-  width: 14px;
-  height: 14px;
-  margin: 0;
-  accent-color: var(--accent);
-}
 .diff-inline-row.gap {
   min-height: 32px;
   align-items: center;

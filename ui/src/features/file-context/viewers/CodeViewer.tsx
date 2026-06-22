@@ -33,10 +33,8 @@ export function CodeViewer({
   diff,
   diffLoading,
   diffEnabled,
-  diffFocusChanges,
   onSelectionChange,
   onDiffToggle,
-  onDiffFocusChange,
   onCreateComment,
   comments = [],
   activeCommentId,
@@ -56,10 +54,8 @@ export function CodeViewer({
   diff?: TextDiff | null;
   diffLoading?: boolean;
   diffEnabled?: boolean;
-  diffFocusChanges?: boolean;
   onSelectionChange: (range: LineRange | null) => void;
   onDiffToggle?: () => void;
-  onDiffFocusChange?: (focusChanges: boolean) => void;
   onCreateComment?: CommentCreateHandler;
   comments?: ViviComment[];
   activeCommentId?: string | null;
@@ -190,9 +186,7 @@ export function CodeViewer({
           path={file.path}
           diff={diff ?? null}
           loading={diffLoading}
-          focusChanges={diffFocusChanges}
           renderKind="source"
-          onFocusChangesChange={onDiffFocusChange}
           file={file}
           onCreateComment={onCreateComment}
           comments={comments}

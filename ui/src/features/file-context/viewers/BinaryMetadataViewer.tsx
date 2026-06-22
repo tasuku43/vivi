@@ -11,9 +11,7 @@ export function BinaryMetadataViewer({
   diff,
   diffLoading,
   diffEnabled,
-  diffFocusChanges,
   onDiffToggle,
-  onDiffFocusChange,
   onCreateComment,
   comments = [],
   activeCommentId,
@@ -24,9 +22,7 @@ export function BinaryMetadataViewer({
   diff?: TextDiff | null;
   diffLoading?: boolean;
   diffEnabled?: boolean;
-  diffFocusChanges?: boolean;
   onDiffToggle?: () => void;
-  onDiffFocusChange?: (focusChanges: boolean) => void;
   onCreateComment?: CommentCreateHandler;
   comments?: ViviComment[];
   activeCommentId?: string | null;
@@ -55,10 +51,8 @@ export function BinaryMetadataViewer({
           path={file.path}
           diff={diff ?? null}
           loading={diffLoading}
-          focusChanges={diffFocusChanges}
           renderKind="source"
           theme={theme}
-          onFocusChangesChange={onDiffFocusChange}
           onCreateComment={onCreateComment}
           file={file}
           comments={comments}
