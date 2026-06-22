@@ -33,15 +33,12 @@ interface Props {
   threadActivities?: Record<string, CommentActivitySummary>;
   selectedCodeRange: LineRange | null;
   refreshedAt?: number;
-  activePaneId: string;
   onOutlineSelect: (id: string) => void;
   onOpenEventPath: (path: string) => void;
   onConfirmEventPath: (path: string) => void;
   onOpenNextChanged: () => void;
   onOpenPreviousChanged: () => void;
   onOpenAllChanged: () => void;
-  onTargetHoverChange: (hovering: boolean) => void;
-  onRevealTarget: () => void;
   onRevealInTree: () => void;
   onOpenComments?: () => void;
 }
@@ -62,15 +59,12 @@ export function Inspector({
   threadActivities = {},
   selectedCodeRange,
   refreshedAt,
-  activePaneId,
   onOutlineSelect,
   onOpenEventPath,
   onConfirmEventPath,
   onOpenNextChanged,
   onOpenPreviousChanged,
   onOpenAllChanged,
-  onTargetHoverChange,
-  onRevealTarget,
   onRevealInTree,
   onOpenComments,
 }: Props) {
@@ -373,16 +367,6 @@ export function Inspector({
 
         <details className="file-details">
           <summary>Details</summary>
-          <button
-            className="focus-target"
-            onClick={onRevealTarget}
-            onMouseEnter={() => onTargetHoverChange(true)}
-            onMouseLeave={() => onTargetHoverChange(false)}
-            type="button"
-          >
-            <span>Inspector target</span>
-            <strong>{inspectorTargetLabel(file, activePaneId)}</strong>
-          </button>
           <div className="kv">
             <span>Type</span>
             <strong>{file?.viewerKind ?? "none"}</strong>
@@ -501,14 +485,6 @@ function formatBytes(size: number): string {
   if (size < 1024) return `${size} B`;
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${(size / 1024 / 1024).toFixed(1)} MB`;
-}
-
-export function inspectorTargetLabel(
-  file: FilePayload | null,
-  paneId: string,
-): string {
-  const name = file?.path.split("/").filter(Boolean).at(-1) ?? "No file";
-  return `${name} · ${paneId}`;
 }
 
 function viewerKindLabel(viewerKind: FilePayload["viewerKind"]): string {

@@ -270,7 +270,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     path: string;
     revision: number;
   } | null>(null);
-  const [inspectorTargetVisible, setInspectorTargetVisible] = useState(false);
   const [workspaceSessionReady, setWorkspaceSessionReady] = useState(false);
   const [pendingRestoreSession, setPendingRestoreSession] =
     useState<WorkspaceSessionState | null>(null);
@@ -1351,19 +1350,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     }
   }
 
-  function revealInspectorTarget() {
-    const pane = document.querySelector<HTMLElement>(
-      `[data-pane-id="${layout.activePaneId}"]`,
-    );
-    pane?.scrollIntoView({
-      block: "nearest",
-      inline: "nearest",
-      behavior: "smooth",
-    });
-    setInspectorTargetVisible(true);
-    window.setTimeout(() => setInspectorTargetVisible(false), 900);
-  }
-
   function revealActiveFileInTree(path = selectedPath) {
     if (!path) return;
     setTreeChangedOnly(false);
@@ -1941,15 +1927,12 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                 file?.path ? (codeSelections[file.path] ?? null) : null
               }
               refreshedAt={file?.path ? refreshedFiles[file.path] : undefined}
-              activePaneId={layout.activePaneId}
               onOutlineSelect={jumpToOutline}
               onOpenEventPath={(path) => openReviewQueueItem(path, "preview")}
               onConfirmEventPath={(path) => openReviewQueueItem(path, "normal")}
               onOpenNextChanged={() => openReviewQueueFile("next")}
               onOpenPreviousChanged={() => openReviewQueueFile("previous")}
               onOpenAllChanged={openAllChangedFiles}
-              onTargetHoverChange={setInspectorTargetVisible}
-              onRevealTarget={revealInspectorTarget}
               onRevealInTree={revealActiveFileInTree}
             />
           </>
@@ -2135,7 +2118,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
 
     return (
       <section
-        className={`${pane.id === layout.activePaneId ? "editor-pane active" : "editor-pane"} ${inspectorTargetVisible && pane.id === layout.activePaneId ? "inspector-target-visible" : ""}`}
+        className={
+          pane.id === layout.activePaneId ? "editor-pane active" : "editor-pane"
+        }
         data-pane-id={pane.id}
         key={pane.id}
         onFocus={() =>
@@ -2186,9 +2171,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
             setDraggingTab(true);
           }}
         />
-        {pane.id === layout.activePaneId ? (
-          <div className="pane-focus-badge">Inspector target</div>
-        ) : null}
         <div className="viewer-pane">
           {error && pane.id === layout.activePaneId ? (
             <div className="error">{error}</div>

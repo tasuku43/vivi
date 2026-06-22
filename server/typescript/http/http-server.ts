@@ -531,6 +531,8 @@ async function executeGraphqlOperation(
           )
         ).map(activityGraphqlValue),
       };
+    case "ViviDraftReviewComments":
+      return { draftReviewComments: [] };
     case "ViviCommentExport":
       return {
         commentExport: {

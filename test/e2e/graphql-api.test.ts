@@ -66,6 +66,11 @@ it("serves the first GraphQL data API slice with REST-equivalent behavior", asyn
   expect(fileContext.fileContext.comments).toEqual([]);
   expect(fileContext.fileContext.commentThreads).toEqual([]);
 
+  const draftReviewComments = await graphql<{
+    draftReviewComments: Array<{ id: string }>;
+  }>("ViviDraftReviewComments", { path: "README.md" });
+  expect(draftReviewComments.draftReviewComments).toEqual([]);
+
   const created = await graphql<{
     createComment: {
       id: string;
@@ -433,6 +438,9 @@ function graphqlQuery(operationName: string): string {
         contentType
         content
       }
+    }`,
+    ViviDraftReviewComments: `query ViviDraftReviewComments($path: String) {
+      draftReviewComments(path: $path) { id }
     }`,
     UpdateCommentThreadStatus: `mutation UpdateCommentThreadStatus($id: ID!, $status: CommentStatus!) {
       updateCommentThread(id: $id, input: { status: $status }) {

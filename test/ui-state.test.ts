@@ -122,7 +122,6 @@ import {
   initialExpandedPaths,
   visibleTreeRows,
 } from "../ui/src/state/tree-expansion.js";
-import { inspectorTargetLabel } from "../ui/src/features/review-queue/Inspector.js";
 
 it("opens, updates, and marks tabs by path", () => {
   const tabs = upsertOpenTab([], {
@@ -487,21 +486,6 @@ it("compacts workbench panes for narrow viewports", () => {
   expect(compactSidebarWidth(320, 390)).toBe(179);
   expect(compactSidebarWidth(320, 900)).toBe(320);
   expect(compactSidebarWidth(Number.NaN, 390)).toBe(179);
-});
-
-it("labels the inspector target with file and pane identity", () => {
-  const file: FilePayload = {
-    path: "docs/README.md",
-    viewerKind: "markdown",
-    encoding: "utf8",
-    content: "# Hello",
-    etag: "sha256:test",
-    size: 7,
-    mtimeMs: 1,
-  };
-
-  expect(inspectorTargetLabel(file, "pane-3")).toBe("README.md · pane-3");
-  expect(inspectorTargetLabel(null, "main")).toBe("No file · main");
 });
 
 it("selects a neighboring tab when the active tab closes", () => {

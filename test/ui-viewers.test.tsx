@@ -779,15 +779,12 @@ it("renders the Review Queue before secondary file helpers in the inspector", ()
       loadingReviewDiffs={{}}
       unreadReviewPaths={new Set(["src/app.ts"])}
       selectedCodeRange={{ start: 2, end: 2 }}
-      activePaneId="main"
       onOutlineSelect={() => undefined}
       onOpenEventPath={() => undefined}
       onConfirmEventPath={() => undefined}
       onOpenNextChanged={() => undefined}
       onOpenPreviousChanged={() => undefined}
       onOpenAllChanged={() => undefined}
-      onTargetHoverChange={() => undefined}
-      onRevealTarget={() => undefined}
       onRevealInTree={() => undefined}
     />,
   );
@@ -1052,15 +1049,12 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
       comments={[{ ...codeLineComment, threadId: "thread-1" }]}
       threadActivities={{ "thread-1": activity }}
       selectedCodeRange={null}
-      activePaneId="main"
       onOutlineSelect={() => undefined}
       onOpenEventPath={() => undefined}
       onConfirmEventPath={() => undefined}
       onOpenNextChanged={() => undefined}
       onOpenPreviousChanged={() => undefined}
       onOpenAllChanged={() => undefined}
-      onTargetHoverChange={() => undefined}
-      onRevealTarget={() => undefined}
       onRevealInTree={() => undefined}
     />,
   );
@@ -1086,15 +1080,12 @@ it("opens Review Queue rows as preview on click and stable tabs on double click"
     loadingReviewDiffs: {},
     unreadReviewPaths: new Set(),
     selectedCodeRange: null,
-    activePaneId: "main",
     onOutlineSelect: () => undefined,
     onOpenEventPath: (path) => calls.push(`preview:${path}`),
     onConfirmEventPath: (path) => calls.push(`normal:${path}`),
     onOpenNextChanged: () => undefined,
     onOpenPreviousChanged: () => undefined,
     onOpenAllChanged: () => undefined,
-    onTargetHoverChange: () => undefined,
-    onRevealTarget: () => undefined,
     onRevealInTree: () => undefined,
   });
 
@@ -1128,15 +1119,12 @@ it("reveals the active file in the tree through an explicit inspector action", (
     loadingReviewDiffs: {},
     unreadReviewPaths: new Set(),
     selectedCodeRange: null,
-    activePaneId: "main",
     onOutlineSelect: () => undefined,
     onOpenEventPath: () => undefined,
     onConfirmEventPath: () => undefined,
     onOpenNextChanged: () => undefined,
     onOpenPreviousChanged: () => undefined,
     onOpenAllChanged: () => undefined,
-    onTargetHoverChange: () => undefined,
-    onRevealTarget: () => undefined,
     onRevealInTree: () => calls.push("reveal"),
   });
 
@@ -1167,15 +1155,12 @@ it("keeps Markdown and HTML outline available as In this file", () => {
       loadingReviewDiffs={{}}
       unreadReviewPaths={new Set()}
       selectedCodeRange={null}
-      activePaneId="main"
       onOutlineSelect={() => undefined}
       onOpenEventPath={() => undefined}
       onConfirmEventPath={() => undefined}
       onOpenNextChanged={() => undefined}
       onOpenPreviousChanged={() => undefined}
       onOpenAllChanged={() => undefined}
-      onTargetHoverChange={() => undefined}
-      onRevealTarget={() => undefined}
       onRevealInTree={() => undefined}
     />,
   );
@@ -1198,15 +1183,12 @@ it("shows why the Review Queue is unavailable instead of looking empty", () => {
       loadingReviewDiffs={{}}
       unreadReviewPaths={new Set()}
       selectedCodeRange={null}
-      activePaneId="main"
       onOutlineSelect={() => undefined}
       onOpenEventPath={() => undefined}
       onConfirmEventPath={() => undefined}
       onOpenNextChanged={() => undefined}
       onOpenPreviousChanged={() => undefined}
       onOpenAllChanged={() => undefined}
-      onTargetHoverChange={() => undefined}
-      onRevealTarget={() => undefined}
       onRevealInTree={() => undefined}
     />,
   );
@@ -1227,15 +1209,12 @@ it("shows partial Review Queue results as a warning", () => {
       loadingReviewDiffs={{}}
       unreadReviewPaths={new Set()}
       selectedCodeRange={null}
-      activePaneId="main"
       onOutlineSelect={() => undefined}
       onOpenEventPath={() => undefined}
       onConfirmEventPath={() => undefined}
       onOpenNextChanged={() => undefined}
       onOpenPreviousChanged={() => undefined}
       onOpenAllChanged={() => undefined}
-      onTargetHoverChange={() => undefined}
-      onRevealTarget={() => undefined}
       onRevealInTree={() => undefined}
     />,
   );

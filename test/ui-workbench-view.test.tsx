@@ -48,19 +48,17 @@ it("keeps inspector header focused on status instead of duplicate collapse contr
       loadingReviewDiffs={{}}
       unreadReviewPaths={new Set()}
       selectedCodeRange={null}
-      activePaneId="main"
       onOutlineSelect={() => undefined}
       onOpenEventPath={() => undefined}
       onConfirmEventPath={() => undefined}
       onOpenNextChanged={() => undefined}
       onOpenPreviousChanged={() => undefined}
       onOpenAllChanged={() => undefined}
-      onTargetHoverChange={() => undefined}
-      onRevealTarget={() => undefined}
       onRevealInTree={() => undefined}
     />,
   );
 
   expect(html).toContain("Read-only");
   expect(html).not.toContain("Collapse inspector");
+  expect(html).not.toContain("Inspector target");
 });
