@@ -1,4 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import {
@@ -33,65 +34,69 @@ afterEach(async () => {
   await fixture.cleanup();
 });
 
-it("lets an agent watch the open comments worklist through the CLI", async () => {
-  server = await startGoViviServer({
-    rootDir: fixture.rootDir,
-    dataDir: path.join(fixture.outsideDir, "watch-cli-data"),
-  });
-  const watch = startGoCommentsWatch(server.url);
+it(
+  "lets an agent watch the open comments worklist through the CLI",
+  async () => {
+    server = await startGoViviServer({
+      rootDir: fixture.rootDir,
+      dataDir: path.join(fixture.outsideDir, "watch-cli-data"),
+    });
+    const watch = startGoCommentsWatch(server.url);
 
-  const initial = await watch.nextEvent();
-  expect(initial).toMatchObject({
-    type: "comments_open_worklist",
-    reason: "initial",
-    count: 0,
-    threads: [],
-  });
+    const initial = await watch.nextEvent();
+    expect(initial).toMatchObject({
+      type: "comments_open_worklist",
+      reason: "initial",
+      count: 0,
+      threads: [],
+    });
 
-  const created = await graphql<{
-    createThread: { id: string };
-  }>(server.url, {
-    operationName: "CreateThread",
-    query: `mutation CreateThread($input: CommentInput!) {
-      createThread(input: $input) { id }
-    }`,
-    variables: {
-      input: {
-        path: "README.md",
-        body: "Please review the fixture intro",
-        actor: {
-          id: "human:tasuku",
-          kind: "human",
-          displayName: "Tasuku",
-        },
-        anchor: {
-          surface: "source",
-          canonical: {
-            path: "README.md",
-            lineStart: 1,
-            lineEnd: 1,
-            quote: "# Vivi Fixture",
+    const created = await graphql<{
+      createThread: { id: string };
+    }>(server.url, {
+      operationName: "CreateThread",
+      query: `mutation CreateThread($input: CommentInput!) {
+        createThread(input: $input) { id }
+      }`,
+      variables: {
+        input: {
+          path: "README.md",
+          body: "Please review the fixture intro",
+          actor: {
+            id: "human:tasuku",
+            kind: "human",
+            displayName: "Tasuku",
+          },
+          anchor: {
+            surface: "source",
+            canonical: {
+              path: "README.md",
+              lineStart: 1,
+              lineEnd: 1,
+              quote: "# Vivi Fixture",
+            },
           },
         },
       },
-    },
-  });
+    });
 
-  const changed = await watch.nextEvent();
-  expect(changed.count).toBe(1);
-  expect(changed.changes).toContain("open_thread_added");
-  expect(changed.threads[0]).toMatchObject({
-    id: created.createThread.id,
-    path: "README.md",
-    status: "open",
-    comments: [
-      expect.objectContaining({ body: "Please review the fixture intro" }),
-    ],
-  });
-  expect(changed.cursor).not.toBe(initial.cursor);
+    const changed = await watch.nextEvent();
+    expect(changed.count).toBe(1);
+    expect(changed.changes).toContain("open_thread_added");
+    expect(changed.threads[0]).toMatchObject({
+      id: created.createThread.id,
+      path: "README.md",
+      status: "open",
+      comments: [
+        expect.objectContaining({ body: "Please review the fixture intro" }),
+      ],
+    });
+    expect(changed.cursor).not.toBe(initial.cursor);
 
-  await expect(watch.done).resolves.toBe(0);
-});
+    await expect(watch.done).resolves.toBe(0);
+  },
+  20_000,
+);
 
 async function graphql<T>(
   baseUrl: string,
@@ -130,19 +135,17 @@ async function startGoViviServer(input: {
   rootDir: string;
   dataDir: string;
 }): Promise<GoProcessServer> {
-  const child = spawn(
-    "go",
-    [
-      "run",
-      "./cli",
-      input.rootDir,
-      "--host",
-      "127.0.0.1",
-      "--port",
-      "0",
-    ],
-    { cwd: process.cwd(), env: goEnv({ VIVI_DATA_DIR: input.dataDir }) },
-  );
+  const invocation = goCliInvocation([
+    input.rootDir,
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "0",
+  ]);
+  const child = spawn(invocation.command, invocation.args, {
+    cwd: process.cwd(),
+    env: goEnv({ VIVI_DATA_DIR: input.dataDir }),
+  });
   const { url } = await waitForServerUrl(child);
   return {
     url,
@@ -154,27 +157,25 @@ function startGoCommentsWatch(baseUrl: string): {
   nextEvent(): Promise<WatchEvent>;
   done: Promise<number | null>;
 } {
-  const child = spawn(
-    "go",
-    [
-      "run",
-      "./cli",
-      "comments",
-      "watch",
-      "--url",
-      baseUrl,
-      "--actor",
-      "claude-code:e2e",
-      "--actor-name",
-      "Claude Code",
-      "--interval",
-      "25ms",
-      "--max-events",
-      "2",
-      "--json",
-    ],
-    { cwd: process.cwd(), env: goEnv() },
-  );
+  const invocation = goCliInvocation([
+    "comments",
+    "watch",
+    "--url",
+    baseUrl,
+    "--actor",
+    "claude-code:e2e",
+    "--actor-name",
+    "Claude Code",
+    "--interval",
+    "25ms",
+    "--max-events",
+    "2",
+    "--json",
+  ]);
+  const child = spawn(invocation.command, invocation.args, {
+    cwd: process.cwd(),
+    env: goEnv(),
+  });
   const events: WatchEvent[] = [];
   const waiters: Array<(event: WatchEvent) => void> = [];
   let stdout = "";
@@ -278,6 +279,16 @@ async function closeChild(
       }, 2_000);
     }),
   ]);
+}
+
+function goCliInvocation(args: string[]): { command: string; args: string[] } {
+  const binaryPath =
+    process.env.VIVI_GO_CLI ??
+    path.resolve(process.platform === "win32" ? "vivi.exe" : "vivi");
+  if (existsSync(binaryPath)) {
+    return { command: binaryPath, args };
+  }
+  return { command: "go", args: ["run", "./cli", ...args] };
 }
 
 function goEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {

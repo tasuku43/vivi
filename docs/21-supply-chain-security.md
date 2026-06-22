@@ -50,7 +50,7 @@ unapproved-third-party, and `write-all` violations and proves all are rejected.
 | TypeScript, ESLint, typescript-eslint, Prettier, Vitest, tsx     | widely trusted development tooling | Keep; compiler, lint, formatting, test, and TS execution control system.                                                                   |
 | gqlgen and gqlparser                                             | widely trusted Go third-party      | Keep; GraphQL transport/code generation is substantial and generated output is drift-checked.                                              |
 | Go indirect modules                                              | transitive third-party             | Keep only while selected by gqlgen/runtime; review through `go mod why`, Dependabot, and govulncheck.                                      |
-| `actions/*`, `github/codeql-action`                              | GitHub first-party                 | Keep, pinned to commit SHAs.                                                                                                               |
+| `actions/*`                                                       | GitHub first-party                 | Keep, pinned to commit SHAs.                                                                                                               |
 | `softprops/action-gh-release`, `peter-evans/create-pull-request` | replaceable third-party            | Removed; runner-provided `gh` and `git` cover these small release operations.                                                              |
 | `arduino/setup-task`                                             | replaceable third-party            | Removed from CI; CI invokes the npm check contract directly. Task remains a local convenience.                                             |
 | `actions/dependency-review-action`                               | GitHub-maintained first-party      | Keep, pinned; checks dependency changes on PRs.                                                                                            |
@@ -73,7 +73,7 @@ Repository administrators should enable and periodically verify:
    weekly schedule.
 3. Private vulnerability reporting.
 4. Secret scanning and push protection for contributors.
-5. Code scanning with the committed CodeQL workflow.
+5. Code scanning with GitHub's repository-level default CodeQL setup.
 6. Branch protection/rulesets on `main`: require CI, generated-code,
    dependency-review (for PRs), supply-chain security, and CodeQL checks; require
    review; dismiss stale approvals; block force-pushes and deletions.
@@ -94,10 +94,12 @@ secret corpus safely.
 ## CI and release integrity
 
 The security workflow runs the local policy check, actionlint, `npm audit` at
-high severity, and `govulncheck`. CodeQL analyzes Go and
-JavaScript/TypeScript. Dependency review rejects newly introduced vulnerable
-dependencies. GraphQL generation is performed from the version in `go.mod`, and
-CI fails if committed generated files change.
+high severity, and `govulncheck`. GitHub's default CodeQL setup analyzes Go and
+JavaScript/TypeScript; do not commit an advanced CodeQL workflow while default
+setup is enabled because GitHub rejects overlapping analysis uploads. Dependency
+review rejects newly introduced vulnerable dependencies. GraphQL generation is
+performed from the version in `go.mod`, and CI fails if committed generated
+files change.
 
 `go.mod` declares the minimum language version and a patched Go toolchain. This
 lets compatible Go installations select the security-fixed compiler and standard
