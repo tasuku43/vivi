@@ -325,8 +325,14 @@ button.pill {
     var(--sidebar-width, 280px) minmax(0, 1fr)
     var(--inspector-width, 280px);
 }
+.workbench.sidebar-hidden {
+  grid-template-columns: minmax(0, 1fr) var(--inspector-width, 280px);
+}
 .workbench.inspector-hidden {
   grid-template-columns: var(--sidebar-width, 280px) minmax(0, 1fr);
+}
+.workbench.sidebar-hidden.inspector-hidden {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .sidebar,
@@ -377,6 +383,43 @@ body.resizing-workbench-pane {
 .inspector {
   border-left: 1px solid var(--line);
 }
+.rail-toggle {
+  position: absolute;
+  top: 50%;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 42px;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--chrome);
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0.78;
+  transform: translateY(-50%);
+  box-shadow: 0 8px 18px var(--shadow);
+}
+.rail-toggle:hover,
+.rail-toggle:focus-visible {
+  border-color: var(--accent-line);
+  background: var(--accent-faint);
+  color: var(--text);
+  opacity: 1;
+}
+.sidebar-rail-toggle {
+  left: calc(var(--sidebar-width, 280px) - 12px);
+}
+.workbench.sidebar-hidden .sidebar-rail-toggle {
+  left: 8px;
+}
+.inspector-rail-toggle {
+  right: calc(var(--inspector-width, 280px) - 12px);
+}
+.workbench.inspector-hidden .inspector-rail-toggle {
+  right: 8px;
+}
 
 .panel-title {
   min-height: 42px;
@@ -390,6 +433,20 @@ body.resizing-workbench-pane {
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+.collapse-icon {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-color: currentColor;
+  border-style: solid;
+  border-width: 2px 2px 0 0;
+}
+.collapse-left {
+  transform: rotate(-135deg);
+}
+.collapse-right {
+  transform: rotate(45deg);
 }
 
 .tree {
@@ -702,6 +759,9 @@ body.resizing-workbench-pane {
   gap: 14px;
 }
 .viewer-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1422,6 +1482,9 @@ body.resizing-workbench-pane {
 }
 .text-toolbar,
 .code-pro-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1460,9 +1523,6 @@ body.resizing-workbench-pane {
   overflow: hidden;
 }
 .code-pro-header {
-  position: sticky;
-  top: 0;
-  z-index: 2;
   border-width: 0 0 1px;
   border-radius: 0;
 }
@@ -1498,7 +1558,7 @@ body.resizing-workbench-pane {
 .code-scope-bar {
   position: sticky;
   top: 41px;
-  z-index: 1;
+  z-index: 4;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -3703,6 +3763,9 @@ kbd {
   color: var(--muted);
 }
 .diff-viewer-status {
+  position: sticky;
+  top: 0;
+  z-index: 4;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3713,6 +3776,22 @@ kbd {
   color: var(--muted);
   font-size: 12px;
   padding: 8px 10px;
+}
+.document-viewer > .diff-viewer .diff-viewer-status,
+.html-viewer > .diff-viewer .diff-viewer-status,
+.image-viewer > .diff-viewer .diff-viewer-status,
+.binary-metadata-viewer > .diff-viewer .diff-viewer-status,
+.text-viewer > .diff-viewer .diff-viewer-status,
+.json-viewer > .diff-viewer .diff-viewer-status,
+.csv-viewer > .diff-viewer .diff-viewer-status,
+.mermaid-viewer > .diff-viewer .diff-viewer-status {
+  top: 54px;
+}
+.code-pro .diff-viewer-status {
+  top: 77px;
+  z-index: 3;
+  border-inline: 0;
+  border-radius: 0;
 }
 .diff-viewer-status-main {
   display: flex;
@@ -3990,10 +4069,15 @@ kbd {
   .workbench {
     grid-template-columns: var(--sidebar-width, 260px) minmax(0, 1fr);
   }
+  .workbench.sidebar-hidden,
+  .workbench.sidebar-hidden.inspector-hidden {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .inspector {
     display: none;
   }
-  .inspector-resizer {
+  .inspector-resizer,
+  .inspector-rail-toggle {
     display: none;
   }
   .markdown h1 {
@@ -4019,6 +4103,10 @@ kbd {
   .workbench,
   .workbench.inspector-hidden {
     grid-template-columns: var(--sidebar-width, 180px) minmax(0, 1fr);
+  }
+  .workbench.sidebar-hidden,
+  .workbench.sidebar-hidden.inspector-hidden {
+    grid-template-columns: minmax(0, 1fr);
   }
   .workbench-resizer {
     display: none;
