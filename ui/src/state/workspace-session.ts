@@ -18,6 +18,7 @@ export interface WorkspaceSessionState {
   openTabs: OpenTab[];
   layout: EditorLayout;
   recentFiles: RecentFile[];
+  sidebarVisible?: boolean;
   inspectorVisible: boolean;
   sidebarWidth?: number;
   inspectorWidth?: number;
@@ -35,12 +36,14 @@ type StoredWorkspaceSessionInputV1 = Omit<
   StoredWorkspaceSessionV1,
   | "diffEnabled"
   | "diffFocusByPath"
+  | "sidebarVisible"
   | "inspectorVisible"
   | "sidebarWidth"
   | "inspectorWidth"
 > & {
   diffEnabled?: boolean;
   diffFocusByPath?: Record<string, boolean>;
+  sidebarVisible?: boolean;
   inspectorVisible?: boolean;
   sidebarWidth?: number;
   inspectorWidth?: number;
@@ -85,6 +88,7 @@ export function buildWorkspaceSession(
     })),
     layout: persistentTabs.length > 0 ? state.layout : initialEditorLayout,
     recentFiles: trimRecentFiles(state.recentFiles),
+    sidebarVisible: state.sidebarVisible ?? true,
     inspectorVisible: state.inspectorVisible,
     sidebarWidth:
       state.sidebarWidth === undefined
@@ -110,6 +114,7 @@ export function parseWorkspaceSession(
       ...value,
       diffEnabled: value.diffEnabled ?? false,
       diffFocusByPath: value.diffFocusByPath ?? {},
+      sidebarVisible: value.sidebarVisible ?? true,
       inspectorVisible: value.inspectorVisible ?? true,
       sidebarWidth:
         value.sidebarWidth === undefined
@@ -151,6 +156,7 @@ export function restoreWorkspaceSession(
     openTabs,
     layout,
     recentFiles,
+    sidebarVisible: stored.sidebarVisible ?? true,
     inspectorVisible: stored.inspectorVisible,
     sidebarWidth: stored.sidebarWidth,
     inspectorWidth: stored.inspectorWidth,
@@ -306,6 +312,8 @@ function isStoredWorkspaceSession(
       value.diffEnabled === undefined) &&
     (value.diffFocusByPath === undefined ||
       isBooleanRecord(value.diffFocusByPath)) &&
+    (typeof value.sidebarVisible === "boolean" ||
+      value.sidebarVisible === undefined) &&
     (typeof value.inspectorVisible === "boolean" ||
       value.inspectorVisible === undefined) &&
     (typeof value.sidebarWidth === "number" ||

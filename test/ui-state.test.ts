@@ -1530,6 +1530,7 @@ it("restores workspace tabs and layout only for the current root and tree", () =
         { path: "missing.md", viewerKind: "markdown", lastOpenedAt: now },
       ],
       inspectorVisible: false,
+      sidebarVisible: false,
       sidebarWidth: 640,
       inspectorWidth: 120,
       diffEnabled: true,
@@ -1554,8 +1555,10 @@ it("restores workspace tabs and layout only for the current root and tree", () =
     { id: "main", activePath: "README.md" },
     { id: "pane-1", activePath: "docs/guide.md" },
   ]);
+  expect(stored.sidebarVisible).toBe(false);
   expect(restored?.layout.activePaneId).toBe("pane-1");
   expect(restored?.inspectorVisible).toBe(false);
+  expect(restored?.sidebarVisible).toBe(false);
   expect(restored?.sidebarWidth).toBe(maxSidebarWidth);
   expect(restored?.inspectorWidth).toBe(minInspectorWidth);
   expect(restored?.diffEnabled).toBe(true);
@@ -1809,6 +1812,7 @@ it("restores older workspace sessions with inspector visible by default", () => 
   });
 
   expect(parseWorkspaceSession(raw)?.inspectorVisible).toBe(true);
+  expect(parseWorkspaceSession(raw)?.sidebarVisible).toBe(true);
   expect(parseWorkspaceSession(raw)?.diffEnabled).toBe(false);
   expect(parseWorkspaceSession(raw)?.diffFocusByPath).toEqual({});
 });
