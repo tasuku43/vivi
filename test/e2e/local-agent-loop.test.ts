@@ -692,24 +692,28 @@ function goCliWatchOptions(input: { intervalMs: number }): {
   intervalMs: number;
   command?: string;
   args?: string[];
+  env?: Record<string, string | undefined>;
 } {
   const invocation = goCliInvocation(["comments", "watch"]);
   return {
     intervalMs: input.intervalMs,
     command: invocation.command,
     args: invocation.args,
+    env: goEnv(),
   };
 }
 
 function goCliCommentsOptions(input: { intervalMs?: number } = {}): {
   command?: string;
   args?: string[];
+  env?: Record<string, string | undefined>;
   intervalMs?: number;
 } {
   const invocation = goCliInvocation(["comments"]);
   return {
     command: invocation.command,
     args: invocation.args,
+    env: goEnv(),
     intervalMs: input.intervalMs,
   };
 }
