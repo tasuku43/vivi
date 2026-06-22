@@ -10,7 +10,6 @@ import {
   type ReviewChangeItem,
 } from "../../state/git-review.js";
 import { iconForPath } from "../../state/file-icons.js";
-import type { OutlineHeading } from "../../state/outline.js";
 import {
   isReviewQueueItemOpenable,
   summarizeReviewQueue,
@@ -20,7 +19,6 @@ import {
 interface Props {
   file: FilePayload | null;
   fileRemoved?: boolean;
-  outline: OutlineHeading[];
   reviewChanges: ReviewChangeItem[];
   reviewItems?: ReviewQueueItem[];
   reviewUnavailableReason?: string | null;
@@ -33,7 +31,7 @@ interface Props {
   threadActivities?: Record<string, CommentActivitySummary>;
   selectedCodeRange: LineRange | null;
   refreshedAt?: number;
-  onOutlineSelect: (id: string) => void;
+  activePaneId: string;
   onOpenEventPath: (path: string) => void;
   onConfirmEventPath: (path: string) => void;
   onOpenNextChanged: () => void;
@@ -46,7 +44,6 @@ interface Props {
 export function Inspector({
   file,
   fileRemoved = false,
-  outline,
   reviewChanges,
   reviewItems,
   reviewUnavailableReason = null,
@@ -59,7 +56,7 @@ export function Inspector({
   threadActivities = {},
   selectedCodeRange,
   refreshedAt,
-  onOutlineSelect,
+  activePaneId,
   onOpenEventPath,
   onConfirmEventPath,
   onOpenNextChanged,
@@ -315,55 +312,6 @@ export function Inspector({
             </ol>
           </details>
         ) : null}
-
-        <h3 className="section-title">In this file</h3>
-        {codeMetadata ? (
-          codeMetadata.symbols.length ? (
-            <nav className="symbol-list">
-              {codeMetadata.symbols.slice(0, 14).map((symbol) => (
-                <a
-                  href={`#L${symbol.line}`}
-                  key={`${symbol.kind}-${symbol.name}-${symbol.line}`}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    document
-                      .querySelector<HTMLElement>(
-                        `.code-line[data-line="${symbol.line}"]`,
-                      )
-                      ?.scrollIntoView({
-                        block: "center",
-                        behavior: "smooth",
-                      });
-                  }}
-                >
-                  <span>{symbol.kind}</span>
-                  <strong>{symbol.name}</strong>
-                  <small>{symbol.line}</small>
-                </a>
-              ))}
-            </nav>
-          ) : (
-            <p className="muted compact-empty">No symbols for this file.</p>
-          )
-        ) : outline.length ? (
-          <nav className="outline">
-            {outline.map((heading, index) => (
-              <a
-                key={heading.id}
-                className={`${heading.level === 2 ? "h2 " : ""}${index === 0 ? "active" : ""}`}
-                href={`#${heading.id}`}
-                onClick={(event) => {
-                  event.preventDefault();
-                  onOutlineSelect(heading.id);
-                }}
-              >
-                {heading.text}
-              </a>
-            ))}
-          </nav>
-        ) : (
-          <p className="muted compact-empty">No outline for this file.</p>
-        )}
 
         <details className="file-details">
           <summary>Details</summary>

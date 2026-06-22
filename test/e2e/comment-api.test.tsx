@@ -236,14 +236,13 @@ it("creates a comment from the UI anchor model and renders it after retrieval", 
   const html = renderToStaticMarkup(
     <Inspector
       file={file}
-      outline={[]}
       reviewChanges={[]}
       reviewDiffStats={{}}
       loadingReviewDiffs={{}}
       unreadReviewPaths={new Set()}
       comments={retrieved}
       selectedCodeRange={null}
-      onOutlineSelect={() => undefined}
+      activePaneId="main"
       onOpenEventPath={() => undefined}
       onConfirmEventPath={() => undefined}
       onOpenNextChanged={() => undefined}

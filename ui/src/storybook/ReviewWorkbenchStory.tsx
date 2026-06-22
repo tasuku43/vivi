@@ -226,6 +226,7 @@ export function ReviewWorkbenchStory({
                   diffLoading={false}
                   diffEnabled={diffEnabled}
                   diffFocusChanges
+                  outline={outline}
                   comments={viewerComments}
                   activeCommentId={activeCommentId}
                   threadActivities={threadActivities}
@@ -244,7 +245,6 @@ export function ReviewWorkbenchStory({
         </main>
         <Inspector
           file={state === "empty" ? null : file}
-          outline={outline}
           reviewChanges={reviewChanges}
           reviewItems={reviewItems}
           reviewUnavailableReason={
@@ -267,7 +267,7 @@ export function ReviewWorkbenchStory({
           refreshedAt={
             state === "disconnected" ? Date.now() - 90_000 : undefined
           }
-          onOutlineSelect={noop}
+          activePaneId="main"
           onOpenEventPath={noop}
           onConfirmEventPath={noop}
           onOpenNextChanged={noop}

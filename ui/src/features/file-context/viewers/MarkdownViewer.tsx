@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { MouseEvent } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { TextDiff } from "../../../domain/change-review.js";
 import type { ViviComment } from "../../../domain/comments.js";
@@ -53,6 +53,7 @@ export {
 export function MarkdownViewer({
   file,
   mode: controlledMode,
+  toolbarAction,
   diff,
   diffLoading,
   diffEnabled,
@@ -71,6 +72,7 @@ export function MarkdownViewer({
 }: {
   file: FilePayload;
   mode?: ViewerMode;
+  toolbarAction?: ReactNode;
   diff?: TextDiff | null;
   diffLoading?: boolean;
   diffEnabled?: boolean;
@@ -316,6 +318,7 @@ export function MarkdownViewer({
               Source
             </button>
           </div>
+          {toolbarAction}
           <button
             aria-pressed={Boolean(diffEnabled)}
             className={`diff-toggle${diffEnabled ? " active" : ""}`}

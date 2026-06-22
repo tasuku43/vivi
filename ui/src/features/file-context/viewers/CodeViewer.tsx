@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import type { TextDiff } from "../../../domain/change-review.js";
 import type { ViviComment } from "../../../domain/comments.js";
 import type { FilePayload } from "../../../domain/fs-node.js";
@@ -25,6 +26,7 @@ export function CodeViewer({
   file,
   theme,
   selectedRange,
+  toolbarAction,
   refreshedAt,
   diff,
   diffLoading,
@@ -44,6 +46,7 @@ export function CodeViewer({
   file: FilePayload;
   theme: ResolvedTheme;
   selectedRange: LineRange | null;
+  toolbarAction?: ReactNode;
   refreshedAt?: number;
   diff?: TextDiff | null;
   diffLoading?: boolean;
@@ -157,6 +160,7 @@ export function CodeViewer({
           {copyStatus ? (
             <span className="copy-status">{copyStatus}</span>
           ) : null}
+          {toolbarAction}
           <button
             aria-pressed={Boolean(diffEnabled)}
             className={`diff-toggle${diffEnabled ? " active" : ""}`}

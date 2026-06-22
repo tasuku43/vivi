@@ -8,7 +8,10 @@ import { CodeCommentThread } from "../ui/src/features/comments/components/CodeCo
 import { CommentsPanel } from "../ui/src/features/comments/components/CommentsPanel.js";
 import { DraftReviewTray } from "../ui/src/features/comments/components/DraftReviewTray.js";
 import { CommandPalette } from "../ui/src/features/command-palette/CommandPalette.js";
-import { FileViewer } from "../ui/src/features/file-context/components/FileViewer.js";
+import {
+  FileOutlineControl,
+  FileViewer,
+} from "../ui/src/features/file-context/components/FileViewer.js";
 import { Inspector } from "../ui/src/features/review-queue/Inspector.js";
 import { ShortcutHelp } from "../ui/src/shared/components/ShortcutHelp.js";
 import {
@@ -752,11 +755,10 @@ it("renders generic diffs for unsupported file types", () => {
   expect(html).not.toContain("This file type is not supported yet.");
 });
 
-it("renders the Review Queue before secondary file helpers in the inspector", () => {
+it("keeps the inspector focused on review queue, comments, and file details", () => {
   const html = renderToStaticMarkup(
     <Inspector
       file={codeFile}
-      outline={[]}
       reviewChanges={[
         { path: "src/app.ts", status: "modified", source: "git" },
         { path: "docs/mode-only.md", status: "modified", source: "git" },
@@ -779,7 +781,7 @@ it("renders the Review Queue before secondary file helpers in the inspector", ()
       loadingReviewDiffs={{}}
       unreadReviewPaths={new Set(["src/app.ts"])}
       selectedCodeRange={{ start: 2, end: 2 }}
-      onOutlineSelect={() => undefined}
+      activePaneId="main"
       onOpenEventPath={() => undefined}
       onConfirmEventPath={() => undefined}
       onOpenNextChanged={() => undefined}
@@ -790,16 +792,12 @@ it("renders the Review Queue before secondary file helpers in the inspector", ()
   );
 
   expect(html).toContain("Review Queue");
-  expect(html.indexOf("Review Queue")).toBeLessThan(
-    html.indexOf("In this file"),
-  );
+  expect(html.indexOf("Review Queue")).toBeLessThan(html.indexOf("Comments"));
   expect(html).toContain("Next");
   expect(html).toContain("Previous");
   expect(html).toContain("<strong>3</strong> files");
   expect(html).toContain("1 unseen");
   expect(html).toContain("src/app.ts:2");
-  expect(html).toContain("export");
-  expect(html).toContain("start");
   expect(html).toContain("+100");
   expect(html).toContain("-32");
   expect(html).toContain("metadata");
@@ -815,6 +813,7 @@ it("renders the Review Queue before secondary file helpers in the inspector", ()
   expect(html).toContain("Details");
   expect(html.indexOf("Review Queue")).toBeLessThan(html.indexOf("Details"));
   expect(html).toContain("Open all changed files as tabs");
+  expect(html).not.toContain("In this file");
   expect(html).not.toContain("Recent events");
   expect(html).not.toContain("Diff</button>");
   expect(html).not.toContain("Review targets");
@@ -1022,7 +1021,6 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
   const html = renderToStaticMarkup(
     <Inspector
       file={codeFile}
-      outline={[]}
       reviewChanges={[
         { path: "src/app.ts", status: "modified", source: "git" },
       ]}
@@ -1049,7 +1047,7 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
       comments={[{ ...codeLineComment, threadId: "thread-1" }]}
       threadActivities={{ "thread-1": activity }}
       selectedCodeRange={null}
-      onOutlineSelect={() => undefined}
+      activePaneId="main"
       onOpenEventPath={() => undefined}
       onConfirmEventPath={() => undefined}
       onOpenNextChanged={() => undefined}
@@ -1074,13 +1072,12 @@ it("opens Review Queue rows as preview on click and stable tabs on double click"
   const calls: string[] = [];
   const inspector = Inspector({
     file: codeFile,
-    outline: [],
     reviewChanges: [{ path: "src/app.ts", status: "modified", source: "git" }],
     reviewDiffStats: {},
     loadingReviewDiffs: {},
     unreadReviewPaths: new Set(),
     selectedCodeRange: null,
-    onOutlineSelect: () => undefined,
+    activePaneId: "main",
     onOpenEventPath: (path) => calls.push(`preview:${path}`),
     onConfirmEventPath: (path) => calls.push(`normal:${path}`),
     onOpenNextChanged: () => undefined,
@@ -1113,13 +1110,12 @@ it("reveals the active file in the tree through an explicit inspector action", (
   const calls: string[] = [];
   const inspector = Inspector({
     file: codeFile,
-    outline: [],
     reviewChanges: [],
     reviewDiffStats: {},
     loadingReviewDiffs: {},
     unreadReviewPaths: new Set(),
     selectedCodeRange: null,
-    onOutlineSelect: () => undefined,
+    activePaneId: "main",
     onOpenEventPath: () => undefined,
     onConfirmEventPath: () => undefined,
     onOpenNextChanged: () => undefined,
@@ -1142,48 +1138,35 @@ it("reveals the active file in the tree through an explicit inspector action", (
   expect(calls).toEqual(["reveal"]);
 });
 
-it("keeps Markdown and HTML outline available as In this file", () => {
+it("keeps Markdown and HTML outline available from the file viewer", () => {
   const html = renderToStaticMarkup(
-    <Inspector
+    <FileOutlineControl
       file={{ ...codeFile, path: "README.md", viewerKind: "markdown" }}
       outline={[
         { id: "title", level: 1, text: "Title" },
         { id: "setup", level: 2, text: "Setup" },
       ]}
-      reviewChanges={[]}
-      reviewDiffStats={{}}
-      loadingReviewDiffs={{}}
-      unreadReviewPaths={new Set()}
       selectedCodeRange={null}
       onOutlineSelect={() => undefined}
-      onOpenEventPath={() => undefined}
-      onConfirmEventPath={() => undefined}
-      onOpenNextChanged={() => undefined}
-      onOpenPreviousChanged={() => undefined}
-      onOpenAllChanged={() => undefined}
-      onRevealInTree={() => undefined}
     />,
   );
 
-  expect(html).toContain("No files to review.");
   expect(html).toContain("In this file");
-  expect(html).toContain("Title");
-  expect(html).toContain("Setup");
-  expect(html).not.toContain("Document outline");
+  expect(html).toContain('aria-haspopup="dialog"');
+  expect(html).toContain("<small>2</small>");
 });
 
 it("shows why the Review Queue is unavailable instead of looking empty", () => {
   const html = renderToStaticMarkup(
     <Inspector
       file={null}
-      outline={[]}
       reviewChanges={[]}
       reviewUnavailableReason="Git command timed out while reading this workspace."
       reviewDiffStats={{}}
       loadingReviewDiffs={{}}
       unreadReviewPaths={new Set()}
       selectedCodeRange={null}
-      onOutlineSelect={() => undefined}
+      activePaneId="main"
       onOpenEventPath={() => undefined}
       onConfirmEventPath={() => undefined}
       onOpenNextChanged={() => undefined}
@@ -1202,14 +1185,13 @@ it("shows partial Review Queue results as a warning", () => {
   const html = renderToStaticMarkup(
     <Inspector
       file={null}
-      outline={[]}
       reviewChanges={[{ path: "README.md", status: "modified", source: "git" }]}
       reviewUnavailableReason="Git untracked scan timed out; showing tracked changes only."
       reviewDiffStats={{}}
       loadingReviewDiffs={{}}
       unreadReviewPaths={new Set()}
       selectedCodeRange={null}
-      onOutlineSelect={() => undefined}
+      activePaneId="main"
       onOpenEventPath={() => undefined}
       onConfirmEventPath={() => undefined}
       onOpenNextChanged={() => undefined}

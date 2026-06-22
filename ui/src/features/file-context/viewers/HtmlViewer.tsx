@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import type { TextDiff } from "../../../domain/change-review.js";
 import type { ViviComment } from "../../../domain/comments.js";
 import type { FilePayload } from "../../../domain/fs-node.js";
@@ -24,6 +25,7 @@ export function HtmlViewer({
   file,
   allowHtmlScripts,
   mode: controlledMode,
+  toolbarAction,
   diff,
   diffLoading,
   diffEnabled,
@@ -41,6 +43,7 @@ export function HtmlViewer({
   file: FilePayload;
   allowHtmlScripts: boolean;
   mode?: ViewerMode;
+  toolbarAction?: ReactNode;
   diff?: TextDiff | null;
   diffLoading?: boolean;
   diffEnabled?: boolean;
@@ -210,6 +213,7 @@ export function HtmlViewer({
               Source
             </button>
           </div>
+          {toolbarAction}
           <button
             aria-pressed={Boolean(diffEnabled)}
             className={`diff-toggle${diffEnabled ? " active" : ""}`}

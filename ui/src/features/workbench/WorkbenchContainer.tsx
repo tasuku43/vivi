@@ -1314,16 +1314,16 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     }
   }
 
-  const outline = useMemo(() => {
-    if (!file) return [];
-    if (file.viewerKind === "html") return extractHtmlOutline(file.content);
-    if (file.viewerKind !== "markdown") return [];
-    return extractMarkdownOutline(file.content);
-  }, [file]);
+  function outlineForFile(target: FilePayload | null) {
+    if (!target) return [];
+    if (target.viewerKind === "html") return extractHtmlOutline(target.content);
+    if (target.viewerKind !== "markdown") return [];
+    return extractMarkdownOutline(target.content);
+  }
 
-  function jumpToOutline(id: string) {
+  function jumpToOutline(id: string, paneId = layout.activePaneId) {
     const pane = document.querySelector<HTMLElement>(
-      `[data-pane-id="${layout.activePaneId}"]`,
+      `[data-pane-id="${paneId}"]`,
     );
     const viewer = pane?.querySelector<HTMLElement>(".viewer-pane");
     if (!viewer) return;
@@ -1905,7 +1905,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
             <Inspector
               file={file}
               fileRemoved={activeFileRemoved}
-              outline={outline}
               reviewChanges={reviewChanges}
               reviewItems={reviewItems}
               reviewUnavailableReason={gitReview?.reason ?? null}
@@ -1927,7 +1926,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                 file?.path ? (codeSelections[file.path] ?? null) : null
               }
               refreshedAt={file?.path ? refreshedFiles[file.path] : undefined}
-              onOutlineSelect={jumpToOutline}
+              activePaneId={layout.activePaneId}
               onOpenEventPath={(path) => openReviewQueueItem(path, "preview")}
               onConfirmEventPath={(path) => openReviewQueueItem(path, "normal")}
               onOpenNextChanged={() => openReviewQueueFile("next")}
@@ -2199,9 +2198,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               diffFocusChanges={
                 paneFile?.path ? Boolean(diffFocusByPath[paneFile.path]) : false
               }
+              outline={outlineForFile(paneFile)}
               refreshedAt={
                 paneFile?.path ? refreshedFiles[paneFile.path] : undefined
               }
+              onOutlineSelect={(id) => jumpToOutline(id, pane.id)}
               onCreateComment={(draft, body, rect) =>
                 createComment(draft, body, rect).catch((err) =>
                   setError(String(err)),
