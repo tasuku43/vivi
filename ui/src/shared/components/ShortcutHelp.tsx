@@ -141,11 +141,12 @@ function ShortcutGroup({
 export function shortcutA11yLabel(shortcut: string) {
   if (shortcut === "Left / Right") return "Left or Right arrow";
 
-  return shortcut
-    .replace("Cmd/Ctrl", "Command or Control")
-    .replace("\\", "Backslash")
-    .replace("/", "Slash")
-    .replace("[", "Left bracket")
-    .replace("]", "Right bracket")
-    .replace("Esc", "Escape");
+  return [
+    ["Cmd/Ctrl", "Command or Control"],
+    ["\\", "Backslash"],
+    ["/", "Slash"],
+    ["[", "Left bracket"],
+    ["]", "Right bracket"],
+    ["Esc", "Escape"],
+  ].reduce((label, [from, to]) => label.split(from).join(to), shortcut);
 }

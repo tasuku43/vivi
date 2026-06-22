@@ -254,6 +254,8 @@ export function FileViewer({
             activeCommentId={activeCommentId}
             onOpenComment={onOpenComment}
             onCloseComment={onCloseComment}
+            onCommentStatusChange={onCommentStatusChange}
+            threadActivities={threadActivities}
           />
         </LazyViewerFallback>
       </FileViewerFrame>

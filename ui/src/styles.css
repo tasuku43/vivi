@@ -2572,6 +2572,19 @@ body.resizing-workbench-pane {
   border-radius: 12px;
   background: white;
 }
+.html-preview-stage {
+  position: relative;
+}
+.html-rendered-comment-thread-host {
+  position: fixed;
+  z-index: 70;
+  overflow: auto;
+  width: min(680px, calc(100vw - 24px));
+  line-height: normal;
+}
+.html-rendered-comment-thread-host > .rendered-comment-thread {
+  width: 100%;
+}
 .image-preview {
   display: block;
   height: auto;

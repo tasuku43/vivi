@@ -1552,18 +1552,27 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
 .markdown-mermaid-source summary{cursor:pointer;}
 .markdown-mermaid-source pre{overflow:auto;border:1px solid ${palette.line};border-radius:8px;background:${palette.codeBackground};color:${palette.codeText};padding:10px;}
 .html-mermaid.unsupported{border:1px solid ${palette.line};border-radius:8px;background:${palette.panel};padding:12px;}
-.vivi-html-comment-block{position:relative;transition:background 140ms ease,box-shadow 140ms ease;}
-.vivi-html-comment-block:hover{background:rgba(169,134,255,.06);}
-.vivi-html-comment-block.has-vivi-comment,.vivi-html-comment-block.drafting-vivi-comment{background:linear-gradient(90deg,rgba(169,134,255,.19),rgba(169,134,255,.08) 68%,transparent);box-shadow:inset 2px 0 0 rgba(169,134,255,.54);}
-.vivi-html-comment-block.active-vivi-comment{background:linear-gradient(90deg,rgba(169,134,255,.28),rgba(169,134,255,.12) 72%,transparent);box-shadow:inset 3px 0 0 rgba(169,134,255,.76),0 0 0 1px rgba(169,134,255,.18);}
-.vivi-html-comment-marker{position:absolute;z-index:2147483646;right:4px;top:8px;width:18px;height:18px;border:1px solid rgba(169,134,255,.54);border-radius:999px;background:${palette.panel};box-shadow:0 0 0 4px rgba(169,134,255,.12);cursor:pointer;opacity:0;padding:0;transition:background 140ms ease,opacity 140ms ease,transform 140ms ease;}
-.vivi-html-comment-marker::before{content:"";position:absolute;left:5px;top:4px;width:7px;height:6px;border:1.5px solid ${palette.accent};border-radius:5px;}
-.vivi-html-comment-marker::after{content:"";position:absolute;left:8px;top:10px;border-width:3px 0 0 4px;border-style:solid;border-color:transparent transparent transparent ${palette.accent};}
-.vivi-html-comment-action-host{position:relative;}
-.vivi-html-comment-block:hover .vivi-html-comment-marker,.vivi-html-comment-block.has-vivi-comment .vivi-html-comment-marker,.vivi-html-comment-block.drafting-vivi-comment .vivi-html-comment-marker,.vivi-html-comment-marker:focus-visible{opacity:1;}
-.vivi-html-comment-block:is(tr) .vivi-html-comment-marker{top:50%;transform:translateY(-50%);}
-.vivi-html-comment-marker:hover,.vivi-html-comment-marker:focus-visible{outline:none;background:rgba(169,134,255,.18);transform:translateY(-1px);}
-.vivi-html-comment-block:is(tr) .vivi-html-comment-marker:hover,.vivi-html-comment-block:is(tr) .vivi-html-comment-marker:focus-visible{transform:translateY(calc(-50% - 1px));}
+	.vivi-rendered-comment-block{--rendered-comment-block-left:-12px;--rendered-comment-block-right:-12px;--soft-line:${palette.softLine};--panel:${palette.panel};--palette:${palette.background};--comment-tint:${palette.commentTint};--comment-tint-active:${palette.commentTintActive};--comment-line:${palette.commentLine};--comment-text:${palette.commentText};isolation:isolate;position:relative;border-radius:8px;transition:background 140ms ease,box-shadow 140ms ease;}
+	li.vivi-rendered-comment-block{--rendered-comment-block-left:calc(-1.45em - 12px);}
+	.vivi-rendered-comment-block:not(tr)::before{content:"";position:absolute;z-index:-1;top:0;right:var(--rendered-comment-block-right);bottom:0;left:var(--rendered-comment-block-left);border-radius:inherit;pointer-events:none;transition:background 140ms ease,box-shadow 140ms ease;}
+	.vivi-rendered-comment-block:not(tr):hover::before,tr.vivi-rendered-comment-block:hover{background:var(--soft-line);}
+		.vivi-rendered-comment-block.has-rendered-comment,.vivi-rendered-comment-block.drafting-rendered-comment{border-radius:8px;}
+		.vivi-rendered-comment-block.has-rendered-comment:not(tr),.vivi-rendered-comment-block.drafting-rendered-comment:not(tr){background:transparent;box-shadow:none;}
+		blockquote.vivi-rendered-comment-block.has-rendered-comment,blockquote.vivi-rendered-comment-block.drafting-rendered-comment,blockquote.vivi-rendered-comment-block.active-rendered-comment{border-left-color:transparent!important;}
+		.vivi-rendered-comment-block.has-rendered-comment:not(tr)::before,.vivi-rendered-comment-block.drafting-rendered-comment:not(tr)::before,tr.vivi-rendered-comment-block.has-rendered-comment,tr.vivi-rendered-comment-block.drafting-rendered-comment{background:linear-gradient(90deg,var(--comment-tint-active),color-mix(in srgb,var(--comment-tint) 56%,transparent) 68%,transparent);box-shadow:inset 2px 0 0 var(--comment-line);}
+	.vivi-rendered-comment-block.active-rendered-comment{background:transparent;box-shadow:none;}
+	.vivi-rendered-comment-block.active-rendered-comment:not(tr)::before,tr.vivi-rendered-comment-block.active-rendered-comment{background:linear-gradient(90deg,color-mix(in srgb,var(--comment-tint-active) 86%,white),var(--comment-tint) 72%,transparent);box-shadow:inset 3px 0 0 var(--comment-text),0 0 0 1px color-mix(in srgb,var(--comment-line) 46%,transparent);}
+	.vivi-rendered-comment-block.rendered-comment-range-start.has-rendered-comment,.vivi-rendered-comment-block.rendered-comment-range-start.drafting-rendered-comment{border-bottom-left-radius:0;border-bottom-right-radius:0;}
+	.vivi-rendered-comment-block.rendered-comment-range-middle.has-rendered-comment,.vivi-rendered-comment-block.rendered-comment-range-middle.drafting-rendered-comment{border-radius:0;}
+	.vivi-rendered-comment-block.rendered-comment-range-end.has-rendered-comment,.vivi-rendered-comment-block.rendered-comment-range-end.drafting-rendered-comment{border-top-left-radius:0;border-top-right-radius:0;}
+	.vivi-rendered-comment-block.rendered-comment-range-join-after:not(tr)::after{content:"";position:absolute;z-index:1;left:var(--rendered-comment-block-left);right:var(--rendered-comment-block-right);top:100%;height:var(--rendered-comment-join-after,0);pointer-events:none;background:linear-gradient(90deg,var(--comment-tint-active),color-mix(in srgb,var(--comment-tint) 56%,transparent) 68%,transparent);box-shadow:inset 2px 0 0 var(--comment-line);}
+	.vivi-rendered-comment-block.active-rendered-comment.rendered-comment-range-join-after:not(tr)::after{background:linear-gradient(90deg,color-mix(in srgb,var(--comment-tint-active) 86%,white),var(--comment-tint) 72%,transparent);box-shadow:inset 3px 0 0 var(--comment-text);}
+	.rendered-comment-marker{position:absolute;z-index:2147483646;top:calc(50% + 1px);right:8px;width:20px;height:20px;border:1px solid var(--comment-line);border-radius:6px;background:var(--panel);color:var(--comment-text);box-shadow:0 5px 14px rgba(0,0,0,.22);cursor:pointer;padding:0;transform:translateY(-50%);transition:background 140ms ease,border-color 140ms ease,transform 140ms ease;}
+	.rendered-comment-marker::before{content:"";position:absolute;left:5px;top:5px;width:7px;height:6px;border:1.25px solid currentColor;border-radius:3px;}
+	.rendered-comment-marker::after{content:"";position:absolute;left:7px;top:10px;width:3px;height:3px;border-left:1.25px solid currentColor;transform:skew(-22deg);}
+	.rendered-comment-marker:hover,.rendered-comment-marker:focus-visible{outline:none;background:var(--comment-tint-active);border-color:var(--comment-text);transform:translateY(calc(-50% - 1px));}
+	.rendered-comment-marker-count{position:absolute;right:-5px;top:-6px;display:grid;place-items:center;min-width:13px;height:13px;border:1px solid var(--comment-line);border-radius:999px;background:var(--palette);color:var(--comment-text);font-size:8px;font-weight:800;line-height:1;padding:0 2px;}
+.vivi-rendered-comment-action-host{position:relative;}
 </style>`;
   const selectionBridge = `<script nonce="${escapeAttribute(options.nonce)}">
 (() => {
@@ -1573,7 +1582,8 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
   const interactiveSelector = "a,button,input,select,textarea,summary,[contenteditable]";
   let renderedComments = [];
   let activeCommentId = null;
-  let draftingBlockId = null;
+  let draftingBlockIds = [];
+  let openBlockIds = [];
   const post = (message) => parent.postMessage({ path, ...message }, "*");
   const cssPath = (element) => {
     if (!element || element.nodeType !== Node.ELEMENT_NODE) return undefined;
@@ -1591,10 +1601,20 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
     }
     return parts.join(">");
   };
-  const readableText = (element) => (element?.innerText || element?.textContent || "").replace(/\\s+/g, " ").trim();
-  const rectLike = (element) => {
-    const rect = element.getBoundingClientRect();
-    return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+  const readableText = (element) => {
+    const clone = element?.cloneNode(true);
+    clone?.querySelectorAll?.(".rendered-comment-marker").forEach((item) => item.remove());
+    return (clone?.innerText || clone?.textContent || "").replace(/\\s+/g, " ").trim();
+  };
+  const rectLikeForBlocks = (blocks) => {
+    if (!blocks.length) return null;
+    const first = blocks[0].getBoundingClientRect();
+    const last = blocks[blocks.length - 1].getBoundingClientRect();
+    const left = Math.min(first.left, last.left);
+    const top = Math.min(first.top, last.top);
+    const right = Math.max(first.right, last.right);
+    const bottom = Math.max(first.bottom, last.bottom);
+    return { left, top, width: right - left, height: bottom - top };
   };
   const closestBlock = (target) => {
     if (!target || target.nodeType !== Node.ELEMENT_NODE) return null;
@@ -1604,14 +1624,44 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
     }
     return target.closest(blockSelector);
   };
-  const commentForBlock = (block) => {
-    const commentId = block?.dataset.viviCommentId;
-    return commentId ? renderedComments.find((comment) => comment.id === commentId) ?? null : null;
+  const commentableBlocks = () => Array.from(document.querySelectorAll(blockSelector)).filter((block) => closestBlock(block) === block);
+  const sourceRange = (blocks) => {
+    const starts = blocks.map((block) => Number(block.dataset.viviSourceLineStart)).filter(Number.isInteger);
+    const ends = blocks.map((block) => Number(block.dataset.viviSourceLineEnd || block.dataset.viviSourceLineStart)).filter(Number.isInteger);
+    return starts.length && ends.length ? { sourceLineStart: starts[0], sourceLineEnd: ends[ends.length - 1] } : {};
+  };
+  const targetForBlocks = (blocks, selectedText) => {
+    const targets = blocks.filter((block) => block.dataset.viviCommentBlockId);
+    if (!targets.length) return null;
+    const text = selectedText?.trim() || targets.map(readableText).join("\\n");
+    const rect = rectLikeForBlocks(targets);
+    if (!text || !rect) return null;
+    return {
+      blockId: targets[0].dataset.viviCommentBlockId,
+      blockIds: targets.map((block) => block.dataset.viviCommentBlockId),
+      selector: cssPath(targets[0]),
+      text,
+      rect,
+      ...sourceRange(targets)
+    };
   };
   const findBlocksForComment = (comment) => {
+    const byRange = Number.isInteger(comment.sourceLineStart)
+      ? commentableBlocks().filter((block) => {
+          const start = Number(block.dataset.viviSourceLineStart);
+          const end = Number(block.dataset.viviSourceLineEnd);
+          const commentEnd = Number.isInteger(comment.sourceLineEnd) ? comment.sourceLineEnd : comment.sourceLineStart;
+          return Number.isInteger(start) && Number.isInteger(end) && start <= commentEnd && end >= comment.sourceLineStart;
+        })
+      : [];
     if (comment.blockId) {
-      const byBlock = Array.from(document.querySelectorAll(blockSelector)).find((block) => block.dataset.viviCommentBlockId === comment.blockId);
-      if (byBlock) return [byBlock];
+      const byBlock = document.querySelector(\`[data-vivi-comment-block-id="\${escapeSelectorValue(comment.blockId)}"]\`);
+      const closest = byBlock ? closestBlock(byBlock) : null;
+      if (closest) {
+        const spansMultipleLines = Number.isInteger(comment.sourceLineStart) && Number.isInteger(comment.sourceLineEnd) && comment.sourceLineEnd > comment.sourceLineStart;
+        if (spansMultipleLines && byRange.length > 1 && byRange.includes(closest)) return byRange;
+        return [closest];
+      }
     }
     if (comment.selector) {
       try {
@@ -1621,114 +1671,159 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
         if (nearest) return [nearest];
       } catch {}
     }
-    if (Number.isInteger(comment.sourceLineStart)) {
-      const commentEnd = Number.isInteger(comment.sourceLineEnd) ? comment.sourceLineEnd : comment.sourceLineStart;
-      const byRange = commentableBlocks().filter((block) => {
-        const start = Number(block.dataset.viviSourceLineStart);
-        const end = Number(block.dataset.viviSourceLineEnd);
-        return Number.isInteger(start) && Number.isInteger(end) && start <= commentEnd && end >= comment.sourceLineStart;
-      });
-      if (byRange.length) return byRange;
-    }
+    if (byRange.length) return byRange;
     const quote = comment.textQuote?.trim();
     const byQuote = quote ? Array.from(document.querySelectorAll(blockSelector)).find((block) => readableText(block).includes(quote)) ?? null : null;
     return byQuote ? [byQuote] : [];
   };
-  const commentableBlocks = () => Array.from(document.querySelectorAll(blockSelector)).filter((block) => closestBlock(block) === block);
-  const actionLabel = (count) => count <= 0 ? "Add comment" : count === 1 ? "Open comment" : \`Open \${count} comments\`;
-  const ensureAction = (block) => {
+  const actionLabel = (count) => \`Open comment thread with \${count} \${count === 1 ? "message" : "messages"}\`;
+  const removeAction = (block) => {
+    block.querySelectorAll(".rendered-comment-marker").forEach((action) => action.remove());
+    block.classList.remove("vivi-rendered-comment-action-host");
+    block.lastElementChild?.classList.remove("vivi-rendered-comment-action-host");
+  };
+  const ensureAction = (block, count) => {
     const host = block.localName === "tr" && block.lastElementChild ? block.lastElementChild : block;
-    if (host !== block) host.classList.add("vivi-html-comment-action-host");
-    let action = Array.from(host.children).find((child) => child.classList.contains("vivi-html-comment-marker"));
-    if (!action) {
-      action = document.createElement("button");
-      action.type = "button";
-      action.className = "vivi-html-comment-marker";
-      host.append(action);
-    }
-    delete action.dataset.commentId;
-    delete action.dataset.commentCount;
-    action.setAttribute("aria-label", actionLabel(0));
+    if (host !== block) host.classList.add("vivi-rendered-comment-action-host");
+    const action = document.createElement("button");
+    action.type = "button";
+    action.className = "rendered-comment-marker";
+    action.dataset.commentCount = String(count);
+    action.setAttribute("aria-label", actionLabel(count));
+    action.title = actionLabel(count);
+    const countNode = document.createElement("span");
+    countNode.className = "rendered-comment-marker-count";
+    countNode.setAttribute("aria-hidden", "true");
+    countNode.textContent = String(count);
+    action.append(countNode);
+    host.append(action);
     return action;
   };
-  const applyHighlights = () => {
-    document.querySelectorAll(blockSelector).forEach((block) => {
-      block.classList.remove("vivi-html-comment-block", "has-vivi-comment", "active-vivi-comment", "drafting-vivi-comment");
-      delete block.dataset.viviCommentId;
-      delete block.dataset.viviCommentCount;
+	  const pixelValue = (value) => {
+	    const parsed = Number.parseFloat(value);
+	    return Number.isFinite(parsed) ? parsed : 0;
+	  };
+	  const applyRangeBridge = (blocks) => {
+	    if (blocks.length < 2) return;
+	    const bounds = blocks.map((block) => {
+	      const rect = block.getBoundingClientRect();
+	      const before = getComputedStyle(block, "::before");
+	      return {left: rect.left + pixelValue(before.left), right: rect.right - pixelValue(before.right)};
+	    });
+	    const rangeLeft = Math.min(...bounds.map((bound) => bound.left));
+	    const rangeRight = Math.max(...bounds.map((bound) => bound.right));
+	    blocks.forEach((block, index) => {
+	      const rect = block.getBoundingClientRect();
+	      block.style.setProperty("--rendered-comment-block-left", \`\${Math.round(rangeLeft - rect.left)}px\`);
+	      block.style.setProperty("--rendered-comment-block-right", \`\${Math.round(rect.right - rangeRight)}px\`);
+	      block.classList.add(index === 0 ? "rendered-comment-range-start" : index === blocks.length - 1 ? "rendered-comment-range-end" : "rendered-comment-range-middle");
+	      const next = blocks[index + 1];
+	      if (!next) return;
+	      const gap = Math.max(0, Math.round(next.getBoundingClientRect().top - block.getBoundingClientRect().bottom));
+	      if (gap <= 1) return;
+	      block.classList.add("rendered-comment-range-join-after");
+	      block.style.setProperty("--rendered-comment-join-after", \`\${gap}px\`);
+	    });
+	  };
+  const bindBlockAction = (block) => {
+    if (block.dataset.viviCommentClickBound === "true") return;
+    block.dataset.viviCommentClickBound = "true";
+    block.addEventListener("click", (event) => {
+      if (event.target.closest?.(".rendered-comment-marker")) return;
+      if (event.target.closest?.(interactiveSelector)) return;
+      if (document.getSelection()?.toString().trim()) return;
+      const target = targetForBlocks([block]);
+      const commentId = block.dataset.viviCommentId;
+      postTarget(target, commentId ? "vivi-html-comment-open" : "vivi-html-block-target", commentId);
     });
+  };
+  const applyHighlights = () => {
     const blocks = commentableBlocks();
     blocks.forEach((block) => {
-      block.classList.add("vivi-html-comment-block");
-      ensureAction(block);
+      bindBlockAction(block);
+      block.classList.add("vivi-rendered-comment-block");
+	      block.classList.remove("has-rendered-comment", "active-rendered-comment", "drafting-rendered-comment", "rendered-comment-range-start", "rendered-comment-range-middle", "rendered-comment-range-end", "rendered-comment-range-join-after");
+	      block.style.removeProperty("--rendered-comment-block-left");
+	      block.style.removeProperty("--rendered-comment-block-right");
+	      block.style.removeProperty("--rendered-comment-join-after");
+      delete block.dataset.viviCommentId;
+      delete block.dataset.viviCommentCount;
+      removeAction(block);
     });
     const commentsByBlock = new Map();
+    const markerCommentsByBlock = new Map();
     for (const comment of renderedComments) {
-      for (const block of findBlocksForComment(comment)) {
-        const target = closestBlock(block);
-        if (!target) continue;
-        const list = commentsByBlock.get(target) || [];
+      const commentBlocks = findBlocksForComment(comment);
+      applyRangeBridge(commentBlocks);
+      for (const block of commentBlocks) {
+        const list = commentsByBlock.get(block) || [];
         list.push(comment);
-        commentsByBlock.set(target, list);
+        commentsByBlock.set(block, list);
+      }
+      const markerBlock = commentBlocks[commentBlocks.length - 1];
+      if (markerBlock) {
+        const list = markerCommentsByBlock.get(markerBlock) || [];
+        list.push(comment);
+        markerCommentsByBlock.set(markerBlock, list);
       }
     }
     for (const [block, comments] of commentsByBlock) {
       const firstComment = comments[0];
-      block.classList.add("has-vivi-comment");
-      if (comments.some((comment) => comment.id === activeCommentId)) block.classList.add("active-vivi-comment");
+      block.classList.add("has-rendered-comment");
+      if (comments.some((comment) => comment.id === activeCommentId)) block.classList.add("active-rendered-comment");
       block.dataset.viviCommentId = firstComment.id;
       block.dataset.viviCommentCount = String(comments.length);
-      const action = ensureAction(block);
-      action.dataset.commentId = firstComment.id;
-      action.dataset.commentCount = String(comments.length);
-      action.setAttribute("aria-label", actionLabel(comments.length));
     }
-    const drafting = blocks.find((block) => block.dataset.viviCommentBlockId === draftingBlockId);
-    drafting?.classList.add("drafting-vivi-comment");
+    for (const [block, comments] of markerCommentsByBlock) {
+      const action = ensureAction(block, comments.length);
+      action.dataset.commentId = comments[0].id;
+    }
+    const drafting = blocks.filter((block) => draftingBlockIds.includes(block.dataset.viviCommentBlockId));
+    applyRangeBridge(drafting);
+    drafting.forEach((block) => block.classList.add("drafting-rendered-comment"));
+    postThreadLayout();
   };
-  const publishBlockTarget = (block) => {
-    const text = readableText(block);
-    const blockId = block?.dataset.viviCommentBlockId;
-    if (!blockId || !text) return;
-    post({
-      type: "vivi-html-block-target",
-      blockId,
-      text,
-      selector: cssPath(block),
-      rect: rectLike(block)
-    });
+  const postTarget = (target, type = "vivi-html-block-target", id) => {
+    if (!target) return;
+    post({ type, id, ...target });
   };
-  const publishSelectionBlock = () => {
+  const postThreadLayout = () => {
+    if (!openBlockIds.length) return;
+    const byId = new Set(openBlockIds);
+    const blocks = commentableBlocks().filter((block) => byId.has(block.dataset.viviCommentBlockId));
+    const target = targetForBlocks(blocks);
+    if (target) post({ type: "vivi-html-thread-layout", blockIds: target.blockIds, rect: target.rect });
+  };
+  const publishSelection = () => {
     const selection = document.getSelection();
     if (!selection?.toString().trim() || !selection.rangeCount) return;
-    const node = selection.getRangeAt(0).startContainer;
-    const element = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
-    const block = closestBlock(element);
-    if (block) publishBlockTarget(block);
+    const range = selection.getRangeAt(0);
+    const blocks = commentableBlocks().filter((block) => {
+      try { return range.intersectsNode(block); } catch { return false; }
+    });
+    postTarget(targetForBlocks(blocks, selection.toString()));
   };
   const publishSoon = () => {
-    window.requestAnimationFrame(() => window.setTimeout(publishSelectionBlock, 0));
+    window.requestAnimationFrame(() => window.setTimeout(publishSelection, 0));
   };
   window.addEventListener("message", (event) => {
-    if (event.source !== parent) return;
+    if (event.source && event.source !== parent) return;
     const data = event.data;
     if (data?.type !== "vivi-html-comments" || data.path !== path) return;
     renderedComments = Array.isArray(data.comments) ? data.comments : [];
     activeCommentId = typeof data.activeCommentId === "string" ? data.activeCommentId : null;
-    draftingBlockId = typeof data.draftingBlockId === "string" ? data.draftingBlockId : null;
+    draftingBlockIds = Array.isArray(data.draftingBlockIds) ? data.draftingBlockIds : [];
+    openBlockIds = Array.isArray(data.openBlockIds) ? data.openBlockIds : [];
     applyHighlights();
   });
   document.addEventListener("click", (event) => {
-    const marker = event.target.closest?.(".vivi-html-comment-marker");
+    const marker = event.target.closest?.(".rendered-comment-marker");
     const block = closestBlock(marker || event.target);
     if (marker) {
       event.preventDefault();
       event.stopPropagation();
-      if (marker.dataset.commentId) {
-        post({ type: "vivi-html-comment-open", id: marker.dataset.commentId, rect: rectLike(block) });
-      } else if (block) {
-        publishBlockTarget(block);
-      }
+      const target = targetForBlocks(block ? [block] : []);
+      postTarget(target, "vivi-html-comment-open", marker.dataset.commentId);
       return;
     }
     if (!block) {
@@ -1737,15 +1832,14 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
     }
     if (event.target.closest?.(interactiveSelector)) return;
     if (document.getSelection()?.toString().trim()) return;
-    const comment = commentForBlock(block);
-    if (comment) {
-      post({ type: "vivi-html-comment-open", id: comment.id, rect: rectLike(block) });
-      return;
-    }
-    publishBlockTarget(block);
+    const target = targetForBlocks([block]);
+    const commentId = block.dataset.viviCommentId;
+    postTarget(target, commentId ? "vivi-html-comment-open" : "vivi-html-block-target", commentId);
   });
   document.addEventListener("mouseup", publishSoon);
   document.addEventListener("keyup", publishSoon);
+  window.addEventListener("scroll", () => window.requestAnimationFrame(postThreadLayout), true);
+  window.addEventListener("resize", postThreadLayout);
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", applyHighlights, { once: true });
   } else {
@@ -1818,9 +1912,14 @@ function htmlPreviewPalette(theme: MermaidPreviewTheme) {
       background: "#fbfaf7",
       codeBackground: "#f2f0ea",
       codeText: "#172426",
+      commentLine: "rgba(126,87,194,.35)",
+      commentText: "#5e3aa3",
+      commentTint: "rgba(126,87,194,.12)",
+      commentTintActive: "rgba(126,87,194,.2)",
       line: "#d4c9b8",
       muted: "#66736f",
       panel: "#ffffff",
+      softLine: "rgba(24,32,47,.08)",
       text: "#172426",
     };
   }
@@ -1830,9 +1929,14 @@ function htmlPreviewPalette(theme: MermaidPreviewTheme) {
     background: "#0e1316",
     codeBackground: "#11191d",
     codeText: "#edf7f5",
+    commentLine: "rgba(169,134,255,.42)",
+    commentText: "#d8c7ff",
+    commentTint: "rgba(169,134,255,.14)",
+    commentTintActive: "rgba(169,134,255,.22)",
     line: "#34474d",
     muted: "#96aaa9",
     panel: "#152126",
+    softLine: "rgba(255,255,255,.06)",
     text: "#edf7f5",
   };
 }

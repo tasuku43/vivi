@@ -395,6 +395,9 @@ it("names symbolic shortcut keys for assistive tech", () => {
   expect(shortcutA11yLabel("Cmd/Ctrl ]")).toBe(
     "Command or Control Right bracket",
   );
+  expect(shortcutA11yLabel("Cmd/Ctrl [ / ] \\")).toBe(
+    "Command or Control Left bracket Slash Right bracket Backslash",
+  );
   expect(shortcutA11yLabel("Left / Right")).toBe("Left or Right arrow");
 });
 
