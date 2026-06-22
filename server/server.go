@@ -540,8 +540,10 @@ func randomNonce() string {
 
 func htmlPreviewCSP(allowScripts bool, nonce string) string {
 	script := "script-src 'nonce-" + nonce + "'"
+	sandbox := "sandbox allow-same-origin"
 	if allowScripts {
 		script = "script-src 'self' 'unsafe-inline'"
+		sandbox = "sandbox allow-same-origin allow-scripts"
 	}
 	return strings.Join([]string{
 		"default-src 'self' data: blob:",
@@ -549,6 +551,7 @@ func htmlPreviewCSP(allowScripts bool, nonce string) string {
 		"base-uri 'self'",
 		"style-src 'self' 'unsafe-inline'",
 		script,
+		sandbox,
 	}, "; ")
 }
 

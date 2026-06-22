@@ -196,17 +196,16 @@ function annotateOpeningTag(
   block: RenderedCommentSourceBlock,
   preserveSourceRanges: boolean,
 ): string {
-  const clean = tag
-    .replace(
-      /\sdata-vivi-comment-block-id\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi,
-      "",
-    )
-    .replace(
-      preserveSourceRanges
-        ? /$^/
-        : /\sdata-vivi-source-line-(?:start|end)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi,
+  let clean = tag.replace(
+    /\sdata-vivi-comment-block-id\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi,
+    "",
+  );
+  if (!preserveSourceRanges) {
+    clean = clean.replace(
+      /\sdata-vivi-source-line-(?:start|end)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi,
       "",
     );
+  }
   const sourceAttributes = preserveSourceRanges
     ? ""
     : ` data-vivi-source-line-start="${block.sourceLineStart}" data-vivi-source-line-end="${block.sourceLineEnd}"`;

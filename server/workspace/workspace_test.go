@@ -120,6 +120,36 @@ func TestWatchEntriesWithStatsCountsWorkspaceScan(t *testing.T) {
 	}
 }
 
+func TestReadTreeSkipsSymlinksOutsideRoot(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	mustWrite(t, outside, "secret.md", []byte("# Secret\n"))
+	if err := os.Symlink(filepath.Join(outside, "secret.md"), filepath.Join(root, "secret-link.md")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	mustWrite(t, root, "README.md", []byte("# Public\n"))
+
+	fsys, err := New(Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree, err := fsys.ReadTree()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	serialized := ""
+	for _, node := range tree.Nodes {
+		serialized += node.Path + "\n"
+	}
+	if !strings.Contains(serialized, "README.md") {
+		t.Fatalf("tree = %#v, want README.md", tree.Nodes)
+	}
+	if strings.Contains(serialized, "secret-link.md") {
+		t.Fatalf("tree exposed outside symlink: %#v", tree.Nodes)
+	}
+}
+
 func TestSearchFilesUsesReusableIndexUntilInvalidated(t *testing.T) {
 	root := t.TempDir()
 	mustWrite(t, root, "kernel/sched/core.c", []byte("scheduler\n"))

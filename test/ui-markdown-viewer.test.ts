@@ -4,6 +4,7 @@ import {
   injectMermaidPreviewBlocks,
   renderMarkdownDocumentHtml,
 } from "../ui/src/features/file-context/viewers/MarkdownViewer.js";
+import { isSafeSvgReference } from "../ui/src/features/file-context/rendering/mermaid-rendering.js";
 
 describe("renderMarkdownDocumentHtml", () => {
   const fixture = (name: string) =>
@@ -158,5 +159,14 @@ Alice->>Bob: <script>alert(1)</script>
     expect(html).toContain("data-mermaid-source=");
     expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
     expect(html).not.toContain("<script>alert(1)</script>");
+  });
+
+  it("rejects unsafe URL schemes in rendered Mermaid SVG links", () => {
+    expect(isSafeSvgReference("https://example.test/diagram")).toBe(true);
+    expect(isSafeSvgReference("#node-id")).toBe(true);
+    expect(isSafeSvgReference("relative/path.svg")).toBe(true);
+    expect(isSafeSvgReference("javascript:alert(1)")).toBe(false);
+    expect(isSafeSvgReference("data:text/html,<script>x</script>")).toBe(false);
+    expect(isSafeSvgReference("vbscript:msgbox(1)")).toBe(false);
   });
 });

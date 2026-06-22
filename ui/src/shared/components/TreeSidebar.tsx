@@ -52,12 +52,8 @@ export function TreeSidebar({
   useEffect(() => {
     if (!revealPath) return;
     window.requestAnimationFrame(() => {
-      const escapedPath =
-        typeof CSS !== "undefined" && CSS.escape
-          ? CSS.escape(revealPath)
-          : revealPath.replace(/"/g, '\\"');
-      document
-        .querySelector<HTMLElement>(`[data-tree-path="${escapedPath}"]`)
+      Array.from(document.querySelectorAll<HTMLElement>("[data-tree-path]"))
+        .find((element) => element.dataset.treePath === revealPath)
         ?.scrollIntoView({ block: "center", behavior: "smooth" });
     });
   }, [revealPath, revealRevision, expandedPaths]);
