@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { TextDiff } from "../../../domain/change-review.js";
 import type { ViviComment } from "../../../domain/comments.js";
@@ -65,11 +65,25 @@ export function CodeViewer({
   onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities?: Record<string, CommentActivitySummary>;
 }) {
-  const [html, setHtml] = useState<string | null>(null);
+  const [highlightedHtml, setHighlightedHtml] = useState<{
+    content: string;
+    language: string;
+    theme: ResolvedTheme;
+    html: string;
+  } | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const language = languageForPath(file.path, file.viewerKind);
   const lines = splitCodeLines(file.content);
-  const highlightedLines = html ? extractHighlightedLines(html) : null;
+  const html =
+    highlightedHtml?.content === file.content &&
+    highlightedHtml.language === language &&
+    highlightedHtml.theme === theme
+      ? highlightedHtml.html
+      : null;
+  const highlightedLines = useMemo(
+    () => (html ? extractHighlightedLines(html) : null),
+    [html],
+  );
   const symbols = detectCodeSymbols(file.path, file.content);
   const selected = selectedRange
     ? normalizeLineRange(selectedRange.start, selectedRange.end, lines.length)
@@ -78,14 +92,20 @@ export function CodeViewer({
 
   useEffect(() => {
     let cancelled = false;
-    setHtml(null);
     import("../../../state/highlighter.js")
       .then(({ highlightCode }) => highlightCode(file.content, language, theme))
       .then((highlighted) => {
-        if (!cancelled) setHtml(highlighted);
+        if (!cancelled) {
+          setHighlightedHtml({
+            content: file.content,
+            language,
+            theme,
+            html: highlighted,
+          });
+        }
       })
       .catch(() => {
-        if (!cancelled) setHtml(null);
+        if (!cancelled) setHighlightedHtml(null);
       });
     return () => {
       cancelled = true;

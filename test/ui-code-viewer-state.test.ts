@@ -17,6 +17,8 @@ import {
 import {
   codeCommentThreads,
   draftReviewCommentAsViviComment,
+  flushDeferredSourceHighlightState,
+  nextDeferredSourceHighlightState,
   sourceLineCommentDraft,
 } from "../ui/src/state/comments.js";
 
@@ -44,6 +46,35 @@ it("formats selected code with path and line numbers", () => {
       end: 3,
     }),
   ).toBe("src/app.ts:2-3\n2 | b\n3 | c");
+});
+
+it("defers source highlight replacement while text selection is active", () => {
+  const initial = {
+    visible: ["plain line 1", "plain line 2"],
+    pending: ["plain line 1", "plain line 2"],
+  };
+  const highlighted = ["<span>line 1</span>", "<span>line 2</span>"];
+
+  const selecting = nextDeferredSourceHighlightState(
+    initial,
+    highlighted,
+    true,
+  );
+
+  expect(selecting).toEqual({
+    visible: initial.visible,
+    pending: highlighted,
+  });
+  expect(flushDeferredSourceHighlightState(selecting)).toEqual({
+    visible: highlighted,
+    pending: highlighted,
+  });
+  expect(
+    nextDeferredSourceHighlightState(initial, highlighted, false),
+  ).toEqual({
+    visible: highlighted,
+    pending: highlighted,
+  });
 });
 
 it("detects lightweight JavaScript and TypeScript symbols", () => {

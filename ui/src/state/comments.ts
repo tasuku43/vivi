@@ -348,18 +348,11 @@ export function scheduleSelectionCommentUpdate(update: () => void): void {
 export function selectionCommentTargetInElement(
   element: HTMLElement | null,
 ): SelectionCommentTarget | null {
-  if (!element) return null;
+  if (!hasTextSelectionInElement(element)) return null;
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0) return null;
   const range = selection.getRangeAt(0);
-  if (
-    !element.contains(range.commonAncestorContainer) &&
-    range.commonAncestorContainer !== element
-  ) {
-    return null;
-  }
   const text = selection.toString().trim();
-  if (!text) return null;
   const rect = range.getBoundingClientRect();
   return {
     text,
@@ -370,6 +363,43 @@ export function selectionCommentTargetInElement(
       height: rect.height,
     },
   };
+}
+
+export function hasTextSelectionInElement(element: HTMLElement | null): boolean {
+  if (!element) return false;
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return false;
+  const range = selection.getRangeAt(0);
+  if (
+    !element.contains(range.commonAncestorContainer) &&
+    range.commonAncestorContainer !== element
+  ) {
+    return false;
+  }
+  return Boolean(selection.toString().trim());
+}
+
+export interface DeferredSourceHighlightState {
+  visible: string[] | null;
+  pending: string[] | null;
+}
+
+export function nextDeferredSourceHighlightState(
+  state: DeferredSourceHighlightState,
+  incoming: string[] | null | undefined,
+  hasActiveSelection: boolean,
+): DeferredSourceHighlightState {
+  const next = incoming ?? null;
+  if (hasActiveSelection) {
+    return { visible: state.visible, pending: next };
+  }
+  return { visible: next, pending: next };
+}
+
+export function flushDeferredSourceHighlightState(
+  state: DeferredSourceHighlightState,
+): DeferredSourceHighlightState {
+  return { visible: state.pending, pending: state.pending };
 }
 
 export function selectedLineRangeInElement(
