@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { expect, it } from "vitest";
 
 it("builds release archives for the Vivi single binary", () => {
@@ -49,6 +49,27 @@ it("keeps CI setup aligned with release runner defaults", () => {
     /actions\/(?:checkout|setup-node|setup-go)@v[45]/,
   );
   expect(workflow).not.toMatch(/cache:\s*true/);
+});
+
+it("builds binaries before Go-backed E2E starts the embedded CLI", () => {
+  const pkg = JSON.parse(readFileSync("package.json", "utf8")) as {
+    scripts: { check: string };
+  };
+  const checkSteps = pkg.scripts.check.split(" && ");
+
+  expect(checkSteps.indexOf("npm run build")).toBeGreaterThanOrEqual(0);
+  expect(checkSteps.indexOf("npm run build:go")).toBeGreaterThanOrEqual(0);
+  expect(checkSteps.indexOf("npm run e2e")).toBeGreaterThanOrEqual(0);
+  expect(checkSteps.indexOf("npm run build")).toBeLessThan(
+    checkSteps.indexOf("npm run e2e"),
+  );
+  expect(checkSteps.indexOf("npm run build:go")).toBeLessThan(
+    checkSteps.indexOf("npm run e2e"),
+  );
+});
+
+it("uses repository default CodeQL setup without an advanced workflow", () => {
+  expect(existsSync(".github/workflows/codeql.yml")).toBe(false);
 });
 
 it("enables Dependabot for package and workflow maintenance", () => {

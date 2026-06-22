@@ -1,4 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import {
@@ -72,62 +73,66 @@ it("runs the fixture-driven human-to-agent feedback loop", async () => {
   );
 });
 
-it("runs the fake agent loop through comments watch intake", async () => {
-  const loopFixture = await loadLocalAgentLoopFixture(
-    path.resolve("test/fixtures/agent-loop/basic.json"),
-  );
-  await server?.close();
-  server = await startGoViviServer({
-    rootDir: fixture.rootDir,
-    dataDir: path.join(fixture.outsideDir, "agent-loop-watch-data"),
-  });
+it(
+  "runs the fake agent loop through comments watch intake",
+  async () => {
+    const loopFixture = await loadLocalAgentLoopFixture(
+      path.resolve("test/fixtures/agent-loop/basic.json"),
+    );
+    await server?.close();
+    server = await startGoViviServer({
+      rootDir: fixture.rootDir,
+      dataDir: path.join(fixture.outsideDir, "agent-loop-watch-data"),
+    });
 
-  const report = await runLocalAgentLoop({
-    baseUrl: server!.url,
-    fixture: loopFixture,
-    intake: "watch",
-    watch: { intervalMs: 25 },
-  });
+    const report = await runLocalAgentLoop({
+      baseUrl: server!.url,
+      fixture: loopFixture,
+      intake: "watch",
+      watch: goCliWatchOptions({ intervalMs: 25 }),
+    });
 
-  expect(report.status).toBe("passed");
-  expect(report.intake).toBe("watch");
-  expect(report.watchEvent).toEqual(
-    expect.objectContaining({
-      reason: "open_worklist_changed",
-      count: 1,
-      threadIds: [report.threadId],
-    }),
-  );
-  expect(report.watchEvent?.changes).toContain("open_thread_added");
-  expect(report.stages.map((stage) => stage.stage)).toEqual([
-    "watch",
-    "seed",
-    "read",
-    "receipt",
-    "reply",
-    "terminal",
-    "verify",
-  ]);
-  expect(report.activities).toEqual(
-    expect.arrayContaining([
+    expect(report.status).toBe("passed");
+    expect(report.intake).toBe("watch");
+    expect(report.watchEvent).toEqual(
       expect.objectContaining({
-        type: "thread_read",
-        actor: expect.objectContaining({ id: "codex:fake-agent-loop" }),
-        clientEventId: `${loopFixture.agent.clientEventId}:${report.watchEvent?.cursor}`,
+        reason: "open_worklist_changed",
+        count: 1,
+        threadIds: [report.threadId],
       }),
-      expect.objectContaining({
-        type: "comment_added",
-        actor: expect.objectContaining({ id: "codex:fake-agent-loop" }),
-      }),
-      expect.objectContaining({
-        type: "thread_status_changed",
-        actor: expect.objectContaining({ id: "codex:fake-agent-loop" }),
-        previousStatus: "open",
-        status: "resolved",
-      }),
-    ]),
-  );
-}, 15_000);
+    );
+    expect(report.watchEvent?.changes).toContain("open_thread_added");
+    expect(report.stages.map((stage) => stage.stage)).toEqual([
+      "watch",
+      "seed",
+      "read",
+      "receipt",
+      "reply",
+      "terminal",
+      "verify",
+    ]);
+    expect(report.activities).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "thread_read",
+          actor: expect.objectContaining({ id: "codex:fake-agent-loop" }),
+          clientEventId: `${loopFixture.agent.clientEventId}:${report.watchEvent?.cursor}`,
+        }),
+        expect.objectContaining({
+          type: "comment_added",
+          actor: expect.objectContaining({ id: "codex:fake-agent-loop" }),
+        }),
+        expect.objectContaining({
+          type: "thread_status_changed",
+          actor: expect.objectContaining({ id: "codex:fake-agent-loop" }),
+          previousStatus: "open",
+          status: "resolved",
+        }),
+      ]),
+    );
+  },
+  30_000,
+);
 
 it("reports the exact failed stage", async () => {
   const loopFixture = await loadLocalAgentLoopFixture(
@@ -148,11 +153,17 @@ async function startGoViviServer(input: {
   rootDir: string;
   dataDir: string;
 }): Promise<StartedServer> {
-  const child = spawn(
-    "go",
-    ["run", "./cli", input.rootDir, "--host", "127.0.0.1", "--port", "0"],
-    { cwd: process.cwd(), env: goEnv({ VIVI_DATA_DIR: input.dataDir }) },
-  );
+  const invocation = goCliInvocation([
+    input.rootDir,
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "0",
+  ]);
+  const child = spawn(invocation.command, invocation.args, {
+    cwd: process.cwd(),
+    env: goEnv({ VIVI_DATA_DIR: input.dataDir }),
+  });
   const { url } = await waitForServerUrl(child);
   return {
     url,
@@ -215,6 +226,29 @@ async function closeChild(
       }, 2_000);
     }),
   ]);
+}
+
+function goCliWatchOptions(input: { intervalMs: number }): {
+  intervalMs: number;
+  command?: string;
+  args?: string[];
+} {
+  const invocation = goCliInvocation(["comments", "watch"]);
+  return {
+    intervalMs: input.intervalMs,
+    command: invocation.command,
+    args: invocation.args,
+  };
+}
+
+function goCliInvocation(args: string[]): { command: string; args: string[] } {
+  const binaryPath =
+    process.env.VIVI_GO_CLI ??
+    path.resolve(process.platform === "win32" ? "vivi.exe" : "vivi");
+  if (existsSync(binaryPath)) {
+    return { command: binaryPath, args };
+  }
+  return { command: "go", args: ["run", "./cli", ...args] };
 }
 
 function goEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
