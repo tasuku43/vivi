@@ -14,6 +14,15 @@ The v1 fake agent performs these explicit stages:
 5. `terminal`: call `resolveThread` or `archiveThread`.
 6. `verify`: reload the terminal thread and verify activity order and actors.
 
+The optional watch intake path starts `vivi comments watch --json` before the
+human stage, waits for the initial empty open-worklist snapshot, creates the
+human thread, and then treats the next watch snapshot as the fake agent's
+worklist read. The rest of the loop is identical: the fake agent replies,
+performs the configured terminal action, and verifies activity history. Watch
+reports include the delivered cursor, coarse change reasons, and delivered
+thread ids so reconnect/resume behavior can be inspected from the JSON or HTML
+report.
+
 Failures use the form `[agent-loop:<stage>] ...` and include the stages already
 completed. This keeps CI failures attributable to the broken part of the loop
 instead of reporting one opaque end-to-end mismatch.
@@ -53,6 +62,19 @@ npm run harness:agent-loop -- \
   --html /tmp/vivi-agent-loop-report.html
 ```
 
+To exercise the agent-facing watch path, run:
+
+```bash
+npm run harness:agent-loop -- \
+  --url http://127.0.0.1:4317 \
+  --fixture test/fixtures/agent-loop/basic.json \
+  --intake watch \
+  --html /tmp/vivi-agent-loop-watch-report.html
+```
+
+The watch intake uses `go run ./cli comments watch` by default so the harness
+validates the same JSON-first CLI surface used by coding agents.
+
 The runner is a GraphQL client, matching the boundary used by real agent
 adapters. A future Claude Code or Codex adapter can replace the fake decision
 step while retaining the fixture, stage reporting, and terminal verification.
@@ -60,10 +82,10 @@ step while retaining the fixture, stage reporting, and terminal verification.
 ## CI
 
 `test/e2e/local-agent-loop.test.ts` starts the normal E2E server with isolated
-workspace and comment data directories. It verifies the passing loop and the
-stage-specific failure contract. `npm run e2e` and therefore `task check`
-include this test; no network access, model credentials, sleeps, or vendor
-executables are required.
+workspace and comment data directories. It verifies the passing loop, the
+`comments watch` intake loop, and the stage-specific failure contract.
+`npm run e2e` and therefore `task check` include this test; no network access,
+model credentials, sleeps, or vendor executables are required.
 
 The existing Go CLI test continues to cover `vivi comments active`, `reply`,
 and lifecycle commands against the canonical GraphQL handler. Together, the

@@ -1,7 +1,10 @@
+import { spawn, type ChildProcessByStdio } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
+import type { Readable } from "node:stream";
 
 export type AgentLoopTerminalAction = "resolve" | "archive";
 export type AgentKind = "human" | "claude_code" | "codex" | "unknown";
+export type AgentLoopIntake = "query" | "watch";
 
 export interface AgentLoopActor {
   id: string;
@@ -26,6 +29,7 @@ export interface LocalAgentLoopFixture {
 }
 
 export type AgentLoopStage =
+  | "watch"
   | "seed"
   | "read"
   | "receipt"
@@ -42,8 +46,16 @@ export interface AgentLoopStageResult {
 export interface LocalAgentLoopReport {
   fixture: string;
   status: "passed";
+  intake: AgentLoopIntake;
   threadId: string;
   terminalStatus: "resolved" | "archived";
+  watchEvent?: {
+    reason: string;
+    changes: string[];
+    cursor: string;
+    count: number;
+    threadIds: string[];
+  };
   stages: AgentLoopStageResult[];
   activities: Array<{
     type: string;
@@ -52,6 +64,28 @@ export interface LocalAgentLoopReport {
     previousStatus?: string;
     status?: string;
     clientEventId?: string;
+  }>;
+}
+
+export interface LocalAgentLoopWatchOptions {
+  command?: string;
+  args?: string[];
+  cwd?: string;
+  env?: Record<string, string | undefined>;
+  intervalMs?: number;
+  timeoutMs?: number;
+}
+
+interface CommentsWatchEvent {
+  type: string;
+  reason: string;
+  changes: string[];
+  cursor: string;
+  count: number;
+  threads: Array<{
+    id: string;
+    status: string;
+    comments: Array<{ body: string }>;
   }>;
 }
 
@@ -79,245 +113,309 @@ export async function runLocalAgentLoop(input: {
   baseUrl: string;
   fixture: LocalAgentLoopFixture;
   fetch?: typeof fetch;
+  intake?: AgentLoopIntake;
+  watch?: LocalAgentLoopWatchOptions;
 }): Promise<LocalAgentLoopReport> {
   const baseUrl = input.baseUrl.replace(/\/+$/, "");
   const request = input.fetch ?? fetch;
+  const intake = input.intake ?? "query";
   const stages: AgentLoopStageResult[] = [];
+  let watch: CommentsWatchSession | null = null;
+  let deliveredWatchEvent: CommentsWatchEvent | undefined;
 
-  const seeded = await runStage("seed", stages, async () => {
-    const data = await graphql<{
-      createThread: {
-        id: string;
-        status: string;
-        comments: Array<{ body: string }>;
+  if (intake === "watch") {
+    watch = startCommentsWatch({
+      baseUrl,
+      actor: input.fixture.agent.actor,
+      clientEventId: input.fixture.agent.clientEventId,
+      options: input.watch,
+    });
+    await runStage("watch", stages, async () => {
+      const event = await watch!.nextEvent();
+      assert(
+        event.type === "comments_open_worklist",
+        `unexpected watch event type ${event.type}`,
+      );
+      assert(event.count === 0, "watch initial worklist was not empty");
+      return {
+        value: event,
+        detail: `fake agent started comments watch at cursor ${event.cursor}`,
       };
-    }>(
-      request,
-      baseUrl,
-      "CreateThread",
-      `
-        mutation CreateThread($input: CommentInput!) {
-          createThread(input: $input) {
-            id
-            status
-            comments {
-              body
-            }
-          }
-        }
-      `,
-      {
-        input: {
-          path: input.fixture.human.path,
-          body: input.fixture.human.body,
-          anchor: input.fixture.human.anchor,
-          actor: input.fixture.human.actor,
-        },
-      },
-    );
-    assert(data.createThread.status === "open", "seeded thread is not open");
-    assert(
-      data.createThread.comments[0]?.body === input.fixture.human.body,
-      "seeded human comment is missing",
-    );
-    return {
-      value: data.createThread,
-      detail: `human opened thread ${data.createThread.id}`,
-    };
-  });
+    });
+  }
 
-  const read = await runStage("read", stages, async () => {
-    const data = await graphql<{
-      commentThreads: Array<{ id: string; status: string }>;
-    }>(
-      request,
-      baseUrl,
-      "ViviCommentThreads",
-      `
-        query ViviCommentThreads {
-          commentThreads(status: open) {
-            id
-            status
-          }
-        }
-      `,
-      {},
-      actorHeaders(
-        input.fixture.agent.actor,
-        input.fixture.agent.clientEventId,
-      ),
-    );
-    assert(
-      data.commentThreads.some((thread) => thread.id === seeded.id),
-      `open thread ${seeded.id} was not returned to the fake agent`,
-    );
-    return {
-      value: data.commentThreads,
-      detail: `fake agent read ${data.commentThreads.length} open thread(s)`,
-    };
-  });
-  void read;
-
-  await runStage("receipt", stages, async () => {
-    const activities = await readActivities(request, baseUrl, seeded.id);
-    const receipts = activities.filter(
-      (activity) =>
-        activity.type === "thread_read" &&
-        activity.actor.id === input.fixture.agent.actor.id &&
-        activity.clientEventId === input.fixture.agent.clientEventId,
-    );
-    assert(
-      receipts.length === 1,
-      `expected one read receipt, got ${receipts.length}`,
-    );
-    return {
-      value: receipts[0],
-      detail: `read receipt recorded for ${input.fixture.agent.actor.id}`,
-    };
-  });
-
-  const reply = await runStage("reply", stages, async () => {
-    const data = await graphql<{
-      addComment: {
-        id: string;
-        threadId: string;
-        body: string;
-        createdBy: AgentLoopActor;
-      };
-    }>(
-      request,
-      baseUrl,
-      "AddComment",
-      `
-        mutation AddComment($threadId: ID!, $input: AddCommentInput!) {
-          addComment(threadId: $threadId, input: $input) {
-            id
-            threadId
-            body
-            createdBy {
-              id
-              kind
-              displayName
-            }
-          }
-        }
-      `,
-      {
-        threadId: seeded.id,
-        input: {
-          body: input.fixture.agent.replyBody,
-          actor: input.fixture.agent.actor,
-        },
-      },
-    );
-    assert(
-      data.addComment.threadId === seeded.id,
-      "reply changed thread identity",
-    );
-    assert(
-      data.addComment.createdBy.id === input.fixture.agent.actor.id,
-      "reply actor was not preserved",
-    );
-    return {
-      value: data.addComment,
-      detail: `fake agent replied with comment ${data.addComment.id}`,
-    };
-  });
-
-  const terminalStatus =
-    input.fixture.agent.terminalAction === "resolve" ? "resolved" : "archived";
-  await runStage("terminal", stages, async () => {
-    const field = `${input.fixture.agent.terminalAction}Thread`;
-    const operation = `${capitalize(input.fixture.agent.terminalAction)}Thread`;
-    const data = await graphql<Record<string, { id: string; status: string }>>(
-      request,
-      baseUrl,
-      operation,
-      `mutation ${operation}($id: ID!, $actor: CommentActorInput) {
-        ${field}(id: $id, actor: $actor) { id status }
-      }`,
-      { id: seeded.id, actor: input.fixture.agent.actor },
-    );
-    assert(
-      data[field]?.status === terminalStatus,
-      `terminal mutation returned ${data[field]?.status ?? "no status"}`,
-    );
-    return {
-      value: data[field],
-      detail: `fake agent moved thread to ${terminalStatus}`,
-    };
-  });
-
-  const activities = await runStage("verify", stages, async () => {
-    const [threadData, activityData] = await Promise.all([
-      graphql<{
-        commentThreads: Array<{
+  try {
+    const seeded = await runStage("seed", stages, async () => {
+      const data = await graphql<{
+        createThread: {
           id: string;
           status: string;
-          comments: Array<{ id: string; body: string }>;
-        }>;
+          comments: Array<{ body: string }>;
+        };
       }>(
         request,
         baseUrl,
-        "ViviCommentThreads",
+        "CreateThread",
         `
-          query ViviCommentThreads($status: CommentStatus) {
-            commentThreads(status: $status) {
+          mutation CreateThread($input: CommentInput!) {
+            createThread(input: $input) {
               id
               status
               comments {
-                id
                 body
               }
             }
           }
         `,
-        { status: terminalStatus },
-      ),
-      readActivities(request, baseUrl, seeded.id),
-    ]);
-    const thread = threadData.commentThreads.find(
-      (item) => item.id === seeded.id,
-    );
-    assert(
-      thread?.status === terminalStatus,
-      "thread did not retain terminal status",
-    );
-    assert(
-      thread.comments.some(
-        (comment) =>
-          comment.id === reply.id &&
-          comment.body === input.fixture.agent.replyBody,
-      ),
-      "agent reply was not retained on the thread",
-    );
-    assertActivitySequence(activityData, [
-      "thread_created",
-      "thread_read",
-      "comment_added",
-      "thread_status_changed",
-    ]);
-    const terminalActivity = [...activityData]
-      .reverse()
-      .find((activity) => activity.type === "thread_status_changed");
-    assert(
-      terminalActivity?.actor.id === input.fixture.agent.actor.id,
-      "terminal lifecycle actor was not preserved",
-    );
-    return {
-      value: activityData,
-      detail: "thread, reply, actors, and activity order verified",
-    };
-  });
+        {
+          input: {
+            path: input.fixture.human.path,
+            body: input.fixture.human.body,
+            anchor: input.fixture.human.anchor,
+            actor: input.fixture.human.actor,
+          },
+        },
+      );
+      assert(data.createThread.status === "open", "seeded thread is not open");
+      assert(
+        data.createThread.comments[0]?.body === input.fixture.human.body,
+        "seeded human comment is missing",
+      );
+      return {
+        value: data.createThread,
+        detail: `human opened thread ${data.createThread.id}`,
+      };
+    });
 
-  return {
-    fixture: input.fixture.name,
-    status: "passed",
-    threadId: seeded.id,
-    terminalStatus,
-    stages,
-    activities,
-  };
+    const read = await runStage("read", stages, async () => {
+      if (watch) {
+        const event = await watch.nextEvent();
+        deliveredWatchEvent = event;
+        assert(
+          event.type === "comments_open_worklist",
+          `unexpected watch event type ${event.type}`,
+        );
+        assert(
+          event.threads.some((thread) => thread.id === seeded.id),
+          `open thread ${seeded.id} was not delivered by comments watch`,
+        );
+        return {
+          value: event.threads,
+          detail: `fake agent received ${event.count} open thread(s) from comments watch`,
+        };
+      }
+
+      const data = await graphql<{
+        commentThreads: Array<{ id: string; status: string }>;
+      }>(
+        request,
+        baseUrl,
+        "ViviCommentThreads",
+        `
+          query ViviCommentThreads {
+            commentThreads(status: open) {
+              id
+              status
+            }
+          }
+        `,
+        {},
+        actorHeaders(
+          input.fixture.agent.actor,
+          input.fixture.agent.clientEventId,
+        ),
+      );
+      assert(
+        data.commentThreads.some((thread) => thread.id === seeded.id),
+        `open thread ${seeded.id} was not returned to the fake agent`,
+      );
+      return {
+        value: data.commentThreads,
+        detail: `fake agent read ${data.commentThreads.length} open thread(s)`,
+      };
+    });
+    void read;
+
+    await runStage("receipt", stages, async () => {
+      const activities = await readActivities(request, baseUrl, seeded.id);
+      const expectedClientEventId = deliveredWatchEvent
+        ? `${input.fixture.agent.clientEventId}:${deliveredWatchEvent.cursor}`
+        : input.fixture.agent.clientEventId;
+      const receipts = activities.filter(
+        (activity) =>
+          activity.type === "thread_read" &&
+          activity.actor.id === input.fixture.agent.actor.id &&
+          activity.clientEventId === expectedClientEventId,
+      );
+      assert(
+        receipts.length === 1,
+        `expected one read receipt, got ${receipts.length}`,
+      );
+      return {
+        value: receipts[0],
+        detail: `read receipt recorded for ${input.fixture.agent.actor.id}`,
+      };
+    });
+
+    const reply = await runStage("reply", stages, async () => {
+      const data = await graphql<{
+        addComment: {
+          id: string;
+          threadId: string;
+          body: string;
+          createdBy: AgentLoopActor;
+        };
+      }>(
+        request,
+        baseUrl,
+        "AddComment",
+        `
+          mutation AddComment($threadId: ID!, $input: AddCommentInput!) {
+            addComment(threadId: $threadId, input: $input) {
+              id
+              threadId
+              body
+              createdBy {
+                id
+                kind
+                displayName
+              }
+            }
+          }
+        `,
+        {
+          threadId: seeded.id,
+          input: {
+            body: input.fixture.agent.replyBody,
+            actor: input.fixture.agent.actor,
+          },
+        },
+      );
+      assert(
+        data.addComment.threadId === seeded.id,
+        "reply changed thread identity",
+      );
+      assert(
+        data.addComment.createdBy.id === input.fixture.agent.actor.id,
+        "reply actor was not preserved",
+      );
+      return {
+        value: data.addComment,
+        detail: `fake agent replied with comment ${data.addComment.id}`,
+      };
+    });
+
+    const terminalStatus =
+      input.fixture.agent.terminalAction === "resolve"
+        ? "resolved"
+        : "archived";
+    await runStage("terminal", stages, async () => {
+      const field = `${input.fixture.agent.terminalAction}Thread`;
+      const operation = `${capitalize(input.fixture.agent.terminalAction)}Thread`;
+      const data = await graphql<
+        Record<string, { id: string; status: string }>
+      >(
+        request,
+        baseUrl,
+        operation,
+        `mutation ${operation}($id: ID!, $actor: CommentActorInput) {
+        ${field}(id: $id, actor: $actor) { id status }
+      }`,
+        { id: seeded.id, actor: input.fixture.agent.actor },
+      );
+      assert(
+        data[field]?.status === terminalStatus,
+        `terminal mutation returned ${data[field]?.status ?? "no status"}`,
+      );
+      return {
+        value: data[field],
+        detail: `fake agent moved thread to ${terminalStatus}`,
+      };
+    });
+
+    const activities = await runStage("verify", stages, async () => {
+      const [threadData, activityData] = await Promise.all([
+        graphql<{
+          commentThreads: Array<{
+            id: string;
+            status: string;
+            comments: Array<{ id: string; body: string }>;
+          }>;
+        }>(
+          request,
+          baseUrl,
+          "ViviCommentThreads",
+          `
+            query ViviCommentThreads($status: CommentStatus) {
+              commentThreads(status: $status) {
+                id
+                status
+                comments {
+                  id
+                  body
+                }
+              }
+            }
+          `,
+          { status: terminalStatus },
+        ),
+        readActivities(request, baseUrl, seeded.id),
+      ]);
+      const thread = threadData.commentThreads.find(
+        (item) => item.id === seeded.id,
+      );
+      assert(
+        thread?.status === terminalStatus,
+        "thread did not retain terminal status",
+      );
+      assert(
+        thread.comments.some(
+          (comment) =>
+            comment.id === reply.id &&
+            comment.body === input.fixture.agent.replyBody,
+        ),
+        "agent reply was not retained on the thread",
+      );
+      assertActivitySequence(activityData, [
+        "thread_created",
+        "thread_read",
+        "comment_added",
+        "thread_status_changed",
+      ]);
+      const terminalActivity = [...activityData]
+        .reverse()
+        .find((activity) => activity.type === "thread_status_changed");
+      assert(
+        terminalActivity?.actor.id === input.fixture.agent.actor.id,
+        "terminal lifecycle actor was not preserved",
+      );
+      return {
+        value: activityData,
+        detail: "thread, reply, actors, and activity order verified",
+      };
+    });
+
+    return {
+      fixture: input.fixture.name,
+      status: "passed",
+      intake,
+      threadId: seeded.id,
+      terminalStatus,
+      watchEvent: deliveredWatchEvent
+        ? {
+            reason: deliveredWatchEvent.reason,
+            changes: deliveredWatchEvent.changes,
+            cursor: deliveredWatchEvent.cursor,
+            count: deliveredWatchEvent.count,
+            threadIds: deliveredWatchEvent.threads.map((thread) => thread.id),
+          }
+        : undefined,
+      stages,
+      activities,
+    };
+  } finally {
+    await watch?.close();
+  }
 }
 
 export async function writeLocalAgentLoopHtmlReport(
@@ -350,6 +448,9 @@ export function renderLocalAgentLoopHtmlReport(
         </tr>`,
     )
     .join("");
+  const watchMetric = report.watchEvent
+    ? `<div class="metric"><span>Watch cursor</span><strong>${escapeHtml(report.watchEvent.cursor)}</strong></div>`
+    : "";
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -390,9 +491,11 @@ export function renderLocalAgentLoopHtmlReport(
       <div class="status">${escapeHtml(report.status)}</div>
     </header>
     <div class="summary">
+      <div class="metric"><span>Intake</span><strong>${escapeHtml(report.intake)}</strong></div>
       <div class="metric"><span>Thread</span><strong>${escapeHtml(report.threadId)}</strong></div>
       <div class="metric"><span>Terminal state</span><strong>${escapeHtml(report.terminalStatus)}</strong></div>
       <div class="metric"><span>Stages</span><strong>${report.stages.length} / ${report.stages.length} passed</strong></div>
+      ${watchMetric}
     </div>
     <section><h2>Loop stages</h2><ol>${stages}</ol></section>
     <section>
@@ -402,6 +505,161 @@ export function renderLocalAgentLoopHtmlReport(
   </main>
 </body>
 </html>`;
+}
+
+interface CommentsWatchSession {
+  nextEvent(): Promise<CommentsWatchEvent>;
+  close(): Promise<void>;
+}
+
+function startCommentsWatch(input: {
+  baseUrl: string;
+  actor: AgentLoopActor;
+  clientEventId: string;
+  options?: LocalAgentLoopWatchOptions;
+}): CommentsWatchSession {
+  const timeoutMs = input.options?.timeoutMs ?? 10_000;
+  const intervalMs = input.options?.intervalMs ?? 25;
+  const baseArgs = input.options?.args ?? ["run", "./cli", "comments", "watch"];
+  const args = [
+    ...baseArgs,
+    "--url",
+    input.baseUrl,
+    "--actor",
+    input.actor.id,
+    "--actor-kind",
+    input.actor.kind,
+    "--client-event-id",
+    input.clientEventId,
+    "--interval",
+    `${intervalMs}ms`,
+    "--max-events",
+    "2",
+    "--json",
+  ];
+  if (input.actor.displayName) {
+    args.push("--actor-name", input.actor.displayName);
+  }
+
+  const child = spawn(input.options?.command ?? "go", args, {
+    cwd: input.options?.cwd ?? process.cwd(),
+    env: { ...process.env, ...input.options?.env },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  return createCommentsWatchSession(child, timeoutMs);
+}
+
+function createCommentsWatchSession(
+  child: ChildProcessByStdio<null, Readable, Readable>,
+  timeoutMs: number,
+): CommentsWatchSession {
+  const events: CommentsWatchEvent[] = [];
+  const waiters: Array<{
+    resolve: (event: CommentsWatchEvent) => void;
+    reject: (error: Error) => void;
+  }> = [];
+  let stdout = "";
+  let stderr = "";
+  let closed = false;
+  let failure: Error | null = null;
+
+  const fail = (error: Error) => {
+    if (failure) return;
+    failure = error;
+    while (waiters.length > 0) {
+      waiters.shift()?.reject(error);
+    }
+  };
+
+  child.stdout.on("data", (chunk: Buffer) => {
+    stdout += chunk.toString("utf8");
+    let newline = stdout.indexOf("\n");
+    while (newline >= 0) {
+      const line = stdout.slice(0, newline).trim();
+      stdout = stdout.slice(newline + 1);
+      if (line) {
+        try {
+          const event = JSON.parse(line) as CommentsWatchEvent;
+          const waiter = waiters.shift();
+          if (waiter) waiter.resolve(event);
+          else events.push(event);
+        } catch (error) {
+          fail(
+            new Error(
+              `comments watch emitted invalid JSON: ${error instanceof Error ? error.message : String(error)}`,
+            ),
+          );
+        }
+      }
+      newline = stdout.indexOf("\n");
+    }
+  });
+  child.stderr.on("data", (chunk: Buffer) => {
+    stderr += chunk.toString("utf8");
+  });
+  child.once("error", (error) => {
+    fail(error);
+  });
+  child.once("exit", (code, signal) => {
+    closed = true;
+    if (code !== 0) {
+      fail(
+        new Error(
+          `comments watch exited with code=${code ?? "null"} signal=${signal ?? "null"}\nstderr:\n${stderr}`,
+        ),
+      );
+    }
+  });
+
+  return {
+    nextEvent() {
+      const event = events.shift();
+      if (event) return Promise.resolve(event);
+      if (failure) return Promise.reject(failure);
+      if (closed) {
+        return Promise.reject(
+          new Error(`comments watch exited before delivering another event`),
+        );
+      }
+      return new Promise<CommentsWatchEvent>((resolve, reject) => {
+        let timer: NodeJS.Timeout;
+        const waiter = {
+          resolve(eventValue: CommentsWatchEvent) {
+            clearTimeout(timer);
+            resolve(eventValue);
+          },
+          reject(error: Error) {
+            clearTimeout(timer);
+            reject(error);
+          },
+        };
+        timer = setTimeout(() => {
+          const index = waiters.indexOf(waiter);
+          if (index >= 0) waiters.splice(index, 1);
+          reject(
+            new Error(
+              `timed out waiting for comments watch event\nstdout:\n${stdout}\nstderr:\n${stderr}`,
+            ),
+          );
+        }, timeoutMs);
+        waiters.push(waiter);
+      });
+    },
+    async close() {
+      if (child.exitCode !== null || child.signalCode !== null) return;
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(() => {
+          child.kill("SIGKILL");
+          resolve();
+        }, 2_000);
+        child.once("exit", () => {
+          clearTimeout(timer);
+          resolve();
+        });
+        child.kill("SIGTERM");
+      });
+    },
+  };
 }
 
 async function readActivities(

@@ -84,11 +84,20 @@ event is shaped as:
 `reason` is `initial`, `resumed`, or `open_worklist_changed`; `changes`
 contains coarse causes such as `open_thread_added`, `open_thread_updated`, and
 `open_thread_removed`. The cursor is a stable hash of the delivered open
-worklist and is safe to reuse for idempotent resume. When `--actor` is set,
-watch records read receipts only for delivered snapshots. The client event id
-is derived from `--client-event-id` when supplied, otherwise `comments-watch`,
-plus the delivered cursor, so reconnecting with the same cursor does not create
-duplicate read receipts.
+worklist and is safe to reuse for idempotent resume. `--once` performs one
+watch iteration and exits, `--max-events <count>` exits after that many
+delivered snapshots, `--interval <duration>` controls the polling cadence, and
+`--no-initial` records the current cursor as the baseline before waiting for a
+future open-worklist change. If delivery can be duplicated across process
+restarts, agents should key their own work by `cursor` and thread ids.
+
+When `--actor` is set, watch records read receipts only for delivered
+snapshots. The client event id is derived from `--client-event-id` when
+supplied, otherwise `comments-watch`, plus the delivered cursor, so reconnecting
+with the same cursor does not create duplicate read receipts. A transient
+server disconnect or network failure does not produce a worklist event; a
+long-running watch retries on the next interval, while `--once` surfaces the
+request failure as a non-zero command error.
 
 Single-thread lifecycle commands return `{ "thread": ... }`; `reply` returns
 `{ "comment": ... }`; `show` returns `{ "thread": ..., "activities": [...] }`.
