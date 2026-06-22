@@ -8,7 +8,10 @@ import type {
   CommentDraft,
   CommentStatusChangeHandler,
 } from "../../../state/comments.js";
-import { statusLabel, type ThreadComment } from "../../../state/comments.js";
+import {
+  isDraftThreadComment,
+  statusLabel,
+} from "../../../state/comments.js";
 
 export function CodeCommentThread({
   thread,
@@ -18,6 +21,7 @@ export function CodeCommentThread({
   onStatusChange,
   onClose,
   activity,
+  activeCommentId = null,
 }: {
   thread: CodeCommentThreadModel;
   draft: CommentDraft;
@@ -26,28 +30,32 @@ export function CodeCommentThread({
   onStatusChange?: CommentStatusChangeHandler;
   onClose: () => void;
   activity?: CommentActivitySummary;
+  activeCommentId?: string | null;
 }) {
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const threadRef = useRef<HTMLElement | null>(null);
-  const openComments = thread.comments.filter(
-    (comment) => !isDraftThreadComment(comment) && comment.status === "open",
-  );
-  const threadStatus: CommentStatus = openComments.length
-    ? "open"
-    : thread.comments.some(
-          (comment) =>
-            !isDraftThreadComment(comment) && comment.status === "resolved",
-        )
-      ? "resolved"
-      : thread.comments.some((comment) => !isDraftThreadComment(comment))
-        ? "archived"
-        : "open";
+  const threadStatus: CommentStatus = thread.status;
   const lineLabel =
     thread.lineStart === thread.lineEnd
       ? `Line ${thread.lineEnd}`
       : `Lines ${thread.lineStart}-${thread.lineEnd}`;
+  const replyHintId = commentReplyHintId(thread.key);
+  const submitLabel = thread.comments.length ? "Add reply" : "Save line comment";
+  const hasActiveComment = Boolean(
+    activeCommentId &&
+      thread.comments.some((comment) => comment.id === activeCommentId),
+  );
+  const toggleStatusLabel =
+    threadStatus === "open"
+      ? hasActiveComment
+        ? "Resolve current stop"
+        : "Resolve thread"
+      : hasActiveComment
+        ? "Reopen current stop"
+        : "Reopen thread";
+  const archiveLabel = hasActiveComment ? "Archive current stop" : "Archive";
 
   useEffect(() => {
     const onPointerDown = (event: PointerEvent) => {
@@ -143,40 +151,51 @@ export function CodeCommentThread({
 
       {thread.comments.length ? (
         <div className="code-comment-thread-messages">
-          {thread.comments.map((comment, index) => (
-            <div
-              className={`code-thread-comment ${comment.status}${isDraftThreadComment(comment) ? " draft" : ""}`}
-              data-comment-id={comment.id}
-              key={comment.id}
-            >
-              <div className="code-thread-comment-meta">
-                <strong>
-                  {isDraftThreadComment(comment)
-                    ? "Draft"
-                    : index === 0
-                      ? "Started"
-                      : "Reply"}
-                  {comment.author
-                    ? ` by ${comment.author}`
-                    : comment.source && comment.source !== "human"
-                      ? ` by ${comment.source}`
-                      : ""}
-                </strong>
-                <time dateTime={comment.createdAt}>
-                  {formatCommentTime(comment.createdAt)}
-                </time>
-                {isDraftThreadComment(comment) ? (
-                  <span className="comment-status draft">Draft</span>
-                ) : (
-                  <span className="comment-status published">Published</span>
-                )}
-                {!isDraftThreadComment(comment) && comment.status !== "open" ? (
-                  <span>{statusLabel(comment.status)}</span>
-                ) : null}
+          {thread.comments.map((comment, index) => {
+            const active = comment.id === activeCommentId;
+            return (
+              <div
+                className={`code-thread-comment ${comment.status}${isDraftThreadComment(comment) ? " draft" : ""}${active ? " active" : ""}`}
+                data-comment-id={comment.id}
+                aria-current={active ? "true" : undefined}
+                tabIndex={active ? -1 : undefined}
+                key={comment.id}
+              >
+                <div className="code-thread-comment-meta">
+                  <strong>
+                    {isDraftThreadComment(comment)
+                      ? "Draft"
+                      : index === 0
+                        ? "Started"
+                        : "Reply"}
+                    {comment.author
+                      ? ` by ${comment.author}`
+                      : comment.source && comment.source !== "human"
+                        ? ` by ${comment.source}`
+                        : ""}
+                  </strong>
+                  <time dateTime={comment.createdAt}>
+                    {formatCommentTime(comment.createdAt)}
+                  </time>
+                  {isDraftThreadComment(comment) ? (
+                    <span className="comment-status draft">Draft</span>
+                  ) : (
+                    <span className="comment-status published">Published</span>
+                  )}
+                  {!isDraftThreadComment(comment) &&
+                  comment.status !== "open" ? (
+                    <span>{statusLabel(comment.status)}</span>
+                  ) : null}
+                  {active ? (
+                    <span className="code-thread-current-stop">
+                      Current stop
+                    </span>
+                  ) : null}
+                </div>
+                <p>{comment.body}</p>
               </div>
-              <p>{comment.body}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : null}
 
@@ -197,31 +216,40 @@ export function CodeCommentThread({
           aria-label={
             thread.comments.length ? "Reply to thread" : "New line comment"
           }
+          aria-describedby={replyHintId}
+          aria-keyshortcuts="Meta+Enter Control+Enter"
           onChange={(event) => setBody(event.currentTarget.value)}
           onKeyDown={(event) => {
-            if (
-              event.key === "Enter" &&
-              (event.metaKey || event.ctrlKey || event.shiftKey)
-            ) {
+            if (isCommentSubmitShortcut(event)) {
               event.preventDefault();
               void submit();
             }
           }}
         />
+        <p className="code-comment-thread-hint" id={replyHintId}>
+          <kbd>Cmd/Ctrl Enter</kbd> to send <span>Esc closes</span>
+        </p>
         <div className="code-comment-thread-footer">
           <div>
             {thread.comments.some((comment) => !isDraftThreadComment(comment)) ? (
               <>
                 <button
                   type="button"
+                  aria-keyshortcuts="Meta+Shift+Enter Control+Shift+Enter"
+                  title={`${toggleStatusLabel} (Cmd/Ctrl Shift Enter)`}
                   onClick={() =>
                     updateThread(threadStatus === "open" ? "resolved" : "open")
                   }
                 >
-                  {threadStatus === "open" ? "Resolve thread" : "Reopen thread"}
+                  {toggleStatusLabel}
                 </button>
-                <button type="button" onClick={() => updateThread("archived")}>
-                  Archive
+                <button
+                  type="button"
+                  aria-keyshortcuts="Meta+Shift+Backspace Control+Shift+Backspace"
+                  title={`${archiveLabel} (Cmd/Ctrl Shift Backspace)`}
+                  onClick={() => updateThread("archived")}
+                >
+                  {archiveLabel}
                 </button>
               </>
             ) : null}
@@ -230,10 +258,9 @@ export function CodeCommentThread({
             className="code-comment-submit"
             disabled={!body.trim() || saving}
             type="submit"
-            aria-label={
-              thread.comments.length ? "Add reply" : "Save line comment"
-            }
-            title={thread.comments.length ? "Add reply" : "Save line comment"}
+            aria-label={submitLabel}
+            aria-keyshortcuts="Meta+Enter Control+Enter"
+            title={`${submitLabel} (Cmd/Ctrl Enter)`}
           >
             ↑
           </button>
@@ -242,6 +269,27 @@ export function CodeCommentThread({
       </form>
     </article>
   );
+}
+
+export function isCommentSubmitShortcut(event: {
+  key: string;
+  metaKey?: boolean;
+  ctrlKey?: boolean;
+  shiftKey?: boolean;
+}): boolean {
+  return (
+    event.key === "Enter" &&
+    !event.shiftKey &&
+    Boolean(event.metaKey || event.ctrlKey)
+  );
+}
+
+function commentReplyHintId(threadKey: string): string {
+  const safeKey = threadKey
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase();
+  return `comment-reply-hint-${safeKey || "thread"}`;
 }
 
 function formatCommentTime(value: string): string {
@@ -253,10 +301,4 @@ function formatCommentTime(value: string): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
-}
-
-function isDraftThreadComment(
-  comment: ThreadComment,
-): comment is ThreadComment & { draft: true } {
-  return comment.draft === true || comment.id.startsWith("draft:");
 }

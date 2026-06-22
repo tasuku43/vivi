@@ -28,6 +28,16 @@ beforeEach(async () => {
   );
   await mkdir(path.join(dir, "node_modules"));
   await writeFile(path.join(dir, "node_modules", "ignored.js"), "ignored");
+  await mkdir(path.join(dir, ".tmp-go-build-cache"), { recursive: true });
+  await writeFile(
+    path.join(dir, ".tmp-go-build-cache", "ignored.test"),
+    "ignored",
+  );
+  await mkdir(path.join(dir, "storybook-static"), { recursive: true });
+  await writeFile(
+    path.join(dir, "storybook-static", "index.html"),
+    "ignored",
+  );
 });
 
 afterEach(async () => {
@@ -40,6 +50,8 @@ it("scans a tree and ignores default ignored directories", async () => {
   expect(tree.nodes.map((node) => node.path)).toContain("README.md");
   expect(tree.stats?.returnedNodes).toBeGreaterThan(0);
   expect(JSON.stringify(tree)).not.toContain("node_modules");
+  expect(JSON.stringify(tree)).not.toContain(".tmp-go-build-cache");
+  expect(JSON.stringify(tree)).not.toContain("storybook-static");
 });
 
 it("reads one directory level without recursively loading child directories", async () => {

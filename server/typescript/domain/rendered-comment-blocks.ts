@@ -92,6 +92,7 @@ function parseRenderedCommentBlocks(html: string): ParsedCommentBlock[] {
   let templateDepth = 0;
   const blocks: ParsedCommentBlock[] = [];
   const stack: OpenElement[] = [];
+  const lineAt = lineNumberCounter(html);
 
   while (cursor < html.length) {
     if (rawTextTag) {
@@ -122,7 +123,7 @@ function parseRenderedCommentBlocks(html: string): ParsedCommentBlock[] {
     const closing = match[1] === "/";
     const tagName = match[2].toLowerCase();
     if (closing) {
-      closeOpenElements(stack, tagName, lineNumberAt(html, tagEnd));
+      closeOpenElements(stack, tagName, lineAt(tagEnd));
       if (tagName === "template" && templateDepth > 0) templateDepth -= 1;
       if (tagName === rawTextTag) rawTextTag = null;
     } else {
@@ -130,7 +131,7 @@ function parseRenderedCommentBlocks(html: string): ParsedCommentBlock[] {
       autoCloseOptionalElements(
         stack,
         tagName,
-        lineNumberAt(html, Math.max(0, tagStart - 1)),
+        lineAt(Math.max(0, tagStart - 1)),
       );
       if (tagName === "template") templateDepth += 1;
       if (rawTextTags.has(tagName)) rawTextTag = tagName;
@@ -140,7 +141,7 @@ function parseRenderedCommentBlocks(html: string): ParsedCommentBlock[] {
         tagName !== "template" &&
         renderedCommentBlockTags.has(tagName)
       ) {
-        const lineStart = lineNumberAt(html, tagStart);
+        const lineStart = lineAt(tagStart);
         block = {
           blockId: renderedCommentBlockId(index),
           tagName,
@@ -160,7 +161,7 @@ function parseRenderedCommentBlocks(html: string): ParsedCommentBlock[] {
     cursor = tagEnd + 1;
   }
 
-  const finalLine = lineNumberAt(html, Math.max(0, html.length - 1));
+  const finalLine = lineAt(Math.max(0, html.length - 1));
   while (stack.length) {
     const element = stack.pop();
     if (element?.block) element.block.sourceLineEnd = finalLine;
@@ -298,6 +299,15 @@ function findLastIndex<T>(items: T[], predicate: (item: T) => boolean): number {
   return -1;
 }
 
-function lineNumberAt(source: string, offset: number): number {
-  return source.slice(0, offset).split(/\r?\n/).length;
+function lineNumberCounter(source: string): (offset: number) => number {
+  let cursor = 0;
+  let line = 1;
+  return (offset: number) => {
+    const target = Math.max(0, Math.min(offset, source.length - 1));
+    while (cursor < target) {
+      if (source[cursor] === "\n") line += 1;
+      cursor += 1;
+    }
+    return line;
+  };
 }

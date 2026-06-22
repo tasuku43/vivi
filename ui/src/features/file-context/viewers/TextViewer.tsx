@@ -18,6 +18,8 @@ import { DiffViewer } from "./DiffViewer.js";
 export function TextViewer({
   file,
   theme = "dark",
+  focusLineNumber,
+  focusRevision,
   diff,
   diffLoading,
   diffEnabled,
@@ -31,6 +33,8 @@ export function TextViewer({
 }: {
   file: FilePayload;
   theme?: ResolvedTheme;
+  focusLineNumber?: number | null;
+  focusRevision?: number;
   diff?: TextDiff | null;
   diffLoading?: boolean;
   diffEnabled?: boolean;
@@ -99,6 +103,8 @@ export function TextViewer({
           content={file.content}
           className={wrap ? "plain-text wrap" : "plain-text no-wrap"}
           containerRef={sourceRef}
+          focusLineNumber={focusLineNumber}
+          focusRevision={focusRevision}
           comments={comments}
           activeCommentId={activeCommentId}
           onOpenComment={onOpenComment}

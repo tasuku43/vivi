@@ -253,9 +253,14 @@ it("creates a comment from the UI anchor model and renders it after retrieval", 
   );
 
   expect(html).toContain("Comments");
-  expect(html).toContain("1 open comments");
+  expect(html).toContain("1 open thread");
+  expect(html).toContain("1 message in this file");
+  expect(html).toContain("markdown rendered");
+  expect(html).toContain("L3");
+  expect(html).toContain('class="active-comment-thread open"');
+  expect(html).toContain('class="active-comment-thread-preview"');
   expect(html).toContain("Open in Comments panel");
-  expect(html).not.toContain("UI-created note from selected text");
+  expect(html).toContain("UI-created note from selected text");
   expect(html).not.toContain("Rendered markdown text");
 
   const panelHtml = renderToStaticMarkup(

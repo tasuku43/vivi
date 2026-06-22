@@ -1003,13 +1003,18 @@ func strconvFormatInt(value int64) string {
 
 func defaultIgnored() map[string]bool {
 	return map[string]bool{
-		".git":         true,
-		"node_modules": true,
-		".turbo":       true,
-		".next":        true,
-		".cache":       true,
-		"dist":         true,
-		"coverage":     true,
+		".git":                true,
+		"node_modules":        true,
+		".turbo":              true,
+		".next":               true,
+		".cache":              true,
+		".parcel-cache":       true,
+		".vite":               true,
+		".tmp-go-build-cache": true,
+		".tmp-go-mod-cache":   true,
+		"dist":                true,
+		"coverage":            true,
+		"storybook-static":    true,
 	}
 }
 

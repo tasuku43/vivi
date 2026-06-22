@@ -4,22 +4,41 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
 import type { ViviComment } from "../ui/src/domain/comments.js";
 import type { FilePayload } from "../ui/src/domain/fs-node.js";
-import { CodeCommentThread } from "../ui/src/features/comments/components/CodeCommentThread.js";
-import { CommentsPanel } from "../ui/src/features/comments/components/CommentsPanel.js";
+import {
+  CodeCommentThread,
+  isCommentSubmitShortcut,
+} from "../ui/src/features/comments/components/CodeCommentThread.js";
+import {
+  CommentsPanel,
+  commentInboxKeyboardTarget,
+} from "../ui/src/features/comments/components/CommentsPanel.js";
 import { DraftReviewTray } from "../ui/src/features/comments/components/DraftReviewTray.js";
 import { CommandPalette } from "../ui/src/features/command-palette/CommandPalette.js";
 import {
+  activeFileReviewStop,
+  FileLocationBar,
   FileOutlineControl,
   FileViewer,
 } from "../ui/src/features/file-context/components/FileViewer.js";
-import { Inspector } from "../ui/src/features/review-queue/Inspector.js";
-import { ShortcutHelp } from "../ui/src/shared/components/ShortcutHelp.js";
+import {
+  Inspector,
+  reviewQueueKeyboardTarget,
+} from "../ui/src/features/review-queue/Inspector.js";
+import {
+  ShortcutHelp,
+  shortcutA11yLabel,
+} from "../ui/src/shared/components/ShortcutHelp.js";
 import {
   Topbar,
   workspaceDisplayName,
   workspaceParentPath,
 } from "../ui/src/shared/components/Topbar.js";
+import { OpenTabs } from "../ui/src/shared/components/OpenTabs.js";
 import { TreeSidebar } from "../ui/src/shared/components/TreeSidebar.js";
+import {
+  WorkspaceStatusbar,
+  workspaceStatusbarLabel,
+} from "../ui/src/shared/components/WorkspaceStatusbar.js";
 import { WorkspaceRestoreNotice } from "../ui/src/shared/components/WorkspaceRestoreNotice.js";
 import {
   CodeViewer,
@@ -47,6 +66,7 @@ import {
   MermaidViewer,
 } from "../ui/src/features/file-context/viewers/MermaidViewer.js";
 import { TextViewer } from "../ui/src/features/file-context/viewers/TextViewer.js";
+import { TextSearchNavigationBar } from "../ui/src/features/workbench/WorkbenchContainer.js";
 import type { CommentDraft } from "../ui/src/state/comments.js";
 import { summarizeThreadActivity } from "../ui/src/state/comment-activity.js";
 
@@ -119,7 +139,105 @@ it("renders the topbar as brand, workspace identity, and distinct actions", () =
   expect(html).toContain("command-button-secondary");
   expect(html).toContain("Theme");
   expect(html).toContain("System");
+  expect(html).toContain("Cmd/Ctrl K");
+  expect(html).toContain("Cmd/Ctrl Shift C");
+  expect(html).toContain("Cmd/Ctrl Shift F");
+  expect(html).toContain('aria-keyshortcuts="Meta+K Control+K"');
+  expect(html).toContain('aria-keyshortcuts="Meta+Shift+C Control+Shift+C"');
+  expect(html).toContain('aria-keyshortcuts="Meta+Shift+F Control+Shift+F"');
   expect(html).toContain('aria-label="Keyboard shortcuts"');
+  expect(html).toContain("Keyboard shortcuts (Cmd/Ctrl+/)");
+});
+
+it("prioritizes attention-needed comments in the topbar entry point", () => {
+  const html = renderToStaticMarkup(
+    <Topbar
+      root="/Users/tasuku/work/vivi"
+      themePreference="dark"
+      openCommentCount={6}
+      commentAttentionCount={2}
+      onThemeCycle={() => undefined}
+      onQuickOpen={() => undefined}
+      onSearchText={() => undefined}
+      onOpenComments={() => undefined}
+      onOpenShortcuts={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Attention");
+  expect(html).toContain('class="comment-count-badge">2</span>');
+  expect(html).toContain("needs-attention");
+  expect(html).toContain(
+    'aria-label="Open Attention inbox, 2 comment threads need attention"',
+  );
+  expect(html).toContain(
+    'title="Open Attention inbox: 2 comment threads need attention (Cmd/Ctrl+Shift+C)"',
+  );
+});
+
+it("keeps the comments topbar entry explicit when nothing needs attention", () => {
+  const html = renderToStaticMarkup(
+    <Topbar
+      root="/Users/tasuku/work/vivi"
+      themePreference="dark"
+      openCommentCount={1}
+      commentAttentionCount={0}
+      onThemeCycle={() => undefined}
+      onQuickOpen={() => undefined}
+      onSearchText={() => undefined}
+      onOpenComments={() => undefined}
+      onOpenShortcuts={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Comments");
+  expect(html).toContain('class="comment-count-badge">1</span>');
+  expect(html).toContain(
+    'aria-label="Open Comments inbox, 1 open comment"',
+  );
+  expect(html).toContain(
+    'title="Open Comments inbox: 1 open comment (Cmd/Ctrl+Shift+C)"',
+  );
+});
+
+it("renders workspace status as a readable local-review instrument", () => {
+  const status = {
+    workspace: "Watching 42 files · 3 tabs open",
+    activeFile: "brief.md · preview · rendered",
+    review: "4 files to review · 2 threads open · 1 draft",
+    server: "Updating review + 2 diffs",
+    serverTone: "pending" as const,
+    detail: "3 review refreshes · last review 12ms",
+  };
+  const html = renderToStaticMarkup(
+    <WorkspaceStatusbar status={status} />,
+  );
+
+  expect(workspaceStatusbarLabel(status)).toBe(
+    "Workspace status · Workspace: Watching 42 files · 3 tabs open · Current file: brief.md · preview · rendered · Review: 4 files to review · 2 threads open · 1 draft · Live updates: Updating review + 2 diffs",
+  );
+  expect(html).toContain(
+    'aria-label="Workspace status · Workspace: Watching 42 files · 3 tabs open · Current file: brief.md · preview · rendered · Review: 4 files to review · 2 threads open · 1 draft · Live updates: Updating review + 2 diffs"',
+  );
+  expect(html).toContain("Workspace");
+  expect(html).toContain("Current");
+  expect(html).toContain("Review");
+  expect(html).toContain("Live");
+  expect(html).toContain(
+    'aria-label="Workspace: Watching 42 files · 3 tabs open"',
+  );
+  expect(html).toContain(
+    'aria-label="Current file: brief.md · preview · rendered"',
+  );
+  expect(html).toContain(
+    'aria-label="Review: 4 files to review · 2 threads open · 1 draft"',
+  );
+  expect(html).toContain(
+    'aria-label="Live updates: Updating review + 2 diffs"',
+  );
+  expect(html).toContain('aria-live="polite"');
+  expect(html).toContain('class="status-dot pending"');
+  expect(html).toContain('title="3 review refreshes · last review 12ms"');
 });
 
 it("summarizes workspace paths for compact topbar display", () => {
@@ -131,21 +249,302 @@ it("summarizes workspace paths for compact topbar display", () => {
   expect(workspaceParentPath(null)).toBe("Waiting for workspace");
 });
 
+it("renders open files as an accessible tab set", () => {
+  const html = renderToStaticMarkup(
+    <OpenTabs
+      tabs={[
+        { path: "README.md", viewerKind: "markdown", paneId: "main" },
+        {
+          path: "src/app.ts",
+          viewerKind: "code",
+          paneId: "main",
+          changed: true,
+          isPreview: true,
+        },
+      ]}
+      activePath="src/app.ts"
+      paneId="main"
+      onActivate={() => undefined}
+      onClose={() => undefined}
+      onPromote={() => undefined}
+      onCloseOtherTabs={() => undefined}
+      onCloseTabsToRight={() => undefined}
+      onCloseUnchangedTabs={() => undefined}
+      onClosePreviewTabs={() => undefined}
+      onDropTab={() => undefined}
+      onDragStateChange={() => undefined}
+      onManualDragStart={() => undefined}
+    />,
+  );
+
+  expect(html).toContain('role="tablist"');
+  expect(html).toContain(
+    'aria-label="Open file tabs, 2 tabs, active src/app.ts, 1 preview tab, 1 changed tab"',
+  );
+  expect(html).toContain('role="tab"');
+  expect(html).toContain('aria-selected="true"');
+  expect(html).toContain('aria-selected="false"');
+  expect(html).toContain('tabindex="0"');
+  expect(html).toContain('tabindex="-1"');
+  expect(html).toContain('data-tab-path="src/app.ts"');
+  expect(html).toContain('aria-label="Tab management"');
+  expect(html).toContain("Keep tab");
+  expect(html).toContain("Close others");
+  expect(html).toContain("Close right");
+  expect(html).toContain("Close clean");
+  expect(html).toContain("Close previews");
+  expect(html).toContain("Keep this preview open as a normal tab");
+  expect(html).toContain("preview");
+  expect(html).toContain("changed");
+});
+
+it("shows parent context only for duplicate tab names", () => {
+  const html = renderToStaticMarkup(
+    <OpenTabs
+      tabs={[
+        { path: "docs/README.md", viewerKind: "markdown", paneId: "main" },
+        {
+          path: "examples/README.md",
+          viewerKind: "markdown",
+          paneId: "main",
+        },
+        { path: "src/app.ts", viewerKind: "code", paneId: "main" },
+      ]}
+      activePath="docs/README.md"
+      paneId="main"
+      onActivate={() => undefined}
+      onClose={() => undefined}
+      onPromote={() => undefined}
+      onCloseOtherTabs={() => undefined}
+      onCloseTabsToRight={() => undefined}
+      onCloseUnchangedTabs={() => undefined}
+      onClosePreviewTabs={() => undefined}
+      onDropTab={() => undefined}
+      onDragStateChange={() => undefined}
+      onManualDragStart={() => undefined}
+    />,
+  );
+
+  expect(html).toContain('class="tab active duplicate-name"');
+  expect(html).toContain(
+    '<span class="tab-context" aria-hidden="true">docs</span>',
+  );
+  expect(html).toContain(
+    '<span class="tab-context" aria-hidden="true">examples</span>',
+  );
+  expect(html).toContain('title="docs/README.md"');
+  expect(html).toContain('aria-label="examples/README.md"');
+  expect(html).toContain("app.ts");
+  expect(html).not.toContain(">src<");
+});
+
 it("renders the shortcut guide as one bundled reference", () => {
   const html = renderToStaticMarkup(
     <ShortcutHelp open={true} onClose={() => undefined} />,
   );
 
   expect(html).toContain('aria-label="Keyboard shortcuts"');
-  expect(html).toContain("Cmd W");
-  expect(html).toContain("Cmd E");
-  expect(html).toContain("Cmd I");
-  expect(html).toContain("Cmd Shift U");
-  expect(html).toContain("Cmd Shift J");
-  expect(html).toContain("Cmd Shift K");
-  expect(html).toContain("Cmd Shift R");
-  expect(html).toContain("Cmd /");
-  expect(html).toContain("Command palette");
+  expect(html).toContain('aria-modal="true"');
+  expect(html).toContain('aria-labelledby="shortcut-help-title"');
+  expect(html).toContain('aria-describedby="shortcut-help-description"');
+  expect(html).toContain('aria-label="Close keyboard shortcuts"');
+  expect(html).toContain('<dl class="shortcut-list">');
+  expect(html).toContain("Cmd/Ctrl W");
+  expect(html).toContain(
+    '<kbd aria-label="Command or Control W">Cmd/Ctrl W</kbd>',
+  );
+  expect(html).toContain("Cmd/Ctrl E");
+  expect(html).toContain("Cmd/Ctrl I");
+  expect(html).toContain("Return to current stop");
+  expect(html).toContain("Cmd/Ctrl Shift Enter");
+  expect(html).toContain("Resolve / reopen current stop");
+  expect(html).toContain("Cmd/Ctrl Shift Backspace");
+  expect(html).toContain("Archive current stop");
+  expect(html).not.toContain("Focus current inline thread");
+  expect(html).toContain("Cmd/Ctrl B");
+  expect(html).toContain("Cmd/Ctrl Shift \\");
+  expect(html).toContain(
+    '<kbd aria-label="Command or Control Shift Backslash">Cmd/Ctrl Shift \\</kbd>',
+  );
+  expect(html).toContain("Toggle Explorer");
+  expect(html).toContain("Toggle inspector");
+  expect(html).toContain("Cmd/Ctrl Shift U");
+  expect(html).toContain("Cmd/Ctrl Shift J");
+  expect(html).toContain("Cmd/Ctrl Shift K");
+  expect(html).toContain("Cmd/Ctrl Shift R");
+  expect(html).toContain("Cmd/Ctrl Shift C");
+  expect(html).toContain("Open Attention / Comments");
+  expect(html).toContain("Cmd/Ctrl G");
+  expect(html).toContain("Cmd/Ctrl Shift G");
+  expect(html).toContain("Cmd/Ctrl /");
+  expect(html).toContain("Left / Right");
+  expect(html).toContain(
+    '<kbd aria-label="Left or Right arrow">Left / Right</kbd>',
+  );
+  expect(html).toContain('<h3 id="shortcut-group-tabs">Tabs</h3>');
+  expect(html).toContain('<h3 id="shortcut-group-find">Find</h3>');
+  expect(html).toContain('<h3 id="shortcut-group-review">Review</h3>');
+  expect(html).toContain('<h3 id="shortcut-group-viewer">Viewer</h3>');
+  expect(html).toContain('<h3 id="shortcut-group-layout">Layout</h3>');
+  expect(html).toContain('<h3 id="shortcut-group-palette">Palette</h3>');
+  expect(html).not.toContain("Run action");
+});
+
+it("names symbolic shortcut keys for assistive tech", () => {
+  expect(shortcutA11yLabel("Cmd/Ctrl /")).toBe("Command or Control Slash");
+  expect(shortcutA11yLabel("Cmd/Ctrl ]")).toBe(
+    "Command or Control Right bracket",
+  );
+  expect(shortcutA11yLabel("Left / Right")).toBe("Left or Right arrow");
+});
+
+it("keeps the default command palette search-oriented", () => {
+  const html = renderToStaticMarkup(
+    <CommandPalette
+      open
+      mode="file"
+      query="readme"
+      fileResults={[
+        {
+          path: "README.md",
+          name: "README.md",
+          viewerKind: "markdown",
+          score: 1,
+        },
+      ]}
+      fileLoading={false}
+      textResults={[]}
+      textLoading={false}
+      actions={[]}
+      onQueryChange={() => undefined}
+      onModeChange={() => undefined}
+      onClose={() => undefined}
+      onOpenPath={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Quick open");
+  expect(html).toContain("Files");
+  expect(html).toContain("Text");
+  expect(html).toContain("README.md");
+  expect(html).toContain('role="tablist"');
+  expect(html).toContain('aria-label="Search mode"');
+  expect(html).toContain('aria-label="Quick open query"');
+  expect(html).toContain('aria-label="Quick open results"');
+  expect(html).toContain('data-palette-mode="file"');
+  expect(html).toContain('data-palette-mode="text"');
+  expect(html).toContain('tabindex="0"');
+  expect(html).toContain('tabindex="-1"');
+  expect(html).toContain("Cmd/Ctrl Enter");
+  expect(html).toContain("Cmd/Ctrl K");
+  expect(html).toContain("Cmd/Ctrl Shift F");
+  expect(html).not.toContain("Actions");
+  expect(html).not.toContain("run action");
+  expect(html).not.toContain("Run action");
+});
+
+it("opens the command palette on recent files before the user types", () => {
+  const html = renderToStaticMarkup(
+    <CommandPalette
+      open
+      mode="file"
+      query=""
+      fileResults={[
+        {
+          path: "search-result.md",
+          name: "search-result.md",
+          viewerKind: "markdown",
+          score: 1,
+        },
+      ]}
+      recentFiles={[
+        { path: "README.md", viewerKind: "markdown", source: "active" },
+        { path: "src/app.ts", viewerKind: "code", source: "open" },
+        { path: "docs/notes.txt", viewerKind: "text" },
+      ]}
+      fileLoading={false}
+      textResults={[]}
+      textLoading={false}
+      actions={[]}
+      onQueryChange={() => undefined}
+      onModeChange={() => undefined}
+      onClose={() => undefined}
+      onOpenPath={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("README.md");
+  expect(html).toContain("src/app.ts");
+  expect(html).toContain("docs/notes.txt");
+  expect(html).toContain("Active tab · markdown");
+  expect(html).toContain("Open tab · code");
+  expect(html).toContain("Recent · text");
+  expect(html).toContain('<span class="palette-type">Active</span>');
+  expect(html).toContain('<span class="palette-type">Open</span>');
+  expect(html).toContain('<span class="palette-type">Recent</span>');
+  expect(html.indexOf("README.md")).toBeLessThan(html.indexOf("src/app.ts"));
+  expect(html.indexOf("src/app.ts")).toBeLessThan(
+    html.indexOf("docs/notes.txt"),
+  );
+  expect(html).not.toContain("search-result.md");
+  expect(html).not.toContain("No matching files.");
+});
+
+it("shows an empty recent-files hint before quick-open search starts", () => {
+  const html = renderToStaticMarkup(
+    <CommandPalette
+      open
+      mode="file"
+      query=""
+      fileResults={[]}
+      recentFiles={[]}
+      fileLoading={false}
+      textResults={[]}
+      textLoading={false}
+      actions={[]}
+      onQueryChange={() => undefined}
+      onModeChange={() => undefined}
+      onClose={() => undefined}
+      onOpenPath={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("No recent files yet.");
+  expect(html).not.toContain("No matching files.");
+});
+
+it("highlights matching text inside text search results", () => {
+  const html = renderToStaticMarkup(
+    <CommandPalette
+      open
+      mode="text"
+      query="Index"
+      fileResults={[]}
+      fileLoading={false}
+      textResults={[
+        {
+          path: "reports/index.html",
+          viewerKind: "html",
+          lineNumber: 4,
+          lineText: "<h1>Index</h1>",
+          matchStart: 4,
+          matchLength: 5,
+        },
+      ]}
+      textLoading={false}
+      actions={[]}
+      onQueryChange={() => undefined}
+      onModeChange={() => undefined}
+      onClose={() => undefined}
+      onOpenPath={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("reports/index.html");
+  expect(html).toContain("palette-line-prefix");
+  expect(html).toContain("&lt;h1&gt;");
+  expect(html).toContain('<mark class="palette-search-match">Index</mark>');
+  expect(html).toContain("&lt;/h1&gt;");
 });
 
 it("renders command palette actions for review navigation", () => {
@@ -160,10 +559,16 @@ it("renders command palette actions for review navigation", () => {
       textLoading={false}
       actions={[
         {
+          id: "return-current-stop",
+          label: "Return to current stop",
+          detail: "src/app.ts · L2",
+          shortcut: "Cmd/Ctrl I",
+        },
+        {
           id: "next-open-thread",
           label: "Next open thread",
           detail: "Move to the next unresolved review thread",
-          shortcut: "Cmd ]",
+          shortcut: "Cmd/Ctrl ]",
         },
         {
           id: "next-draft-comment",
@@ -185,9 +590,18 @@ it("renders command palette actions for review navigation", () => {
   );
 
   expect(html).toContain("Actions");
+  expect(html).toContain("Return to current stop");
+  expect(html).toContain("src/app.ts · L2");
+  expect(html).toContain("Cmd/Ctrl I");
   expect(html).toContain("Next open thread");
   expect(html).toContain("Next draft comment");
   expect(html).toContain("Show diff");
+  expect(html).toContain("Run action");
+  expect(html).toContain("Filter actions");
+  expect(html).toContain("Switch mode");
+  expect(html).toContain("<kbd>Tab</kbd>");
+  expect(html).not.toContain("Preview");
+  expect(html).not.toContain("Keep open");
 });
 
 it("explains restored workspace tabs and offers a fresh start", () => {
@@ -223,6 +637,91 @@ it("renders code with stable line numbers and selected ranges", () => {
   expect(html).toContain("Copy range");
 });
 
+it("marks text search landing lines across source viewers", () => {
+  const codeHtml = renderToStaticMarkup(
+    <CodeViewer
+      file={codeFile}
+      theme="dark"
+      selectedRange={null}
+      focusLineNumber={2}
+      focusRevision={1}
+      onSelectionChange={() => undefined}
+    />,
+  );
+  const markdownHtml = renderToStaticMarkup(
+    <MarkdownViewer
+      file={markdownFile}
+      mode="source"
+      focusLineNumber={3}
+      focusRevision={1}
+    />,
+  );
+  const htmlSource = renderToStaticMarkup(
+    <HtmlViewer
+      file={{
+        ...codeFile,
+        path: "index.html",
+        viewerKind: "html",
+        content: "<h1>Title</h1>\n<p>Body</p>\n",
+      }}
+      allowHtmlScripts={false}
+      mode="source"
+      focusLineNumber={2}
+      focusRevision={1}
+    />,
+  );
+  const textHtml = renderToStaticMarkup(
+    <TextViewer
+      file={{
+        ...codeFile,
+        path: "notes.txt",
+        viewerKind: "text",
+        content: "alpha\nneedle\nomega\n",
+      }}
+      focusLineNumber={2}
+      focusRevision={1}
+    />,
+  );
+
+  expect(codeHtml).toContain('class="code-line search-focus"');
+  expect(markdownHtml).toContain('class="code-line search-focus"');
+  expect(htmlSource).toContain('class="commented-source-line search-focus"');
+  expect(textHtml).toContain('class="commented-source-line search-focus"');
+});
+
+it("renders text search navigation as a compact reader control", () => {
+  const html = renderToStaticMarkup(
+    <TextSearchNavigationBar
+      query="needle"
+      position="2 of 4"
+      result={{
+        path: "notes.txt",
+        viewerKind: "text",
+        lineNumber: 12,
+        lineText: "<h2>needle in notes</h2>",
+        matchStart: 4,
+        matchLength: 6,
+      }}
+      onPrevious={() => undefined}
+      onNext={() => undefined}
+      onClose={() => undefined}
+    />,
+  );
+
+  expect(html).toContain('aria-label="Text search navigation"');
+  expect(html).toContain("&quot;needle&quot;");
+  expect(html).toContain("2 of 4");
+  expect(html).toContain("Line 12");
+  expect(html).toContain("&lt;h2&gt;");
+  expect(html).toContain(
+    '<mark class="text-search-nav-match">needle</mark>',
+  );
+  expect(html).toContain(" in notes&lt;/h2&gt;");
+  expect(html).toContain("Previous");
+  expect(html).toContain("Next");
+  expect(html).toContain("Clear");
+});
+
 it("renders code line comments as an inline thread with replies", () => {
   const html = renderToStaticMarkup(
     <CodeViewer
@@ -244,13 +743,51 @@ it("renders code line comments as an inline thread with replies", () => {
   expect(html).toContain('aria-label="Open comment thread on line 2"');
   expect(html).toContain('aria-label="Add comment on line 1"');
   expect(html).toContain('aria-label="Comment thread for line 2"');
+  expect(html).toContain('class="code-thread-comment open active"');
+  expect(html).toContain('aria-current="true"');
+  expect(html).toContain('tabindex="-1"');
+  expect(html).toContain("Current stop");
   expect(html).toContain("2 messages");
   expect(html.indexOf("Check this return")).toBeLessThan(
     html.indexOf("Agreed, keep it explicit"),
   );
   expect(html).toContain('placeholder="Reply to thread"');
   expect(html).toContain('aria-label="Add reply"');
+  expect(html).toContain('aria-describedby="comment-reply-hint-src-app-ts-2-2"');
+  expect(html).toContain('aria-keyshortcuts="Meta+Enter Control+Enter"');
+  expect(html).toContain("Resolve current stop");
+  expect(html).toContain("Archive current stop");
+  expect(html).toContain(
+    'aria-keyshortcuts="Meta+Shift+Enter Control+Shift+Enter"',
+  );
+  expect(html).toContain(
+    'aria-keyshortcuts="Meta+Shift+Backspace Control+Shift+Backspace"',
+  );
+  expect(html).toContain(
+    'title="Resolve current stop (Cmd/Ctrl Shift Enter)"',
+  );
+  expect(html).toContain(
+    'title="Archive current stop (Cmd/Ctrl Shift Backspace)"',
+  );
+  expect(html).toContain("<kbd>Cmd/Ctrl Enter</kbd> to send");
+  expect(html).toContain("Esc closes");
   expect(html).not.toContain(">Comment<");
+});
+
+it("keeps inline comment submit on Cmd/Ctrl Enter while Shift Enter stays editable", () => {
+  expect(isCommentSubmitShortcut({ key: "Enter", metaKey: true })).toBe(true);
+  expect(isCommentSubmitShortcut({ key: "Enter", ctrlKey: true })).toBe(true);
+  expect(isCommentSubmitShortcut({ key: "Enter" })).toBe(false);
+  expect(isCommentSubmitShortcut({ key: "Enter", shiftKey: true })).toBe(false);
+  expect(
+    isCommentSubmitShortcut({ key: "Enter", metaKey: true, shiftKey: true }),
+  ).toBe(false);
+  expect(
+    isCommentSubmitShortcut({ key: "Enter", ctrlKey: true, shiftKey: true }),
+  ).toBe(false);
+  expect(isCommentSubmitShortcut({ key: "Enter", metaKey: false })).toBe(false);
+  expect(isCommentSubmitShortcut({ key: "Enter", ctrlKey: false })).toBe(false);
+  expect(isCommentSubmitShortcut({ key: "a", metaKey: true })).toBe(false);
 });
 
 it("projects diff-surface comments onto source code comment threads", () => {
@@ -424,6 +961,7 @@ it("renders a replyable document thread with the code-thread width contract", ()
   expect(html).toContain('class="code-comment-thread rendered-comment-thread"');
   expect(html).toContain("Lines 3-4");
   expect(html).toContain('placeholder="Reply to thread"');
+  expect(html).toContain("<kbd>Cmd/Ctrl Enter</kbd> to send");
   expect(html).toContain("Check this return");
 });
 
@@ -557,6 +1095,99 @@ it("shows an explicit removed-file state instead of stale content", () => {
   expect(html).toContain("docs/deleted.md");
   expect(html).toContain("Close tab");
   expect(html).not.toContain("export function start");
+});
+
+it("renders a central file location bar that can reveal path segments", () => {
+  const calls: string[] = [];
+  const file = {
+    ...codeFile,
+    path: "docs/brief/intro.md",
+    viewerKind: "markdown" as const,
+  };
+  const locationBar = FileLocationBar({
+    file,
+    onRevealInTree: (path) => calls.push(path ?? ""),
+  });
+  const html = renderToStaticMarkup(locationBar);
+
+  expect(html).toContain(
+    'aria-label="Current file location, brief / intro.md, full path docs/brief/intro.md"',
+  );
+  expect(html).toContain(
+    'aria-label="Reveal folder docs/brief, segment 2 of 3, in the sidebar tree"',
+  );
+  expect(html).toContain(
+    'aria-label="Current file intro.md, segment 3 of 3, reveal docs/brief/intro.md in the sidebar tree"',
+  );
+  expect(html).toContain('aria-current="page"');
+  expect(html).toContain("docs");
+  expect(html).toContain("brief");
+  expect(html).toContain("intro.md");
+  expect(html).toContain("Show in tree");
+
+  const directoryButton = findElement(locationBar, (element) => {
+    const props = element.props as { type?: string; children?: ReactNode };
+    return props.type === "button" && flattenText(props.children) === "brief";
+  });
+  (directoryButton.props as { onClick: () => void }).onClick();
+
+  const revealButton = findElement(locationBar, (element) => {
+    const props = element.props as { className?: string; children?: ReactNode };
+    return (
+      props.className === "file-location-reveal" &&
+      flattenText(props.children) === "Show in tree"
+    );
+  });
+  (revealButton.props as { onClick: () => void }).onClick();
+
+  expect(calls).toEqual(["docs/brief", "docs/brief/intro.md"]);
+});
+
+it("surfaces the current review stop in the central file location bar", () => {
+  const calls: string[] = [];
+  const file = {
+    ...codeFile,
+    path: "src/app.ts",
+  };
+  const stop = activeFileReviewStop(
+    file,
+    [
+      { ...codeLineComment, id: "comment-other", path: "docs/other.md" },
+      codeLineComment,
+    ],
+    codeLineComment.id,
+  );
+  const locationBar = FileLocationBar({
+    file,
+    activeReviewStop: stop,
+    onFocusActiveComment: () => calls.push("focus-stop"),
+    onRevealInTree: () => undefined,
+  });
+  const html = renderToStaticMarkup(locationBar);
+
+  expect(stop).toEqual({
+    label: "source · L2",
+    preview: "Check this return",
+  });
+  expect(
+    activeFileReviewStop(file, [codeLineComment], "missing-comment"),
+  ).toBeNull();
+  expect(html).toContain('class="file-location-review-stop"');
+  expect(html).toContain('aria-keyshortcuts="Meta+I Control+I"');
+  expect(html).toContain(
+    'aria-label="Focus current review stop, source · L2, Check this return"',
+  );
+  expect(html).toContain("Current stop");
+  expect(html).toContain("source · L2");
+  expect(html).toContain("Check this return");
+
+  const stopButton = findElement(locationBar, (element) => {
+    const props = element.props as { className?: string };
+    return props.className === "file-location-review-stop";
+  });
+  (stopButton.props as { onClick: () => void }).onClick();
+
+  expect(calls).toEqual(["focus-stop"]);
 });
 
 it("keeps the HTML viewer sandboxed and exposes source mode controls", () => {
@@ -781,13 +1412,17 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
       loadingReviewDiffs={{}}
       unreadReviewPaths={new Set(["src/app.ts"])}
       selectedCodeRange={{ start: 2, end: 2 }}
+      activePath="src/app.ts"
       activePaneId="main"
       onOpenEventPath={() => undefined}
       onConfirmEventPath={() => undefined}
+      onOpenNextUnread={() => undefined}
       onOpenNextChanged={() => undefined}
       onOpenPreviousChanged={() => undefined}
       onOpenAllChanged={() => undefined}
       onRevealInTree={() => undefined}
+      onOpenComments={() => undefined}
+      onCommentStatusChange={() => undefined}
     />,
   );
 
@@ -795,8 +1430,42 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
   expect(html.indexOf("Review Queue")).toBeLessThan(html.indexOf("Comments"));
   expect(html).toContain("Next");
   expect(html).toContain("Previous");
-  expect(html).toContain("<strong>3</strong> files");
+  expect(html).toContain("Unseen");
+  expect(html).toContain("Meta+Shift+U Control+Shift+U");
+  expect(html).toContain("<strong>2/3</strong> files seen");
   expect(html).toContain("1 unseen");
+  expect(html).toContain(
+    'aria-valuetext="2 of 3 review files seen, 1 unseen"',
+  );
+  expect(html).toContain("viewing 1/3");
+  expect(html).toContain('class="review-queue" role="list"');
+  expect(html).toContain(
+    'aria-label="Review queue, 2 of 3 review files seen, 1 unseen"',
+  );
+  expect(html).toContain(
+    'aria-describedby="review-queue-interaction-help review-queue-keyboard-help"',
+  );
+  expect(html).toContain('id="review-queue-keyboard-help"');
+  expect(html).toContain(
+    "Use Down Arrow, Up Arrow, Home, and End to move between review",
+  );
+  expect(html).toContain(
+    'class="review-queue-item" role="listitem" aria-posinset="1" aria-setsize="3"',
+  );
+  expect(html).toContain('class="change-open active"');
+  expect(html).toContain('aria-current="true"');
+  expect(html).toContain('aria-keyshortcuts="ArrowDown ArrowUp Home End"');
+  expect(html).toContain('id="review-queue-interaction-help"');
+  expect(html).toContain(
+    'aria-describedby="review-queue-interaction-help review-queue-keyboard-help"',
+  );
+  expect(html).toContain("Click or press Enter to preview a review file.");
+  expect(html).toContain("Double-click to keep it open as a tab.");
+  expect(html).toContain('data-review-index="0"');
+  expect(html).toContain('data-review-path="src/app.ts"');
+  expect(html).toContain(
+    'aria-label="modified src/app.ts, current review file, unseen review work, from HEAD diff"',
+  );
   expect(html).toContain("src/app.ts:2");
   expect(html).toContain("+100");
   expect(html).toContain("-32");
@@ -808,17 +1477,292 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
   expect(html).toContain("docs/old.md -&gt; docs/new.md");
   expect(html).toContain("HEAD diff");
   expect(html).toContain("local change");
+  expect(html).toContain('class="change-path-line"');
+  expect(html).toContain('class="change-path-text"');
+  expect(html).toContain('title="src/app.ts"');
   expect(html).toContain("modified");
   expect(html).toContain("renamed");
   expect(html).toContain("Details");
   expect(html.indexOf("Review Queue")).toBeLessThan(html.indexOf("Details"));
   expect(html).toContain("Open all changed files as tabs");
-  expect(html).not.toContain("In this file");
+  expect(html).toContain("In this file");
+  expect(html).toContain("export");
+  expect(html).toContain("start");
   expect(html).not.toContain("Recent events");
   expect(html).not.toContain("Diff</button>");
   expect(html).not.toContain("Review targets");
   expect(html).not.toContain("Changed files");
   expect(html).not.toContain("Diff preview");
+});
+
+it("maps review queue arrow keys to stable review rows", () => {
+  expect(reviewQueueKeyboardTarget("ArrowDown", -1, 3)).toBe(0);
+  expect(reviewQueueKeyboardTarget("ArrowDown", 0, 3)).toBe(1);
+  expect(reviewQueueKeyboardTarget("ArrowDown", 2, 3)).toBe(2);
+  expect(reviewQueueKeyboardTarget("ArrowUp", 2, 3)).toBe(1);
+  expect(reviewQueueKeyboardTarget("ArrowUp", 0, 3)).toBe(0);
+  expect(reviewQueueKeyboardTarget("Home", 2, 3)).toBe(0);
+  expect(reviewQueueKeyboardTarget("End", 0, 3)).toBe(2);
+  expect(reviewQueueKeyboardTarget("Enter", 0, 3)).toBeNull();
+  expect(reviewQueueKeyboardTarget("End", -1, 3)).toBeNull();
+  expect(reviewQueueKeyboardTarget("ArrowDown", -1, 0)).toBeNull();
+});
+
+it("summarizes active-file review focus without mixing drafts into open threads", () => {
+  const html = renderToStaticMarkup(
+    <Inspector
+      file={codeFile}
+      reviewChanges={[]}
+      reviewDiffStats={{}}
+      loadingReviewDiffs={{}}
+      unreadReviewPaths={new Set()}
+      comments={[
+        { ...codeLineComment, threadId: "thread-1" },
+        {
+          ...codeLineComment,
+          id: "comment-2",
+          threadId: "thread-1",
+          body: "Second message in same thread",
+          createdAt: "2026-01-01T00:01:00.000Z",
+          updatedAt: "2026-01-01T00:01:00.000Z",
+        },
+        {
+          ...codeLineComment,
+          id: "comment-3",
+          threadId: "thread-2",
+          status: "resolved",
+        },
+      ]}
+      draftComments={[
+        {
+          id: "draft-1",
+          path: "src/app.ts",
+          viewerKind: "code",
+          anchor: codeLineComment.anchor,
+          body: "Unpublished note",
+          source: "human",
+          createdAt: "2026-01-01T00:02:00.000Z",
+          updatedAt: "2026-01-01T00:02:00.000Z",
+        },
+      ]}
+      activeCommentId="comment-2"
+      selectedCodeRange={null}
+      activePaneId="main"
+      onOpenEventPath={() => undefined}
+      onConfirmEventPath={() => undefined}
+      onOpenNextChanged={() => undefined}
+      onOpenPreviousChanged={() => undefined}
+      onOpenAllChanged={() => undefined}
+      onRevealInTree={() => undefined}
+      onOpenComments={() => undefined}
+      onCommentStatusChange={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Active File");
+  expect(html).toContain("1 open thread");
+  expect(html).toContain("<strong>1</strong> open");
+  expect(html).toContain("<strong>1</strong> drafts");
+  expect(html).toContain("<strong>1</strong> history");
+  expect(html).toContain("<strong>1 open thread</strong>");
+  expect(html).toContain("3 messages in this file");
+  expect(html).toContain('class="active-comment-thread open active"');
+  expect(html).toContain('class="active-comment-thread resolved"');
+  expect(html).toContain('aria-current="true"');
+  expect(html).toContain("Current thread");
+  expect(html).toContain("2 messages");
+  expect(html).toContain('class="active-comment-thread-preview"');
+  expect(html).toContain("Second message in same thread");
+  expect(html).toContain("Check this return");
+  expect(html).toContain(
+    "current thread, Source L2, source, L2, latest: Second message in same thread",
+  );
+  expect(html).toContain("source");
+  expect(html).toContain("L2");
+  expect(html).toContain("Open 3 messages in Comments panel");
+  expect(html).toContain("Open active threads");
+  expect(html).toContain('class="review-focus-action"');
+  expect(html).toContain(
+    'aria-label="Thread actions for src/app.ts, L2"',
+  );
+  expect(html).toContain('class="active-comment-thread-actions"');
+  expect(html).toContain(">Resolve current stop</button>");
+  expect(html).toContain(">Reopen</button>");
+  expect(html).toContain(">Archive current stop</button>");
+  expect(html).toContain(
+    'aria-keyshortcuts="Meta+Shift+Enter Control+Shift+Enter"',
+  );
+  expect(html).toContain(
+    'aria-keyshortcuts="Meta+Shift+Backspace Control+Shift+Backspace"',
+  );
+  expect(html).toContain(
+    'title="Resolve current stop (Cmd/Ctrl Shift Enter)"',
+  );
+  expect(html).toContain(
+    'title="Archive current stop (Cmd/Ctrl Shift Backspace)"',
+  );
+  expect(html).not.toContain("2 open comments");
+  expect(html).toContain("Drafts stay private until published");
+});
+
+it("updates active-file comment thread status from the inspector", () => {
+  const updates: Array<[string, string]> = [];
+  const inspector = Inspector({
+    file: codeFile,
+    reviewChanges: [],
+    reviewDiffStats: {},
+    loadingReviewDiffs: {},
+    unreadReviewPaths: new Set(),
+    comments: [{ ...codeLineComment, threadId: "thread-1" }],
+    selectedCodeRange: null,
+    activePaneId: "main",
+    onOpenEventPath: () => undefined,
+    onConfirmEventPath: () => undefined,
+    onOpenNextChanged: () => undefined,
+    onOpenPreviousChanged: () => undefined,
+    onOpenAllChanged: () => undefined,
+    onRevealInTree: () => undefined,
+    onOpenComments: () => undefined,
+    onCommentStatusChange: (threadId, status) =>
+      updates.push([threadId, status]),
+  });
+
+  const resolveButton = findElement(inspector, (element) => {
+    const props = element.props as { children?: ReactNode; type?: string };
+    return props.type === "button" && flattenText(props.children) === "Resolve";
+  });
+  const archiveButton = findElement(inspector, (element) => {
+    const props = element.props as { children?: ReactNode; type?: string };
+    return props.type === "button" && flattenText(props.children) === "Archive";
+  });
+
+  (resolveButton.props as { onClick: () => void }).onClick();
+  (archiveButton.props as { onClick: () => void }).onClick();
+
+  expect(updates).toEqual([
+    ["thread-1", "resolved"],
+    ["thread-1", "archived"],
+  ]);
+});
+
+it("shows precise active-file comment locations in the inspector", () => {
+  const renderedComment: ViviComment = {
+    ...codeLineComment,
+    id: "markdown-rendered-thread",
+    threadId: "thread-rendered",
+    path: "README.md",
+    viewerKind: "markdown",
+    anchor: {
+      surface: "rendered",
+      canonical: {
+        path: "README.md",
+        lineStart: 3,
+        lineEnd: 4,
+        quote: "Paragraph text",
+      },
+      rendered: {
+        kind: "markdown",
+        blockId: "vivi-block-2",
+        sourceLineStart: 3,
+        sourceLineEnd: 4,
+      },
+    },
+    body: "Rendered paragraph needs a clearer transition.",
+  };
+  const diffComment: ViviComment = {
+    ...codeLineComment,
+    id: "markdown-diff-thread",
+    threadId: "thread-diff",
+    path: "README.md",
+    viewerKind: "markdown",
+    anchor: {
+      surface: "diff",
+      canonical: {
+        path: "README.md",
+        lineStart: 8,
+        lineEnd: 9,
+        quote: "new branch",
+      },
+      diff: {
+        path: "README.md",
+        base: "HEAD",
+        ref: "working tree",
+        hunkId: "@@ -4,1 +8,2 @@",
+        side: "new",
+        newLineStart: 8,
+        newLineEnd: 9,
+      },
+    },
+    body: "Diff branch needs a clearer transition.",
+    updatedAt: "2026-01-01T00:02:00.000Z",
+  };
+  const html = renderToStaticMarkup(
+    <Inspector
+      file={markdownFile}
+      reviewChanges={[]}
+      reviewDiffStats={{}}
+      loadingReviewDiffs={{}}
+      unreadReviewPaths={new Set()}
+      comments={[renderedComment, diffComment]}
+      selectedCodeRange={null}
+      activePaneId="main"
+      onOpenEventPath={() => undefined}
+      onConfirmEventPath={() => undefined}
+      onOpenNextChanged={() => undefined}
+      onOpenPreviousChanged={() => undefined}
+      onOpenAllChanged={() => undefined}
+      onRevealInTree={() => undefined}
+      onOpenComments={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Rendered Markdown · block vivi-block-2 · source L3-L4");
+  expect(html).toContain("Diff new L8-L9");
+  expect(html).toContain(
+    'aria-label="Open thread in README.md, Rendered Markdown · block vivi-block-2 · source L3-L4, markdown rendered, L3-L4, latest: Rendered paragraph needs a clearer transition."',
+  );
+  expect(html).toContain(
+    'aria-label="Open thread in README.md, Diff new L8-L9, diff, L8-L9, latest: Diff branch needs a clearer transition."',
+  );
+  expect(html).toContain('class="active-comment-thread-location"');
+});
+
+it("disables the inspector comments panel action when the panel is unavailable", () => {
+  const inspector = Inspector({
+    file: codeFile,
+    reviewChanges: [],
+    reviewDiffStats: {},
+    loadingReviewDiffs: {},
+    unreadReviewPaths: new Set(),
+    comments: [{ ...codeLineComment, threadId: "thread-1" }],
+    selectedCodeRange: null,
+    activePaneId: "main",
+    onOpenEventPath: () => undefined,
+    onConfirmEventPath: () => undefined,
+    onOpenNextChanged: () => undefined,
+    onOpenPreviousChanged: () => undefined,
+    onOpenAllChanged: () => undefined,
+    onRevealInTree: () => undefined,
+  });
+
+  const button = findElement(inspector, (element) => {
+    const props = element.props as { children?: ReactNode };
+    return (
+      element.type === "button" &&
+      flattenText(props.children).includes("Open in Comments panel")
+    );
+  });
+  const props = button.props as {
+    "aria-label"?: string;
+    disabled?: boolean;
+    title?: string;
+  };
+
+  expect(props.disabled).toBe(true);
+  expect(props.title).toBe("Comments panel is not available in this view");
+  expect(props["aria-label"]).toBe(
+    "Comments panel is not available in this view",
+  );
 });
 
 it("renders comment activity in inline thread headers without changing lifecycle status", () => {
@@ -829,6 +1773,7 @@ it("renders comment activity in inline thread headers without changing lifecycle
         path: "src/app.ts",
         lineStart: 2,
         lineEnd: 2,
+        status: "open",
         comments: [
           { ...codeLineComment, threadId: "thread-1" },
           { ...codeLineReply, threadId: "thread-1" },
@@ -867,14 +1812,57 @@ it("renders comment activity in inline thread headers without changing lifecycle
         ],
         new Date("2026-06-20T00:01:00.000Z").getTime(),
       )}
+      activeCommentId="comment-2"
       onClose={() => undefined}
     />,
   );
 
+  expect(html).toContain('class="code-thread-comment open active"');
+  expect(html).toContain('aria-current="true"');
+  expect(html).toContain("Current stop");
   expect(html).toContain("Claude Code read 12s ago");
   expect(html).toContain("Codex replied 1m ago");
   expect(html).toContain('class="comment-status open">Open</span>');
   expect(html).not.toContain("read</span></span>");
+});
+
+it("renders inline thread actions from the latest published thread status", () => {
+  const html = renderToStaticMarkup(
+    <CodeCommentThread
+      thread={{
+        key: "thread-1",
+        path: "src/app.ts",
+        lineStart: 2,
+        lineEnd: 2,
+        status: "resolved",
+        comments: [
+          {
+            ...codeLineComment,
+            threadId: "thread-1",
+            status: "open",
+            updatedAt: "2026-06-20T00:00:00.000Z",
+          },
+          {
+            ...codeLineReply,
+            threadId: "thread-1",
+            status: "resolved",
+            updatedAt: "2026-06-20T00:01:00.000Z",
+          },
+        ],
+      }}
+      draft={{
+        threadId: "thread-1",
+        path: "src/app.ts",
+        viewerKind: "text",
+        anchor: codeLineComment.anchor,
+      }}
+      onClose={() => undefined}
+    />,
+  );
+
+  expect(html).toContain('class="comment-status resolved">Resolved</span>');
+  expect(html).toContain("Reopen thread");
+  expect(html).not.toContain("Resolve thread");
 });
 
 it("renders draft and published messages in the same inline thread", () => {
@@ -885,6 +1873,7 @@ it("renders draft and published messages in the same inline thread", () => {
         path: "src/app.ts",
         lineStart: 2,
         lineEnd: 2,
+        status: "open",
         comments: [
           { ...codeLineComment, threadId: "thread-1" },
           {
@@ -919,6 +1908,10 @@ it("renders the empty draft review tray as a compact tab only", () => {
   const html = renderToStaticMarkup(<DraftReviewTray drafts={[]} />);
 
   expect(html).toContain("draft-review-tab empty");
+  expect(html).toContain(">Drafts <strong>0</strong>");
+  expect(html).toContain(
+    'aria-label="Open Draft Review tray, no unpublished comments"',
+  );
   expect(html).toContain("<strong>0</strong>");
   expect(html).not.toContain("draft-review-panel");
   expect(html).not.toContain("No draft comments.");
@@ -935,13 +1928,83 @@ it("renders draft review tray editing, success, and publish failure states", () 
     createdAt: "2026-06-20T00:00:00.000Z",
     updatedAt: "2026-06-20T00:00:00.000Z",
   };
+  const renderedDraft = {
+    ...draft,
+    id: "draft-2",
+    path: "README.md",
+    viewerKind: "markdown" as const,
+    anchor: {
+      ...draft.anchor,
+      surface: "rendered" as const,
+      rendered: {
+        kind: "markdown" as const,
+        blockId: "p-intro",
+        textQuote: "Intro copy",
+      },
+    },
+  };
 
   const editingHtml = renderToStaticMarkup(
-    <DraftReviewTray drafts={[draft]} initialEditingDraftId={draft.id} />,
+    <DraftReviewTray
+      drafts={[draft, renderedDraft]}
+      initialEditingDraftId={draft.id}
+    />,
   );
   expect(editingHtml).toContain("textarea");
+  expect(editingHtml).toContain("Private drafts");
+  expect(editingHtml).toContain(
+    'aria-label="Close Draft Review tray, 2 unpublished comments kept private until publish"',
+  );
+  expect(editingHtml).toContain(
+    'title="2 unpublished comments kept private until publish"',
+  );
   expect(editingHtml).toContain("Keep this draft visible on publish failure");
+  expect(editingHtml).toContain(
+    'aria-label="Open private draft in src/app.ts, source, L2, kept private until publish"',
+  );
+  expect(editingHtml).toContain(
+    'title="Open private draft in src/app.ts, source, L2, kept private until publish"',
+  );
+  expect(editingHtml).toContain(
+    'id="draft-edit-hint-draft-1"',
+  );
+  expect(editingHtml).toContain(
+    "This draft remains private until published.",
+  );
+  expect(editingHtml).toContain(
+    'aria-label="Edit private draft comment for src/app.ts"',
+  );
+  expect(editingHtml).toContain(
+    'aria-describedby="draft-edit-hint-draft-1"',
+  );
   expect(editingHtml).toContain("Publish review comments");
+  expect(editingHtml).toContain(
+    "Publish 2 draft comments as 2 open threads across 2 files",
+  );
+  expect(editingHtml).toContain("2 open threads");
+  expect(editingHtml).toContain("across 2 files");
+  expect(editingHtml).toContain("visible to agents as active review work");
+  expect(editingHtml).toContain("markdown rendered");
+  expect(editingHtml).toContain("source");
+
+  const sameThreadHtml = renderToStaticMarkup(
+    <DraftReviewTray
+      drafts={[
+        { ...draft, threadId: "thread-a" },
+        {
+          ...draft,
+          id: "draft-2",
+          threadId: "thread-a",
+          body: "Second note in the same unpublished thread",
+          createdAt: "2026-06-20T00:01:00.000Z",
+          updatedAt: "2026-06-20T00:01:00.000Z",
+        },
+      ]}
+    />,
+  );
+  expect(sameThreadHtml).toContain("2 unpublished comments");
+  expect(sameThreadHtml).toContain("1 open thread");
+  expect(sameThreadHtml).not.toContain("2 open threads");
 
   const failedHtml = renderToStaticMarkup(
     <DraftReviewTray
@@ -953,6 +2016,20 @@ it("renders draft review tray editing, success, and publish failure states", () 
   expect(failedHtml).toContain("The selected target thread is no longer open.");
   expect(failedHtml).toContain("Keep this draft visible on publish failure");
 
+  const publishingHtml = renderToStaticMarkup(
+    <DraftReviewTray drafts={[draft]} publishing />,
+  );
+  expect(publishingHtml).toContain("Publishing...");
+  expect(publishingHtml).toContain("Publishing draft review comments");
+  expect(publishingHtml).toContain("disabled");
+
+  const emptyOpenHtml = renderToStaticMarkup(
+    <DraftReviewTray drafts={[]} initialOpen />,
+  );
+  expect(emptyOpenHtml).toContain("No draft comments to publish");
+  expect(emptyOpenHtml).toContain("No unpublished comments");
+  expect(emptyOpenHtml).toContain("disabled");
+
   const successHtml = renderToStaticMarkup(
     <DraftReviewTray
       drafts={[]}
@@ -963,13 +2040,58 @@ it("renders draft review tray editing, success, and publish failure states", () 
   expect(successHtml).toContain("visible to agents");
 });
 
+it("renders draft review items with their full surface context", () => {
+  const draft = {
+    id: "draft-1",
+    path: "README.md",
+    viewerKind: "markdown" as const,
+    anchor: {
+      ...codeLineComment.anchor,
+      surface: "rendered" as const,
+      rendered: {
+        kind: "markdown" as const,
+        blockId: "p-intro",
+        textQuote: "Intro copy",
+      },
+    },
+    body: "Rendered draft",
+    source: "human" as const,
+    createdAt: "2026-06-20T00:00:00.000Z",
+    updatedAt: "2026-06-20T00:00:00.000Z",
+  };
+  const html = renderToStaticMarkup(
+    <DraftReviewTray drafts={[draft]} initialOpen />,
+  );
+
+  expect(html).toContain("README.md");
+  expect(html).toContain("markdown rendered");
+  expect(html).toContain("Rendered draft");
+});
+
 it("renders comment activity in workspace comments rows", () => {
   const html = renderToStaticMarkup(
     <CommentsPanel
       open
-      comments={[{ ...codeLineComment, threadId: "thread-1" }]}
+      comments={[
+        { ...codeLineComment, threadId: "thread-1" },
+        {
+          ...codeLineComment,
+          id: "comment-2",
+          threadId: "thread-1",
+          body: "Agent reply is visible as the latest thread message.",
+          source: "codex",
+          createdBy: {
+            id: "codex:run-1",
+            kind: "codex",
+            displayName: "Codex",
+          },
+          createdAt: "2026-01-01T00:01:00.000Z",
+          updatedAt: "2026-01-01T00:01:00.000Z",
+        },
+      ]}
       query=""
       statusFilter="open"
+      activeCommentId="comment-2"
       threadActivities={{
         "thread-1": summarizeThreadActivity(
           [
@@ -992,11 +2114,649 @@ it("renders comment activity in workspace comments rows", () => {
       onStatusFilterChange={() => undefined}
       onClose={() => undefined}
       onOpenComment={() => undefined}
+      onStatusChange={() => undefined}
     />,
   );
 
+  expect(html).toContain("Review Inbox");
+  expect(html).toContain("1 thread · 2 messages");
+  expect(html).toContain('aria-label="Current review stop"');
+  expect(html).toContain("Current stop");
+  expect(html).toContain("Source L2 · L2 · source");
+  expect(html).toContain("Visible below");
+  expect(html).toContain(
+    'aria-label="Return to current stop, src/app.ts, Source L2, L2"',
+  );
+  expect(html).toContain(">Return</button>");
+  expect(html).toContain(
+    'aria-describedby="comments-panel-result-summary comments-panel-keyboard-help"',
+  );
+  expect(html).toContain('id="comments-panel-keyboard-help"');
+  expect(html).toContain(
+    "Press Down Arrow from search to move into visible comment threads.",
+  );
+  expect(html).toContain(
+    "Up Arrow from the first thread to return to search.",
+  );
+  expect(html).toContain(
+    'id="comments-panel-result-summary" aria-live="polite"',
+  );
+  expect(html).toContain('role="list"');
+  expect(html).toContain('aria-describedby="comments-panel-keyboard-help"');
+  expect(html).toContain(
+    'aria-label="Comment threads, 1 thread · 2 messages"',
+  );
+  expect(html).toContain(
+    'class="global-comment-listitem" role="listitem" aria-posinset="1" aria-setsize="1"',
+  );
+  expect(html).toContain('aria-label="Comment status filters"');
+  expect(html).toContain("All 1");
+  expect(html).toContain("Open 1");
+  expect(html).toContain('aria-label="Show 1 open thread"');
+  expect(html).toContain('aria-pressed="true"');
+  expect(html).toContain('aria-pressed="false"');
+  expect(html).toContain("2 messages");
+  expect(html).toContain(
+    'aria-label="Open thread in src/app.ts, current thread, Source L2, L2, source, 2 messages, latest by Codex"',
+  );
+  expect(html).toContain("global-comment-row open active");
+  expect(html).toContain('aria-current="true"');
+  expect(html).toContain('aria-keyshortcuts="ArrowDown ArrowUp Home End"');
+  expect(html).toContain('data-comment-thread-id="thread-1"');
+  expect(html).toContain("Current thread");
+  expect(html).toContain("Source L2");
+  expect(html).toContain('data-comment-id="comment-2"');
+  expect(html).toContain("Latest by Codex");
+  expect(html).toContain("Agent reply is visible as the latest thread message");
   expect(html).toContain("Codex replied 1m ago");
-  expect(html).toContain("open");
+  expect(html).toContain("source");
+  expect(html).toContain("global-comment-thread-foot");
+  expect(html).toContain("global-comment-open-hint");
+  expect(html).toContain("Open thread");
+  expect(html).toContain(
+    'aria-label="Thread actions for src/app.ts, L2"',
+  );
+  expect(html).toContain(">Resolve current stop</button>");
+  expect(html).toContain(">Archive current stop</button>");
+  expect(html).toContain(
+    'aria-keyshortcuts="Meta+Shift+Enter Control+Shift+Enter"',
+  );
+  expect(html).toContain(
+    'aria-keyshortcuts="Meta+Shift+Backspace Control+Shift+Backspace"',
+  );
+  expect(html).toContain(
+    'title="Resolve current stop (Cmd/Ctrl Shift Enter)"',
+  );
+  expect(html).toContain(
+    'title="Archive current stop (Cmd/Ctrl Shift Backspace)"',
+  );
+  expect(html).toContain("Open");
+});
+
+it("maps comments inbox arrow keys to stable thread rows", () => {
+  expect(commentInboxKeyboardTarget("ArrowDown", -1, 3)).toBe(0);
+  expect(commentInboxKeyboardTarget("ArrowDown", 0, 3)).toBe(1);
+  expect(commentInboxKeyboardTarget("ArrowDown", 2, 3)).toBe(2);
+  expect(commentInboxKeyboardTarget("ArrowUp", 2, 3)).toBe(1);
+  expect(commentInboxKeyboardTarget("ArrowUp", 0, 3)).toBe("search");
+  expect(commentInboxKeyboardTarget("Home", 2, 3)).toBe(0);
+  expect(commentInboxKeyboardTarget("End", 0, 3)).toBe(2);
+  expect(commentInboxKeyboardTarget("Enter", 0, 3)).toBeNull();
+  expect(commentInboxKeyboardTarget("End", -1, 3)).toBeNull();
+  expect(commentInboxKeyboardTarget("ArrowDown", -1, 0)).toBeNull();
+});
+
+it("opens the latest comment when a workspace comment row is activated", () => {
+  const opened: string[] = [];
+  const panel = CommentsPanel({
+    open: true,
+    comments: [
+      { ...codeLineComment, threadId: "thread-1" },
+      {
+        ...codeLineComment,
+        id: "comment-latest",
+        threadId: "thread-1",
+        body: "Latest reply is the navigation target.",
+        createdAt: "2026-01-01T00:01:00.000Z",
+        updatedAt: "2026-01-01T00:02:00.000Z",
+      },
+    ],
+    query: "",
+    statusFilter: "open",
+    onQueryChange: () => undefined,
+    onStatusFilterChange: () => undefined,
+    onClose: () => undefined,
+    onOpenComment: (comment) => opened.push(comment.id),
+  });
+
+  const row = findElement(panel, (element) => {
+    const props = element.props as {
+      className?: string;
+      "aria-label"?: string;
+    };
+    return (
+      props.className?.split(" ").includes("global-comment-row") &&
+      props["aria-label"]?.startsWith("Open thread in src/app.ts") === true
+    );
+  });
+  const props = row.props as {
+    onClick: () => void;
+    children?: ReactNode;
+  };
+
+  props.onClick();
+
+  expect(flattenText(props.children)).toContain("Open thread");
+  expect(opened).toEqual(["comment-latest"]);
+});
+
+it("updates thread status from the workspace comments action rail", () => {
+  const updates: Array<[string, string]> = [];
+  const panel = CommentsPanel({
+    open: true,
+    comments: [{ ...codeLineComment, threadId: "thread-1" }],
+    query: "",
+    statusFilter: "open",
+    onQueryChange: () => undefined,
+    onStatusFilterChange: () => undefined,
+    onClose: () => undefined,
+    onOpenComment: () => undefined,
+    onStatusChange: (threadId, status) => updates.push([threadId, status]),
+  });
+
+  const resolveButton = findElement(panel, (element) => {
+    const props = element.props as { children?: ReactNode; type?: string };
+    return props.type === "button" && flattenText(props.children) === "Resolve";
+  });
+  const archiveButton = findElement(panel, (element) => {
+    const props = element.props as { children?: ReactNode; type?: string };
+    return props.type === "button" && flattenText(props.children) === "Archive";
+  });
+
+  (resolveButton.props as { onClick: () => void }).onClick();
+  (archiveButton.props as { onClick: () => void }).onClick();
+
+  expect(updates).toEqual([
+    ["thread-1", "resolved"],
+    ["thread-1", "archived"],
+  ]);
+});
+
+it("offers reopen from resolved workspace comment threads", () => {
+  const html = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={[
+        {
+          ...codeLineComment,
+          id: "resolved-comment",
+          threadId: "thread-resolved",
+          status: "resolved",
+        },
+      ]}
+      query=""
+      statusFilter="resolved"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+      onStatusChange={() => undefined}
+    />,
+  );
+
+  expect(html).toContain(">Reopen</button>");
+  expect(html).toContain(">Archive</button>");
+  expect(html).not.toContain(">Resolve</button>");
+});
+
+it("returns to the exact active comment from the workspace comment current stop", () => {
+  const opened: string[] = [];
+  const updates: Array<[string, string]> = [];
+  const panel = CommentsPanel({
+    open: true,
+    comments: [
+      { ...codeLineComment, threadId: "thread-1" },
+      {
+        ...codeLineComment,
+        id: "comment-latest",
+        threadId: "thread-1",
+        body: "Latest reply is newer than the current stop.",
+        createdAt: "2026-01-01T00:01:00.000Z",
+        updatedAt: "2026-01-01T00:02:00.000Z",
+      },
+    ],
+    query: "",
+    statusFilter: "resolved",
+    activeCommentId: codeLineComment.id,
+    onQueryChange: () => undefined,
+    onStatusFilterChange: () => undefined,
+    onClose: () => undefined,
+    onOpenComment: (comment) => opened.push(comment.id),
+    onStatusChange: (threadId, status) => updates.push([threadId, status]),
+  });
+
+  const returnButton = findElement(panel, (element) => {
+    const props = element.props as {
+      "aria-label"?: string;
+      children?: ReactNode;
+    };
+    return (
+      props["aria-label"] ===
+        "Return to current stop, src/app.ts, Source L2, L2" &&
+      flattenText(props.children) === "Return"
+    );
+  });
+
+  (returnButton.props as { onClick: () => void }).onClick();
+
+  expect(opened).toEqual([codeLineComment.id]);
+
+  const resolveButton = findElement(panel, (element) => {
+    const props = element.props as {
+      children?: ReactNode;
+      title?: string;
+      type?: string;
+    };
+    return (
+      props.type === "button" &&
+      flattenText(props.children) === "Resolve current stop" &&
+      props.title === "Resolve current stop (Cmd/Ctrl Shift Enter)"
+    );
+  });
+  const archiveButton = findElement(panel, (element) => {
+    const props = element.props as {
+      children?: ReactNode;
+      title?: string;
+      type?: string;
+    };
+    return (
+      props.type === "button" &&
+      flattenText(props.children) === "Archive current stop" &&
+      props.title === "Archive current stop (Cmd/Ctrl Shift Backspace)"
+    );
+  });
+
+  (resolveButton.props as { onClick: () => void }).onClick();
+  (archiveButton.props as { onClick: () => void }).onClick();
+
+  expect(flattenText((panel.props as { children?: ReactNode }).children)).toContain(
+    "Hidden by current filter",
+  );
+  expect(updates).toEqual([
+    ["thread-1", "resolved"],
+    ["thread-1", "archived"],
+  ]);
+});
+
+it("treats comments inbox filters as pressed state controls", () => {
+  const selected: string[] = [];
+  const panel = CommentsPanel({
+    open: true,
+    comments: [{ ...codeLineComment, threadId: "thread-1" }],
+    query: "",
+    statusFilter: "attention",
+    unreadReviewPaths: new Set(["src/app.ts"]),
+    onQueryChange: () => undefined,
+    onStatusFilterChange: (status) => selected.push(status),
+    onClose: () => undefined,
+    onOpenComment: () => undefined,
+  });
+
+  const attentionFilter = findElement(panel, (element) => {
+    const props = element.props as {
+      "aria-label"?: string;
+      "aria-pressed"?: boolean;
+    };
+    return props["aria-label"] === "Show 1 attention thread";
+  });
+  const openFilter = findElement(panel, (element) => {
+    const props = element.props as {
+      "aria-label"?: string;
+    };
+    return props["aria-label"] === "Show 1 open thread";
+  });
+
+  expect(
+    (attentionFilter.props as { "aria-pressed": boolean })["aria-pressed"],
+  ).toBe(true);
+  expect((openFilter.props as { "aria-pressed": boolean })["aria-pressed"]).toBe(
+    false,
+  );
+
+  (openFilter.props as { onClick: () => void }).onClick();
+
+  expect(selected).toEqual(["open"]);
+});
+
+it("shows surface-specific anchor context in workspace comment rows", () => {
+  const renderedComment: ViviComment = {
+    ...codeLineComment,
+    id: "rendered-comment-1",
+    threadId: "rendered-thread-1",
+    path: "README.md",
+    viewerKind: "markdown",
+    anchor: {
+      surface: "rendered",
+      canonical: {
+        path: "README.md",
+        lineStart: 3,
+        lineEnd: 4,
+        quote: "Paragraph text",
+      },
+      rendered: {
+        kind: "markdown",
+        blockId: "vivi-block-2",
+        sourceLineStart: 3,
+        sourceLineEnd: 4,
+      },
+    },
+    body: "Rendered paragraph needs a clearer transition.",
+  };
+  const diffComment: ViviComment = {
+    ...codeLineComment,
+    id: "diff-comment-1",
+    threadId: "diff-thread-1",
+    anchor: {
+      surface: "diff",
+      canonical: {
+        path: "src/app.ts",
+        lineStart: 20,
+        lineEnd: 21,
+        quote: "new line one\nnew line two",
+      },
+      diff: {
+        path: "src/app.ts",
+        base: "HEAD",
+        ref: "working tree",
+        hunkId: "@@ -10,1 +20,2 @@",
+        side: "new",
+        newLineStart: 20,
+        newLineEnd: 21,
+      },
+    },
+    body: "New branch needs an explicit empty-state guard.",
+    updatedAt: "2026-01-01T00:02:00.000Z",
+  };
+  const html = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={[renderedComment, diffComment]}
+      query=""
+      statusFilter="all"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+    />,
+  );
+  const searchHtml = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={[renderedComment, diffComment]}
+      query="source L3"
+      statusFilter="all"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("markdown rendered");
+  expect(html).toContain("Rendered Markdown · block vivi-block-2 · source L3-L4");
+  expect(html).toContain("Block vivi-block-2, source L3-L4");
+  expect(html).toContain("diff");
+  expect(html).toContain("Diff new L20-L21");
+  expect(html).toContain("New diff L20-L21");
+  expect(html).toContain(
+    "Open thread in README.md, Rendered Markdown · block vivi-block-2 · source L3-L4, L3-L4, markdown rendered, Block vivi-block-2, source L3-L4",
+  );
+  expect(html).toContain(
+    "Open thread in src/app.ts, Diff new L20-L21, L20-L21, diff, New diff L20-L21",
+  );
+  expect(searchHtml).toContain("Matched location");
+  expect(searchHtml).toContain(
+    '<mark class="global-comment-search-hit">source L3</mark>-L4',
+  );
+  expect(searchHtml).toContain("1 thread · 1 message");
+  expect(searchHtml).not.toContain("New diff L20-L21");
+});
+
+it("shows the matched comment context while searching the review inbox", () => {
+  const html = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={[
+        { ...codeLineComment, threadId: "thread-1", author: "Human" },
+        { ...codeLineReply, threadId: "thread-1" },
+      ]}
+      query="check"
+      statusFilter="all"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Matched Human");
+  expect(html).toContain("Check this return");
+  expect(html).toContain('<mark class="global-comment-search-hit">Check</mark>');
+  expect(html).toContain(
+    'matched Human, Check this return"',
+  );
+  expect(html).toContain('data-comment-id="comment-2"');
+});
+
+it("shows path matches while searching the review inbox", () => {
+  const html = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={[{ ...codeLineComment, threadId: "thread-1" }]}
+      query="src/app"
+      statusFilter="all"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Matched path");
+  expect(html).toContain("src/app.ts");
+  expect(html).toContain(
+    '<mark class="global-comment-search-hit">src/app</mark>.ts',
+  );
+  expect(html).toContain(
+    'matched path, src/app.ts"',
+  );
+});
+
+it("keeps late comment search matches visible in the review inbox snippet", () => {
+  const lateMatchComment = {
+    ...codeLineComment,
+    threadId: "thread-1",
+    author: "Human",
+    body: `${"intro ".repeat(40)}keep this exact needle visible with context after it`,
+  };
+  const html = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={[lateMatchComment, { ...codeLineReply, threadId: "thread-1" }]}
+      query="needle"
+      statusFilter="all"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Matched Human");
+  expect(html).toContain(
+    '<mark class="global-comment-search-hit">needle</mark>',
+  );
+  expect(html).toContain("context after it");
+});
+
+it("surfaces attention-needed comment threads first in the review inbox", () => {
+  const olderAttentionThread = {
+    ...codeLineComment,
+    id: "attention-1",
+    threadId: "thread-attention",
+    path: "docs/needs-human.md",
+    anchor: {
+      ...codeLineComment.anchor,
+      canonical: {
+        ...codeLineComment.anchor.canonical,
+        path: "docs/needs-human.md",
+      },
+    },
+    body: "Agent reply needs a human decision.",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  };
+  const newerOpenThread = {
+    ...codeLineComment,
+    id: "newer-1",
+    threadId: "thread-newer",
+    path: "src/app.ts",
+    body: "Newer open thread without unseen activity.",
+    updatedAt: "2026-01-01T00:05:00.000Z",
+  };
+  const html = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={[newerOpenThread, olderAttentionThread]}
+      query=""
+      statusFilter="open"
+      unreadReviewPaths={new Set(["docs/needs-human.md"])}
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("1 attention thread");
+  expect(html).toContain("Attention 1");
+  expect(html).toContain("All 2");
+  expect(html).toContain("Open 2");
+  expect(html).toContain("Needs attention");
+  expect(html).toContain("Next review stop");
+  expect(html).toContain("Unseen review activity");
+  expect(html.indexOf("docs/needs-human.md")).toBeLessThan(
+    html.indexOf("src/app.ts"),
+  );
+  expect(html).toContain("global-comment-row open needs-attention");
+  expect(html).toContain(
+    "Open thread in docs/needs-human.md, Source L2, L2, source, 1 message, latest by Unknown, next review stop, unseen review activity, needs attention",
+  );
+
+  const attentionHtml = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={[newerOpenThread, olderAttentionThread]}
+      query=""
+      statusFilter="attention"
+      unreadReviewPaths={new Set(["docs/needs-human.md"])}
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+    />,
+  );
+
+  expect(attentionHtml).toContain(
+    "1 thread · 1 message · 1 attention thread",
+  );
+  expect(attentionHtml).toContain("docs/needs-human.md");
+  expect(attentionHtml).not.toContain("src/app.ts");
+});
+
+it("uses the latest authoritative status for comments inbox threads", () => {
+  const comments = [
+    { ...codeLineComment, threadId: "thread-1", status: "open" as const },
+    {
+      ...codeLineComment,
+      id: "comment-2",
+      threadId: "thread-1",
+      body: "Resolved after the follow-up.",
+      status: "resolved" as const,
+      createdAt: "2026-01-01T00:01:00.000Z",
+      updatedAt: "2026-01-01T00:02:00.000Z",
+    },
+  ];
+  const openHtml = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={comments}
+      query=""
+      statusFilter="open"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+    />,
+  );
+  const resolvedHtml = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={comments}
+      query=""
+      statusFilter="resolved"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+    />,
+  );
+
+  expect(openHtml).toContain("No open threads");
+  expect(openHtml).toContain(
+    "Resolved and archived threads remain available in the history filters.",
+  );
+  expect(openHtml).toContain("All 1");
+  expect(openHtml).toContain("Resolved 1");
+  expect(resolvedHtml).toContain("1 thread · 2 messages");
+  expect(resolvedHtml).toContain("Resolved");
+  expect(resolvedHtml).toContain("Resolved after the follow-up.");
+});
+
+it("uses comments inbox empty states as review guidance", () => {
+  const attentionHtml = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={[codeLineComment]}
+      query=""
+      statusFilter="attention"
+      unreadReviewPaths={new Set()}
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+    />,
+  );
+  const searchHtml = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={[codeLineComment]}
+      query="missing phrase"
+      statusFilter="all"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+    />,
+  );
+
+  expect(attentionHtml).toContain("No threads need attention");
+  expect(attentionHtml).toContain(
+    "Open threads with unseen activity will appear here.",
+  );
+  expect(searchHtml).toContain("No threads match this search");
+  expect(searchHtml).toContain(
+    "Try a path, quoted text, or a phrase from the comment body.",
+  );
 });
 
 it("renders comment activity in Review Queue and inspector comment summaries", () => {
@@ -1018,6 +2778,32 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
     ],
     new Date("2026-06-20T00:01:00.000Z").getTime(),
   );
+  const handoffComment: ViviComment = {
+    ...codeLineComment,
+    id: "handoff-comment-1",
+    threadId: "thread-handoff",
+    path: "docs/agent-handoff.md",
+    anchor: {
+      surface: "diff",
+      canonical: {
+        path: "docs/agent-handoff.md",
+        lineStart: 7,
+        lineEnd: 7,
+        quote: "needs a human decision",
+      },
+      diff: {
+        path: "docs/agent-handoff.md",
+        base: "HEAD",
+        ref: "working-tree",
+        hunkId: "handoff-hunk",
+        side: "new",
+        newLineStart: 7,
+        newLineEnd: 7,
+      },
+    },
+    body: "Agent reply needs a human decision before this file is clear.",
+    updatedAt: "2026-06-20T00:02:00.000Z",
+  };
   const html = renderToStaticMarkup(
     <Inspector
       file={codeFile}
@@ -1045,8 +2831,13 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
       loadingReviewDiffs={{}}
       unreadReviewPaths={new Set()}
       comments={[{ ...codeLineComment, threadId: "thread-1" }]}
+      reviewComments={[
+        { ...codeLineComment, threadId: "thread-1" },
+        handoffComment,
+      ]}
       threadActivities={{ "thread-1": activity }}
       selectedCodeRange={null}
+      activePath="docs/agent-handoff.md"
       activePaneId="main"
       onOpenEventPath={() => undefined}
       onConfirmEventPath={() => undefined}
@@ -1059,13 +2850,29 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
 
   expect(html).toContain("Tasuku marked resolved");
   expect(html).toContain("agent-handoff.md");
+  expect(html).toContain("viewing 2/2");
+  expect(html).toContain('has-open-threads active');
+  const queueHtml = html.slice(html.indexOf('class="review-queue"'));
+  expect(
+    queueHtml.indexOf('data-review-path="docs/agent-handoff.md"'),
+  ).toBeLessThan(queueHtml.indexOf('data-review-path="src/app.ts"'));
   expect(html).toContain("2 open threads");
   expect(html).toContain("3 messages");
+  expect(html).toContain('class="review-stop-summary"');
+  expect(html).toContain("Current stop");
+  expect(html).toContain("Next stop");
+  expect(html).toContain("diff · L7");
   expect(html).toContain(
-    "<strong>2</strong> files · 1 unseen · 2 open threads",
+    "Agent reply needs a human decision before this file is clear.",
+  );
+  expect(html).toContain(
+    'aria-label="comment docs/agent-handoff.md, current review file, unseen review work, 2 open threads, 3 messages, current stop diff · L7, Agent reply needs a human decision before this file is clear."',
+  );
+  expect(html).toContain(
+    "<strong>1/2</strong> files seen · 1 unseen · 2 open threads",
   );
   expect(html).toContain("Review Queue");
-  expect(html).toContain("open comments");
+  expect(html).toContain("1 open thread");
 });
 
 it("opens Review Queue rows as preview on click and stable tabs on double click", () => {
@@ -1089,7 +2896,7 @@ it("opens Review Queue rows as preview on click and stable tabs on double click"
   const button = findElement(inspector, (element) => {
     const props = element.props as { className?: string; children?: ReactNode };
     return (
-      props.className === "change-open" &&
+      props.className?.split(" ").includes("change-open") &&
       flattenText(props.children).includes("src/app.ts")
     );
   });
@@ -1097,12 +2904,24 @@ it("opens Review Queue rows as preview on click and stable tabs on double click"
     onClick: () => void;
     onDoubleClick: () => void;
     title: string;
+    "aria-describedby": string;
+    "aria-keyshortcuts": string;
+    "aria-label": string;
   };
 
   props.onClick();
   props.onDoubleClick();
 
-  expect(props.title).toBe("Double-click to keep open as a tab");
+  expect(props.title).toBe(
+    "Click to preview; double-click to keep open as a tab",
+  );
+  expect(props["aria-describedby"]).toBe(
+    "review-queue-interaction-help review-queue-keyboard-help",
+  );
+  expect(props["aria-keyshortcuts"]).toBe("ArrowDown ArrowUp Home End");
+  expect(props["aria-label"]).toBe(
+    "modified src/app.ts, current review file, seen, from HEAD diff",
+  );
   expect(calls).toEqual(["preview:src/app.ts", "normal:src/app.ts"]);
 });
 
@@ -1142,9 +2961,10 @@ it("keeps Markdown and HTML outline available from the file viewer", () => {
   const html = renderToStaticMarkup(
     <FileOutlineControl
       file={{ ...codeFile, path: "README.md", viewerKind: "markdown" }}
+      defaultOpen
       outline={[
-        { id: "title", level: 1, text: "Title" },
-        { id: "setup", level: 2, text: "Setup" },
+        { id: "title", level: 1, text: "Title", lineStart: 1 },
+        { id: "setup", level: 2, text: "Setup", lineStart: 3 },
       ]}
       selectedCodeRange={null}
       onOutlineSelect={() => undefined}
@@ -1153,7 +2973,100 @@ it("keeps Markdown and HTML outline available from the file viewer", () => {
 
   expect(html).toContain("In this file");
   expect(html).toContain('aria-haspopup="dialog"');
+  expect(html).toContain(
+    'aria-label="Open in-file navigation for README.md, 2 headings"',
+  );
   expect(html).toContain("<small>2</small>");
+  expect(html).toContain("outline-level");
+  expect(html).toContain(">H1</span>");
+  expect(html).toContain(">H2</span>");
+  expect(html).toContain(">L1</span>");
+  expect(html).toContain(">L3</span>");
+});
+
+it("summarizes code symbols and selected range in the local outline trigger", () => {
+  const html = renderToStaticMarkup(
+    <FileOutlineControl
+      file={codeFile}
+      outline={[]}
+      selectedCodeRange={{ start: 1, end: 2 }}
+      onOutlineSelect={() => undefined}
+    />,
+  );
+
+  expect(html).toContain(
+    'aria-label="Open in-file navigation for src/app.ts, 1 symbol, selection src/app.ts:1-2"',
+  );
+  expect(html).toContain("<small>1</small>");
+});
+
+it("renders document outline in the right inspector", () => {
+  const html = renderToStaticMarkup(
+    <Inspector
+      file={markdownFile}
+      reviewChanges={[]}
+      reviewDiffStats={{}}
+      loadingReviewDiffs={{}}
+      unreadReviewPaths={new Set()}
+      comments={[]}
+      selectedCodeRange={null}
+      outline={[
+        { id: "title", level: 1, text: "Title", lineStart: 1 },
+        { id: "setup", level: 2, text: "Setup", lineStart: 3 },
+      ]}
+      activeOutlineId="setup"
+      activePaneId="main"
+      onOpenEventPath={() => undefined}
+      onConfirmEventPath={() => undefined}
+      onOpenNextChanged={() => undefined}
+      onOpenPreviousChanged={() => undefined}
+      onOpenAllChanged={() => undefined}
+      onRevealInTree={() => undefined}
+      onOutlineSelect={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("In this file");
+  expect(html).toContain("2 headings · Setup");
+  expect(html).toContain('aria-label="Document outline"');
+  expect(html).toContain('aria-current="location"');
+  expect(html).toContain('class="h2 active"');
+  expect(html).toContain("outline-level");
+  expect(html).toContain(">H1</span>");
+  expect(html).toContain(">H2</span>");
+  expect(html).toContain(">L1</span>");
+  expect(html).toContain(">L3</span>");
+  expect(html).toContain("Current section");
+  expect(html).toContain("Title");
+  expect(html).toContain("Setup");
+});
+
+it("renders lightweight code symbols in the right inspector", () => {
+  const html = renderToStaticMarkup(
+    <Inspector
+      file={codeFile}
+      reviewChanges={[]}
+      reviewDiffStats={{}}
+      loadingReviewDiffs={{}}
+      unreadReviewPaths={new Set()}
+      comments={[]}
+      selectedCodeRange={null}
+      activePaneId="main"
+      onOpenEventPath={() => undefined}
+      onConfirmEventPath={() => undefined}
+      onOpenNextChanged={() => undefined}
+      onOpenPreviousChanged={() => undefined}
+      onOpenAllChanged={() => undefined}
+      onRevealInTree={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("In this file");
+  expect(html).toContain("1 symbol");
+  expect(html).toContain('aria-label="Code symbols"');
+  expect(html).toContain("export");
+  expect(html).toContain("start");
+  expect(html).toContain("L1");
 });
 
 it("shows why the Review Queue is unavailable instead of looking empty", () => {
@@ -1178,6 +3091,36 @@ it("shows why the Review Queue is unavailable instead of looking empty", () => {
 
   expect(html).toContain("Git review unavailable");
   expect(html).toContain("Git command timed out while reading this workspace.");
+  expect(html).not.toContain("No files to review.");
+});
+
+it("explains an empty Review Queue as active review work being clear", () => {
+  const html = renderToStaticMarkup(
+    <Inspector
+      file={null}
+      reviewChanges={[]}
+      reviewDiffStats={{}}
+      loadingReviewDiffs={{}}
+      unreadReviewPaths={new Set()}
+      selectedCodeRange={null}
+      activePaneId="main"
+      onOpenEventPath={() => undefined}
+      onConfirmEventPath={() => undefined}
+      onOpenNextChanged={() => undefined}
+      onOpenPreviousChanged={() => undefined}
+      onOpenAllChanged={() => undefined}
+      onRevealInTree={() => undefined}
+    />,
+  );
+
+  expect(html).toContain('aria-label="Review queue empty"');
+  expect(html).toContain("Active queue clear");
+  expect(html).toContain(
+    "No Git changes or open comment threads need review right now.",
+  );
+  expect(html).toContain(
+    "Resolved and archived threads stay in Comments history.",
+  );
   expect(html).not.toContain("No files to review.");
 });
 
@@ -1538,7 +3481,7 @@ it("renders diff comments as source-style inline threads after the selected new-
   expect(html).toContain("code-comment-thread-row");
   expect(html).toContain("Lines 20-21");
   expect(html).toContain("Review the new two-line block");
-  expect(html).toContain("Resolve thread");
+  expect(html).toContain("Resolve current stop");
   expect(html).not.toContain("Add comment on line 10");
   expect(html.indexOf("new line two")).toBeLessThan(
     html.indexOf("code-comment-thread-row"),
@@ -1640,6 +3583,159 @@ it("keeps changed tree paths collapsed until explicitly revealed", () => {
 
   expect(html).toContain('data-tree-path="src"');
   expect(html).not.toContain("file-999.ts");
+});
+
+it("surfaces review work, comments, unread state, and open tabs in the tree", () => {
+  const html = renderToStaticMarkup(
+    <TreeSidebar
+      nodes={[
+        {
+          id: "docs",
+          path: "docs",
+          name: "docs",
+          kind: "directory",
+          parentPath: null,
+          children: [
+            {
+              id: "docs/brief.md",
+              path: "docs/brief.md",
+              name: "brief.md",
+              kind: "file",
+              parentPath: "docs",
+              viewerKind: "markdown",
+            },
+            {
+              id: "docs/appendix.md",
+              path: "docs/appendix.md",
+              name: "appendix.md",
+              kind: "file",
+              parentPath: "docs",
+              viewerKind: "markdown",
+            },
+            {
+              id: "docs/review.md",
+              path: "docs/review.md",
+              name: "review.md",
+              kind: "file",
+              parentPath: "docs",
+              viewerKind: "markdown",
+            },
+          ],
+        },
+      ]}
+      selectedPath="docs/brief.md"
+      changedPaths={new Set(["docs/brief.md"])}
+      reviewPaths={new Set(["docs/brief.md", "docs/review.md"])}
+      unreadReviewPaths={new Set(["docs/brief.md", "docs/review.md"])}
+      activePaths={new Set(["docs/brief.md", "docs/appendix.md"])}
+      currentStopPath="docs/review.md"
+      commentCountsByPath={{ "docs/brief.md": 3 }}
+      openThreadCountsByPath={{ "docs/brief.md": 2 }}
+      onSelect={() => undefined}
+      onOpen={() => undefined}
+    />,
+  );
+
+  expect(html).toContain(
+    "tree-row dir has-review-work has-unread-work open-in-tab contains-selection",
+  );
+  expect(html).toContain("tree-row file selected changed has-review-work");
+  expect(html).toContain("contains-current-stop");
+  expect(html).toContain("tree-row file has-review-work has-unread-work current-review-stop");
+  expect(html).toContain('role="tree"');
+  expect(html).toContain(
+    'aria-label="Live workspace map, 3 files, 2 review files, 2 unseen review files, 2 open files, 2 open threads, 3 comments"',
+  );
+  expect(html).toContain('id="workspace-tree-interaction-help"');
+  expect(html).toContain(
+    'aria-describedby="workspace-tree-interaction-help"',
+  );
+  expect(html).toContain("Click a file to preview it.");
+  expect(html).toContain(
+    "Double-click or press Enter to keep it open as a tab.",
+  );
+  expect(html).toContain('role="treeitem"');
+  expect(html).toContain('aria-expanded="true"');
+  expect(html).toContain('aria-level="2"');
+  expect(html).toContain('aria-selected="true"');
+  expect(html).toContain('class="tree-main"');
+  expect(html).toContain('class="tree-review-reason"');
+  expect(html).toContain(
+    "current review.md · 2 attention · 2 open threads · 2 review files · 2 open tabs",
+  );
+  expect(html).toContain("attention · 2 open threads · review · changed · open tab");
+  expect(html).toContain("attention · current stop · review");
+  expect(html).toContain(
+    'aria-label="docs, folder, expanded, contains selected file, contains current review stop review.md, 2 open files, 2 review files, 2 unseen review files, 2 open threads, 3 comments"',
+  );
+  expect(html).toContain(
+    'aria-label="brief.md, file, selected, changed, review file, unseen review work, open in tab, 2 open threads, 3 comments"',
+  );
+  expect(html).toContain(
+    'aria-label="review.md, file, review file, unseen review work, current review stop"',
+  );
+  expect(html).toContain(
+    'title="Click to preview; double-click to keep open as a tab"',
+  );
+  expect(html).toContain('tabindex="0"');
+  expect(html).toContain("tree-unread-dot");
+  expect(html).toContain("tree-badge attention");
+  expect(html).toContain("tree-badge current");
+  expect(html).toContain(">current</span>");
+  expect(html).toContain("attention 2");
+  expect(html).toContain(">attention</span>");
+  expect(html).toContain("review");
+  expect(html).toContain("open 2");
+  expect(html).toContain("open");
+  expect(html).toContain("2 threads");
+  expect(html).toContain("changed");
+});
+
+it("names the next review stop in tree folders when there is no current stop", () => {
+  const html = renderToStaticMarkup(
+    <TreeSidebar
+      nodes={[
+        {
+          id: "docs",
+          path: "docs",
+          name: "docs",
+          kind: "directory",
+          parentPath: null,
+          children: [
+            {
+              id: "docs/brief.md",
+              path: "docs/brief.md",
+              name: "brief.md",
+              kind: "file",
+              parentPath: "docs",
+              viewerKind: "markdown",
+            },
+            {
+              id: "docs/review.md",
+              path: "docs/review.md",
+              name: "review.md",
+              kind: "file",
+              parentPath: "docs",
+              viewerKind: "markdown",
+            },
+          ],
+        },
+      ]}
+      selectedPath={null}
+      reviewPaths={new Set(["docs/brief.md", "docs/review.md"])}
+      unreadReviewPaths={new Set(["docs/brief.md"])}
+      openThreadCountsByPath={{ "docs/review.md": 1 }}
+      onSelect={() => undefined}
+      onOpen={() => undefined}
+    />,
+  );
+
+  expect(html).toContain(
+    "next brief.md · attention · 1 open thread · 2 review files",
+  );
+  expect(html).toContain(
+    'aria-label="docs, folder, expanded, next review stop brief.md, 2 review files, 1 unseen review file, 1 open thread"',
+  );
 });
 
 it("renders Mermaid diagrams with the official Mermaid runtime", () => {

@@ -13,9 +13,17 @@ import {
   type CodeSymbol,
   type LineRange,
 } from "../../../state/code-viewer.js";
+import {
+  fileLocationSegments,
+  fileLocationSummary,
+} from "../../../state/file-location.js";
 import type {
   CommentCreateHandler,
   CommentStatusChangeHandler,
+} from "../../../state/comments.js";
+import {
+  commentLineLabel,
+  truncateCommentPreview,
 } from "../../../state/comments.js";
 import type { OutlineHeading } from "../../../state/outline.js";
 import type { ResolvedTheme } from "../../../state/theme.js";
@@ -62,6 +70,8 @@ export function FileViewer({
   allowHtmlScripts,
   theme,
   selectedCodeRange,
+  focusLineNumber,
+  focusRevision,
   viewerMode,
   diff,
   diffLoading,
@@ -82,6 +92,8 @@ export function FileViewer({
   onCloseComment,
   onCommentStatusChange,
   threadActivities = {},
+  onRevealInTree,
+  onFocusActiveComment,
   onCloseRemoved,
 }: {
   file: FilePayload | null;
@@ -89,6 +101,8 @@ export function FileViewer({
   allowHtmlScripts: boolean;
   theme: ResolvedTheme;
   selectedCodeRange: LineRange | null;
+  focusLineNumber?: number | null;
+  focusRevision?: number;
   viewerMode?: ViewerMode;
   diff?: TextDiff | null;
   diffLoading?: boolean;
@@ -109,11 +123,24 @@ export function FileViewer({
   onCloseComment?: () => void;
   onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities?: Record<string, CommentActivitySummary>;
+  onRevealInTree?: (path?: string) => void;
+  onFocusActiveComment?: () => void;
   onCloseRemoved?: () => void;
 }) {
   if (!file)
     return <div className="empty-viewer">Select a file from the tree.</div>;
 
+  const activeReviewStop = activeFileReviewStop(
+    file,
+    comments,
+    activeCommentId ?? null,
+  );
+  const frameProps = {
+    file,
+    activeReviewStop,
+    onFocusActiveComment,
+    onRevealInTree,
+  };
   const localOutline = (
     <FileOutlineControl
       file={file}
@@ -126,7 +153,7 @@ export function FileViewer({
 
   if (removed) {
     return (
-      <FileViewerFrame outlineControl={localOutline}>
+      <FileViewerFrame {...frameProps}>
         <div className="removed-viewer" aria-live="polite">
           <p className="removed-eyebrow">Removed from disk</p>
           <h2>{file.path}</h2>
@@ -147,12 +174,12 @@ export function FileViewer({
   if (file.truncated) {
     if (file.encoding === "utf8" && file.content)
       return (
-        <FileViewerFrame outlineControl={localOutline}>
+        <FileViewerFrame {...frameProps}>
           <LargeTextPreview file={file} />
         </FileViewerFrame>
       );
     return (
-      <FileViewerFrame outlineControl={localOutline}>
+      <FileViewerFrame {...frameProps}>
         <BinaryMetadataViewer
           file={file}
           theme={theme}
@@ -173,11 +200,13 @@ export function FileViewer({
 
   if (file.viewerKind === "markdown")
     return (
-      <FileViewerFrame outlineControl={localOutline}>
+      <FileViewerFrame {...frameProps}>
         <LazyViewerFallback path={file.path}>
           <MarkdownViewer
             file={file}
             mode={viewerMode}
+            focusLineNumber={focusLineNumber}
+            focusRevision={focusRevision}
             toolbarAction={localOutline}
             diff={diff}
             diffLoading={diffLoading}
@@ -200,12 +229,14 @@ export function FileViewer({
     );
   if (file.viewerKind === "html")
     return (
-      <FileViewerFrame outlineControl={localOutline}>
+      <FileViewerFrame {...frameProps}>
         <LazyViewerFallback path={file.path}>
           <HtmlViewer
             file={file}
             allowHtmlScripts={allowHtmlScripts}
             mode={viewerMode}
+            focusLineNumber={focusLineNumber}
+            focusRevision={focusRevision}
             toolbarAction={localOutline}
             diff={diff}
             diffLoading={diffLoading}
@@ -226,7 +257,7 @@ export function FileViewer({
     );
   if (file.viewerKind === "json")
     return (
-      <FileViewerFrame outlineControl={localOutline}>
+      <FileViewerFrame {...frameProps}>
         <LazyViewerFallback path={file.path}>
           <JsonViewer
             file={file}
@@ -247,7 +278,7 @@ export function FileViewer({
     );
   if (file.viewerKind === "mermaid")
     return (
-      <FileViewerFrame outlineControl={localOutline}>
+      <FileViewerFrame {...frameProps}>
         <LazyViewerFallback path={file.path}>
           <MermaidViewer
             file={file}
@@ -268,12 +299,14 @@ export function FileViewer({
     );
   if (file.viewerKind === "code")
     return (
-      <FileViewerFrame outlineControl={localOutline}>
+      <FileViewerFrame {...frameProps}>
         <LazyViewerFallback path={file.path}>
           <CodeViewer
             file={file}
             theme={theme}
             selectedRange={selectedCodeRange}
+            focusLineNumber={focusLineNumber}
+            focusRevision={focusRevision}
             toolbarAction={localOutline}
             refreshedAt={refreshedAt}
             diff={diff}
@@ -296,7 +329,7 @@ export function FileViewer({
     );
   if (file.viewerKind === "text" && isDelimitedPath(file.path))
     return (
-      <FileViewerFrame outlineControl={localOutline}>
+      <FileViewerFrame {...frameProps}>
         <CsvViewer
           file={file}
           theme={theme}
@@ -315,7 +348,7 @@ export function FileViewer({
     );
   if (file.viewerKind === "image")
     return (
-      <FileViewerFrame outlineControl={localOutline}>
+      <FileViewerFrame {...frameProps}>
         <LazyViewerFallback path={file.path}>
           <ImageViewer
             file={file}
@@ -336,7 +369,7 @@ export function FileViewer({
     );
   if (file.viewerKind === "binary")
     return (
-      <FileViewerFrame outlineControl={localOutline}>
+      <FileViewerFrame {...frameProps}>
         <BinaryMetadataViewer
           file={file}
           theme={theme}
@@ -355,11 +388,13 @@ export function FileViewer({
     );
   if (file.viewerKind === "text")
     return (
-      <FileViewerFrame outlineControl={localOutline}>
+      <FileViewerFrame {...frameProps}>
         <LazyViewerFallback path={file.path}>
           <TextViewer
             file={file}
             theme={theme}
+            focusLineNumber={focusLineNumber}
+            focusRevision={focusRevision}
             diff={diff}
             diffLoading={diffLoading}
             diffEnabled={diffEnabled}
@@ -376,7 +411,7 @@ export function FileViewer({
     );
 
   return (
-    <FileViewerFrame outlineControl={localOutline}>
+    <FileViewerFrame {...frameProps}>
       <div className="unsupported">
         <h2>{file.path}</h2>
         <button
@@ -410,8 +445,132 @@ export function FileViewer({
   );
 }
 
-function FileViewerFrame({ children }: { children: ReactNode; outlineControl?: ReactNode }) {
-  return <div className="file-viewer-frame">{children}</div>;
+function FileViewerFrame({
+  children,
+  file,
+  activeReviewStop,
+  onFocusActiveComment,
+  onRevealInTree,
+}: {
+  children: ReactNode;
+  file: FilePayload;
+  activeReviewStop?: ActiveFileReviewStop | null;
+  onFocusActiveComment?: () => void;
+  onRevealInTree?: (path?: string) => void;
+}) {
+  return (
+    <div className="file-viewer-frame">
+      <FileLocationBar
+        file={file}
+        activeReviewStop={activeReviewStop}
+        onFocusActiveComment={onFocusActiveComment}
+        onRevealInTree={onRevealInTree}
+      />
+      {children}
+    </div>
+  );
+}
+
+export function FileLocationBar({
+  file,
+  activeReviewStop = null,
+  onFocusActiveComment,
+  onRevealInTree,
+}: {
+  file: FilePayload;
+  activeReviewStop?: ActiveFileReviewStop | null;
+  onFocusActiveComment?: () => void;
+  onRevealInTree?: (path?: string) => void;
+}) {
+  const segments = fileLocationSegments(file.path);
+  if (!segments.length) return null;
+  return (
+    <div
+      className="file-location-bar"
+      aria-label={fileLocationBarLabel(file.path)}
+    >
+      <nav
+        className="file-location-crumbs"
+        aria-label={`Location: ${file.path}`}
+      >
+        {segments.map((segment, index) => {
+          const segmentLabel = fileLocationSegmentLabel(
+            segment,
+            index,
+            segments.length,
+          );
+          return (
+            <span className="file-location-segment" key={segment.path}>
+              {index > 0 ? (
+                <span className="file-location-separator">/</span>
+              ) : null}
+              <button
+                aria-current={segment.kind === "file" ? "page" : undefined}
+                aria-label={segmentLabel}
+                type="button"
+                className={segment.kind}
+                title={segmentLabel}
+                onClick={() => onRevealInTree?.(segment.path)}
+              >
+                {segment.label}
+              </button>
+            </span>
+          );
+        })}
+      </nav>
+      <button
+        aria-label={`Reveal ${file.path} in the sidebar tree`}
+        type="button"
+        className="file-location-reveal"
+        onClick={() => onRevealInTree?.(file.path)}
+        title={`Reveal ${file.path} in the sidebar tree`}
+      >
+        Show in tree
+      </button>
+      <span className="file-location-summary">
+        {fileLocationSummary(file.path)}
+      </span>
+      {activeReviewStop ? (
+        <button
+          aria-keyshortcuts="Meta+I Control+I"
+          aria-label={`Focus current review stop, ${activeReviewStop.label}, ${activeReviewStop.preview}`}
+          className="file-location-review-stop"
+          disabled={!onFocusActiveComment}
+          type="button"
+          onClick={onFocusActiveComment}
+          title={`Focus current review stop (${activeReviewStop.label})`}
+        >
+          <strong>Current stop</strong>
+          <span>{activeReviewStop.label}</span>
+          <span>{activeReviewStop.preview}</span>
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+interface ActiveFileReviewStop {
+  label: string;
+  preview: string;
+}
+
+export function activeFileReviewStop(
+  file: FilePayload,
+  comments: ViviComment[],
+  activeCommentId: string | null,
+): ActiveFileReviewStop | null {
+  if (!activeCommentId) return null;
+  const comment = comments.find(
+    (candidate) =>
+      candidate.id === activeCommentId && candidate.path === file.path,
+  );
+  if (!comment) return null;
+  return {
+    label: [surfaceLabel(comment), commentLineLabel(comment)]
+      .filter(Boolean)
+      .join(" · "),
+    preview: truncateCommentPreview(comment.body, 72),
+  };
 }
 
 export function FileOutlineControl({
@@ -436,6 +595,12 @@ export function FileOutlineControl({
       : null;
   const codeSymbols = codeMetadata?.symbols.slice(0, 14) ?? [];
   const hasItems = codeSymbols.length > 0 || outline.length > 0;
+  const outlineLabel = fileOutlineControlLabel({
+    path: file.path,
+    symbolCount: codeSymbols.length,
+    headingCount: outline.length,
+    selectedReference: codeMetadata?.selectedReference ?? null,
+  });
 
   useEffect(() => {
     if (!open) return undefined;
@@ -471,8 +636,10 @@ export function FileOutlineControl({
         aria-controls={open ? panelId : undefined}
         aria-expanded={open}
         aria-haspopup="dialog"
+        aria-label={outlineLabel}
         className="local-outline-button"
         type="button"
+        title={outlineLabel}
         onClick={() => setOpen((value) => !value)}
       >
         <span>In this file</span>
@@ -524,6 +691,55 @@ export function FileOutlineControl({
   );
 }
 
+function fileLocationBarLabel(path: string): string {
+  const summary = fileLocationSummary(path);
+  return summary === path
+    ? `Current file location, ${path}`
+    : `Current file location, ${summary}, full path ${path}`;
+}
+
+function surfaceLabel(comment: ViviComment): string {
+  if (comment.anchor.surface === "diff") return "diff";
+  if (comment.anchor.surface === "rendered") {
+    return `${comment.anchor.rendered?.kind ?? comment.viewerKind} rendered`;
+  }
+  return "source";
+}
+
+function fileLocationSegmentLabel(
+  segment: ReturnType<typeof fileLocationSegments>[number],
+  index: number,
+  count: number,
+): string {
+  if (segment.kind === "file") {
+    return `Current file ${segment.label}, segment ${index + 1} of ${count}, reveal ${segment.path} in the sidebar tree`;
+  }
+  return `Reveal folder ${segment.path}, segment ${index + 1} of ${count}, in the sidebar tree`;
+}
+
+function fileOutlineControlLabel({
+  path,
+  symbolCount,
+  headingCount,
+  selectedReference,
+}: {
+  path: string;
+  symbolCount: number;
+  headingCount: number;
+  selectedReference: string | null;
+}): string {
+  const parts = [`Open in-file navigation for ${path}`];
+  if (symbolCount) {
+    parts.push(`${symbolCount} ${symbolCount === 1 ? "symbol" : "symbols"}`);
+  } else {
+    parts.push(
+      `${headingCount} ${headingCount === 1 ? "heading" : "headings"}`,
+    );
+  }
+  if (selectedReference) parts.push(`selection ${selectedReference}`);
+  return parts.join(", ");
+}
+
 function CodeSymbolList({
   symbols,
   onSelect,
@@ -570,7 +786,11 @@ function HeadingOutlineList({
             onSelect(heading.id);
           }}
         >
-          {heading.text}
+          <span className="outline-level">H{heading.level}</span>
+          <span className="outline-text">{heading.text}</span>
+          {heading.lineStart ? (
+            <span className="outline-line">L{heading.lineStart}</span>
+          ) : null}
         </a>
       ))}
     </nav>

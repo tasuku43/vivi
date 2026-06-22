@@ -1,14 +1,21 @@
+import type { KeyboardEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { SearchPaletteMode } from "../../state/search-palette.js";
 import {
   buildCommandActionItems,
   buildFileSearchItems,
+  buildRecentFileSearchItems,
   buildTextSearchItems,
+  textSearchPreviewSegments,
 } from "../../state/search-palette.js";
-import type { CommandActionItem } from "../../state/search-palette.js";
+import type {
+  CommandActionItem,
+  RecentFileSearchResult,
+} from "../../state/search-palette.js";
 import {
   clampPaletteSelection,
   movePaletteSelection,
+  paletteModeKeyboardAction,
 } from "../../state/command-palette.js";
 import { iconForPath } from "../../state/file-icons.js";
 import type {
@@ -21,6 +28,7 @@ interface Props {
   mode: SearchPaletteMode;
   query: string;
   fileResults: FileSearchResult[];
+  recentFiles?: RecentFileSearchResult[];
   fileLoading: boolean;
   textResults: TextSearchResult[];
   textLoading: boolean;
@@ -28,7 +36,7 @@ interface Props {
   onQueryChange: (query: string) => void;
   onModeChange: (mode: SearchPaletteMode) => void;
   onClose: () => void;
-  onOpenPath: (path: string, preview: boolean) => void;
+  onOpenPath: (path: string, preview: boolean, lineNumber?: number) => void;
   onRunAction?: (id: string) => void;
 }
 
@@ -37,6 +45,7 @@ export function CommandPalette({
   mode,
   query,
   fileResults,
+  recentFiles = [],
   fileLoading,
   textResults,
   textLoading,
@@ -48,11 +57,17 @@ export function CommandPalette({
   onRunAction,
 }: Props) {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const hasActionMode = actions.length > 0 || mode === "action";
+  const availableModes = useMemo<SearchPaletteMode[]>(
+    () => (hasActionMode ? ["file", "text", "action"] : ["file", "text"]),
+    [hasActionMode],
+  );
   const results = useMemo(() => {
     if (mode === "action") return buildCommandActionItems(actions);
     if (mode === "text") return buildTextSearchItems(textResults);
+    if (!query.trim()) return buildRecentFileSearchItems(recentFiles);
     return buildFileSearchItems(fileResults);
-  }, [actions, fileResults, mode, textResults]);
+  }, [actions, fileResults, mode, query, recentFiles, textResults]);
 
   useEffect(() => {
     if (open) setSelectedIndex(0);
@@ -87,6 +102,28 @@ export function CommandPalette({
     visibleResults.length,
   );
 
+  function switchMode(nextMode: SearchPaletteMode) {
+    onModeChange(nextMode);
+    window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLButtonElement>(
+          `.palette-mode-bar [data-palette-mode="${nextMode}"]`,
+        )
+        ?.focus();
+    });
+  }
+
+  function handleModeKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    const nextMode = paletteModeKeyboardAction(
+      availableModes,
+      mode,
+      event.key,
+    );
+    if (!nextMode || nextMode === mode) return;
+    event.preventDefault();
+    switchMode(nextMode);
+  }
+
   return (
     <div className="palette-overlay" role="presentation" onClick={onClose}>
       <section
@@ -100,11 +137,14 @@ export function CommandPalette({
             className="palette-mode-bar"
             role="tablist"
             aria-label="Search mode"
+            onKeyDown={handleModeKeyDown}
           >
             <button
               className={mode === "file" ? "active" : ""}
               role="tab"
               aria-selected={mode === "file"}
+              tabIndex={mode === "file" ? 0 : -1}
+              data-palette-mode="file"
               onClick={() => onModeChange("file")}
             >
               Files
@@ -113,24 +153,31 @@ export function CommandPalette({
               className={mode === "text" ? "active" : ""}
               role="tab"
               aria-selected={mode === "text"}
+              tabIndex={mode === "text" ? 0 : -1}
+              data-palette-mode="text"
               onClick={() => onModeChange("text")}
             >
               Text
             </button>
-            <button
-              className={mode === "action" ? "active" : ""}
-              role="tab"
-              aria-selected={mode === "action"}
-              onClick={() => onModeChange("action")}
-            >
-              Actions
-            </button>
+            {hasActionMode ? (
+              <button
+                className={mode === "action" ? "active" : ""}
+                role="tab"
+                aria-selected={mode === "action"}
+                tabIndex={mode === "action" ? 0 : -1}
+                data-palette-mode="action"
+                onClick={() => onModeChange("action")}
+              >
+                Actions
+              </button>
+            ) : null}
           </div>
           <input
             autoFocus
             className="palette-input"
             placeholder={placeholder}
             value={query}
+            aria-label={`${title} query`}
             aria-activedescendant={
               activeVisibleIndex >= 0
                 ? `palette-result-${activeVisibleIndex}`
@@ -163,13 +210,21 @@ export function CommandPalette({
                     onRunAction?.(item.id.replace(/^action:/, ""));
                   return;
                 }
-                onOpenPath(item.path, !(event.metaKey || event.ctrlKey));
+                onOpenPath(
+                  item.path,
+                  !(event.metaKey || event.ctrlKey),
+                  item.kind === "text" ? item.lineNumber : undefined,
+                );
               }
             }}
           />
         </div>
         <div className="palette-body">
-          <div className="palette-results" role="listbox">
+          <div
+            className="palette-results"
+            role="listbox"
+            aria-label={`${title} results`}
+          >
             {visibleResults.map((item, index) => (
               <button
                 id={`palette-result-${index}`}
@@ -193,7 +248,11 @@ export function CommandPalette({
                   if (item.kind === "action") {
                     onRunAction?.(item.id.replace(/^action:/, ""));
                   } else {
-                    onOpenPath(item.path, true);
+                    onOpenPath(
+                      item.path,
+                      true,
+                      item.kind === "text" ? item.lineNumber : undefined,
+                    );
                   }
                 }}
                 onMouseEnter={() => setSelectedIndex(index)}
@@ -205,11 +264,17 @@ export function CommandPalette({
                 </span>
                 <span className="palette-result-main">
                   <strong>{item.label}</strong>
-                  <small>{item.detail}</small>
+                  <small>
+                    {item.kind === "text" ? (
+                      <TextSearchPreview item={item} />
+                    ) : (
+                      item.detail
+                    )}
+                  </small>
                 </span>
                 <span className="palette-type">
                   {item.kind === "file"
-                    ? "Open"
+                    ? filePaletteType(item.source)
                     : item.kind === "text"
                       ? `L${item.lineNumber}`
                       : (item.shortcut ?? "Run")}
@@ -225,7 +290,9 @@ export function CommandPalette({
             {!visibleResults.length && !textLoading && !fileLoading && (
               <p className="muted palette-empty">
                 {mode === "file"
-                  ? "No matching files."
+                  ? query.trim()
+                    ? "No matching files."
+                    : "No recent files yet."
                   : mode === "text"
                     ? "No text matches."
                     : "No matching actions."}
@@ -233,26 +300,51 @@ export function CommandPalette({
             )}
           </div>
           <aside className="palette-help">
-            <div>
-              <span>Preview</span>
-              <kbd>Enter</kbd>
-            </div>
-            <div>
-              <span>Keep open</span>
-              <kbd>Cmd Enter</kbd>
-            </div>
-            <div>
-              <span>Quick open</span>
-              <kbd>Cmd K</kbd>
-            </div>
-            <div>
-              <span>Search text</span>
-              <kbd>Cmd Shift F</kbd>
-            </div>
-            <div>
-              <span>Actions</span>
-              <kbd>tab</kbd>
-            </div>
+            {mode === "action" ? (
+              <>
+                <div>
+                  <span>Run action</span>
+                  <kbd>Enter</kbd>
+                </div>
+                <div>
+                  <span>Filter actions</span>
+                  <kbd>Type</kbd>
+                </div>
+                <div>
+                  <span>Quick open</span>
+                  <kbd>Cmd/Ctrl K</kbd>
+                </div>
+                <div>
+                  <span>Search text</span>
+                  <kbd>Cmd/Ctrl Shift F</kbd>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <span>Preview</span>
+                  <kbd>Enter</kbd>
+                </div>
+                <div>
+                  <span>Keep open</span>
+                  <kbd>Cmd/Ctrl Enter</kbd>
+                </div>
+                <div>
+                  <span>Quick open</span>
+                  <kbd>Cmd/Ctrl K</kbd>
+                </div>
+                <div>
+                  <span>Search text</span>
+                  <kbd>Cmd/Ctrl Shift F</kbd>
+                </div>
+              </>
+            )}
+            {hasActionMode ? (
+              <div>
+                <span>Switch mode</span>
+                <kbd>Tab</kbd>
+              </div>
+            ) : null}
             <div>
               <span>Close</span>
               <kbd>Esc</kbd>
@@ -261,5 +353,41 @@ export function CommandPalette({
         </div>
       </section>
     </div>
+  );
+}
+
+function filePaletteType(
+  source: "search" | "active" | "open" | "recent" | undefined,
+): string {
+  if (source === "active") return "Active";
+  if (source === "recent") return "Recent";
+  return "Open";
+}
+
+function TextSearchPreview({
+  item,
+}: {
+  item: Extract<
+    ReturnType<typeof buildTextSearchItems>[number],
+    { kind: "text" }
+  >;
+}) {
+  return (
+    <>
+      <span className="palette-line-prefix">L{item.lineNumber}</span>{" "}
+      {textSearchPreviewSegments(
+        item.lineText,
+        item.matchStart,
+        item.matchLength,
+      ).map((segment, index) =>
+        segment.match ? (
+          <mark className="palette-search-match" key={index}>
+            {segment.text}
+          </mark>
+        ) : (
+          <span key={index}>{segment.text}</span>
+        ),
+      )}
+    </>
   );
 }

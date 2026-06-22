@@ -90,8 +90,17 @@ export const Statusbar: Story = {
   render: () => (
     <div className="app-shell" style={{ minHeight: 120 }}>
       <footer className="statusbar">
-        <span>3 tabs · 6 to review · 5 root entries</span>
-        <span>7 comments · 3 drafts · watching</span>
+        <span className="statusbar-group">
+          <span className="status-dot live" aria-hidden="true" />5 watched
+          files · 3 open tabs
+        </span>
+        <span className="statusbar-group">
+          6 review files · 7 comments · 3 drafts
+        </span>
+        <span className="statusbar-group">
+          <span className="status-dot live" aria-hidden="true" />
+          Server live · waiting for changes
+        </span>
       </footer>
     </div>
   ),

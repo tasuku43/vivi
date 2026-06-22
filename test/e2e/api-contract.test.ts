@@ -60,6 +60,8 @@ it("serves the language-independent workspace API contract", async () => {
   );
   expect(JSON.stringify(tree)).not.toContain("node_modules");
   expect(JSON.stringify(tree)).not.toContain(".cache");
+  expect(JSON.stringify(tree)).not.toContain(".tmp-go-build-cache");
+  expect(JSON.stringify(tree)).not.toContain("storybook-static");
   expect(JSON.stringify(tree)).not.toContain(".git");
   expect(JSON.stringify(tree)).not.toContain("outside-link.txt");
   expect(tree.nodes.find((node) => node.path === "docs")).toMatchObject({

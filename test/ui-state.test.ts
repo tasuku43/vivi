@@ -5,6 +5,7 @@ import { iconForPath, languageForPath } from "../ui/src/state/file-icons.js";
 import {
   clampPaletteSelection,
   movePaletteSelection,
+  paletteModeKeyboardAction,
 } from "../ui/src/state/command-palette.js";
 import {
   filterTreeToPaths,
@@ -34,8 +35,26 @@ import {
 } from "../ui/src/state/git-review-refresh.js";
 import {
   buildFileSearchItems,
+  buildRecentFileSearchItems,
   buildTextSearchItems,
+  textSearchPreviewSegments,
 } from "../ui/src/state/search-palette.js";
+import {
+  currentThreadLifecycleShortcutStatus,
+  reviewCommandActions,
+} from "../ui/src/state/review-command-actions.js";
+import {
+  fileLocationSegments,
+  fileLocationSummary,
+} from "../ui/src/state/file-location.js";
+import {
+  activeTextSearchResult,
+  codeSelectionForTextSearchTarget,
+  moveTextSearchSession,
+  textSearchPositionLabel,
+  textSearchSessionForSelection,
+  viewerModeForTextSearchTarget,
+} from "../ui/src/state/search-navigation.js";
 import {
   flattenPanes,
   initialEditorLayout,
@@ -55,6 +74,7 @@ import {
   promoteOpenTab,
   upsertOpenTab,
 } from "../ui/src/state/tabs.js";
+import { tabKeyboardAction } from "../ui/src/state/tab-navigation.js";
 import {
   activePanePaths,
   decideLiveRefresh,
@@ -78,6 +98,7 @@ import {
   minSidebarWidth,
   shouldCollapseInspector,
 } from "../ui/src/state/workbench-layout.js";
+import { summarizeWorkspaceStatus } from "../ui/src/state/workspace-status.js";
 import {
   buildWorkspaceSession,
   collectFilePaths,
@@ -105,10 +126,18 @@ import {
   buildReviewQueueItems,
   latestUnreadReviewItemPath,
   nextReviewQueueItemPath,
+  pinActiveReviewQueueItem,
+  reviewQueuePosition,
   summarizeReviewQueue,
 } from "../ui/src/state/review-queue.js";
 import {
   agentReplyNavigationTargets,
+  commentActivityThreadTargets,
+  commentInboxEntryState,
+  commentInboxEntryStatus,
+  commentInboxOpenState,
+  commentNavigationTarget,
+  countAttentionCommentThreads,
   draftCommentNavigationTargets,
   firstRelevantThreadForReviewItem,
   latestUnreadActivityTarget,
@@ -122,6 +151,11 @@ import {
   initialExpandedPaths,
   visibleTreeRows,
 } from "../ui/src/state/tree-expansion.js";
+import {
+  explorerFilterLabel,
+  explorerFilterText,
+} from "../ui/src/state/tree-filter.js";
+import { treeKeyboardAction } from "../ui/src/state/tree-navigation.js";
 
 it("opens, updates, and marks tabs by path", () => {
   const tabs = upsertOpenTab([], {
@@ -243,6 +277,32 @@ it("promotes a preview tab into a stable normal tab", () => {
       isPreview: false,
     },
   ]);
+});
+
+it("maps tab keyboard navigation across open files", () => {
+  const tabs = [
+    { path: "a.md", viewerKind: "markdown", paneId: "main" },
+    { path: "b.html", viewerKind: "html", paneId: "main" },
+    { path: "c.ts", viewerKind: "code", paneId: "main" },
+  ];
+
+  expect(tabKeyboardAction(tabs, "b.html", "ArrowRight")).toEqual({
+    kind: "activate",
+    path: "c.ts",
+  });
+  expect(tabKeyboardAction(tabs, "b.html", "ArrowLeft")).toEqual({
+    kind: "activate",
+    path: "a.md",
+  });
+  expect(tabKeyboardAction(tabs, "c.ts", "ArrowRight")).toEqual({
+    kind: "activate",
+    path: "a.md",
+  });
+  expect(tabKeyboardAction(tabs, null, "End")).toEqual({
+    kind: "activate",
+    path: "c.ts",
+  });
+  expect(tabKeyboardAction(tabs, "b.html", "x")).toBeNull();
 });
 
 it("clears stale tab flags when a file is reopened", () => {
@@ -488,6 +548,147 @@ it("compacts workbench panes for narrow viewports", () => {
   expect(compactSidebarWidth(Number.NaN, 390)).toBe(179);
 });
 
+it("summarizes workspace status as a human-facing bottom bar", () => {
+  const summary = summarizeWorkspaceStatus({
+    tree: {
+      root: "/workspace",
+      version: 1,
+      nodes: [],
+      stats: {
+        durationMs: 7,
+        scannedDirectories: 3,
+        scannedFiles: 42,
+        returnedNodes: 12,
+      },
+    },
+    openTabCount: 3,
+    reviewFileCount: 4,
+    openThreadCount: 2,
+    draftCount: 1,
+    connectionStatus: "connected",
+    activeFile: {
+      path: "docs/brief.md",
+      isPreview: true,
+      viewerMode: "rendered",
+    },
+    metrics: {
+      fsEventsReceived: 0,
+      gitRefreshes: 1,
+      diffRefreshes: 0,
+      lastGitRefreshMs: 18,
+      lastDiffRefreshMs: null,
+      pendingGitRefresh: false,
+      pendingDiffPaths: 0,
+    },
+  });
+
+  expect(summary.workspace).toBe("Watching 42 files · 3 tabs open");
+  expect(summary.activeFile).toBe("brief.md · preview · rendered");
+  expect(summary.review).toBe("4 files to review · 2 threads open · 1 draft");
+  expect(summary.server).toBe("Live · waiting for file changes");
+  expect(summary.serverTone).toBe("live");
+  expect(summary.detail).toBe("1 review refresh · last review 18ms");
+});
+
+it("builds a compact file location model for the central viewer", () => {
+  expect(fileLocationSegments("docs/brief/intro.md")).toEqual([
+    { label: "docs", path: "docs", kind: "directory" },
+    { label: "brief", path: "docs/brief", kind: "directory" },
+    { label: "intro.md", path: "docs/brief/intro.md", kind: "file" },
+  ]);
+  expect(fileLocationSummary("docs/brief/intro.md")).toBe("brief / intro.md");
+  expect(fileLocationSummary("README.md")).toBe("README.md");
+});
+
+it("summarizes pending server work without exposing raw refresh logs", () => {
+  const summary = summarizeWorkspaceStatus({
+    tree: {
+      root: "/workspace",
+      version: 1,
+      nodes: [
+        {
+          id: "README.md",
+          path: "README.md",
+          name: "README.md",
+          kind: "file",
+          parentPath: null,
+        },
+      ],
+    },
+    openTabCount: 1,
+    reviewFileCount: 1,
+    openThreadCount: 0,
+    draftCount: 0,
+    connectionStatus: "connected",
+    activeFile: {
+      path: "src/app.ts",
+      changed: true,
+      diffEnabled: true,
+      isPreview: false,
+      removed: true,
+      viewerMode: "source",
+    },
+    metrics: {
+      fsEventsReceived: 2,
+      gitRefreshes: 3,
+      diffRefreshes: 2,
+      lastGitRefreshMs: 12,
+      lastDiffRefreshMs: 9,
+      pendingGitRefresh: true,
+      pendingDiffPaths: 2,
+    },
+  });
+
+  expect(summary.workspace).toBe("1 root entry · 1 tab open");
+  expect(summary.activeFile).toBe(
+    "app.ts · kept · source · HEAD diff · changed · removed",
+  );
+  expect(summary.review).toBe("1 file to review · 0 threads open");
+  expect(summary.server).toBe("Updating review + 2 diffs");
+  expect(summary.serverTone).toBe("pending");
+  expect(summary.detail).toBe(
+    "3 review refreshes · last review 12ms · 2 diff refreshes · last diff 9ms",
+  );
+});
+
+it("summarizes connecting and disconnected workspace event streams", () => {
+  const base = {
+    tree: null,
+    openTabCount: 0,
+    reviewFileCount: 0,
+    openThreadCount: 0,
+    draftCount: 0,
+    metrics: {
+      fsEventsReceived: 0,
+      gitRefreshes: 0,
+      diffRefreshes: 0,
+      lastGitRefreshMs: null,
+      lastDiffRefreshMs: null,
+      pendingGitRefresh: false,
+      pendingDiffPaths: 0,
+    },
+  };
+
+  expect(
+    summarizeWorkspaceStatus({
+      ...base,
+      connectionStatus: "connecting",
+    }),
+  ).toMatchObject({
+    server: "Connecting · waiting for events",
+    serverTone: "pending",
+  });
+  expect(
+    summarizeWorkspaceStatus({
+      ...base,
+      connectionStatus: "disconnected",
+    }),
+  ).toMatchObject({
+    server: "Disconnected · live updates paused",
+    serverTone: "offline",
+  });
+});
+
 it("selects a neighboring tab when the active tab closes", () => {
   const result = closeOpenTab(
     [
@@ -511,6 +712,14 @@ it("maps workspace keyboard shortcuts to app actions", () => {
   };
 
   expect(keyboardShortcutAction({ ...command, key: "k" })).toBe("quick-open");
+  expect(
+    keyboardShortcutAction({
+      ...command,
+      key: "k",
+      metaKey: false,
+      ctrlKey: true,
+    }),
+  ).toBe("quick-open");
   expect(keyboardShortcutAction({ ...command, key: "F", shiftKey: true })).toBe(
     "search-text",
   );
@@ -518,8 +727,23 @@ it("maps workspace keyboard shortcuts to app actions", () => {
   expect(keyboardShortcutAction({ ...command, key: "e" })).toBe(
     "toggle-source",
   );
+  expect(keyboardShortcutAction({ ...command, key: "b" })).toBe(
+    "toggle-sidebar",
+  );
+  expect(keyboardShortcutAction({ ...command, key: "\\", shiftKey: true })).toBe(
+    "toggle-inspector",
+  );
   expect(keyboardShortcutAction({ ...command, key: "i" })).toBe(
     "focus-current-inline-thread",
+  );
+  expect(keyboardShortcutAction({ ...command, key: "Enter", shiftKey: true })).toBe(
+    "toggle-current-thread-status",
+  );
+  expect(
+    keyboardShortcutAction({ ...command, key: "Backspace", shiftKey: true }),
+  ).toBe("archive-current-thread");
+  expect(keyboardShortcutAction({ ...command, key: "C", shiftKey: true })).toBe(
+    "focus-comments-panel",
   );
   expect(keyboardShortcutAction({ ...command, key: "U", shiftKey: true })).toBe(
     "open-latest-unread",
@@ -536,6 +760,12 @@ it("maps workspace keyboard shortcuts to app actions", () => {
   expect(keyboardShortcutAction({ ...command, key: "[" })).toBe(
     "open-previous-thread",
   );
+  expect(keyboardShortcutAction({ ...command, key: "g" })).toBe(
+    "open-next-search-result",
+  );
+  expect(keyboardShortcutAction({ ...command, key: "G", shiftKey: true })).toBe(
+    "open-previous-search-result",
+  );
   expect(keyboardShortcutAction({ ...command, key: "R", shiftKey: true })).toBe(
     "focus-review-queue",
   );
@@ -545,6 +775,14 @@ it("maps workspace keyboard shortcuts to app actions", () => {
   expect(keyboardShortcutAction({ ...command, key: "/" })).toBe(
     "toggle-shortcuts",
   );
+  expect(
+    keyboardShortcutAction({
+      ...command,
+      key: "/",
+      metaKey: false,
+      ctrlKey: true,
+    }),
+  ).toBe("toggle-shortcuts");
   expect(
     keyboardShortcutAction({
       ...command,
@@ -560,6 +798,24 @@ it("maps workspace keyboard shortcuts to app actions", () => {
       shiftKey: false,
     }),
   ).toBe("dismiss-overlays");
+});
+
+it("summarizes the Explorer filter with review-path context", () => {
+  expect(explorerFilterText({ active: false, reviewPathCount: 0 })).toBe(
+    "live",
+  );
+  expect(explorerFilterText({ active: false, reviewPathCount: 3 })).toBe(
+    "live 3",
+  );
+  expect(explorerFilterText({ active: true, reviewPathCount: 3 })).toBe(
+    "changed 3",
+  );
+  expect(explorerFilterLabel({ active: false, reviewPathCount: 1 })).toBe(
+    "Showing the live tree, 1 review path available",
+  );
+  expect(explorerFilterLabel({ active: true, reviewPathCount: 3 })).toBe(
+    "Showing changed and review paths only, 3 review paths",
+  );
 });
 
 it("closes other tabs while keeping the active tab in the pane", () => {
@@ -829,6 +1085,24 @@ it("moves command palette selection with keyboard wrapping", () => {
   expect(movePaletteSelection(2, 3, 1)).toBe(0);
   expect(movePaletteSelection(0, 3, -1)).toBe(2);
   expect(movePaletteSelection(-1, 3, 1)).toBe(1);
+});
+
+it("maps command palette mode tabs with keyboard navigation", () => {
+  expect(paletteModeKeyboardAction(["file", "text"], "file", "ArrowRight")).toBe(
+    "text",
+  );
+  expect(paletteModeKeyboardAction(["file", "text"], "file", "ArrowLeft")).toBe(
+    "text",
+  );
+  expect(
+    paletteModeKeyboardAction(["file", "text", "action"], "text", "End"),
+  ).toBe("action");
+  expect(
+    paletteModeKeyboardAction(["file", "text", "action"], "action", "Home"),
+  ).toBe("file");
+  expect(paletteModeKeyboardAction(["file", "text"], "text", "ArrowDown")).toBe(
+    null,
+  );
 });
 
 it("uses HEAD changes as the Review Queue when Git is available", () => {
@@ -1219,6 +1493,19 @@ it("navigates the prioritized work queue and keeps read receipts low-noise", () 
     "src/app.ts",
   );
   expect(latestUnreadReviewItemPath(items)).toBe("README.md");
+  expect(reviewQueuePosition(items, "src/app.ts")).toMatchObject({
+    activePath: "src/app.ts",
+    activeIndex: 1,
+    reviewableTotal: 2,
+  });
+  expect(reviewQueuePosition(items, "deleted.md")).toMatchObject({
+    activePath: null,
+    activeIndex: -1,
+    reviewableTotal: 2,
+  });
+  expect(
+    pinActiveReviewQueueItem(items, "src/app.ts").map((item) => item.path),
+  ).toEqual(["src/app.ts", "README.md", "deleted.md"]);
   expect(
     activityNeedsHumanAttention({
       id: "read-1",
@@ -1275,6 +1562,26 @@ it("builds review navigation targets without changing thread lifecycle state", (
       createdAt: "2026-06-20T00:01:00.000Z",
       updatedAt: "2026-06-20T00:01:00.000Z",
     },
+    {
+      id: "draft-2",
+      path: "docs/d.md",
+      viewerKind: "text" as const,
+      anchor: {
+        surface: "diff" as const,
+        canonical: { path: "docs/d.md", lineStart: 7 },
+        diff: {
+          path: "docs/d.md",
+          base: "HEAD",
+          ref: "working-tree",
+          hunkId: "hunk-1",
+          side: "new" as const,
+          newLineStart: 7,
+        },
+      },
+      body: "Draft in diff",
+      createdAt: "2026-06-20T00:02:00.000Z",
+      updatedAt: "2026-06-20T00:02:00.000Z",
+    },
   ];
 
   const openTargets = openThreadNavigationTargets(comments);
@@ -1293,13 +1600,224 @@ it("builds review navigation targets without changing thread lifecycle state", (
     commentId: "draft:draft-1",
     surface: "rendered",
   });
+  expect(draftCommentNavigationTargets(drafts)[1]).toMatchObject({
+    draftId: "draft-2",
+    commentId: "draft:draft-2",
+    surface: "diff",
+  });
   expect(agentReplyNavigationTargets(comments)[0]).toMatchObject({
     threadId: "thread-a",
     commentId: "reply-1",
   });
+  expect(commentNavigationTarget(comments[0]!)).toMatchObject({
+    id: "comment:open-1",
+    threadId: "thread-a",
+    commentId: "open-1",
+    path: "docs/a.md",
+    surface: "source",
+    label: "Source comment in a.md",
+  });
   expect(
     moveReviewNavigationTarget(openTargets, { path: "docs/z.md" }, "next"),
   ).toBe(openTargets[0]);
+});
+
+it("builds contextual review command palette actions", () => {
+  const activeComment = {
+    ...makeReviewComment("open-1", "docs/a.md", "open"),
+    anchor: {
+      surface: "source" as const,
+      canonical: { path: "docs/a.md", lineStart: 4 },
+    },
+  };
+
+  expect(
+    reviewCommandActions({
+      activeComment,
+      attentionThreadCount: 2,
+      canToggleDiff: true,
+      diffEnabled: false,
+      openThreadTargetCount: 3,
+      reviewItemCount: 4,
+      unreadReviewCount: 1,
+    }),
+  ).toMatchObject([
+    {
+      id: "return-current-stop",
+      label: "Return to current stop",
+      detail: "docs/a.md · L4",
+      shortcut: "Cmd/Ctrl I",
+    },
+    {
+      id: "toggle-current-thread-status",
+      label: "Resolve current stop",
+      detail: "docs/a.md · L4",
+      shortcut: "Cmd/Ctrl Shift Enter",
+    },
+    {
+      id: "archive-current-thread",
+      label: "Archive current stop",
+      detail: "docs/a.md · L4",
+      shortcut: "Cmd/Ctrl Shift Backspace",
+    },
+    {
+      id: "open-comments",
+      label: "Open attention inbox",
+      detail: "2 attention threads",
+      shortcut: "Cmd/Ctrl Shift C",
+    },
+    {
+      id: "open-latest-unread",
+      label: "Open next unseen item",
+      shortcut: "Cmd/Ctrl Shift U",
+    },
+    {
+      id: "open-next-review",
+      label: "Next review item",
+      shortcut: "Cmd/Ctrl Shift J",
+    },
+    {
+      id: "focus-review-queue",
+      label: "Focus Review Queue",
+      shortcut: "Cmd/Ctrl Shift R",
+    },
+    {
+      id: "open-next-thread",
+      label: "Next open thread",
+      shortcut: "Cmd/Ctrl ]",
+    },
+    {
+      id: "open-previous-thread",
+      label: "Previous open thread",
+      shortcut: "Cmd/Ctrl [",
+    },
+    {
+      id: "toggle-diff",
+      label: "Show diff from HEAD",
+      shortcut: "Cmd/Ctrl D",
+    },
+  ]);
+
+  expect(
+    reviewCommandActions({
+      activeComment: null,
+      attentionThreadCount: 0,
+      canToggleDiff: false,
+      diffEnabled: false,
+      openThreadTargetCount: 0,
+      reviewItemCount: 0,
+      unreadReviewCount: 0,
+    }),
+  ).toEqual([]);
+  expect(
+    reviewCommandActions({
+      activeComment: makeReviewComment("resolved-1", "docs/a.md", "resolved"),
+      attentionThreadCount: 0,
+      canToggleDiff: false,
+      diffEnabled: false,
+      openThreadTargetCount: 0,
+      reviewItemCount: 0,
+      unreadReviewCount: 0,
+    }).map((action) => action.label),
+  ).toEqual([
+    "Return to current stop",
+    "Reopen current stop",
+    "Archive current stop",
+  ]);
+  expect(
+    reviewCommandActions({
+      activeComment: makeReviewComment("archived-1", "docs/a.md", "archived"),
+      attentionThreadCount: 0,
+      canToggleDiff: false,
+      diffEnabled: false,
+      openThreadTargetCount: 0,
+      reviewItemCount: 0,
+      unreadReviewCount: 0,
+    }).map((action) => action.label),
+  ).toEqual(["Return to current stop", "Reopen current stop"]);
+});
+
+it("derives active comment lifecycle updates for review shortcuts", () => {
+  const openThread = makeReviewComment("open-1", "docs/a.md", "open");
+  const resolvedThread = makeReviewComment(
+    "resolved-1",
+    "docs/a.md",
+    "resolved",
+  );
+  const archivedThread = makeReviewComment(
+    "archived-1",
+    "docs/a.md",
+    "archived",
+  );
+
+  expect(
+    currentThreadLifecycleShortcutStatus(
+      openThread,
+      "toggle-current-thread-status",
+    ),
+  ).toBe("resolved");
+  expect(
+    currentThreadLifecycleShortcutStatus(
+      resolvedThread,
+      "toggle-current-thread-status",
+    ),
+  ).toBe("open");
+  expect(
+    currentThreadLifecycleShortcutStatus(
+      archivedThread,
+      "toggle-current-thread-status",
+    ),
+  ).toBe("open");
+  expect(
+    currentThreadLifecycleShortcutStatus(openThread, "archive-current-thread"),
+  ).toBe("archived");
+  expect(
+    currentThreadLifecycleShortcutStatus(
+      archivedThread,
+      "archive-current-thread",
+    ),
+  ).toBeNull();
+  expect(
+    currentThreadLifecycleShortcutStatus(null, "toggle-current-thread-status"),
+  ).toBeNull();
+});
+
+it("preserves comment surfaces when building direct comment navigation targets", () => {
+  const rendered = {
+    ...makeReviewComment("rendered-1", "docs/a.md", "open"),
+    viewerKind: "markdown" as const,
+    anchor: {
+      surface: "rendered" as const,
+      canonical: { path: "docs/a.md", lineStart: 4 },
+      rendered: { kind: "markdown" as const, blockId: "h-1" },
+    },
+  };
+  const diff = {
+    ...makeReviewComment("diff-1", "docs/a.md", "open"),
+    anchor: {
+      surface: "diff" as const,
+      canonical: { path: "docs/a.md", lineStart: 8 },
+      diff: {
+        path: "docs/a.md",
+        base: "HEAD",
+        ref: "working-tree",
+        hunkId: "hunk-1",
+        side: "new" as const,
+        newLineStart: 8,
+      },
+    },
+  };
+
+  expect(commentNavigationTarget(rendered)).toMatchObject({
+    surface: "rendered",
+    label: "Rendered comment in a.md",
+    detail: "Line 4 - Review note",
+  });
+  expect(commentNavigationTarget(diff)).toMatchObject({
+    surface: "diff",
+    label: "Diff comment in a.md",
+    detail: "Line 8 - Review note",
+  });
 });
 
 it("prefers relevant open threads when jumping from a review queue item", () => {
@@ -1327,9 +1845,24 @@ it("prefers relevant open threads when jumping from a review queue item", () => 
 });
 
 it("treats unread activity as a navigation hint rather than status", () => {
+  const resolvedComment = {
+    ...makeReviewComment("resolved-1", "docs/a.md", "resolved"),
+    anchor: {
+      surface: "diff" as const,
+      canonical: { path: "docs/a.md", lineStart: 5 },
+      diff: {
+        path: "docs/a.md",
+        base: "HEAD",
+        ref: "working-tree",
+        hunkId: "hunk-1",
+        side: "new" as const,
+        newLineStart: 5,
+      },
+    },
+  };
   const items = buildReviewQueueItems(
     [{ path: "docs/a.md", status: "modified", source: "git" }],
-    [makeReviewComment("resolved-1", "docs/a.md", "resolved")],
+    [resolvedComment],
     {
       "resolved-1": {
         inline: [],
@@ -1347,16 +1880,191 @@ it("treats unread activity as a navigation hint rather than status", () => {
     new Set(["docs/a.md"]),
   );
 
-  expect(latestUnreadActivityTarget(items)).toMatchObject({
+  expect(latestUnreadActivityTarget(items, [resolvedComment])).toMatchObject({
     path: "docs/a.md",
     threadId: "resolved-1",
+    commentId: "resolved-1",
     activityId: "activity-1",
+    surface: "diff",
   });
   expect(items[0]?.threadCounts).toEqual({
     open: 0,
     resolved: 1,
     archived: 0,
   });
+});
+
+it("uses the activity comment surface for latest unread navigation", () => {
+  const root = {
+    ...makeReviewComment("root-1", "docs/a.md", "open"),
+    threadId: "thread-a",
+    anchor: {
+      surface: "source" as const,
+      canonical: { path: "docs/a.md", lineStart: 1 },
+    },
+  };
+  const renderedReply = {
+    ...makeReviewComment("reply-1", "docs/a.md", "open"),
+    threadId: "thread-a",
+    anchor: {
+      surface: "rendered" as const,
+      canonical: { path: "docs/a.md", lineStart: 8 },
+      rendered: { kind: "markdown" as const, blockId: "intro" },
+    },
+  };
+  const items = buildReviewQueueItems(
+    [{ path: "docs/a.md", status: "modified", source: "git" }],
+    [root, renderedReply],
+    {
+      "thread-a": {
+        inline: [],
+        timeline: [
+          {
+            id: "activity-1",
+            threadId: "thread-a",
+            commentId: "reply-1",
+            type: "comment_added",
+            actor: { id: "codex:1", kind: "codex" },
+            createdAt: "2026-06-20T00:04:00.000Z",
+          },
+        ],
+      },
+    },
+    new Set(["docs/a.md"]),
+  );
+
+  expect(latestUnreadActivityTarget(items, [root, renderedReply])).toMatchObject(
+    {
+      id: "unread:docs/a.md",
+      path: "docs/a.md",
+      threadId: "thread-a",
+      commentId: "reply-1",
+      activityId: "activity-1",
+      surface: "rendered",
+      sortKey: "2026-06-20T00:04:00.000Z",
+    },
+  );
+});
+
+it("loads comment activity targets from authoritative thread state", () => {
+  const staleOpenMessage = {
+    ...makeReviewComment("thread-open-old", "docs/a.md", "open"),
+    threadId: "thread-a",
+    body: "Old unresolved note",
+    updatedAt: "2026-06-20T00:00:00.000Z",
+  };
+  const resolvedThreadState = {
+    ...makeReviewComment("thread-resolved-new", "docs/a.md", "resolved"),
+    threadId: "thread-a",
+    body: "Resolved after follow-up",
+    updatedAt: "2026-06-20T00:01:00.000Z",
+  };
+  const openThread = {
+    ...makeReviewComment("open-1", "docs/b.md", "open"),
+    threadId: "thread-b",
+    body: "Needs another look",
+    updatedAt: "2026-06-20T00:02:00.000Z",
+  };
+  const comments = [staleOpenMessage, resolvedThreadState, openThread];
+
+  expect(
+    countAttentionCommentThreads(comments, new Set(["docs/a.md", "docs/b.md"])),
+  ).toBe(1);
+  expect(commentInboxEntryStatus(1)).toBe("attention");
+  expect(commentInboxEntryStatus(0)).toBe("open");
+  expect(commentInboxEntryState(1)).toEqual({
+    query: "",
+    status: "attention",
+  });
+  expect(commentInboxEntryState(0)).toEqual({
+    query: "",
+    status: "open",
+  });
+  expect(
+    commentInboxOpenState({
+      activeComment: openThread,
+      activeCommentId: "comment-2",
+      attentionThreadCount: 1,
+    }),
+  ).toEqual({
+    activeCommentId: "open-1",
+    query: "docs/b.md",
+    status: "all",
+  });
+  expect(
+    commentInboxOpenState({
+      activeComment: openThread,
+      activeCommentId: "comment-2",
+      attentionThreadCount: 0,
+      query: "custom query",
+    }),
+  ).toEqual({
+    activeCommentId: "open-1",
+    query: "custom query",
+    status: "all",
+  });
+  expect(
+    commentInboxOpenState({
+      activeCommentId: "comment-2",
+      attentionThreadCount: 1,
+    }),
+  ).toEqual({
+    activeCommentId: "comment-2",
+    query: "",
+    status: "attention",
+  });
+  expect(
+    commentActivityThreadTargets({
+      comments,
+      selectedPath: null,
+      commentsPanelOpen: true,
+      commentsPanelQuery: "",
+      commentsPanelStatus: "open",
+      reviewPaths: [],
+    }),
+  ).toEqual(["thread-b"]);
+  expect(
+    commentActivityThreadTargets({
+      comments,
+      selectedPath: null,
+      commentsPanelOpen: true,
+      commentsPanelQuery: "",
+      commentsPanelStatus: "attention",
+      unreadReviewPaths: new Set(["docs/b.md"]),
+      reviewPaths: [],
+    }),
+  ).toEqual(["thread-b"]);
+  expect(
+    commentActivityThreadTargets({
+      comments,
+      selectedPath: null,
+      commentsPanelOpen: true,
+      commentsPanelQuery: "",
+      commentsPanelStatus: "attention",
+      unreadReviewPaths: new Set(),
+      reviewPaths: [],
+    }),
+  ).toEqual([]);
+  expect(
+    commentActivityThreadTargets({
+      comments,
+      selectedPath: null,
+      commentsPanelOpen: true,
+      commentsPanelQuery: "follow-up",
+      commentsPanelStatus: "resolved",
+      reviewPaths: [],
+    }),
+  ).toEqual(["thread-a"]);
+  expect(
+    commentActivityThreadTargets({
+      comments,
+      selectedPath: "docs/a.md",
+      commentsPanelOpen: false,
+      commentsPanelQuery: "",
+      commentsPanelStatus: "open",
+      reviewPaths: [],
+    }),
+  ).toEqual(["thread-a"]);
 });
 
 function makeReviewComment(
@@ -1814,6 +2522,38 @@ it("builds search palette items only from file and text search results", () => {
   expect(buildFileSearchItems(files).map((item) => item.id)).toEqual([
     "file:reports/index.html",
   ]);
+  expect(buildFileSearchItems(files)[0]).toMatchObject({
+    source: "search",
+  });
+  expect(
+    buildRecentFileSearchItems([
+      { path: "README.md", viewerKind: "markdown", source: "active" },
+      { path: "src/app.ts", viewerKind: "code", source: "open" },
+      { path: "docs/notes.txt", viewerKind: "text" },
+    ]),
+  ).toMatchObject([
+    {
+      kind: "file",
+      id: "active:README.md",
+      label: "README.md",
+      detail: "Active tab · markdown",
+      source: "active",
+    },
+    {
+      kind: "file",
+      id: "open:src/app.ts",
+      label: "src/app.ts",
+      detail: "Open tab · code",
+      source: "open",
+    },
+    {
+      kind: "file",
+      id: "recent:docs/notes.txt",
+      label: "docs/notes.txt",
+      detail: "Recent · text",
+      source: "recent",
+    },
+  ]);
   expect(
     buildTextSearchItems([
       {
@@ -1834,8 +2574,86 @@ it("builds search palette items only from file and text search results", () => {
       detail: "L4 <h1>Index</h1>",
       viewerKind: "html",
       lineNumber: 4,
+      lineText: "<h1>Index</h1>",
+      matchStart: 4,
+      matchLength: 5,
     },
   ]);
+  expect(textSearchPreviewSegments("<h1>Index</h1>", 4, 5)).toEqual([
+    { text: "<h1>", match: false },
+    { text: "Index", match: true },
+    { text: "</h1>", match: false },
+  ]);
+  expect(textSearchPreviewSegments("short", 99, 5)).toEqual([
+    { text: "short", match: false },
+  ]);
+});
+
+it("prepares viewer state when opening a text search result", () => {
+  expect(viewerModeForTextSearchTarget({ viewerKind: "markdown" })).toBe(
+    "source",
+  );
+  expect(viewerModeForTextSearchTarget({ viewerKind: "html" })).toBe("source");
+  expect(viewerModeForTextSearchTarget({ viewerKind: "code" })).toBeNull();
+  expect(codeSelectionForTextSearchTarget({ viewerKind: "code" }, 8)).toEqual({
+    start: 8,
+    end: 8,
+  });
+  expect(
+    codeSelectionForTextSearchTarget({ viewerKind: "markdown" }, 8),
+  ).toBeNull();
+});
+
+it("keeps a navigable text search session after opening a result", () => {
+  const results = [
+    {
+      path: "README.md",
+      viewerKind: "markdown" as const,
+      lineNumber: 2,
+      lineText: "Install Vivi",
+      matchStart: 8,
+      matchLength: 4,
+    },
+    {
+      path: "docs/usage.md",
+      viewerKind: "markdown" as const,
+      lineNumber: 8,
+      lineText: "Run vivi .",
+      matchStart: 4,
+      matchLength: 4,
+    },
+  ];
+
+  const session = textSearchSessionForSelection({
+    query: " vivi ",
+    results,
+    path: "docs/usage.md",
+    lineNumber: 8,
+  });
+
+  expect(session).toMatchObject({
+    query: "vivi",
+    activeIndex: 1,
+  });
+  expect(activeTextSearchResult(session)).toMatchObject({
+    path: "docs/usage.md",
+    lineNumber: 8,
+  });
+  expect(textSearchPositionLabel(session)).toBe("2 of 2");
+  expect(
+    activeTextSearchResult(moveTextSearchSession(session, "next")),
+  ).toMatchObject({ path: "README.md", lineNumber: 2 });
+  expect(
+    activeTextSearchResult(moveTextSearchSession(session, "previous")),
+  ).toMatchObject({ path: "README.md", lineNumber: 2 });
+  expect(
+    textSearchSessionForSelection({
+      query: "",
+      results,
+      path: "README.md",
+      lineNumber: 2,
+    }),
+  ).toBeNull();
 });
 
 it("filters the tree to changed paths and ranks generated review targets", () => {
@@ -1950,6 +2768,63 @@ it("limits initial tree expansion while keeping important paths visible", () => 
   expect(bounded.rows.map((row) => row.node.path)).toContain(
     "reports/deep/summary.html",
   );
+});
+
+it("maps tree keyboard navigation to visible rows and directory actions", () => {
+  const rows = [
+    {
+      depth: 0,
+      node: {
+        id: "docs",
+        path: "docs",
+        name: "docs",
+        kind: "directory" as const,
+        parentPath: null,
+      },
+    },
+    {
+      depth: 1,
+      node: {
+        id: "docs/readme.md",
+        path: "docs/readme.md",
+        name: "readme.md",
+        kind: "file" as const,
+        parentPath: "docs",
+        viewerKind: "markdown" as const,
+      },
+    },
+    {
+      depth: 0,
+      node: {
+        id: "src",
+        path: "src",
+        name: "src",
+        kind: "directory" as const,
+        parentPath: null,
+      },
+    },
+  ];
+
+  expect(treeKeyboardAction(rows, new Set(["docs"]), "docs", "ArrowDown")).toEqual(
+    { kind: "focus", path: "docs/readme.md" },
+  );
+  expect(
+    treeKeyboardAction(rows, new Set(["docs"]), "docs/readme.md", "ArrowLeft"),
+  ).toEqual({ kind: "focus", path: "docs" });
+  expect(treeKeyboardAction(rows, new Set(["docs"]), "docs", "ArrowLeft")).toEqual(
+    { kind: "toggle", path: "docs" },
+  );
+  expect(treeKeyboardAction(rows, new Set(), "src", "ArrowRight")).toEqual({
+    kind: "toggle",
+    path: "src",
+  });
+  expect(
+    treeKeyboardAction(rows, new Set(["docs"]), "docs/readme.md", "Enter"),
+  ).toEqual({ kind: "activate", path: "docs/readme.md" });
+  expect(treeKeyboardAction(rows, new Set(["docs"]), null, "End")).toEqual({
+    kind: "focus",
+    path: "src",
+  });
 });
 
 it("models source toggles only for rendered viewers", () => {

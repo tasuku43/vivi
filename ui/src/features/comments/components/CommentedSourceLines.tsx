@@ -9,6 +9,8 @@ import {
 export function CommentedSourceLines({
   content,
   className,
+  focusLineNumber,
+  focusRevision = 0,
   comments,
   activeCommentId,
   onOpenComment,
@@ -18,6 +20,8 @@ export function CommentedSourceLines({
 }: {
   content: string;
   className?: string;
+  focusLineNumber?: number | null;
+  focusRevision?: number;
   comments: ViviComment[];
   activeCommentId?: string | null;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
@@ -41,6 +45,20 @@ export function CommentedSourceLines({
     });
   }, [activeCommentId, comments, onOpenComment]);
 
+  useEffect(() => {
+    if (!focusLineNumber) return;
+    const line = containerRef.current?.querySelector<HTMLElement>(
+      `.commented-source-line[data-line="${focusLineNumber}"]`,
+    );
+    if (!line) return;
+    const frame = window.requestAnimationFrame(() => {
+      line.scrollIntoView({ block: "center", behavior: "smooth" });
+      if (!line.hasAttribute("tabindex")) line.tabIndex = -1;
+      line.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [content, focusLineNumber, focusRevision]);
+
   return (
     <div
       ref={containerRef}
@@ -55,7 +73,7 @@ export function CommentedSourceLines({
         const firstComment = lineComments[0];
         return (
           <div
-            className={`commented-source-line${lineComments.length ? " has-comment" : ""}`}
+            className={`commented-source-line${focusLineNumber === lineNumber ? " search-focus" : ""}${lineComments.length ? " has-comment" : ""}`}
             data-line={lineNumber}
             key={lineNumber}
             role="listitem"

@@ -20,10 +20,12 @@ const meta = {
     query: "",
     statusFilter: "all",
     threadActivities: sampleThreadActivities,
+    unreadReviewPaths: new Set(["docs/agent-handoff.md"]),
     onQueryChange: () => undefined,
     onStatusFilterChange: () => undefined,
     onClose: () => undefined,
     onOpenComment: () => undefined,
+    onStatusChange: () => undefined,
   },
 } satisfies Meta<typeof CommentsPanel>;
 

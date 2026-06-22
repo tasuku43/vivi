@@ -53,6 +53,8 @@ export {
 export function MarkdownViewer({
   file,
   mode: controlledMode,
+  focusLineNumber,
+  focusRevision,
   toolbarAction,
   diff,
   diffLoading,
@@ -72,6 +74,8 @@ export function MarkdownViewer({
 }: {
   file: FilePayload;
   mode?: ViewerMode;
+  focusLineNumber?: number | null;
+  focusRevision?: number;
   toolbarAction?: ReactNode;
   diff?: TextDiff | null;
   diffLoading?: boolean;
@@ -360,6 +364,8 @@ export function MarkdownViewer({
           file={file}
           className="markdown-source"
           selectedRange={sourceSelectedRange}
+          focusLineNumber={focusLineNumber}
+          focusRevision={focusRevision}
           comments={comments}
           activeCommentId={activeCommentId}
           onSelectionChange={setSourceSelectedRange}
@@ -381,6 +387,7 @@ export function MarkdownViewer({
                   ? threadActivities[renderedThreadId]
                   : undefined
               }
+              activeCommentId={activeCommentId}
               onCreateComment={onCreateComment}
               onStatusChange={onCommentStatusChange}
               onClose={closeRenderedThread}
@@ -486,6 +493,7 @@ function renderedThreadModel(
     path,
     lineStart,
     lineEnd,
+    status: "open",
     comments,
   };
 }

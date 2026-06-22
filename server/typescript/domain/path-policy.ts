@@ -36,6 +36,11 @@ export const defaultIgnoredNames = new Set([
   ".turbo",
   ".next",
   ".cache",
+  ".parcel-cache",
+  ".vite",
+  ".tmp-go-build-cache",
+  ".tmp-go-mod-cache",
   "dist",
   "coverage",
+  "storybook-static",
 ]);

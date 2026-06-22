@@ -1,10 +1,11 @@
-import type {
-  CommentAnchor,
-  DraftReviewComment,
-  SourceAnchor,
-  CommentStatus,
-  CommentViewerKind,
-  ViviComment,
+import {
+  buildCommentThreads,
+  type CommentAnchor,
+  type DraftReviewComment,
+  type SourceAnchor,
+  type CommentStatus,
+  type CommentViewerKind,
+  type ViviComment,
 } from "../domain/comments.js";
 import type { FilePayload } from "../domain/fs-node.js";
 import type { LineRange } from "./code-viewer.js";
@@ -32,6 +33,7 @@ export interface CodeCommentThread {
   path: string;
   lineStart: number;
   lineEnd: number;
+  status: CommentStatus;
   comments: ThreadComment[];
 }
 
@@ -177,9 +179,11 @@ export function codeCommentThreads(
       path: comment.path,
       lineStart,
       lineEnd,
+      status: "open",
       comments: [],
     };
     thread.comments.push(comment);
+    thread.status = latestPublishedStatus(thread.comments);
     byKey.set(key, thread);
   }
   return [...byKey.values()]
@@ -197,13 +201,30 @@ export function codeCommentThreads(
     );
 }
 
+function latestPublishedStatus(comments: ThreadComment[]): CommentStatus {
+  const published = comments.filter((comment) => !isDraftThreadComment(comment));
+  if (!published.length) return "open";
+  return published.reduce((latest, comment) =>
+    comment.updatedAt > latest.updatedAt ? comment : latest,
+  ).status;
+}
+
+export function isDraftThreadComment(
+  comment: ThreadComment,
+): comment is ThreadComment & { draft: true } {
+  return comment.draft === true || comment.id.startsWith("draft:");
+}
+
 export function activeCommentsForPath(
   comments: ViviComment[],
   path: string,
 ): ViviComment[] {
-  return comments.filter(
-    (comment) => comment.path === path && comment.status === "open",
-  );
+  return buildCommentThreads(
+    comments.filter((comment) => comment.path === path),
+  )
+    .filter((thread) => thread.status === "open")
+    .flatMap((thread) => thread.comments)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
 export function renderedCommentDraft(
@@ -374,6 +395,39 @@ export function commentLineLabel(comment: ViviComment): string {
   return commentLineLabelForAnchor(comment.anchor.canonical);
 }
 
+export function commentLocationLabel(comment: ViviComment): string {
+  if (comment.anchor.surface === "rendered") {
+    const rendered = comment.anchor.rendered;
+    const kind = rendered?.kind ?? comment.viewerKind;
+    const parts = [`Rendered ${titleCase(kind)}`];
+    if (rendered?.blockId) parts.push(`block ${rendered.blockId}`);
+    else if (rendered?.selector) parts.push(`selector ${rendered.selector}`);
+    else if (rendered?.textQuote) {
+      parts.push(`text "${truncateCommentPreview(rendered.textQuote, 42)}"`);
+    }
+    const sourceLabel = lineRangeLabel(
+      rendered?.sourceLineStart,
+      rendered?.sourceLineEnd,
+      "source ",
+    );
+    if (sourceLabel) parts.push(sourceLabel);
+    return parts.join(" · ");
+  }
+
+  if (comment.anchor.surface === "diff") {
+    const diff = comment.anchor.diff;
+    if (!diff) return `Diff ${commentLineLabel(comment)}`;
+    const side = diff.side === "old" ? "old" : "new";
+    const lineLabel =
+      diff.side === "old"
+        ? lineRangeLabel(diff.oldLineStart, diff.oldLineEnd)
+        : lineRangeLabel(diff.newLineStart, diff.newLineEnd);
+    return lineLabel ? `Diff ${side} ${lineLabel}` : `Diff ${side} hunk`;
+  }
+
+  return `Source ${commentLineLabel(comment)}`;
+}
+
 export function commentLineLabelForAnchor(anchor: SourceAnchor): string {
   if (
     anchor.lineStart &&
@@ -384,6 +438,20 @@ export function commentLineLabelForAnchor(anchor: SourceAnchor): string {
   }
   if (anchor.lineStart) return `L${anchor.lineStart}`;
   return "File";
+}
+
+function lineRangeLabel(
+  start: number | undefined,
+  end: number | undefined,
+  prefix = "",
+): string | null {
+  if (!start) return null;
+  if (end && end !== start) return `${prefix}L${start}-L${end}`;
+  return `${prefix}L${start}`;
+}
+
+function titleCase(value: string): string {
+  return value ? `${value[0]?.toUpperCase()}${value.slice(1)}` : value;
 }
 
 export function commentsForLine(

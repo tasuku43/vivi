@@ -275,6 +275,7 @@ function SourceDiff({
         path: diff.path,
         lineStart,
         lineEnd,
+        status: "open",
         comments: [],
       },
       draft: diffCommentDraft(file, lineStart, lineEnd, changeKind, quote, {
@@ -391,6 +392,7 @@ function SourceDiff({
                   thread={threadForDisplay}
                   draft={threadDraft}
                   activity={threadId ? threadActivities[threadId] : undefined}
+                  activeCommentId={activeCommentId}
                   onCreateComment={onCreateComment}
                   onStatusChange={onCommentStatusChange}
                   onClose={closeCommentThread}

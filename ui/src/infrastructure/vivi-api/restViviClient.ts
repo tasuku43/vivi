@@ -1,4 +1,7 @@
-import type { ViviClient } from "../../application/ports/ViviClient.js";
+import type {
+  ViviClient,
+  WorkspaceEventSubscriptionOptions,
+} from "../../application/ports/ViviClient.js";
 import {
   buildCommentThreads,
   type CommentExportFilters,
@@ -224,8 +227,16 @@ export class RestViviClient implements ViviClient {
     return result.results;
   }
 
-  subscribeWorkspaceEvents(onEvent: (event: RestWorkspaceEventDto) => void) {
+  subscribeWorkspaceEvents(
+    onEvent: (event: RestWorkspaceEventDto) => void,
+    options: WorkspaceEventSubscriptionOptions = {},
+  ) {
     const source = this.createEventSource(this.url("/events"));
+    options.onStatus?.("connecting");
+    source.addEventListener("open", () => options.onStatus?.("connected"));
+    source.addEventListener("error", () =>
+      options.onStatus?.("disconnected"),
+    );
     const listener = (raw: Event) => {
       const event = JSON.parse(
         (raw as MessageEvent<string>).data,

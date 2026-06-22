@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { DraftReviewComment } from "../../../domain/comments.js";
 import {
+  commentAnchorThreadKey,
   commentLineLabelForAnchor,
   truncateCommentPreview,
 } from "../../../state/comments.js";
@@ -12,7 +13,7 @@ export function DraftReviewTray({
   publishing = false,
   publishError = null,
   publishedBatchId = null,
-  onOpenPath,
+  onOpenDraft,
   onUpdateDraft,
   onDeleteDraft,
   onPublishAll,
@@ -23,7 +24,7 @@ export function DraftReviewTray({
   publishing?: boolean;
   publishError?: string | null;
   publishedBatchId?: string | null;
-  onOpenPath?: (path: string) => void;
+  onOpenDraft?: (draft: DraftReviewComment) => void;
   onUpdateDraft?: (id: string, body: string) => void | Promise<void>;
   onDeleteDraft?: (id: string) => void | Promise<void>;
   onPublishAll?: () => void | Promise<void>;
@@ -55,6 +56,13 @@ export function DraftReviewTray({
   const editing = editingId
     ? drafts.find((draft) => draft.id === editingId)
     : null;
+  const publishSummary = summarizeDraftReview(drafts);
+  const publishAction = publishActionState({
+    draftCount: drafts.length,
+    publishing,
+    summary: publishSummary,
+  });
+  const tabSummary = draftReviewTabSummary(drafts.length);
 
   return (
     <aside
@@ -64,10 +72,13 @@ export function DraftReviewTray({
       <button
         className={`draft-review-tab${drafts.length ? "" : " empty"}`}
         type="button"
+        aria-label={`${open ? "Close" : "Open"} Draft Review tray, ${tabSummary}`}
         aria-expanded={open}
+        title={tabSummary}
         onClick={() => setOpen((value) => !value)}
       >
-        Drafts <strong>{drafts.length}</strong>
+        {drafts.length ? "Private drafts" : "Drafts"}{" "}
+        <strong>{drafts.length}</strong>
       </button>
       {open ? (
         <div className="draft-review-panel">
@@ -78,12 +89,39 @@ export function DraftReviewTray({
             </div>
             <button
               type="button"
-              disabled={!drafts.length || publishing}
+              aria-label={publishAction.description}
+              disabled={publishAction.disabled}
+              title={publishAction.description}
               onClick={() => void onPublishAll?.()}
             >
-              {publishing ? "Publishing..." : "Publish review comments"}
+              {publishAction.label}
             </button>
           </div>
+          {drafts.length ? (
+            <div className="draft-publish-summary" aria-label="Publish summary">
+              <div>
+                <strong>
+                  {publishSummary.threadCount} open{" "}
+                  {publishSummary.threadCount === 1 ? "thread" : "threads"}
+                </strong>
+                <span>
+                  across {publishSummary.fileCount}{" "}
+                  {publishSummary.fileCount === 1 ? "file" : "files"}
+                </span>
+              </div>
+              <p>
+                Publishing makes these comments visible to agents as active
+                review work.
+              </p>
+              <div className="draft-publish-surfaces">
+                {publishSummary.surfaces.map((surface) => (
+                  <span key={surface.label}>
+                    {surface.label} <strong>{surface.count}</strong>
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
           {publishError ? (
             <p className="draft-review-message error" role="alert">
               Publish failed. Drafts were kept. {publishError}
@@ -102,7 +140,9 @@ export function DraftReviewTray({
                   <button
                     className="draft-review-path"
                     type="button"
-                    onClick={() => onOpenPath?.(draft.path)}
+                    aria-label={draftOpenLabel(draft)}
+                    title={draftOpenLabel(draft)}
+                    onClick={() => onOpenDraft?.(draft)}
                   >
                     <strong>{draft.path}</strong>
                     <span>
@@ -124,9 +164,14 @@ export function DraftReviewTray({
                         });
                       }}
                     >
+                      <p className="sr-only" id={draftEditHintId(draft.id)}>
+                        This draft remains private until published.
+                      </p>
                       <textarea
                         autoFocus
                         value={body}
+                        aria-label={`Edit private draft comment for ${draft.path}`}
+                        aria-describedby={draftEditHintId(draft.id)}
                         onChange={(event) => setBody(event.currentTarget.value)}
                       />
                       <div className="draft-review-actions">
@@ -192,10 +237,87 @@ function draftCountLabel(count: number): string {
   return `${count} unpublished comments`;
 }
 
+function draftReviewTabSummary(count: number): string {
+  if (count === 0) return "no unpublished comments";
+  const draftLabel =
+    count === 1 ? "1 unpublished comment" : `${count} unpublished comments`;
+  return `${draftLabel} kept private until publish`;
+}
+
+function publishActionState({
+  draftCount,
+  publishing,
+  summary,
+}: {
+  draftCount: number;
+  publishing: boolean;
+  summary: ReturnType<typeof summarizeDraftReview>;
+}): {
+  description: string;
+  disabled: boolean;
+  label: string;
+} {
+  if (publishing) {
+    return {
+      description: "Publishing draft review comments",
+      disabled: true,
+      label: "Publishing...",
+    };
+  }
+  if (!draftCount) {
+    return {
+      description: "No draft comments to publish",
+      disabled: true,
+      label: "Publish review comments",
+    };
+  }
+  return {
+    description: `Publish ${draftCount} draft ${draftCount === 1 ? "comment" : "comments"} as ${summary.threadCount} open ${summary.threadCount === 1 ? "thread" : "threads"} across ${summary.fileCount} ${summary.fileCount === 1 ? "file" : "files"}`,
+    disabled: false,
+    label: "Publish review comments",
+  };
+}
+
 function anchorSurfaceLabel(draft: DraftReviewComment): string {
   if (draft.anchor.surface === "diff") return "diff";
   if (draft.anchor.surface === "rendered") {
     return `${draft.anchor.rendered?.kind ?? draft.viewerKind} rendered`;
   }
   return "source";
+}
+
+function draftOpenLabel(draft: DraftReviewComment): string {
+  return [
+    `Open private draft in ${draft.path}`,
+    anchorSurfaceLabel(draft),
+    commentLineLabelForAnchor(draft.anchor.canonical),
+    "kept private until publish",
+  ].join(", ");
+}
+
+function draftEditHintId(id: string): string {
+  return `draft-edit-hint-${id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+}
+
+function summarizeDraftReview(drafts: DraftReviewComment[]): {
+  fileCount: number;
+  threadCount: number;
+  surfaces: Array<{ label: string; count: number }>;
+} {
+  const paths = new Set<string>();
+  const threads = new Set<string>();
+  const surfaces = new Map<string, number>();
+  for (const draft of drafts) {
+    paths.add(draft.path);
+    threads.add(draft.threadId ?? commentAnchorThreadKey(draft.path, draft.anchor));
+    const label = anchorSurfaceLabel(draft);
+    surfaces.set(label, (surfaces.get(label) ?? 0) + 1);
+  }
+  return {
+    fileCount: paths.size,
+    threadCount: threads.size,
+    surfaces: [...surfaces.entries()]
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => a.label.localeCompare(b.label)),
+  };
 }

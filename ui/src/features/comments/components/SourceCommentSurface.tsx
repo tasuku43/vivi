@@ -30,6 +30,8 @@ export function SourceCommentSurface({
   file,
   highlightedLines,
   selectedRange,
+  focusLineNumber,
+  focusRevision = 0,
   className,
   comments = [],
   activeCommentId,
@@ -43,6 +45,8 @@ export function SourceCommentSurface({
   file: FilePayload;
   highlightedLines?: string[] | null;
   selectedRange: LineRange | null;
+  focusLineNumber?: number | null;
+  focusRevision?: number;
   className?: string;
   comments?: ViviComment[];
   activeCommentId?: string | null;
@@ -85,6 +89,20 @@ export function SourceCommentSurface({
     setOpenThreadKey(null);
     setDraftThread(null);
   }, [file.path]);
+
+  useEffect(() => {
+    if (!focusLineNumber) return;
+    const line = linesRef.current?.querySelector<HTMLElement>(
+      `.code-line[data-line="${focusLineNumber}"]`,
+    );
+    if (!line) return;
+    const frame = window.requestAnimationFrame(() => {
+      line.scrollIntoView({ block: "center", behavior: "smooth" });
+      if (!line.hasAttribute("tabindex")) line.tabIndex = -1;
+      line.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [file.path, focusLineNumber, focusRevision]);
 
   function selectLine(lineNumber: number, shiftKey: boolean) {
     const next =
@@ -192,6 +210,7 @@ export function SourceCommentSurface({
         path: file.path,
         lineStart: normalized.start,
         lineEnd: normalized.end,
+        status: "open",
         comments: [],
       },
       draft: sourceCommentDraft(file, normalized, quote),
@@ -251,6 +270,7 @@ export function SourceCommentSurface({
       {lines.map((line, index) => {
         const lineNumber = index + 1;
         const selectedLine = lineInRange(lineNumber, selected);
+        const searchFocusLine = focusLineNumber === lineNumber;
         const selectionStart = selected?.start === lineNumber;
         const selectionEnd = selected?.end === lineNumber;
         const highlighted = highlightedLines?.[index];
@@ -293,6 +313,7 @@ export function SourceCommentSurface({
         );
         const classNames = [
           "code-line",
+          searchFocusLine ? "search-focus" : "",
           selectedLine ? "selected" : "",
           selectionStart ? "selection-start" : "",
           selectionEnd ? "selection-end" : "",
@@ -393,6 +414,7 @@ export function SourceCommentSurface({
                   thread={threadForDisplay}
                   draft={threadDraft}
                   activity={threadId ? threadActivities[threadId] : undefined}
+                  activeCommentId={activeCommentId}
                   onCreateComment={onCreateComment}
                   onStatusChange={onCommentStatusChange}
                   onClose={closeCommentThread}

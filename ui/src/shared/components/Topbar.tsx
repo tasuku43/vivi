@@ -10,6 +10,7 @@ interface TopbarProps {
   onQuickOpen: () => void;
   onSearchText: () => void;
   openCommentCount?: number;
+  commentAttentionCount?: number;
   onOpenComments?: () => void;
   onOpenShortcuts: () => void;
 }
@@ -21,12 +22,17 @@ export function Topbar({
   onQuickOpen,
   onSearchText,
   openCommentCount = 0,
+  commentAttentionCount = 0,
   onOpenComments,
   onOpenShortcuts,
 }: TopbarProps) {
   const workspaceName = workspaceDisplayName(root);
   const workspaceParent = workspaceParentPath(root);
   const themeLabel = themePreferenceLabel(themePreference);
+  const commentsButton = commentsButtonState({
+    attentionCount: commentAttentionCount,
+    openCount: openCommentCount,
+  });
 
   return (
     <header className="topbar">
@@ -48,7 +54,7 @@ export function Topbar({
           type="button"
           className="shortcut-button"
           aria-label="Keyboard shortcuts"
-          title="Keyboard shortcuts (Cmd /)"
+          title="Keyboard shortcuts (Cmd/Ctrl+/)"
           onClick={onOpenShortcuts}
         >
           ?
@@ -66,31 +72,71 @@ export function Topbar({
         <button
           type="button"
           className="command-button command-button-primary"
+          aria-keyshortcuts="Meta+K Control+K"
           onClick={onQuickOpen}
         >
           <span>Quick open</span>
-          <kbd>Cmd K</kbd>
+          <kbd>Cmd/Ctrl K</kbd>
         </button>
         <button
           type="button"
-          className="command-button command-button-secondary"
+          className={`command-button command-button-secondary${commentAttentionCount ? " needs-attention" : ""}`}
+          aria-label={commentsButton.ariaLabel}
+          aria-keyshortcuts="Meta+Shift+C Control+Shift+C"
+          title={commentsButton.title}
           onClick={onOpenComments}
         >
-          <span>Comments</span>
-          <span className="comment-count-badge">{openCommentCount}</span>
-          <kbd>Cmd Shift C</kbd>
+          <span>{commentsButton.label}</span>
+          <span className="comment-count-badge">{commentsButton.count}</span>
+          <kbd>Cmd/Ctrl Shift C</kbd>
         </button>
         <button
           type="button"
           className="command-button command-button-secondary"
+          aria-keyshortcuts="Meta+Shift+F Control+Shift+F"
           onClick={onSearchText}
         >
           <span>Search</span>
-          <kbd>Cmd Shift F</kbd>
+          <kbd>Cmd/Ctrl Shift F</kbd>
         </button>
       </div>
     </header>
   );
+}
+
+function commentsButtonState({
+  attentionCount,
+  openCount,
+}: {
+  attentionCount: number;
+  openCount: number;
+}): {
+  ariaLabel: string;
+  count: number;
+  label: string;
+  title: string;
+} {
+  if (attentionCount > 0) {
+    const noun = attentionCount === 1 ? "thread" : "threads";
+    const verb = attentionCount === 1 ? "needs" : "need";
+    return {
+      ariaLabel: `Open Attention inbox, ${attentionCount} comment ${noun} ${verb} attention`,
+      count: attentionCount,
+      label: "Attention",
+      title: `Open Attention inbox: ${attentionCount} comment ${noun} ${verb} attention (Cmd/Ctrl+Shift+C)`,
+    };
+  }
+
+  const noun = openCount === 1 ? "comment" : "comments";
+  const summary = openCount
+    ? `${openCount} open ${noun}`
+    : "no open comments";
+  return {
+    ariaLabel: `Open Comments inbox, ${summary}`,
+    count: openCount,
+    label: "Comments",
+    title: `Open Comments inbox: ${summary} (Cmd/Ctrl+Shift+C)`,
+  };
 }
 
 export function workspaceDisplayName(root: string | null): string {

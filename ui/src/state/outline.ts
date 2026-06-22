@@ -2,19 +2,23 @@ import { parseMarkdownFrontMatter } from "./markdown-frontmatter.js";
 
 export interface OutlineHeading {
   id: string;
+  lineStart?: number;
   level: 1 | 2;
   text: string;
 }
 
 export function extractMarkdownOutline(markdown: string): OutlineHeading[] {
   const frontMatter = parseMarkdownFrontMatter(markdown);
-  const body = frontMatter.status === "none" ? markdown : frontMatter.body;
+  if (frontMatter.status === "invalid" && !frontMatter.body) return [];
+  const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
+  const startIndex = markdownBodyStartIndex(lines);
   return extractPlainHeadingOutline(
-    body.split(/\r?\n/).flatMap((line) => {
+    lines.slice(startIndex).flatMap((line, index) => {
       const match = /^(#{1,2})\s+(.+?)\s*$/.exec(line);
       if (!match) return [];
       return [
         {
+          lineStart: startIndex + index + 1,
           level: match[1].length as 1 | 2,
           text: match[2].replace(/#+\s*$/, "").trim(),
         },
@@ -26,6 +30,7 @@ export function extractMarkdownOutline(markdown: string): OutlineHeading[] {
 export function extractHtmlOutline(html: string): OutlineHeading[] {
   const htmlHeadings: Array<{
     level: 1 | 2;
+    lineStart?: number;
     text: string;
     existingId?: string;
   }> = [];
@@ -48,6 +53,7 @@ export function extractHtmlOutline(html: string): OutlineHeading[] {
       ?.trim();
     htmlHeadings.push({
       existingId,
+      lineStart: lineNumberAt(html, start),
       level: Number(level) as 1 | 2,
       text: stripTags(html.slice(tagEnd + 1, closeStart)).trim(),
     });
@@ -97,7 +103,12 @@ export function addHtmlHeadingIds(html: string): string {
 }
 
 function extractPlainHeadingOutline(
-  items: Array<{ level: 1 | 2; text: string; existingId?: string }>,
+  items: Array<{
+    level: 1 | 2;
+    lineStart?: number;
+    text: string;
+    existingId?: string;
+  }>,
 ): OutlineHeading[] {
   const outline: OutlineHeading[] = [];
   const used = new Map<string, number>();
@@ -112,10 +123,28 @@ function extractPlainHeadingOutline(
     const count = used.get(base) ?? 0;
     used.set(base, count + 1);
     const id = count === 0 ? base : `${base}-${count + 1}`;
-    outline.push({ id, level, text });
+    outline.push({
+      id,
+      lineStart: item.lineStart,
+      level,
+      text,
+    });
   }
 
   return outline;
+}
+
+function markdownBodyStartIndex(lines: string[]): number {
+  if (!isFence(lines[0])) return 0;
+  const closingIndex = lines.findIndex(
+    (line, index) => index > 0 && isFence(line),
+  );
+  if (closingIndex === -1) return lines.length;
+  return closingIndex + 1;
+}
+
+function isFence(line: string | undefined): boolean {
+  return line?.trim() === "---";
 }
 
 export function slugify(value: string): string {
@@ -190,6 +219,14 @@ function findNextHeadingStart(html: string, from: number): number {
     }
   }
   return -1;
+}
+
+function lineNumberAt(value: string, offset: number): number {
+  let line = 1;
+  for (let index = 0; index < offset; index += 1) {
+    if (value[index] === "\n") line += 1;
+  }
+  return line;
 }
 
 function tagNameFromOpeningTag(tag: string): string | null {

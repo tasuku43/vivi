@@ -59,6 +59,7 @@ function args(status: CommentStatus) {
       path: sampleFiles.code.path,
       lineStart: 9,
       lineEnd: 12,
+      status,
       comments: comments(status),
     },
     draft: {
@@ -81,6 +82,7 @@ export const UserWritesOneDraftComment: Story = {
       path: sampleFiles.code.path,
       lineStart: 6,
       lineEnd: 6,
+      status: "open",
       comments: [
         draftReviewCommentAsViviComment(
           sampleDraftComments[0]!,
@@ -103,6 +105,7 @@ export const UserWritesMultipleDraftComments: Story = {
       path: sampleFiles.code.path,
       lineStart: 6,
       lineEnd: 10,
+      status: "open",
       comments: sampleDraftComments
         .filter((draft) => draft.path === sampleFiles.code.path)
         .map((draft) => draftReviewCommentAsViviComment(draft, sampleComments)),

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import type { TextDiff } from "../../domain/change-review.js";
+import type { WorkspaceConnectionStatus } from "../../application/ports/ViviClient.js";
 import type {
   CommentStatus,
   DraftReviewComment,
@@ -31,10 +32,12 @@ import { DraftReviewTray } from "../comments/components/DraftReviewTray.js";
 import { CommandPalette } from "../command-palette/CommandPalette.js";
 import { ShortcutHelp } from "../../shared/components/ShortcutHelp.js";
 import { WorkspaceRestoreNotice } from "../../shared/components/WorkspaceRestoreNotice.js";
+import { WorkspaceStatusbar } from "../../shared/components/WorkspaceStatusbar.js";
 import {
   extractHtmlOutline,
   extractMarkdownOutline,
 } from "../../state/outline.js";
+import { activeOutlineHeadingId } from "../../state/outline-position.js";
 import type { LineRange } from "../../state/code-viewer.js";
 import type {
   FileSearchResult,
@@ -75,6 +78,10 @@ import {
   replaceDirectoryChildren,
 } from "../../state/files.js";
 import {
+  explorerFilterLabel,
+  explorerFilterText,
+} from "../../state/tree-filter.js";
+import {
   activePanePaths,
   decideLiveRefresh,
   shouldApplyLiveRefresh,
@@ -86,7 +93,6 @@ import {
   type GitChangeReviewState,
 } from "../../state/git-review.js";
 import {
-  activityNeedsHumanAttention,
   buildReviewQueueItems,
   latestUnreadReviewItemPath,
   nextReviewQueueItemPath,
@@ -98,13 +104,23 @@ import {
   startGitReviewPolling,
 } from "../../state/git-review-refresh.js";
 import {
-  activeCommentsForPath,
   draftReviewCommentAsViviComment,
   type CommentDraft,
 } from "../../state/comments.js";
 import {
+  activeTextSearchResult,
+  codeSelectionForTextSearchTarget,
+  moveTextSearchSession,
+  textSearchPositionLabel,
+  textSearchSessionForSelection,
+  viewerModeForTextSearchTarget,
+  type TextSearchNavigationSession,
+} from "../../state/search-navigation.js";
+import {
   addCommentActivities,
   addCommentActivity,
+  commentActivityRefreshTarget,
+  commentActivityThreadPath,
   emptyCommentActivityState,
   summarizeThreadActivity,
   type CommentActivitySummary,
@@ -139,24 +155,32 @@ import {
   type StoredWorkspaceSessionV1,
   type WorkspaceSessionState,
 } from "../../state/workspace-session.js";
+import { summarizeWorkspaceStatus } from "../../state/workspace-status.js";
 import {
   defaultViewerMode,
   diffSupportForFile,
   nextViewerMode,
   supportsDiffMode,
-  supportsSourceToggle,
   type ViewerMode,
 } from "../../state/viewer-mode.js";
-import type {
-  CommandActionItem,
-  SearchPaletteMode,
+import {
+  textSearchPreviewSegments,
+  type CommandActionItem,
+  type RecentFileSearchResult,
+  type SearchPaletteMode,
 } from "../../state/search-palette.js";
+import {
+  currentThreadLifecycleShortcutStatus,
+  reviewCommandActions,
+} from "../../state/review-command-actions.js";
 import { keyboardShortcutAction } from "../../state/shortcuts.js";
 import {
-  agentReplyNavigationTargets,
+  commentNavigationTarget,
+  commentActivityThreadTargets,
+  commentInboxOpenState,
+  countAttentionCommentThreads,
   draftCommentNavigationTargets,
   firstRelevantThreadForReviewItem,
-  latestUnreadActivityTarget,
   moveReviewNavigationTarget,
   openThreadNavigationTargets,
   unresolvedThreadNavigationTargets,
@@ -192,6 +216,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     pendingGitRefresh: false,
     pendingDiffPaths: 0,
   });
+  const [workspaceConnectionStatus, setWorkspaceConnectionStatus] =
+    useState<WorkspaceConnectionStatus>("connecting");
   const [gitReview, setGitReview] = useState<GitChangeReviewState | null>(null);
   const gitReviewRef = useRef<GitChangeReviewState | null>(null);
   const initialGitReviewRequested = useRef(false);
@@ -226,6 +252,17 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   );
   const [codeSelections, setCodeSelections] = useState<
     Record<string, LineRange | null>
+  >({});
+  const [sourceFocusTarget, setSourceFocusTarget] = useState<{
+    paneId: string;
+    path: string;
+    lineNumber: number;
+    revision: number;
+  } | null>(null);
+  const [textSearchNavigation, setTextSearchNavigation] =
+    useState<TextSearchNavigationSession | null>(null);
+  const [activeOutlineByPane, setActiveOutlineByPane] = useState<
+    Record<string, string | null>
   >({});
   const [refreshedFiles, setRefreshedFiles] = useState<Record<string, number>>(
     {},
@@ -287,6 +324,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const diffRequestVersions = useRef<Record<string, number>>({});
   const activeFilePaths = useRef<Set<string>>(new Set());
   const diffEnabledRef = useRef(diffEnabled);
+  const commentsRef = useRef<ViviComment[]>([]);
   const liveFileRefreshTimers = useRef<Record<string, number>>({});
   const liveFileRefreshVersions = useRef<Record<string, number>>({});
   const loadedActivityThreadIds = useRef(new Set<string>());
@@ -358,11 +396,14 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     }
   }
 
-  async function loadComments(path: string | null = selectedPath) {
+  async function loadComments(
+    path: string | null = selectedPath,
+  ): Promise<ViviComment[]> {
     setCommentsLoading(true);
     try {
       const loaded = await client.getComments(path ? { path } : undefined);
       setComments((items) => mergeComments(items, loaded, path));
+      return loaded;
     } finally {
       setCommentsLoading(false);
     }
@@ -483,12 +524,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }
 
   async function openCommentFromPanel(comment: ViviComment) {
-    setCommentsPanelOpen(false);
-    setDiffEnabled(false);
-    setViewerModes((items) => ({ ...items, [comment.path]: "source" }));
-    await loadFile(comment.path, layout.activePaneId, "normal");
-    setActiveCommentId(comment.id);
-    setActiveCommentRect(null);
+    await openReviewTarget(commentNavigationTarget(comment), "normal");
   }
 
   const panes = useMemo(() => flattenPanes(layout), [layout]);
@@ -503,7 +539,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       )
     : null;
   const activeFileComments = useMemo(
-    () => (selectedPath ? activeCommentsForPath(comments, selectedPath) : []),
+    () =>
+      selectedPath
+        ? comments.filter((comment) => comment.path === selectedPath)
+        : [],
     [comments, selectedPath],
   );
   const activeFileDraftComments = useMemo(
@@ -513,6 +552,38 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         : [],
     [draftComments, selectedPath],
   );
+  const quickOpenRecentFiles = useMemo<RecentFileSearchResult[]>(() => {
+    const seen = new Set<string>();
+    const candidates: RecentFileSearchResult[] = [];
+    const activeTab = openTabs.find((tab) => tab.path === selectedPath);
+    if (activeTab) {
+      seen.add(activeTab.path);
+      candidates.push({
+        path: activeTab.path,
+        viewerKind: activeTab.viewerKind,
+        source: "active",
+      });
+    }
+    for (const tab of openTabs) {
+      if (seen.has(tab.path)) continue;
+      seen.add(tab.path);
+      candidates.push({
+        path: tab.path,
+        viewerKind: tab.viewerKind,
+        source: "open",
+      });
+    }
+    for (const file of recentFiles) {
+      if (seen.has(file.path)) continue;
+      seen.add(file.path);
+      candidates.push({
+        path: file.path,
+        viewerKind: file.viewerKind,
+        source: "recent",
+      });
+    }
+    return candidates;
+  }, [openTabs, recentFiles, selectedPath]);
   const allCommentMessages = useMemo(
     () => combinePublishedAndDraftComments(comments, draftComments),
     [comments, draftComments],
@@ -536,6 +607,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const activeViewerMode = file
     ? (viewerModes[file.path] ?? defaultViewerMode(file))
     : undefined;
+  const activeFileOutline = useMemo(() => outlineForFile(file), [file]);
   const usesInlineCommentThread = Boolean(
     !diffEnabled &&
     visibleActiveComment &&
@@ -592,6 +664,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     () => new Set(unreadReviewPaths),
     [unreadReviewPaths],
   );
+  const attentionCommentThreadCount = useMemo(
+    () => countAttentionCommentThreads(comments, unreadReviewPathSet),
+    [comments, unreadReviewPathSet],
+  );
   const reviewItems = useMemo(
     () =>
       buildReviewQueueItems(
@@ -610,31 +686,78 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     () => openThreadNavigationTargets(comments, { path: selectedPath }),
     [comments, selectedPath],
   );
-  const currentReviewBatchId = activeComment?.reviewBatchId ?? null;
-  const currentBatchThreadTargets = useMemo(
-    () =>
-      currentReviewBatchId
-        ? openThreadNavigationTargets(comments, {
-            reviewBatchId: currentReviewBatchId,
-          })
-        : [],
-    [comments, currentReviewBatchId],
-  );
-  const draftTargets = useMemo(
-    () => draftCommentNavigationTargets(draftComments),
-    [draftComments],
-  );
-  const agentReplyTargets = useMemo(
-    () => agentReplyNavigationTargets(comments),
-    [comments],
-  );
-  const latestUnreadTarget = useMemo(
-    () => latestUnreadActivityTarget(reviewItems),
-    [reviewItems],
-  );
   const changedPathSet = useMemo(
     () => new Set(reviewChanges.map((change) => change.path)),
     [reviewChanges],
+  );
+  const reviewPathSet = useMemo(
+    () => new Set(reviewItems.map((item) => item.path)),
+    [reviewItems],
+  );
+  const reviewTreePathSet = useMemo(
+    () => new Set([...changedPathSet, ...reviewPathSet]),
+    [changedPathSet, reviewPathSet],
+  );
+  const openTabPathSet = useMemo(
+    () => new Set(openTabs.map((tab) => tab.path)),
+    [openTabs],
+  );
+  const treeCommentCountsByPath = useMemo(
+    () =>
+      Object.fromEntries(
+        reviewItems.map((item) => [item.path, item.commentCount]),
+      ),
+    [reviewItems],
+  );
+  const treeOpenThreadCountsByPath = useMemo(
+    () =>
+      Object.fromEntries(
+        reviewItems.map((item) => [item.path, item.threadCounts.open]),
+      ),
+    [reviewItems],
+  );
+  const openReviewThreadCount = useMemo(
+    () =>
+      reviewItems.reduce((total, item) => total + item.threadCounts.open, 0),
+    [reviewItems],
+  );
+  const workspaceStatus = useMemo(
+    () =>
+      summarizeWorkspaceStatus({
+        tree,
+        openTabCount: openTabs.length,
+        reviewFileCount: reviewItems.length,
+        openThreadCount: openReviewThreadCount,
+        draftCount: draftComments.length,
+        connectionStatus: workspaceConnectionStatus,
+        activeFile: selectedPath
+          ? {
+              path: selectedPath,
+              changed: changedPathSet.has(selectedPath),
+              diffEnabled: Boolean(file && diffEnabled && supportsDiffMode(file)),
+              isPreview: Boolean(activeTab?.isPreview),
+              removed: Boolean(activeTab?.removed),
+              viewerMode: activeViewerMode,
+            }
+          : null,
+        metrics: liveMetrics,
+      }),
+    [
+      activeTab?.isPreview,
+      activeTab?.removed,
+      activeViewerMode,
+      changedPathSet,
+      draftComments.length,
+      diffEnabled,
+      file,
+      liveMetrics,
+      openReviewThreadCount,
+      openTabs.length,
+      reviewItems.length,
+      selectedPath,
+      tree,
+      workspaceConnectionStatus,
+    ],
   );
   const activityThreadTargets = useMemo(
     () =>
@@ -644,6 +767,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         commentsPanelOpen,
         commentsPanelQuery,
         commentsPanelStatus,
+        unreadReviewPaths: unreadReviewPathSet,
         reviewPaths: reviewItems.slice(0, 24).map((item) => item.path),
       }),
     [
@@ -653,23 +777,66 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       commentsPanelStatus,
       reviewItems,
       selectedPath,
+      unreadReviewPathSet,
+    ],
+  );
+  const commandActions = useMemo<CommandActionItem[]>(
+    () =>
+      reviewCommandActions({
+        activeComment:
+          activeComment?.path === selectedPath ? activeComment : null,
+        attentionThreadCount: attentionCommentThreadCount,
+        canToggleDiff: Boolean(file && supportsDiffMode(file)),
+        diffEnabled,
+        openThreadTargetCount: openThreadTargets.length,
+        reviewItemCount: reviewItems.length,
+        unreadReviewCount: unreadReviewPathSet.size,
+      }),
+    [
+      activeComment,
+      attentionCommentThreadCount,
+      diffEnabled,
+      file,
+      openThreadTargets.length,
+      reviewItems.length,
+      selectedPath,
+      unreadReviewPathSet.size,
     ],
   );
   const sidebarNodes = useMemo(
     () =>
       treeChangedOnly && tree
-        ? filterTreeToPaths(tree.nodes, changedPathSet)
+        ? filterTreeToPaths(tree.nodes, reviewTreePathSet)
         : (tree?.nodes ?? []),
-    [changedPathSet, tree, treeChangedOnly],
+    [reviewTreePathSet, tree, treeChangedOnly],
   );
+  const explorerFilterSummary = {
+    active: treeChangedOnly,
+    reviewPathCount: reviewTreePathSet.size,
+  };
 
   useEffect(() => {
     activeFilePaths.current = activePanePaths(panes);
   }, [panes]);
 
   useEffect(() => {
+    commentsRef.current = comments;
+  }, [comments]);
+
+  useEffect(() => {
     diffEnabledRef.current = diffEnabled;
   }, [diffEnabled]);
+
+  useEffect(() => {
+    const paneId = layout.activePaneId;
+    const validIds = new Set(activeFileOutline.map((heading) => heading.id));
+    const nextId = activeFileOutline[0]?.id ?? null;
+    setActiveOutlineByPane((items) => {
+      const current = items[paneId] ?? null;
+      const normalized = current && validIds.has(current) ? current : nextId;
+      return current === normalized ? items : { ...items, [paneId]: normalized };
+    });
+  }, [activeFileOutline, layout.activePaneId]);
 
   async function fetchFilePayload(path: string): Promise<FilePayload> {
     return (await client.getFileContext({ path })).file;
@@ -875,14 +1042,83 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     });
   }
 
-  function openFromPalette(path: string, preview: boolean) {
+  function focusTextSearchResult(
+    payload: FilePayload,
+    paneId: string,
+    lineNumber: number,
+  ) {
+    setDiffEnabled(false);
+    setSourceFocusTarget((current) => ({
+      paneId,
+      path: payload.path,
+      lineNumber,
+      revision: (current?.revision ?? 0) + 1,
+    }));
+    const searchViewerMode = viewerModeForTextSearchTarget(payload);
+    if (searchViewerMode) {
+      setViewerModes((items) => ({
+        ...items,
+        [payload.path]: searchViewerMode,
+      }));
+    }
+    const searchSelection = codeSelectionForTextSearchTarget(
+      payload,
+      lineNumber,
+    );
+    if (searchSelection) {
+      setCodeSelections((items) => ({
+        ...items,
+        [payload.path]: searchSelection,
+      }));
+    }
+    focusSourceLine(paneId, lineNumber);
+  }
+
+  function openTextSearchResult(
+    session: TextSearchNavigationSession,
+    paneId = layout.activePaneId,
+    preview: OpenTabMode = "preview",
+  ) {
+    const result = activeTextSearchResult(session);
+    if (!result) return;
+    setTextSearchNavigation(session);
+    void loadFile(result.path, paneId, preview)
+      .then((payload) =>
+        focusTextSearchResult(payload, paneId, result.lineNumber),
+      )
+      .catch((err) => setError(String(err)));
+  }
+
+  function moveTextSearchResult(direction: "next" | "previous") {
+    const nextSession = moveTextSearchSession(textSearchNavigation, direction);
+    if (!nextSession) return;
+    openTextSearchResult(
+      nextSession,
+      sourceFocusTarget?.paneId ?? layout.activePaneId,
+      "preview",
+    );
+  }
+
+  function openFromPalette(path: string, preview: boolean, lineNumber?: number) {
+    const query = paletteQuery.trim();
+    const session = lineNumber
+      ? textSearchSessionForSelection({
+          query,
+          results: textSearchResults,
+          path,
+          lineNumber,
+        })
+      : null;
     setPaletteOpen(false);
     setPaletteQuery("");
-    void loadFile(
-      path,
-      layout.activePaneId,
-      preview ? "preview" : "normal",
-    ).catch((err) => setError(String(err)));
+    const paneId = layout.activePaneId;
+    void loadFile(path, paneId, preview ? "preview" : "normal")
+      .then((payload) => {
+        if (!lineNumber) return;
+        if (session) setTextSearchNavigation(session);
+        focusTextSearchResult(payload, paneId, lineNumber);
+      })
+      .catch((err) => setError(String(err)));
   }
 
   function openPalette(mode: SearchPaletteMode) {
@@ -892,150 +1128,25 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     setPaletteOpen(true);
   }
 
-  const commandActions = useMemo<CommandActionItem[]>(
-    () => [
-      {
-        id: "toggle-sidebar",
-        label: sidebarVisible ? "Collapse sidebar" : "Expand sidebar",
-        detail: "Show or hide the file tree sidebar",
-      },
-      {
-        id: "toggle-inspector",
-        label: inspectorVisible ? "Collapse inspector" : "Expand inspector",
-        detail: "Show or hide the review inspector",
-      },
-      {
-        id: "next-open-thread",
-        label: "Next open thread",
-        detail:
-          "Move to the next unresolved review thread across the workspace",
-        shortcut: "Cmd ]",
-        disabled: !openThreadTargets.length,
-      },
-      {
-        id: "previous-open-thread",
-        label: "Previous open thread",
-        detail: "Move to the previous unresolved review thread",
-        shortcut: "Cmd [",
-        disabled: !openThreadTargets.length,
-      },
-      {
-        id: "next-current-file-thread",
-        label: "Next thread in current file",
-        detail: "Stay in the active file while moving through open threads",
-        disabled: !currentFileOpenThreadTargets.length,
-      },
-      {
-        id: "previous-current-file-thread",
-        label: "Previous thread in current file",
-        detail: "Move backward through open threads in the active file",
-        disabled: !currentFileOpenThreadTargets.length,
-      },
-      {
-        id: "next-batch-thread",
-        label: "Next thread in current review batch",
-        detail: "Use reviewBatchId metadata when the active thread has it",
-        disabled: !currentBatchThreadTargets.length,
-      },
-      {
-        id: "next-draft-comment",
-        label: "Next draft comment",
-        detail: "Review unpublished draft comments before publishing",
-        disabled: !draftTargets.length,
-      },
-      {
-        id: "previous-draft-comment",
-        label: "Previous draft comment",
-        detail: "Move backward through unpublished draft comments",
-        disabled: !draftTargets.length,
-      },
-      {
-        id: "next-agent-reply",
-        label: "Next agent reply",
-        detail: "Jump to the most recent Codex or Claude Code reply",
-        disabled: !agentReplyTargets.length,
-      },
-      {
-        id: "latest-unread-activity",
-        label: "Latest unread activity",
-        detail: "Open the next review item marked as unseen",
-        shortcut: "Cmd Shift U",
-        disabled: !latestUnreadTarget,
-      },
-      {
-        id: "next-unresolved-thread",
-        label: "Next unresolved thread",
-        detail:
-          "Alias for the next open thread; resolved and archived stay in history",
-        disabled: !openThreadTargets.length,
-      },
-      {
-        id: "toggle-source",
-        label: "Toggle source/rendered",
-        detail: "Switch Markdown or HTML between source and rendered preview",
-        shortcut: "Cmd E",
-        disabled: !supportsSourceToggle(file),
-      },
-      {
-        id: "toggle-diff",
-        label: "Toggle diff",
-        detail: "Show or hide the read-only diff from HEAD",
-        shortcut: "Cmd D",
-        disabled: !supportsDiffMode(file),
-      },
-      {
-        id: "show-source",
-        label: "Show source",
-        detail: "Switch the active viewer to source mode",
-        disabled: !file,
-      },
-      {
-        id: "show-rendered",
-        label: "Show rendered",
-        detail: "Switch Markdown or HTML to rendered/preview mode",
-        disabled: !supportsSourceToggle(file),
-      },
-      {
-        id: "show-diff",
-        label: "Show diff",
-        detail: "Switch the active viewer to diff from HEAD",
-        disabled: !supportsDiffMode(file),
-      },
-      {
-        id: "focus-review-queue",
-        label: "Focus Review Queue",
-        detail: "Move keyboard focus to the active review work list",
-        shortcut: "Cmd Shift R",
-        disabled: !reviewItems.length,
-      },
-      {
-        id: "focus-comments-panel",
-        label: "Focus Comments panel",
-        detail: "Open and focus the workspace comments panel",
-        shortcut: "Cmd Shift C",
-      },
-      {
-        id: "focus-inline-thread",
-        label: "Focus current inline thread",
-        detail: "Move focus to the active inline comment thread",
-        shortcut: "Cmd I",
-        disabled: !activeCommentId && !currentFileOpenThreadTargets.length,
-      },
-    ],
-    [
-      activeCommentId,
-      agentReplyTargets.length,
-      currentBatchThreadTargets.length,
-      currentFileOpenThreadTargets.length,
-      draftTargets.length,
-      file,
-      inspectorVisible,
-      latestUnreadTarget,
-      openThreadTargets.length,
-      reviewItems.length,
-      sidebarVisible,
-    ],
-  );
+  function runPaletteAction(id: string) {
+    setPaletteOpen(false);
+    setPaletteQuery("");
+    if (id === "return-current-stop") focusCurrentInlineThread();
+    if (
+      id === "toggle-current-thread-status" ||
+      id === "archive-current-thread"
+    )
+      updateActiveCommentLifecycle(id);
+    if (id === "open-comments") focusCommentsPanel();
+    if (id === "open-latest-unread") openLatestUnreadReviewFile();
+    if (id === "open-next-review") openReviewQueueFile("next");
+    if (id === "focus-review-queue") focusReviewQueue();
+    if (id === "open-next-thread")
+      openMovedTarget(openThreadTargets, "next");
+    if (id === "open-previous-thread")
+      openMovedTarget(openThreadTargets, "previous");
+    if (id === "toggle-diff") toggleHeadDiff();
+  }
 
   function openAllChangedFiles() {
     for (const change of reviewChanges) {
@@ -1142,40 +1253,30 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     setViewerModes((items) => ({ ...items, [path]: next }));
   }
 
-  function setActiveViewerSurface(surface: "source" | "rendered" | "diff") {
-    if (!selectedPath) return;
-    if (surface === "diff") {
-      if (!file || !supportsDiffMode(file)) return;
-      setDiffEnabled(true);
-      void loadHeadDiff(selectedPath).catch((err) => setError(String(err)));
-      return;
-    }
-    setDiffEnabled(false);
-    if (surface === "source") {
-      setViewerModes((items) => ({ ...items, [selectedPath]: "source" }));
-      return;
-    }
-    if (file?.viewerKind === "html") {
-      setViewerModes((items) => ({ ...items, [selectedPath]: "preview" }));
-    } else if (file?.viewerKind === "markdown") {
-      setViewerModes((items) => ({ ...items, [selectedPath]: "rendered" }));
-    }
-  }
-
   function focusReviewQueue() {
     setInspectorVisible(true);
     window.setTimeout(() => {
+      const activeRow = '.review-queue .change-open[aria-current="true"]';
+      const firstRow = ".review-queue .change-open:not(:disabled)";
       document
         .querySelector<HTMLButtonElement>(
-          ".review-queue .change-open:not(:disabled)",
+          `${activeRow}:not(:disabled), ${firstRow}`,
         )
         ?.focus();
     }, 0);
   }
 
   function focusCommentsPanel() {
+    const entry = commentInboxOpenState({
+      activeComment,
+      activeCommentId,
+      attentionThreadCount: attentionCommentThreadCount,
+    });
     setPaletteOpen(false);
     setShortcutHelpOpen(false);
+    setCommentsPanelStatus(entry.status);
+    setCommentsPanelQuery(entry.query);
+    setActiveCommentId(entry.activeCommentId);
     setCommentsPanelOpen(true);
     window.setTimeout(() => {
       document
@@ -1197,35 +1298,14 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     target?.focus();
   }
 
-  function runCommandAction(id: string) {
-    if (id === "next-open-thread" || id === "next-unresolved-thread")
-      openMovedTarget(openThreadTargets, "next");
-    if (id === "previous-open-thread")
-      openMovedTarget(openThreadTargets, "previous");
-    if (id === "next-current-file-thread")
-      openMovedTarget(currentFileOpenThreadTargets, "next");
-    if (id === "previous-current-file-thread")
-      openMovedTarget(currentFileOpenThreadTargets, "previous");
-    if (id === "next-batch-thread")
-      openMovedTarget(currentBatchThreadTargets, "next");
-    if (id === "next-draft-comment") openMovedTarget(draftTargets, "next");
-    if (id === "previous-draft-comment")
-      openMovedTarget(draftTargets, "previous");
-    if (id === "next-agent-reply") openMovedTarget(agentReplyTargets, "next");
-    if (id === "toggle-sidebar") setSidebarVisible((visible) => !visible);
-    if (id === "toggle-inspector") setInspectorVisible((visible) => !visible);
-    if (id === "latest-unread-activity" && latestUnreadTarget)
-      void openReviewTarget(latestUnreadTarget).catch((err) =>
-        setError(String(err)),
-      );
-    if (id === "toggle-source") toggleSourceRendered();
-    if (id === "toggle-diff") toggleHeadDiff();
-    if (id === "show-source") setActiveViewerSurface("source");
-    if (id === "show-rendered") setActiveViewerSurface("rendered");
-    if (id === "show-diff") setActiveViewerSurface("diff");
-    if (id === "focus-review-queue") focusReviewQueue();
-    if (id === "focus-comments-panel") focusCommentsPanel();
-    if (id === "focus-inline-thread") focusCurrentInlineThread();
+  function updateActiveCommentLifecycle(
+    action: "toggle-current-thread-status" | "archive-current-thread",
+  ) {
+    const status = currentThreadLifecycleShortcutStatus(activeComment, action);
+    if (!status || !activeComment) return;
+    void updateCommentStatus(activeComment.id, status).catch((err) =>
+      setError(String(err)),
+    );
   }
 
   function markReviewPathUnread(path: string) {
@@ -1321,6 +1401,46 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     return extractMarkdownOutline(target.content);
   }
 
+  function updateActiveOutlineForPane(
+    paneId: string,
+    target: FilePayload | null,
+  ) {
+    const outline = outlineForFile(target);
+    if (!outline.length) {
+      setActiveOutlineByPane((items) =>
+        items[paneId] === null || items[paneId] === undefined
+          ? items
+          : { ...items, [paneId]: null },
+      );
+      return;
+    }
+    const pane = document.querySelector<HTMLElement>(
+      `[data-pane-id="${paneId}"]`,
+    );
+    const viewer = pane?.querySelector<HTMLElement>(".viewer-pane");
+    if (!viewer) return;
+    const viewerTop = viewer.getBoundingClientRect().top;
+    const positions = outline
+      .map((heading) => {
+        const element = Array.from(
+          viewer.querySelectorAll<HTMLElement>("[id]"),
+        ).find((candidate) => candidate.id === heading.id);
+        if (!element) return null;
+        return {
+          id: heading.id,
+          top: element.getBoundingClientRect().top - viewerTop,
+        };
+      })
+      .filter(
+        (position): position is { id: string; top: number } =>
+          position !== null,
+      );
+    const activeId = activeOutlineHeadingId(positions);
+    setActiveOutlineByPane((items) =>
+      items[paneId] === activeId ? items : { ...items, [paneId]: activeId },
+    );
+  }
+
   function jumpToOutline(id: string, paneId = layout.activePaneId) {
     const pane = document.querySelector<HTMLElement>(
       `[data-pane-id="${paneId}"]`,
@@ -1333,6 +1453,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     ).find((element) => element.id === id);
     if (markdownTarget) {
       markdownTarget.scrollIntoView({ block: "start", behavior: "smooth" });
+      setActiveOutlineByPane((items) =>
+        items[paneId] === id ? items : { ...items, [paneId]: id },
+      );
       return;
     }
 
@@ -1350,6 +1473,26 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     }
   }
 
+  function focusSourceLine(paneId: string, lineNumber: number, attempt = 0) {
+    const pane = document.querySelector<HTMLElement>(
+      `[data-pane-id="${paneId}"]`,
+    );
+    const target = pane?.querySelector<HTMLElement>(
+      `.code-line[data-line="${lineNumber}"], .commented-source-line[data-line="${lineNumber}"]`,
+    );
+    if (target) {
+      target.scrollIntoView({ block: "center", behavior: "smooth" });
+      if (!target.hasAttribute("tabindex")) target.tabIndex = -1;
+      target.focus({ preventScroll: true });
+      return;
+    }
+    if (attempt >= 6) return;
+    window.setTimeout(
+      () => focusSourceLine(paneId, lineNumber, attempt + 1),
+      50,
+    );
+  }
+
   function revealActiveFileInTree(path = selectedPath) {
     if (!path) return;
     setTreeChangedOnly(false);
@@ -1364,7 +1507,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     loadTree().catch((err) => setError(String(err)));
     loadComments(null).catch((err) => setError(String(err)));
     loadDraftReviewComments().catch((err) => setError(String(err)));
-  }, []);
+  }, [client]);
 
   useEffect(() => {
     if (!activityThreadTargets.length) return;
@@ -1377,16 +1520,20 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     if (!client.subscribeCommentThreadActivities) return undefined;
     return client.subscribeCommentThreadActivities(undefined, (event) => {
       setCommentActivity((state) => addCommentActivity(state, event));
-      const path = comments.find(
-        (comment) => (comment.threadId ?? comment.id) === event.threadId,
-      )?.path;
-      if (path && activityNeedsHumanAttention(event))
-        markReviewPathUnread(path);
-      if (activityNeedsHumanAttention(event)) {
-        void loadComments(null).catch((err) => setError(String(err)));
+      const target = commentActivityRefreshTarget(event, commentsRef.current);
+      if (!target.shouldRefresh) return;
+      if (target.path && target.shouldMarkUnread) {
+        markReviewPathUnread(target.path);
       }
+      void loadComments(target.path)
+        .then((loaded) => {
+          if (target.path || !target.shouldMarkUnread) return;
+          const refreshedPath = commentActivityThreadPath(event, loaded);
+          if (refreshedPath) markReviewPathUnread(refreshedPath);
+        })
+        .catch((err) => setError(String(err)));
     });
-  }, [comments]);
+  }, [client]);
 
   useEffect(() => {
     if (
@@ -1516,7 +1663,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }, [resizingWorkbenchPane]);
 
   useEffect(() => {
-    if (!paletteOpen || paletteMode !== "file") {
+    const query = paletteQuery.trim();
+    if (!paletteOpen || paletteMode !== "file" || !query) {
       setFileSearchResults([]);
       setFileSearchLoading(false);
       return;
@@ -1527,7 +1675,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       setFileSearchLoading(true);
       client
         .searchFiles({
-          query: paletteQuery.trim(),
+          query,
           limit: 40,
           signal: controller.signal,
         })
@@ -1630,13 +1778,21 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         return;
       }
 
-      if (action === "toggle-comments") {
+      if (action === "focus-comments-panel") {
         event.preventDefault();
-        setPaletteOpen(false);
-        setShortcutHelpOpen(false);
-        setActiveCommentId(null);
-        setActiveCommentRect(null);
-        setCommentsPanelOpen((open) => !open);
+        focusCommentsPanel();
+        return;
+      }
+
+      if (action === "toggle-sidebar") {
+        event.preventDefault();
+        setSidebarVisible((visible) => !visible);
+        return;
+      }
+
+      if (action === "toggle-inspector") {
+        event.preventDefault();
+        setInspectorVisible((visible) => !visible);
         return;
       }
 
@@ -1675,8 +1831,16 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         openMovedTarget(openThreadTargets, "next");
       if (action === "open-previous-thread")
         openMovedTarget(openThreadTargets, "previous");
+      if (action === "open-next-search-result") moveTextSearchResult("next");
+      if (action === "open-previous-search-result")
+        moveTextSearchResult("previous");
       if (action === "focus-review-queue") focusReviewQueue();
       if (action === "focus-current-inline-thread") focusCurrentInlineThread();
+      if (
+        action === "toggle-current-thread-status" ||
+        action === "archive-current-thread"
+      )
+        updateActiveCommentLifecycle(action);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -1690,48 +1854,54 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     reviewChanges,
     unreadReviewPaths,
     commentsPanelOpen,
+    activeComment,
     activeCommentId,
     openThreadTargets,
     currentFileOpenThreadTargets,
     reviewItems,
+    textSearchNavigation,
+    sourceFocusTarget,
     files,
     file,
     viewerModes,
   ]);
 
   useEffect(() => {
-    const unsubscribe = client.subscribeWorkspaceEvents((event) => {
-      const decision = decideLiveRefresh(event, activeFilePaths.current);
-      setLiveMetrics((metrics) => ({
-        ...metrics,
-        fsEventsReceived: metrics.fsEventsReceived + 1,
-      }));
-      setRecentEvents((items) => recordReviewEvent(items, event));
-      markReviewPathUnread(event.path);
+    const unsubscribe = client.subscribeWorkspaceEvents(
+      (event) => {
+        const decision = decideLiveRefresh(event, activeFilePaths.current);
+        setLiveMetrics((metrics) => ({
+          ...metrics,
+          fsEventsReceived: metrics.fsEventsReceived + 1,
+        }));
+        setRecentEvents((items) => recordReviewEvent(items, event));
+        markReviewPathUnread(event.path);
 
-      if (decision.reloadPath) {
-        scheduleLiveFileRefresh(decision.reloadPath);
-      }
+        if (decision.reloadPath) {
+          scheduleLiveFileRefresh(decision.reloadPath);
+        }
 
-      if (decision.stalePath) {
-        setOpenTabs((tabs) => markTabChanged(tabs, decision.stalePath!));
-      }
+        if (decision.stalePath) {
+          setOpenTabs((tabs) => markTabChanged(tabs, decision.stalePath!));
+        }
 
-      if (decision.removedPath) {
-        setOpenTabs((tabs) => markTabRemoved(tabs, decision.removedPath!));
-      }
+        if (decision.removedPath) {
+          setOpenTabs((tabs) => markTabRemoved(tabs, decision.removedPath!));
+        }
 
-      if (decision.treeRefreshParentPath !== null) {
-        const refresh = decision.treeRefreshParentPath
-          ? loadDirectory(decision.treeRefreshParentPath)
-          : loadTree();
-        refresh.catch((err) => setError(String(err)));
-      }
-      scheduleGitReviewRefresh();
-      if (diffEnabledRef.current) {
-        scheduleDiffRefresh(event.path);
-      }
-    });
+        if (decision.treeRefreshParentPath !== null) {
+          const refresh = decision.treeRefreshParentPath
+            ? loadDirectory(decision.treeRefreshParentPath)
+            : loadTree();
+          refresh.catch((err) => setError(String(err)));
+        }
+        scheduleGitReviewRefresh();
+        if (diffEnabledRef.current) {
+          scheduleDiffRefresh(event.path);
+        }
+      },
+      { onStatus: setWorkspaceConnectionStatus },
+    );
     return () => {
       unsubscribe();
       if (gitRefreshTimer.current) window.clearTimeout(gitRefreshTimer.current);
@@ -1766,11 +1936,18 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         onQuickOpen={() => openPalette("file")}
         onSearchText={() => openPalette("text")}
         openCommentCount={openCommentCount}
+        commentAttentionCount={attentionCommentThreadCount}
         onOpenComments={() => {
+          const entry = commentInboxOpenState({
+            activeComment,
+            activeCommentId,
+            attentionThreadCount: attentionCommentThreadCount,
+          });
           setPaletteOpen(false);
           setShortcutHelpOpen(false);
-          setActiveCommentId(null);
-          setActiveCommentRect(null);
+          setActiveCommentId(entry.activeCommentId);
+          setCommentsPanelStatus(entry.status);
+          setCommentsPanelQuery(entry.query);
           setCommentsPanelOpen(true);
         }}
         onOpenShortcuts={() => {
@@ -1805,11 +1982,17 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               <div className="panel-title">
                 <span>Explorer</span>
                 <button
-                  className={treeChangedOnly ? "pill active" : "pill"}
+                  aria-label={explorerFilterLabel(explorerFilterSummary)}
+                  className={
+                    treeChangedOnly
+                      ? "pill filter-pill active"
+                      : "pill filter-pill"
+                  }
+                  title={explorerFilterLabel(explorerFilterSummary)}
                   type="button"
                   onClick={() => setTreeChangedOnly((value) => !value)}
                 >
-                  {treeChangedOnly ? "changed" : "live"}
+                  {explorerFilterText(explorerFilterSummary)}
                 </button>
               </div>
               {tree ? (
@@ -1819,6 +2002,12 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                   revealPath={treeReveal?.path ?? null}
                   revealRevision={treeReveal?.revision ?? 0}
                   changedPaths={changedPathSet}
+                  reviewPaths={reviewPathSet}
+                  unreadReviewPaths={unreadReviewPathSet}
+                  activePaths={openTabPathSet}
+                  currentStopPath={activeComment?.path ?? null}
+                  commentCountsByPath={treeCommentCountsByPath}
+                  openThreadCountsByPath={treeOpenThreadCountsByPath}
                   removedPaths={reviewState.removedPaths}
                   loadingDirectoryPaths={loadingDirectoryPaths}
                   onLoadDirectory={(path) => loadDirectory(path)}
@@ -1845,6 +2034,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
           aria-label={
             effectiveSidebarVisible ? "Collapse sidebar" : "Expand sidebar"
           }
+          aria-keyshortcuts="Meta+B Control+B"
           title={
             effectiveSidebarVisible ? "Collapse sidebar" : "Expand sidebar"
           }
@@ -1873,6 +2063,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               ? "Collapse inspector"
               : "Expand inspector"
           }
+          aria-keyshortcuts="Meta+Shift+\\ Control+Shift+\\"
           title={
             effectiveInspectorVisible
               ? "Collapse inspector"
@@ -1912,60 +2103,58 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               loadingReviewDiffs={loadingDiffs}
               unreadReviewPaths={unreadReviewPathSet}
               comments={activeFileComments}
+              reviewComments={comments}
               draftComments={activeFileDraftComments}
               commentsLoading={commentsLoading}
               threadActivities={commentActivitySummaries}
+              activeCommentId={activeCommentId}
               onOpenComments={() => {
-                setCommentsPanelStatus("all");
-                setCommentsPanelQuery(file?.path ?? "");
-                setActiveCommentId(null);
-                setActiveCommentRect(null);
+                const entry = commentInboxOpenState({
+                  activeComment,
+                  activeCommentId,
+                  attentionThreadCount: attentionCommentThreadCount,
+                  query: file?.path ?? "",
+                });
+                setCommentsPanelStatus(entry.status);
+                setCommentsPanelQuery(entry.query);
+                setActiveCommentId(entry.activeCommentId);
                 setCommentsPanelOpen(true);
               }}
+              onOpenComment={openCommentFromPanel}
+              onCommentStatusChange={(id, status) =>
+                void updateCommentStatus(id, status).catch((err) =>
+                  setError(String(err)),
+                )
+              }
               selectedCodeRange={
                 file?.path ? (codeSelections[file.path] ?? null) : null
               }
+              outline={activeFileOutline}
+              activeOutlineId={activeOutlineByPane[layout.activePaneId] ?? null}
+              activePath={selectedPath}
               refreshedAt={file?.path ? refreshedFiles[file.path] : undefined}
               activePaneId={layout.activePaneId}
               onOpenEventPath={(path) => openReviewQueueItem(path, "preview")}
               onConfirmEventPath={(path) => openReviewQueueItem(path, "normal")}
+              onOpenNextUnread={openLatestUnreadReviewFile}
               onOpenNextChanged={() => openReviewQueueFile("next")}
               onOpenPreviousChanged={() => openReviewQueueFile("previous")}
               onOpenAllChanged={openAllChangedFiles}
               onRevealInTree={revealActiveFileInTree}
+              onOutlineSelect={(id) => jumpToOutline(id)}
             />
           </>
         ) : null}
       </div>
 
-      <footer className="statusbar">
-        <span>
-          {openTabs.length} tabs · {reviewChanges.length} to review ·{" "}
-          {tree?.nodes.length ?? 0} root entries
-        </span>
-        <span>
-          {liveMetrics.fsEventsReceived} fs events · {liveMetrics.gitRefreshes}{" "}
-          git refreshes
-          {liveMetrics.lastGitRefreshMs !== null
-            ? ` · git ${liveMetrics.lastGitRefreshMs}ms`
-            : ""}
-          {liveMetrics.diffRefreshes
-            ? ` · ${liveMetrics.diffRefreshes} diff refreshes`
-            : ""}
-          {liveMetrics.lastDiffRefreshMs !== null
-            ? ` · diff ${liveMetrics.lastDiffRefreshMs}ms`
-            : ""}
-          {liveMetrics.pendingGitRefresh || liveMetrics.pendingDiffPaths
-            ? ` · pending ${liveMetrics.pendingGitRefresh ? "git" : ""}${liveMetrics.pendingDiffPaths ? ` diff:${liveMetrics.pendingDiffPaths}` : ""}`
-            : ""}
-        </span>
-      </footer>
+      <WorkspaceStatusbar status={workspaceStatus} />
 
       <CommandPalette
         open={paletteOpen}
         mode={paletteMode}
         query={paletteQuery}
         fileResults={fileSearchResults}
+        recentFiles={quickOpenRecentFiles}
         fileLoading={fileSearchLoading}
         textResults={textSearchResults}
         textLoading={textSearchLoading}
@@ -1977,7 +2166,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         }}
         onClose={() => setPaletteOpen(false)}
         onOpenPath={openFromPalette}
-        onRunAction={runCommandAction}
+        onRunAction={runPaletteAction}
       />
       <ShortcutHelp
         open={shortcutHelpOpen}
@@ -2015,11 +2204,18 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         query={commentsPanelQuery}
         statusFilter={commentsPanelStatus}
         threadActivities={commentActivitySummaries}
+        unreadReviewPaths={unreadReviewPathSet}
+        activeCommentId={activeCommentId}
         onQueryChange={setCommentsPanelQuery}
         onStatusFilterChange={setCommentsPanelStatus}
         onClose={() => setCommentsPanelOpen(false)}
         onOpenComment={(comment) =>
           void openCommentFromPanel(comment).catch((err) =>
+            setError(String(err)),
+          )
+        }
+        onStatusChange={(id, status) =>
+          void updateCommentStatus(id, status).catch((err) =>
             setError(String(err)),
           )
         }
@@ -2029,11 +2225,13 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         publishing={draftPublishing}
         publishError={draftPublishError}
         publishedBatchId={lastPublishedReviewBatchId}
-        onOpenPath={(path) =>
-          void loadFile(path, layout.activePaneId, "preview").catch((err) =>
+        onOpenDraft={(draft) => {
+          const target = draftCommentNavigationTargets([draft])[0];
+          if (!target) return;
+          void openReviewTarget(target, "normal").catch((err) =>
             setError(String(err)),
-          )
-        }
+          );
+        }}
         onUpdateDraft={(id, body) =>
           void updateDraftReviewComment(id, body).catch((err) =>
             setError(String(err)),
@@ -2114,6 +2312,18 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     const paneActiveTab = pane.activePath
       ? paneTabs.find((tab) => tab.path === pane.activePath)
       : null;
+    const paneTextSearchResult =
+      paneFile && sourceFocusTarget?.paneId === pane.id
+        ? activeTextSearchResult(textSearchNavigation)
+        : null;
+    const paneTextSearchPosition = textSearchPositionLabel(
+      textSearchNavigation,
+    );
+    const showPaneTextSearch =
+      paneTextSearchResult &&
+      paneFile &&
+      paneTextSearchResult.path === paneFile.path &&
+      sourceFocusTarget?.path === paneFile.path;
 
     return (
       <section
@@ -2170,87 +2380,125 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
             setDraggingTab(true);
           }}
         />
-        <div className="viewer-pane">
+        <div
+          className="viewer-pane"
+          onScroll={() => updateActiveOutlineForPane(pane.id, paneFile)}
+        >
           {error && pane.id === layout.activePaneId ? (
             <div className="error">{error}</div>
           ) : (
-            <FileViewer
-              key={paneFile?.path ?? "empty"}
-              file={paneFile}
-              removed={Boolean(paneActiveTab?.removed)}
-              allowHtmlScripts={config?.allowHtmlScripts ?? false}
-              theme={resolvedTheme}
-              selectedCodeRange={
-                paneFile?.path ? (codeSelections[paneFile.path] ?? null) : null
-              }
-              viewerMode={
-                paneFile
-                  ? (viewerModes[paneFile.path] ?? defaultViewerMode(paneFile))
-                  : undefined
-              }
-              diff={paneFile?.path ? (diffs[paneFile.path] ?? null) : null}
-              diffLoading={
-                paneFile?.path ? Boolean(loadingDiffs[paneFile.path]) : false
-              }
-              diffEnabled={
-                paneFile ? diffEnabled && supportsDiffMode(paneFile) : false
-              }
-              diffFocusChanges={
-                paneFile?.path ? Boolean(diffFocusByPath[paneFile.path]) : false
-              }
-              outline={outlineForFile(paneFile)}
-              refreshedAt={
-                paneFile?.path ? refreshedFiles[paneFile.path] : undefined
-              }
-              onOutlineSelect={(id) => jumpToOutline(id, pane.id)}
-              onCreateComment={(draft, body, rect) =>
-                createComment(draft, body, rect).catch((err) =>
-                  setError(String(err)),
-                )
-              }
-              comments={
-                paneFile?.path
-                  ? combinePublishedAndDraftComments(
-                      comments,
-                      draftComments,
-                      paneFile.path,
-                    )
-                  : []
-              }
-              activeCommentId={activeCommentId}
-              onOpenComment={openInlineComment}
-              onCloseComment={closeInlineComment}
-              onCommentStatusChange={updateCommentStatus}
-              threadActivities={commentActivitySummaries}
-              onCodeSelectionChange={(range) => {
-                if (!paneFile?.path) return;
-                setCodeSelections((items) => ({
-                  ...items,
-                  [paneFile.path]: range,
-                }));
-              }}
-              onViewerModeChange={(mode) => {
-                if (!paneFile?.path) return;
-                setViewerModes((items) => ({
-                  ...items,
-                  [paneFile.path]: mode,
-                }));
-              }}
-              onDiffToggle={() => {
-                if (!paneFile?.path) return;
-                toggleHeadDiff(paneFile.path);
-              }}
-              onDiffFocusChange={(focusChanges) => {
-                if (!paneFile?.path) return;
-                setDiffFocusByPath((items) => ({
-                  ...items,
-                  [paneFile.path]: focusChanges,
-                }));
-              }}
-              onCloseRemoved={() => {
-                if (pane.activePath) closeTab(pane.activePath, pane.id);
-              }}
-            />
+            <>
+              {showPaneTextSearch ? (
+                <TextSearchNavigationBar
+                  query={textSearchNavigation?.query ?? ""}
+                  position={paneTextSearchPosition ?? ""}
+                  result={paneTextSearchResult}
+                  onPrevious={() => moveTextSearchResult("previous")}
+                  onNext={() => moveTextSearchResult("next")}
+                  onClose={() => {
+                    setTextSearchNavigation(null);
+                    setSourceFocusTarget(null);
+                  }}
+                />
+              ) : null}
+              <FileViewer
+                key={paneFile?.path ?? "empty"}
+                file={paneFile}
+                removed={Boolean(paneActiveTab?.removed)}
+                allowHtmlScripts={config?.allowHtmlScripts ?? false}
+                theme={resolvedTheme}
+                selectedCodeRange={
+                  paneFile?.path
+                    ? (codeSelections[paneFile.path] ?? null)
+                    : null
+                }
+                focusLineNumber={
+                  paneFile &&
+                  sourceFocusTarget?.paneId === pane.id &&
+                  sourceFocusTarget.path === paneFile.path
+                    ? sourceFocusTarget.lineNumber
+                    : null
+                }
+                focusRevision={
+                  paneFile &&
+                  sourceFocusTarget?.paneId === pane.id &&
+                  sourceFocusTarget.path === paneFile.path
+                    ? sourceFocusTarget.revision
+                    : 0
+                }
+                viewerMode={
+                  paneFile
+                    ? (viewerModes[paneFile.path] ?? defaultViewerMode(paneFile))
+                    : undefined
+                }
+                diff={paneFile?.path ? (diffs[paneFile.path] ?? null) : null}
+                diffLoading={
+                  paneFile?.path ? Boolean(loadingDiffs[paneFile.path]) : false
+                }
+                diffEnabled={
+                  paneFile ? diffEnabled && supportsDiffMode(paneFile) : false
+                }
+                diffFocusChanges={
+                  paneFile?.path
+                    ? Boolean(diffFocusByPath[paneFile.path])
+                    : false
+                }
+                outline={outlineForFile(paneFile)}
+                refreshedAt={
+                  paneFile?.path ? refreshedFiles[paneFile.path] : undefined
+                }
+                onOutlineSelect={(id) => jumpToOutline(id, pane.id)}
+                onCreateComment={(draft, body, rect) =>
+                  createComment(draft, body, rect).catch((err) =>
+                    setError(String(err)),
+                  )
+                }
+                comments={
+                  paneFile?.path
+                    ? combinePublishedAndDraftComments(
+                        comments,
+                        draftComments,
+                        paneFile.path,
+                      )
+                    : []
+                }
+                activeCommentId={activeCommentId}
+                onOpenComment={openInlineComment}
+                onCloseComment={closeInlineComment}
+                onCommentStatusChange={updateCommentStatus}
+                threadActivities={commentActivitySummaries}
+                onFocusActiveComment={focusCurrentInlineThread}
+                onCodeSelectionChange={(range) => {
+                  if (!paneFile?.path) return;
+                  setCodeSelections((items) => ({
+                    ...items,
+                    [paneFile.path]: range,
+                  }));
+                }}
+                onViewerModeChange={(mode) => {
+                  if (!paneFile?.path) return;
+                  setViewerModes((items) => ({
+                    ...items,
+                    [paneFile.path]: mode,
+                  }));
+                }}
+                onDiffToggle={() => {
+                  if (!paneFile?.path) return;
+                  toggleHeadDiff(paneFile.path);
+                }}
+                onDiffFocusChange={(focusChanges) => {
+                  if (!paneFile?.path) return;
+                  setDiffFocusByPath((items) => ({
+                    ...items,
+                    [paneFile.path]: focusChanges,
+                  }));
+                }}
+                onRevealInTree={(path) => revealActiveFileInTree(path)}
+                onCloseRemoved={() => {
+                  if (pane.activePath) closeTab(pane.activePath, pane.id);
+                }}
+              />
+            </>
           )}
         </div>
         <div
@@ -2301,6 +2549,58 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       </section>
     );
   }
+}
+
+export function TextSearchNavigationBar({
+  query,
+  position,
+  result,
+  onPrevious,
+  onNext,
+  onClose,
+}: {
+  query: string;
+  position: string;
+  result: TextSearchResult;
+  onPrevious: () => void;
+  onNext: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="text-search-nav" aria-label="Text search navigation">
+      <div className="text-search-nav-main">
+        <span className="text-search-nav-query">"{query}"</span>
+        <span>{position}</span>
+        <span>Line {result.lineNumber}</span>
+        <code className="text-search-nav-preview">
+          {textSearchPreviewSegments(
+            result.lineText,
+            result.matchStart,
+            result.matchLength,
+          ).map((segment, index) =>
+            segment.match ? (
+              <mark className="text-search-nav-match" key={index}>
+                {segment.text}
+              </mark>
+            ) : (
+              <span key={index}>{segment.text}</span>
+            ),
+          )}
+        </code>
+      </div>
+      <div className="text-search-nav-actions">
+        <button type="button" onClick={onPrevious} title="Previous match">
+          Previous
+        </button>
+        <button type="button" onClick={onNext} title="Next match">
+          Next
+        </button>
+        <button type="button" onClick={onClose} title="Clear search focus">
+          Clear
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function RestoreSessionPrompt({
@@ -2461,46 +2761,6 @@ function combinePublishedAndDraftComments(
   return [...published, ...draftMessages].sort((a, b) =>
     a.createdAt.localeCompare(b.createdAt),
   );
-}
-
-function commentActivityThreadTargets({
-  comments,
-  selectedPath,
-  commentsPanelOpen,
-  commentsPanelQuery,
-  commentsPanelStatus,
-  reviewPaths,
-}: {
-  comments: ViviComment[];
-  selectedPath: string | null;
-  commentsPanelOpen: boolean;
-  commentsPanelQuery: string;
-  commentsPanelStatus: CommentStatusFilter;
-  reviewPaths: string[];
-}): string[] {
-  const reviewPathSet = new Set(reviewPaths);
-  const query = commentsPanelQuery.trim().toLowerCase();
-  const targets: string[] = [];
-  for (const comment of comments) {
-    if (comment.status !== "open") continue;
-    const threadId = comment.threadId ?? comment.id;
-    if (targets.includes(threadId)) continue;
-    const selectedTarget =
-      selectedPath !== null && comment.path === selectedPath;
-    const reviewTarget = reviewPathSet.has(comment.path);
-    const panelTarget =
-      commentsPanelOpen &&
-      (commentsPanelStatus === "all" ||
-        comment.status === commentsPanelStatus) &&
-      (!query ||
-        [comment.path, comment.body, comment.anchor.canonical.quote ?? ""]
-          .join(" ")
-          .toLowerCase()
-          .includes(query));
-    if (selectedTarget || reviewTarget || panelTarget) targets.push(threadId);
-    if (targets.length >= 40) break;
-  }
-  return targets;
 }
 
 function errorMessage(error: unknown): string {

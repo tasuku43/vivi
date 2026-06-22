@@ -1,25 +1,65 @@
-const globalShortcuts = [
-  ["Quick open", "Cmd K"],
-  ["Search text", "Cmd Shift F"],
-  ["Toggle source/rendered", "Cmd E"],
-  ["Toggle diff from HEAD", "Cmd D"],
-  ["Next open thread", "Cmd ]"],
-  ["Previous open thread", "Cmd ["],
-  ["Open next unread review item", "Cmd Shift U"],
-  ["Next review item", "Cmd Shift J"],
-  ["Previous review item", "Cmd Shift K"],
-  ["Focus Review Queue", "Cmd Shift R"],
-  ["Focus Comments panel", "Cmd Shift C"],
-  ["Focus current inline thread", "Cmd I"],
-  ["Close active tab", "Cmd W"],
-  ["Show shortcuts", "Cmd /"],
-];
+type ShortcutItem = readonly [label: string, shortcut: string];
 
-const paletteShortcuts = [
-  ["Preview result", "Enter"],
-  ["Keep result open", "Cmd Enter"],
-  ["Run action", "Enter"],
-  ["Close overlay", "Esc"],
+const shortcutGroups: readonly {
+  title: string;
+  items: readonly ShortcutItem[];
+}[] = [
+  {
+    title: "Find",
+    items: [
+      ["Quick open", "Cmd/Ctrl K"],
+      ["Search text", "Cmd/Ctrl Shift F"],
+      ["Next search match", "Cmd/Ctrl G"],
+      ["Previous search match", "Cmd/Ctrl Shift G"],
+      ["Show shortcuts", "Cmd/Ctrl /"],
+    ],
+  },
+  {
+    title: "Review",
+    items: [
+      ["Open next unseen item", "Cmd/Ctrl Shift U"],
+      ["Next review item", "Cmd/Ctrl Shift J"],
+      ["Previous review item", "Cmd/Ctrl Shift K"],
+      ["Focus Review Queue", "Cmd/Ctrl Shift R"],
+      ["Open Attention / Comments", "Cmd/Ctrl Shift C"],
+      ["Return to current stop", "Cmd/Ctrl I"],
+      ["Resolve / reopen current stop", "Cmd/Ctrl Shift Enter"],
+      ["Archive current stop", "Cmd/Ctrl Shift Backspace"],
+      ["Next open thread", "Cmd/Ctrl ]"],
+      ["Previous open thread", "Cmd/Ctrl ["],
+    ],
+  },
+  {
+    title: "Viewer",
+    items: [
+      ["Toggle source/rendered", "Cmd/Ctrl E"],
+      ["Toggle diff from HEAD", "Cmd/Ctrl D"],
+      ["Close active tab", "Cmd/Ctrl W"],
+    ],
+  },
+  {
+    title: "Layout",
+    items: [
+      ["Toggle Explorer", "Cmd/Ctrl B"],
+      ["Toggle inspector", "Cmd/Ctrl Shift \\"],
+    ],
+  },
+  {
+    title: "Tabs",
+    items: [
+      ["Move across open tabs", "Left / Right"],
+      ["First open tab", "Home"],
+      ["Last open tab", "End"],
+    ],
+  },
+  {
+    title: "Palette",
+    items: [
+      ["Preview result", "Enter"],
+      ["Keep result open", "Cmd/Ctrl Enter"],
+      ["Close overlay", "Esc"],
+    ],
+  },
 ];
 
 interface ShortcutHelpProps {
@@ -35,37 +75,77 @@ export function ShortcutHelp({ open, onClose }: ShortcutHelpProps) {
       <section
         className="shortcut-panel"
         role="dialog"
+        aria-modal="true"
         aria-label="Keyboard shortcuts"
+        aria-labelledby="shortcut-help-title"
+        aria-describedby="shortcut-help-description"
         onClick={(event) => event.stopPropagation()}
       >
         <header className="shortcut-panel-header">
           <div>
             <p>Keyboard</p>
-            <h2>Shortcuts</h2>
+            <h2 id="shortcut-help-title">Shortcuts</h2>
+            <p className="sr-only" id="shortcut-help-description">
+              A bundled reference for search, review, viewer, layout, tab, and
+              palette keyboard shortcuts.
+            </p>
           </div>
-          <button type="button" className="shortcut-close" onClick={onClose}>
+          <button
+            type="button"
+            className="shortcut-close"
+            aria-label="Close keyboard shortcuts"
+            title="Close keyboard shortcuts"
+            onClick={onClose}
+          >
             Close
           </button>
         </header>
-        <ShortcutGroup title="Workspace" items={globalShortcuts} />
-        <ShortcutGroup title="Command palette" items={paletteShortcuts} />
+        {shortcutGroups.map((group) => (
+          <ShortcutGroup
+            items={group.items}
+            key={group.title}
+            title={group.title}
+          />
+        ))}
       </section>
     </div>
   );
 }
 
-function ShortcutGroup({ title, items }: { title: string; items: string[][] }) {
+function ShortcutGroup({
+  title,
+  items,
+}: {
+  title: string;
+  items: readonly ShortcutItem[];
+}) {
+  const titleId = `shortcut-group-${title.toLowerCase()}`;
+
   return (
-    <section className="shortcut-group">
-      <h3>{title}</h3>
-      <div className="shortcut-list">
+    <section className="shortcut-group" aria-labelledby={titleId}>
+      <h3 id={titleId}>{title}</h3>
+      <dl className="shortcut-list">
         {items.map(([label, shortcut]) => (
           <div className="shortcut-row" key={label}>
-            <span>{label}</span>
-            <kbd>{shortcut}</kbd>
+            <dt>{label}</dt>
+            <dd>
+              <kbd aria-label={shortcutA11yLabel(shortcut)}>{shortcut}</kbd>
+            </dd>
           </div>
         ))}
-      </div>
+      </dl>
     </section>
   );
+}
+
+export function shortcutA11yLabel(shortcut: string) {
+  if (shortcut === "Left / Right") return "Left or Right arrow";
+
+  return shortcut
+    .replace("Cmd/Ctrl", "Command or Control")
+    .replace("\\", "Backslash")
+    .replace("/", "Slash")
+    .replace("[", "Left bracket")
+    .replace("]", "Right bracket")
+    .replace("Esc", "Escape");
 }

@@ -46,26 +46,7 @@ const meta = {
       },
     ],
     textLoading: false,
-    actions: [
-      {
-        id: "next-open-thread",
-        label: "Next open thread",
-        detail: "Move to the next unresolved thread across review files",
-        shortcut: "Cmd ]",
-      },
-      {
-        id: "focus-review-queue",
-        label: "Focus Review Queue",
-        detail: "Move keyboard focus to the inspector work list",
-        shortcut: "Cmd Shift R",
-      },
-      {
-        id: "publish-drafts",
-        label: "Publish draft review comments",
-        detail: "Create a PublishedReviewBatch from unpublished drafts",
-        shortcut: "Cmd Enter",
-      },
-    ],
+    actions: [],
     onQueryChange: () => undefined,
     onModeChange: () => undefined,
     onClose: () => undefined,
@@ -90,6 +71,26 @@ export const Actions: Story = {
   args: {
     mode: "action",
     query: "review",
+    actions: [
+      {
+        id: "next-open-thread",
+        label: "Next open thread",
+        detail: "Move to the next unresolved thread across review files",
+        shortcut: "Cmd/Ctrl ]",
+      },
+      {
+        id: "focus-review-queue",
+        label: "Focus Review Queue",
+        detail: "Move keyboard focus to the inspector work list",
+        shortcut: "Cmd/Ctrl Shift R",
+      },
+      {
+        id: "publish-drafts",
+        label: "Publish draft review comments",
+        detail: "Create a PublishedReviewBatch from unpublished drafts",
+        shortcut: "Cmd/Ctrl Enter",
+      },
+    ],
   },
 };
 

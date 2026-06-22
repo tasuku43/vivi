@@ -570,8 +570,15 @@ func withPreviewBase(html, relativePath string) string {
 		basePath = "/preview/raw/" + strings.Join(segments, "/") + "/"
 	}
 	base := `<base href="` + basePath + `">`
-	if regexp.MustCompile(`(?i)<base\s`).MatchString(html) {
+	lower := strings.ToLower(html)
+	if !strings.Contains(lower, "<head") && !strings.Contains(lower, "<base") {
+		return "<head>" + base + "</head>" + html
+	}
+	if strings.Contains(lower, "<base") && regexp.MustCompile(`(?i)<base\s`).MatchString(html) {
 		return html
+	}
+	if !strings.Contains(lower, "<head") {
+		return "<head>" + base + "</head>" + html
 	}
 	head := regexp.MustCompile(`(?i)<head(\s[^>]*)?>`)
 	if head.MatchString(html) {
@@ -581,6 +588,9 @@ func withPreviewBase(html, relativePath string) string {
 }
 
 func addHeadingIDs(html string) string {
+	if !hasHeadingCandidate(html) {
+		return html
+	}
 	used := map[string]int{}
 	re := regexp.MustCompile(`(?is)<h([12])(\s[^>]*)?>(.*?)</h[12]>`)
 	return re.ReplaceAllStringFunc(html, func(match string) string {
@@ -602,9 +612,17 @@ func addHeadingIDs(html string) string {
 	})
 }
 
+func hasHeadingCandidate(html string) bool {
+	lower := strings.ToLower(html)
+	return strings.Contains(lower, "<h1") || strings.Contains(lower, "<h2")
+}
+
 func renderEmbeddedMermaidPreviewHTML(rawHTML, relativePath, nonce, theme string, allowScripts bool) string {
 	if regexp.MustCompile(`(?i)data-vivi-mermaid-preview`).MatchString(rawHTML) {
 		return rawHTML
+	}
+	if !hasClosedMermaidCandidate(rawHTML) {
+		return injectPreviewRuntime(rawHTML, relativePath, nonce, theme, allowScripts, false)
 	}
 	blockIndex := 0
 	blockRe := regexp.MustCompile(`(?is)<(pre|div|code)(\s[^>]*)?>(.*?)</(?:pre|div|code)>`)
@@ -633,6 +651,16 @@ func renderEmbeddedMermaidPreviewHTML(rawHTML, relativePath, nonce, theme string
 		)
 	})
 	return injectPreviewRuntime(rendered, relativePath, nonce, theme, allowScripts, blockIndex > 0)
+}
+
+func hasClosedMermaidCandidate(rawHTML string) bool {
+	lower := strings.ToLower(rawHTML)
+	if !strings.Contains(lower, "mermaid") {
+		return false
+	}
+	return strings.Contains(lower, "</pre>") ||
+		strings.Contains(lower, "</div>") ||
+		strings.Contains(lower, "</code>")
 }
 
 func injectPreviewRuntime(html, relativePath, nonce, theme string, allowScripts bool, includeMermaidRuntime bool) string {

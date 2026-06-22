@@ -37,6 +37,8 @@ export async function createContractFixture(): Promise<ContractFixture> {
   await mkdir(path.join(rootDir, "assets"), { recursive: true });
   await mkdir(path.join(rootDir, "node_modules"), { recursive: true });
   await mkdir(path.join(rootDir, ".cache"), { recursive: true });
+  await mkdir(path.join(rootDir, ".tmp-go-build-cache"), { recursive: true });
+  await mkdir(path.join(rootDir, "storybook-static"), { recursive: true });
 
   await writeFile(
     path.join(rootDir, "README.md"),
@@ -82,6 +84,14 @@ export async function createContractFixture(): Promise<ContractFixture> {
     "ignored\n",
   );
   await writeFile(path.join(rootDir, ".cache", "ignored.txt"), "ignored\n");
+  await writeFile(
+    path.join(rootDir, ".tmp-go-build-cache", "ignored.test"),
+    "ignored\n",
+  );
+  await writeFile(
+    path.join(rootDir, "storybook-static", "index.html"),
+    "ignored\n",
+  );
   await writeFile(path.join(outsideDir, "secret.txt"), "outside\n");
   await writeFile(path.join(rootDir, "deleted.md"), "# Deleted\n");
 

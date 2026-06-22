@@ -420,14 +420,18 @@ it("subscribes to workspace events through GraphQL SSE", () => {
     },
   });
   const onEvent = vi.fn();
+  const onStatus = vi.fn();
 
-  const unsubscribe = client.subscribeWorkspaceEvents(onEvent);
+  const unsubscribe = client.subscribeWorkspaceEvents(onEvent, { onStatus });
   expect(sources).toHaveLength(1);
   const url = new URL(sources[0]!.url);
   expect(url.pathname).toBe("/graphql");
   expect(url.searchParams.get("operationName")).toBe("WorkspaceEvents");
   expect(url.searchParams.get("query")).toContain("workspaceEvents");
+  expect(onStatus).toHaveBeenCalledWith("connecting");
 
+  sources[0]!.emit("open", { data: "" });
+  expect(onStatus).toHaveBeenCalledWith("connected");
   sources[0]!.emit("next", {
     data: JSON.stringify({
       data: {
@@ -444,6 +448,8 @@ it("subscribes to workspace events through GraphQL SSE", () => {
     path: "README.md",
     version: 2,
   });
+  sources[0]!.emit("error", { data: "" });
+  expect(onStatus).toHaveBeenCalledWith("disconnected");
 
   unsubscribe();
   expect(sources[0]!.closed).toBe(true);

@@ -2,6 +2,8 @@ import { expect, it } from "vitest";
 import type { CommentThreadActivityEvent } from "../ui/src/domain/comments.js";
 import {
   addCommentActivities,
+  commentActivityRefreshTarget,
+  commentActivityThreadPath,
   emptyCommentActivityState,
   summarizeThreadActivity,
 } from "../ui/src/state/comment-activity.js";
@@ -91,6 +93,89 @@ it("summarizes the newest two activity events inline and keeps the rest in the t
   ]);
 });
 
+it("targets authoritative comment refreshes without inferring thread status from activity", () => {
+  const comments = [
+    comment({
+      id: "root-1",
+      threadId: "thread-1",
+      path: "docs/a.md",
+      status: "open",
+    }),
+  ];
+
+  expect(
+    commentActivityRefreshTarget(
+      event({
+        id: "read-1",
+        type: "thread_read",
+        actor: { id: "codex:1", kind: "codex", displayName: "Codex" },
+      }),
+      comments,
+    ),
+  ).toEqual({
+    shouldRefresh: false,
+    path: "docs/a.md",
+    shouldMarkUnread: false,
+  });
+
+  expect(
+    commentActivityRefreshTarget(
+      event({
+        id: "reply-1",
+        type: "comment_added",
+        actor: { id: "codex:1", kind: "codex", displayName: "Codex" },
+      }),
+      comments,
+    ),
+  ).toEqual({
+    shouldRefresh: true,
+    path: "docs/a.md",
+    shouldMarkUnread: true,
+  });
+
+  expect(
+    commentActivityRefreshTarget(
+      event({
+        id: "human-status-1",
+        type: "thread_status_changed",
+        status: "resolved",
+        previousStatus: "open",
+        actor: { id: "human:tasuku", kind: "human", displayName: "Tasuku" },
+      }),
+      comments,
+    ),
+  ).toEqual({
+    shouldRefresh: true,
+    path: "docs/a.md",
+    shouldMarkUnread: false,
+  });
+});
+
+it("falls back to a global refresh for unseen activity threads", () => {
+  const reply = event({
+    id: "reply-unknown",
+    threadId: "thread-new",
+    type: "comment_added",
+    actor: { id: "claude:1", kind: "claude-code", displayName: "Claude Code" },
+  });
+
+  expect(commentActivityRefreshTarget(reply, [])).toEqual({
+    shouldRefresh: true,
+    path: null,
+    shouldMarkUnread: true,
+  });
+  expect(
+    commentActivityThreadPath(reply, [
+      comment({
+        id: "agent-reply",
+        threadId: "thread-new",
+        path: "src/new.ts",
+        status: "open",
+      }),
+    ]),
+  ).toBe("src/new.ts");
+});
+
 function event(
   input: Partial<CommentThreadActivityEvent> & {
     id: string;
@@ -103,4 +188,23 @@ function event(
     actor: input.actor ?? baseEvent.actor!,
     createdAt: input.createdAt ?? baseEvent.createdAt!,
   } as CommentThreadActivityEvent;
+}
+
+function comment(input: {
+  id: string;
+  threadId: string;
+  path: string;
+  status: "open" | "resolved" | "archived";
+}) {
+  return {
+    id: input.id,
+    threadId: input.threadId,
+    path: input.path,
+    viewerKind: "text" as const,
+    anchor: { surface: "source" as const, canonical: { path: input.path } },
+    body: "Review note",
+    status: input.status,
+    createdAt: "2026-06-20T00:00:00.000Z",
+    updatedAt: "2026-06-20T00:00:00.000Z",
+  };
 }

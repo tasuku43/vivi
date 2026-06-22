@@ -2,7 +2,9 @@ import type {
   CommentActor,
   CommentThreadActivityEvent,
   CommentThreadActivityType,
+  ViviComment,
 } from "../domain/comments.js";
+import { buildCommentThreads } from "../domain/comments.js";
 
 export interface CommentActivityState {
   byThreadId: Record<string, CommentThreadActivityEvent[]>;
@@ -13,6 +15,12 @@ export interface CommentActivityState {
 export interface CommentActivitySummary {
   inline: string[];
   timeline: CommentThreadActivityEvent[];
+}
+
+export interface CommentActivityRefreshTarget {
+  shouldRefresh: boolean;
+  path: string | null;
+  shouldMarkUnread: boolean;
 }
 
 export const emptyCommentActivityState: CommentActivityState = {
@@ -71,6 +79,41 @@ export function activityLabel(
   now = Date.now(),
 ): string {
   return `${actorLabel(event.actor)} ${activityVerb(event)} ${relativeTime(event.createdAt, now)}`;
+}
+
+export function commentActivityRefreshTarget(
+  event: CommentThreadActivityEvent,
+  comments: ViviComment[],
+): CommentActivityRefreshTarget {
+  const path = commentActivityThreadPath(event, comments);
+  return {
+    shouldRefresh: commentActivityNeedsAuthoritativeRefresh(event),
+    path,
+    shouldMarkUnread: commentActivityShouldMarkUnread(event),
+  };
+}
+
+export function commentActivityThreadPath(
+  event: CommentThreadActivityEvent,
+  comments: ViviComment[],
+): string | null {
+  const thread = buildCommentThreads(comments).find(
+    (candidate) => candidate.id === event.threadId,
+  );
+  return thread?.path ?? null;
+}
+
+export function commentActivityNeedsAuthoritativeRefresh(
+  event: CommentThreadActivityEvent,
+): boolean {
+  return event.type !== "thread_read";
+}
+
+export function commentActivityShouldMarkUnread(
+  event: CommentThreadActivityEvent,
+): boolean {
+  if (event.actor.kind === "human") return false;
+  return event.type !== "thread_read";
 }
 
 export function actorLabel(actor: CommentActor): string {

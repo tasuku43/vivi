@@ -16,7 +16,7 @@ const meta = {
   args: {
     drafts: sampleDraftComments,
     publishing: false,
-    onOpenPath: () => undefined,
+    onOpenDraft: () => undefined,
     onUpdateDraft: () => undefined,
     onDeleteDraft: () => undefined,
     onPublishAll: () => undefined,

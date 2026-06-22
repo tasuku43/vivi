@@ -45,13 +45,33 @@ describe("comment thread projection", () => {
 
   it("projects legacy flat comments and hides terminal threads from active review", () => {
     const legacy = comment("legacy", "resolved");
+    const openedThread = {
+      ...comment("thread-open", "open", "thread-a"),
+      updatedAt: "2026-01-01T00:00:01Z",
+    };
+    const resolvedThread = {
+      ...comment("thread-resolved", "resolved", "thread-a"),
+      updatedAt: "2026-01-01T00:00:02Z",
+    };
     expect(buildCommentThreads([legacy])[0]).toMatchObject({
       id: "legacy",
       status: "resolved",
     });
+    expect(buildCommentThreads([openedThread, resolvedThread])[0]).toMatchObject(
+      {
+        id: "thread-a",
+        status: "resolved",
+      },
+    );
     expect(
       activeCommentsForPath(
-        [legacy, comment("open", "open"), comment("archived", "archived")],
+        [
+          legacy,
+          openedThread,
+          resolvedThread,
+          comment("open", "open"),
+          comment("archived", "archived"),
+        ],
         "README.md",
       ).map((item) => item.id),
     ).toEqual(["open"]);

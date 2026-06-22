@@ -25,6 +25,8 @@ export function HtmlViewer({
   file,
   allowHtmlScripts,
   mode: controlledMode,
+  focusLineNumber,
+  focusRevision,
   toolbarAction,
   diff,
   diffLoading,
@@ -43,6 +45,8 @@ export function HtmlViewer({
   file: FilePayload;
   allowHtmlScripts: boolean;
   mode?: ViewerMode;
+  focusLineNumber?: number | null;
+  focusRevision?: number;
   toolbarAction?: ReactNode;
   diff?: TextDiff | null;
   diffLoading?: boolean;
@@ -258,6 +262,8 @@ export function HtmlViewer({
           content={file.content}
           className="markdown-source"
           containerRef={sourceRef}
+          focusLineNumber={focusLineNumber}
+          focusRevision={focusRevision}
           comments={comments}
           activeCommentId={activeCommentId}
           onOpenComment={onOpenComment}

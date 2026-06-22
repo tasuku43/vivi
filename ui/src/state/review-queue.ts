@@ -23,6 +23,13 @@ export interface ReviewQueueProgress {
   filesWithOpenThreads: number;
 }
 
+export interface ReviewQueuePosition {
+  activePath: string | null;
+  activeIndex: number;
+  reviewableTotal: number;
+  activeItem: ReviewQueueItem | null;
+}
+
 /**
  * Builds a file-level work queue without inventing lifecycle state from
  * activity. Comment status is the authoritative projection; activity only
@@ -131,6 +138,35 @@ export function latestUnreadReviewItemPath(
     items.find((item) => item.unread && isReviewQueueItemOpenable(item))
       ?.path ?? null
   );
+}
+
+export function reviewQueuePosition(
+  items: ReviewQueueItem[],
+  currentPath: string | null,
+): ReviewQueuePosition {
+  const reviewable = items.filter(isReviewQueueItemOpenable);
+  const activeIndex = currentPath
+    ? reviewable.findIndex((item) => item.path === currentPath)
+    : -1;
+  return {
+    activePath: activeIndex >= 0 ? reviewable[activeIndex]!.path : null,
+    activeIndex,
+    reviewableTotal: reviewable.length,
+    activeItem: activeIndex >= 0 ? reviewable[activeIndex]! : null,
+  };
+}
+
+export function pinActiveReviewQueueItem(
+  items: ReviewQueueItem[],
+  currentPath: string | null,
+): ReviewQueueItem[] {
+  if (!currentPath) return items;
+  const activeIndex = items.findIndex(
+    (item) => item.path === currentPath && isReviewQueueItemOpenable(item),
+  );
+  if (activeIndex <= 0) return items;
+  const active = items[activeIndex]!;
+  return [active, ...items.slice(0, activeIndex), ...items.slice(activeIndex + 1)];
 }
 
 export function activityNeedsHumanAttention(
