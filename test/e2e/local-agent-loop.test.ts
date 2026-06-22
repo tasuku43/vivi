@@ -1,6 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import path from "node:path";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, expect, it } from "vitest";
 import {
   AgentLoopStageError,
   loadLocalAgentLoopFixture,
@@ -14,6 +14,10 @@ import { startViviServer, type StartedServer } from "./support/vivi-server.js";
 
 let fixture: ContractFixture;
 let server: StartedServer | null = null;
+
+beforeAll(async () => {
+  await warmGoCommentsCli();
+});
 
 beforeEach(async () => {
   fixture = await createContractFixture();
@@ -715,6 +719,45 @@ function goCliInvocation(args: string[]): { command: string; args: string[] } {
     return { command: process.env.VIVI_GO_CLI, args };
   }
   return { command: "go", args: ["run", "./cli", ...args] };
+}
+
+async function warmGoCommentsCli(): Promise<void> {
+  const invocation = goCliInvocation(["comments", "--help"]);
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(invocation.command, invocation.args, {
+      cwd: process.cwd(),
+      env: goEnv(),
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    let stderr = "";
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL");
+      reject(
+        new Error(
+          `timed out warming Go comments CLI\nstderr:\n${stderr}`,
+        ),
+      );
+    }, 60_000);
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString("utf8");
+    });
+    child.once("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.once("exit", (code, signal) => {
+      clearTimeout(timer);
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(
+        new Error(
+          `Go comments CLI warmup failed: code=${code ?? "null"} signal=${signal ?? "null"}\nstderr:\n${stderr}`,
+        ),
+      );
+    });
+  });
 }
 
 function goEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
