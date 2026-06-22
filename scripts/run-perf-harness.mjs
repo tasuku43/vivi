@@ -65,7 +65,7 @@ try {
       const response = await graphql(baseURL, `query PerfFileSearch($query: String!, $limit: Int) {
         fileSearch(query: $query, limit: $limit) {
           results { path }
-          stats { durationMs scannedDirectories scannedFiles readFiles skippedFiles }
+          stats { durationMs scannedDirectories scannedFiles readFiles skippedFiles cached }
         }
       }`, { query, limit: 25 });
       results.push({
@@ -84,7 +84,7 @@ try {
       const response = await graphql(baseURL, `query PerfTextSearch($query: String!, $limit: Int) {
         textSearch(query: $query, limit: $limit) {
           results { path lineNumber }
-          stats { durationMs scannedDirectories scannedFiles readFiles skippedFiles }
+          stats { durationMs scannedDirectories scannedFiles readFiles skippedFiles cached }
         }
       }`, { query, limit: 20 });
       results.push({
@@ -192,7 +192,7 @@ function startServer() {
     env: {
       ...process.env,
       VIVI_OTEL_EXPORTER_OTLP_ENDPOINT:
-        process.env.VIVI_OTEL_EXPORTER_OTLP_ENDPOINT ?? "localhost:4317",
+        process.env.VIVI_OTEL_EXPORTER_OTLP_ENDPOINT ?? "127.0.0.1:24317",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -363,9 +363,10 @@ function aggregateSearchStats(items) {
       aggregate.scannedFiles += item.stats.scannedFiles;
       aggregate.readFiles += item.stats.readFiles;
       aggregate.skippedFiles += item.stats.skippedFiles;
+      if (item.stats.cached) aggregate.cachedQueries++;
       return aggregate;
     },
-    { resultCount: 0, durationMs: 0, scannedDirectories: 0, scannedFiles: 0, readFiles: 0, skippedFiles: 0 },
+    { resultCount: 0, durationMs: 0, scannedDirectories: 0, scannedFiles: 0, readFiles: 0, skippedFiles: 0, cachedQueries: 0 },
   );
 }
 

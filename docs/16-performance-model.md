@@ -60,8 +60,9 @@ mkdir -p artifacts/perf
 docker compose -f docker-compose.otel.yml up
 ```
 
-The collector receives OTLP on `4317` and `4318`, then writes protobuf JSON
-records to:
+The collector receives OTLP on standard ports inside the container and maps
+them to host ports `24317` (gRPC) and `24318` (HTTP) to avoid collisions with
+local Vivi/dev-server ports. It writes protobuf JSON records to:
 
 ```text
 artifacts/perf/otel.jsonl

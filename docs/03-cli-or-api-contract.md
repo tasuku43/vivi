@@ -205,7 +205,11 @@ bounded lazy tree with `depth=1`, and may request one directory's children with
 
 Returns bounded file-path matches from backend filesystem traversal. This is
 used by Quick open so the browser does not need to hold the full tree for large
-workspaces.
+workspaces. The Go backend may build an in-memory filename index on the first
+query and reuse it for later queries in the same process; watcher-observed
+workspace add/change/unlink events invalidate the index before later searches.
+`stats.cached` is `true` only when a response reused that index without another
+recursive filesystem walk.
 
 ```json
 {

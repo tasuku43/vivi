@@ -11,6 +11,7 @@ describe("perf OpenTelemetry summary", () => {
         scanned_files: { intValue: "5" },
         emitted_events: { intValue: "0" },
         result_count: { intValue: "7" },
+        cached: { boolValue: false },
         error: { boolValue: false },
       }),
       span("server.watch_loop", {
@@ -19,6 +20,7 @@ describe("perf OpenTelemetry summary", () => {
         scanned_files: { intValue: "8" },
         emitted_events: { intValue: "1" },
         result_count: { intValue: "11" },
+        cached: { boolValue: true },
         error: { boolValue: false },
       }),
     ];
@@ -31,6 +33,7 @@ describe("perf OpenTelemetry summary", () => {
       durationMs: { min: 10, max: 14, sum: 24, avg: 12 },
       scannedFiles: { sum: 13 },
       emittedEvents: { sum: 1 },
+      cached: 1,
     });
   });
 });

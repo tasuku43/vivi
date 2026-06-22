@@ -14,6 +14,7 @@ type OperationStats struct {
 	ReadFiles          int
 	EmittedEvents      int
 	ResultCount        int
+	Cached             bool
 	Error              bool
 }
 

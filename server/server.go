@@ -179,12 +179,12 @@ func (server *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "text/event-stream")
 	w.Header().Set("cache-control", "no-cache, no-transform")
 	w.Header().Set("connection", "keep-alive")
+	events, unsubscribe := server.app.SubscribeWorkspaceEvents()
+	defer unsubscribe()
 	_, _ = io.WriteString(w, ": connected\n\n")
 	if flusher, ok := w.(http.Flusher); ok {
 		flusher.Flush()
 	}
-	events, unsubscribe := server.app.SubscribeWorkspaceEvents()
-	defer unsubscribe()
 	for {
 		select {
 		case <-r.Context().Done():
@@ -207,12 +207,12 @@ func (server *Server) handleGraphqlEvents(w http.ResponseWriter, r *http.Request
 	w.Header().Set("content-type", "text/event-stream")
 	w.Header().Set("cache-control", "no-cache, no-transform")
 	w.Header().Set("connection", "keep-alive")
+	events, unsubscribe := server.app.SubscribeWorkspaceEvents()
+	defer unsubscribe()
 	_, _ = io.WriteString(w, ": connected\n\n")
 	if flusher, ok := w.(http.Flusher); ok {
 		flusher.Flush()
 	}
-	events, unsubscribe := server.app.SubscribeWorkspaceEvents()
-	defer unsubscribe()
 	for {
 		select {
 		case <-r.Context().Done():
@@ -395,6 +395,9 @@ func (server *Server) watch(ctx context.Context) {
 				EmittedEvents:      emittedEvents,
 				ResultCount:        len(current),
 			})
+			if emittedEvents > 0 {
+				server.options.Workspace.InvalidateSearchIndex()
+			}
 			previous = current
 			if emittedEvents == 0 {
 				idleScans++

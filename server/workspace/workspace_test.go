@@ -120,6 +120,59 @@ func TestWatchEntriesWithStatsCountsWorkspaceScan(t *testing.T) {
 	}
 }
 
+func TestSearchFilesUsesReusableIndexUntilInvalidated(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, root, "kernel/sched/core.c", []byte("scheduler\n"))
+	mustWrite(t, root, "mm/memory.c", []byte("memory\n"))
+	mustWrite(t, root, "Kconfig", []byte("config\n"))
+
+	fsys, err := New(Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	first, err := fsys.SearchFiles("sched", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Stats.Cached {
+		t.Fatalf("first search should build the index, stats = %#v", first.Stats)
+	}
+	if first.Stats.ScannedDirectories == 0 || first.Stats.ScannedFiles == 0 {
+		t.Fatalf("first search did not scan workspace, stats = %#v", first.Stats)
+	}
+	if len(first.Results) == 0 || first.Results[0].Path != "kernel/sched/core.c" {
+		t.Fatalf("first results = %#v", first.Results)
+	}
+
+	second, err := fsys.SearchFiles("mm", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !second.Stats.Cached {
+		t.Fatalf("second search should reuse the index, stats = %#v", second.Stats)
+	}
+	if second.Stats.ScannedDirectories != 0 || second.Stats.ScannedFiles != 0 {
+		t.Fatalf("cached search should not rescan workspace, stats = %#v", second.Stats)
+	}
+	if len(second.Results) == 0 || second.Results[0].Path != "mm/memory.c" {
+		t.Fatalf("second results = %#v", second.Results)
+	}
+
+	mustWrite(t, root, "drivers/new-mm-hit.c", []byte("new file\n"))
+	fsys.InvalidateSearchIndex()
+	refreshed, err := fsys.SearchFiles("new-mm-hit", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if refreshed.Stats.Cached {
+		t.Fatalf("refreshed search should rebuild after invalidation, stats = %#v", refreshed.Stats)
+	}
+	if len(refreshed.Results) == 0 || refreshed.Results[0].Path != "drivers/new-mm-hit.c" {
+		t.Fatalf("refreshed results = %#v", refreshed.Results)
+	}
+}
+
 func mustWrite(t *testing.T, root, relative string, content []byte) {
 	t.Helper()
 	pathname := filepath.Join(root, relative)

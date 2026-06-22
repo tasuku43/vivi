@@ -28,6 +28,7 @@ export function summarizeOperationSpans(spans, durationMs) {
       readFiles: statsBucket(),
       emittedEvents: statsBucket(),
       resultCount: statsBucket(),
+      cached: 0,
       errors: 0,
     };
     group.count++;
@@ -37,6 +38,9 @@ export function summarizeOperationSpans(spans, durationMs) {
     group.readFiles = addStat(group.readFiles, numberValue(attributes.read_files));
     group.emittedEvents = addStat(group.emittedEvents, numberValue(attributes.emitted_events));
     group.resultCount = addStat(group.resultCount, numberValue(attributes.result_count));
+    if (attributes.cached === true) {
+      group.cached++;
+    }
     if (attributes.error === true) {
       group.errors++;
     }

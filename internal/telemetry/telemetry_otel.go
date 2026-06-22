@@ -29,6 +29,7 @@ type OperationStats struct {
 	ReadFiles          int
 	EmittedEvents      int
 	ResultCount        int
+	Cached             bool
 	Error              bool
 }
 
@@ -83,6 +84,7 @@ func RecordOperation(ctx context.Context, name string, stats OperationStats) {
 		attribute.Int("read_files", stats.ReadFiles),
 		attribute.Int("emitted_events", stats.EmittedEvents),
 		attribute.Int("result_count", stats.ResultCount),
+		attribute.Bool("cached", stats.Cached),
 		attribute.Bool("error", stats.Error),
 	)
 	if stats.Error {
@@ -99,7 +101,7 @@ func configuredEndpoint() string {
 		}
 		return normalizeEndpoint(value)
 	}
-	return "localhost:4317"
+	return "127.0.0.1:24317"
 }
 
 func normalizeEndpoint(value string) string {
