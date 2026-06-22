@@ -188,8 +188,26 @@ func TestStoreKeepsDraftReviewCommentsHiddenUntilBatchPublish(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := store.CreateDraft(map[string]any{
+		"path": "README.md", "body": "Draft Markdown rendered note", "source": "human",
+		"anchor": map[string]any{"surface": "rendered", "canonical": map[string]any{"path": "README.md"}, "rendered": map[string]any{"kind": "markdown", "selector": "p:nth-of-type(1)", "textQuote": "Hello Markdown", "sourceLineStart": float64(3), "sourceLineEnd": float64(3)}},
+	}, "sha256:readme", "markdown"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateDraft(map[string]any{
+		"path": "index.html", "body": "Draft HTML source note", "source": "human",
+		"anchor": map[string]any{"surface": "source", "canonical": map[string]any{"path": "index.html", "lineStart": float64(1), "lineEnd": float64(1), "quote": "<h1>Hello</h1>"}},
+	}, "sha256:html", "html"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateDraft(map[string]any{
 		"path": "index.html", "body": "Draft HTML note", "source": "human",
 		"anchor": map[string]any{"surface": "rendered", "canonical": map[string]any{"path": "index.html"}, "rendered": map[string]any{"kind": "html", "selector": "h1", "textQuote": "Hello", "sourceLineStart": float64(1), "sourceLineEnd": float64(1)}},
+	}, "sha256:html", "html"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateDraft(map[string]any{
+		"path": "index.html", "body": "Draft HTML diff note", "source": "human",
+		"anchor": map[string]any{"surface": "diff", "canonical": map[string]any{"path": "index.html", "lineStart": float64(2), "lineEnd": float64(2)}, "diff": map[string]any{"path": "index.html", "base": "HEAD", "ref": "working-tree", "hunkId": "html-h1", "side": "new", "newLineStart": float64(2), "newLineEnd": float64(2), "changeKind": "added"}},
 	}, "sha256:html", "html"); err != nil {
 		t.Fatal(err)
 	}
@@ -205,9 +223,10 @@ func TestStoreKeepsDraftReviewCommentsHiddenUntilBatchPublish(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(threads) != 2 {
+	if len(threads) != 5 {
 		t.Fatalf("published threads = %#v", threads)
 	}
+	surfaces := map[string]bool{}
 	for _, thread := range threads {
 		if thread["reviewBatchId"] != reviewBatchID {
 			t.Fatalf("thread missing batch id: %#v", thread)
@@ -215,6 +234,20 @@ func TestStoreKeepsDraftReviewCommentsHiddenUntilBatchPublish(t *testing.T) {
 		messages := thread["comments"].([]map[string]any)
 		if messages[0]["reviewBatchId"] != reviewBatchID {
 			t.Fatalf("comment missing batch id: %#v", messages[0])
+		}
+		anchor := messages[0]["anchor"].(map[string]any)
+		surface := stringValue(anchor["surface"])
+		if rendered := mapValue(anchor["rendered"]); rendered != nil {
+			surface += ":" + stringValue(rendered["kind"])
+		}
+		if diff := mapValue(anchor["diff"]); diff != nil && stringValue(diff["path"]) == "index.html" {
+			surface += ":html-diff"
+		}
+		surfaces[surface] = true
+	}
+	for _, surface := range []string{"source", "rendered:markdown", "rendered:html", "diff:html-diff"} {
+		if !surfaces[surface] {
+			t.Fatalf("published surfaces missing %s in %#v", surface, surfaces)
 		}
 	}
 	remainingDrafts, err := store.ListDrafts(Filters{})
@@ -277,5 +310,47 @@ func TestStorePublishesSameAnchorDraftsIntoOneThread(t *testing.T) {
 	}
 	if len(listed) != 1 || len(listed[0]["comments"].([]map[string]any)) != 2 {
 		t.Fatalf("listed threads = %#v", listed)
+	}
+}
+
+func TestStoreKeepsDraftsWhenPublishFails(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	draft, err := store.CreateDraft(map[string]any{
+		"threadId": "missing-thread",
+		"path":     "README.md",
+		"body":     "Do not lose me if publish fails",
+		"source":   "human",
+		"anchor": map[string]any{
+			"surface": "source",
+			"canonical": map[string]any{
+				"path":      "README.md",
+				"lineStart": float64(1),
+				"lineEnd":   float64(1),
+			},
+		},
+	}, "sha256:readme", "markdown")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := store.PublishDrafts([]string{draft["id"].(string)}, map[string]any{"id": "human:tasuku", "kind": "human"}); err == nil {
+		t.Fatal("publish with missing target thread must fail")
+	}
+	drafts, err := store.ListDrafts(Filters{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(drafts) != 1 || drafts[0]["body"] != "Do not lose me if publish fails" {
+		t.Fatalf("drafts after failed publish = %#v", drafts)
+	}
+	threads, err := store.ListThreads(Filters{Status: "open"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(threads) != 0 {
+		t.Fatalf("failed publish leaked open threads = %#v", threads)
 	}
 }

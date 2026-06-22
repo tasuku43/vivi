@@ -3,6 +3,7 @@ import { ReviewWorkbenchStory } from "../../storybook/ReviewWorkbenchStory.js";
 import {
   commentsForPath,
   htmlDiff,
+  manyDraftReviewComments,
   manyReviewComments,
   markdownDiff,
   sampleComments,
@@ -72,13 +73,24 @@ export const FileWithDraftComments: Story = {
   },
 };
 
+export const DraftAndOpenThreadMixedState: Story = {
+  args: {
+    file: sampleFiles.code,
+    activeCommentId: "draft:draft-review-1",
+    inlineComment: sampleComments[0],
+    draftComments: sampleDraftComments,
+    commentsPanelOpen: true,
+    commentsPanelStatus: "open",
+  },
+};
+
 export const DraftCommentsReadyToPublish: Story = {
   args: {
     file: sampleFiles.markdown,
     viewerMode: "rendered",
     draftComments: sampleDraftComments,
     inspectorTitle:
-      "Draft Review tray is open and the Publish all CTA is visible.",
+      "Draft Review tray is open and the Publish review comments CTA is visible.",
   },
 };
 
@@ -87,6 +99,45 @@ export const DraftCommentsPublishing: Story = {
     file: sampleFiles.code,
     draftComments: sampleDraftComments,
     draftPublishing: true,
+  },
+};
+
+export const MarkdownRenderedDraftComment: Story = {
+  args: {
+    file: sampleFiles.markdown,
+    viewerMode: "rendered",
+    draftComments: sampleDraftComments,
+    activeCommentId: "draft:draft-review-md-rendered",
+  },
+};
+
+export const HtmlRenderedDraftComment: Story = {
+  args: {
+    file: sampleFiles.html,
+    viewerMode: "preview",
+    draftComments: sampleDraftComments,
+    activeCommentId: "draft:draft-review-html-rendered",
+  },
+};
+
+export const HtmlDiffDraftComment: Story = {
+  args: {
+    file: sampleFiles.html,
+    viewerMode: "source",
+    diff: htmlDiff,
+    diffEnabled: true,
+    draftComments: sampleDraftComments,
+    activeCommentId: "draft:draft-review-html-diff",
+  },
+};
+
+export const DraftPublishFailure: Story = {
+  args: {
+    file: sampleFiles.code,
+    draftComments: sampleDraftComments,
+    draftPublishError: "The selected target thread is no longer open.",
+    inspectorTitle:
+      "Publish failed, but drafts remain editable in the tray and out of agent worklists.",
   },
 };
 
@@ -100,7 +151,18 @@ export const PublishedReviewBatchWithMultipleOpenThreads: Story = {
         comment.path === sampleFiles.markdown.path,
     ),
     draftComments: [],
+    publishedBatchId: samplePublishedReviewBatch.reviewBatchId,
     inspectorTitle: `Published batch ${samplePublishedReviewBatch.reviewBatchId} spans Markdown and HTML threads.`,
+  },
+};
+
+export const ManyDraftReviewComments: Story = {
+  args: {
+    file: sampleFiles.html,
+    viewerMode: "source",
+    draftComments: manyDraftReviewComments,
+    inspectorTitle:
+      "Many draft review comments keep the tray scrollable before publish.",
   },
 };
 

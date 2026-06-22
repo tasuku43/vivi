@@ -65,6 +65,8 @@ export interface ReviewWorkbenchStoryProps {
   commandPaletteOpen?: boolean;
   shortcutHelpOpen?: boolean;
   draftPublishing?: boolean;
+  draftPublishError?: string | null;
+  publishedBatchId?: string | null;
   activeCommentId?: string | null;
   inlineComment?: ViviComment | null;
   inspectorTitle?: ReactNode;
@@ -91,6 +93,8 @@ export function ReviewWorkbenchStory({
   commandPaletteOpen = false,
   shortcutHelpOpen = false,
   draftPublishing = false,
+  draftPublishError = null,
+  publishedBatchId = null,
   activeCommentId = null,
   inlineComment = null,
   inspectorTitle,
@@ -363,6 +367,8 @@ export function ReviewWorkbenchStory({
       <DraftReviewTray
         drafts={draftComments}
         publishing={draftPublishing}
+        publishError={draftPublishError}
+        publishedBatchId={publishedBatchId}
         onOpenPath={noop}
         onUpdateDraft={noop}
         onDeleteDraft={noop}

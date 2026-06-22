@@ -306,7 +306,7 @@ it("creates a comment from the UI anchor model and renders it after retrieval", 
     />,
   );
   expect(draftTrayHtml).toContain("Draft Review");
-  expect(draftTrayHtml).toContain("Publish all");
+  expect(draftTrayHtml).toContain("Publish review comments");
   expect(draftTrayHtml).toContain("Unpublished batch note");
 });
 

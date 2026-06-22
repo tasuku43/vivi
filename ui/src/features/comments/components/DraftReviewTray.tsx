@@ -7,31 +7,50 @@ import {
 
 export function DraftReviewTray({
   drafts,
+  initialOpen = false,
+  initialEditingDraftId = null,
   publishing = false,
+  publishError = null,
+  publishedBatchId = null,
   onOpenPath,
   onUpdateDraft,
   onDeleteDraft,
   onPublishAll,
 }: {
   drafts: DraftReviewComment[];
+  initialOpen?: boolean;
+  initialEditingDraftId?: string | null;
   publishing?: boolean;
+  publishError?: string | null;
+  publishedBatchId?: string | null;
   onOpenPath?: (path: string) => void;
   onUpdateDraft?: (id: string, body: string) => void | Promise<void>;
   onDeleteDraft?: (id: string) => void | Promise<void>;
   onPublishAll?: () => void | Promise<void>;
 }) {
-  const [open, setOpen] = useState(() => drafts.length > 0);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [body, setBody] = useState("");
+  const [open, setOpen] = useState(
+    () =>
+      initialOpen ||
+      drafts.length > 0 ||
+      Boolean(publishError) ||
+      Boolean(publishedBatchId),
+  );
+  const [editingId, setEditingId] = useState<string | null>(
+    initialEditingDraftId,
+  );
+  const [body, setBody] = useState(
+    () =>
+      drafts.find((draft) => draft.id === initialEditingDraftId)?.body ?? "",
+  );
 
   useEffect(() => {
-    if (drafts.length) setOpen(true);
-    else setOpen(false);
+    if (drafts.length || publishError || publishedBatchId) setOpen(true);
+    else setOpen(initialOpen);
     if (editingId && !drafts.some((draft) => draft.id === editingId)) {
       setEditingId(null);
       setBody("");
     }
-  }, [drafts, editingId]);
+  }, [drafts, editingId, initialOpen, publishError, publishedBatchId]);
 
   const editing = editingId
     ? drafts.find((draft) => draft.id === editingId)
@@ -55,16 +74,27 @@ export function DraftReviewTray({
           <div className="draft-review-head">
             <div>
               <h2>Draft Review</h2>
-              <p>{drafts.length} unpublished comments</p>
+              <p>{draftCountLabel(drafts.length)}</p>
             </div>
             <button
               type="button"
               disabled={!drafts.length || publishing}
               onClick={() => void onPublishAll?.()}
             >
-              {publishing ? "Publishing..." : "Publish all"}
+              {publishing ? "Publishing..." : "Publish review comments"}
             </button>
           </div>
+          {publishError ? (
+            <p className="draft-review-message error" role="alert">
+              Publish failed. Drafts were kept. {publishError}
+            </p>
+          ) : null}
+          {publishedBatchId && !drafts.length ? (
+            <p className="draft-review-message success" aria-live="polite">
+              Published review batch {publishedBatchId}. Open threads are now
+              visible to agents.
+            </p>
+          ) : null}
           {drafts.length ? (
             <div className="draft-review-list">
               {drafts.map((draft) => (
@@ -75,7 +105,10 @@ export function DraftReviewTray({
                     onClick={() => onOpenPath?.(draft.path)}
                   >
                     <strong>{draft.path}</strong>
-                    <span>{commentLineLabelForAnchor(draft.anchor.canonical)}</span>
+                    <span>
+                      {anchorSurfaceLabel(draft)} ·{" "}
+                      {commentLineLabelForAnchor(draft.anchor.canonical)}
+                    </span>
                   </button>
                   {editing?.id === draft.id ? (
                     <form
@@ -151,4 +184,18 @@ export function DraftReviewTray({
       ) : null}
     </aside>
   );
+}
+
+function draftCountLabel(count: number): string {
+  if (count === 0) return "No unpublished comments";
+  if (count === 1) return "1 unpublished comment";
+  return `${count} unpublished comments`;
+}
+
+function anchorSurfaceLabel(draft: DraftReviewComment): string {
+  if (draft.anchor.surface === "diff") return "diff";
+  if (draft.anchor.surface === "rendered") {
+    return `${draft.anchor.rendered?.kind ?? draft.viewerKind} rendered`;
+  }
+  return "source";
 }

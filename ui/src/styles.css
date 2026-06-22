@@ -2547,6 +2547,24 @@ body.resizing-workbench-pane {
   cursor: default;
   opacity: 0.56;
 }
+.draft-review-message {
+  margin: 0 12px;
+  border: 1px solid var(--soft-line);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  padding: 8px 10px;
+}
+.draft-review-message.error {
+  border-color: color-mix(in srgb, var(--error) 38%, var(--soft-line));
+  background: color-mix(in srgb, var(--error) 8%, transparent);
+  color: var(--error);
+}
+.draft-review-message.success {
+  border-color: color-mix(in srgb, var(--comment-line) 58%, var(--soft-line));
+  background: color-mix(in srgb, var(--comment-tint) 52%, transparent);
+  color: var(--comment-text);
+}
 .draft-review-list {
   display: grid;
   gap: 8px;

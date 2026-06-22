@@ -524,6 +524,119 @@ export const sampleDraftComments: DraftReviewComment[] = [
       },
     },
   },
+  {
+    ...draftComment({
+      id: "draft-review-md-rendered",
+      path: sampleMarkdownFile.path,
+      viewerKind: "markdown",
+      lineStart: 11,
+      lineEnd: 11,
+      quote: "Draft comments stay private until the reviewer publishes a batch.",
+      body: "Rendered Markdown draft anchored to the H2 paragraph before publish.",
+    }),
+    anchor: {
+      surface: "rendered",
+      canonical: {
+        path: sampleMarkdownFile.path,
+        lineStart: 11,
+        lineEnd: 11,
+        quote: "Draft comments stay private until the reviewer publishes a batch.",
+        fileHash: sampleMarkdownFile.etag,
+      },
+      rendered: {
+        kind: "markdown",
+        blockId: "p-draft-review",
+        selector: "p:nth-of-type(3)",
+        textQuote:
+          "Draft comments stay private until the reviewer publishes a batch.",
+        sourceLineStart: 11,
+        sourceLineEnd: 11,
+      },
+    },
+  },
+  {
+    ...draftComment({
+      id: "draft-review-html-rendered",
+      path: sampleHtmlFile.path,
+      viewerKind: "html",
+      lineStart: 7,
+      lineEnd: 7,
+      quote: "Rendered HTML comments map back to source blocks.",
+      body: "Rendered HTML draft should stay private in the tray until publish.",
+    }),
+    anchor: {
+      surface: "rendered",
+      canonical: {
+        path: sampleHtmlFile.path,
+        lineStart: 7,
+        lineEnd: 7,
+        quote: "Rendered HTML comments map back to source blocks.",
+        fileHash: sampleHtmlFile.etag,
+      },
+      rendered: {
+        kind: "html",
+        blockId: "html-p-draft",
+        selector: ".review-card p",
+        textQuote: "Rendered HTML comments map back to source blocks.",
+        sourceLineStart: 7,
+        sourceLineEnd: 7,
+      },
+    },
+  },
+  {
+    ...draftComment({
+      id: "draft-review-html-diff",
+      path: sampleHtmlFile.path,
+      viewerKind: "html",
+      lineStart: 7,
+      lineEnd: 7,
+      quote: "Rendered HTML comments map back to source blocks.",
+      body: "HTML diff draft on the new preview paragraph.",
+    }),
+    anchor: {
+      surface: "diff",
+      canonical: {
+        path: sampleHtmlFile.path,
+        lineStart: 7,
+        lineEnd: 7,
+        quote: "Rendered HTML comments map back to source blocks.",
+        fileHash: sampleHtmlFile.etag,
+      },
+      diff: {
+        path: sampleHtmlFile.path,
+        base: "HEAD",
+        ref: "working tree",
+        hunkId: "@@ -4,6 +4,7 @@",
+        side: "new",
+        newLineStart: 7,
+        newLineEnd: 7,
+        diffHash: htmlDiff.diffHash,
+        fileHash: sampleHtmlFile.etag,
+        changeKind: "added",
+      },
+    },
+  },
+];
+
+export const manyDraftReviewComments: DraftReviewComment[] = [
+  ...sampleDraftComments,
+  ...Array.from({ length: 16 }, (_, index) =>
+    draftComment({
+      id: `draft-review-many-${index + 1}`,
+      path:
+        index % 3 === 0
+          ? sampleCodeFile.path
+          : index % 3 === 1
+            ? sampleMarkdownFile.path
+            : sampleHtmlFile.path,
+      viewerKind:
+        index % 3 === 0 ? "text" : index % 3 === 1 ? "markdown" : "html",
+      lineStart: 3 + index,
+      lineEnd: 3 + index,
+      quote: `draft review fixture ${index + 1}`,
+      body: `Queued draft review comment ${index + 1} for tray density checks.`,
+    }),
+  ),
 ];
 
 export const samplePublishedReviewBatch: PublishedReviewBatch = {

@@ -918,6 +918,45 @@ it("renders the empty draft review tray as a compact tab only", () => {
   expect(html).not.toContain("No draft comments.");
 });
 
+it("renders draft review tray editing, success, and publish failure states", () => {
+  const draft = {
+    id: "draft-1",
+    path: "src/app.ts",
+    viewerKind: "text" as const,
+    anchor: codeLineComment.anchor,
+    body: "Keep this draft visible on publish failure",
+    source: "human" as const,
+    createdAt: "2026-06-20T00:00:00.000Z",
+    updatedAt: "2026-06-20T00:00:00.000Z",
+  };
+
+  const editingHtml = renderToStaticMarkup(
+    <DraftReviewTray drafts={[draft]} initialEditingDraftId={draft.id} />,
+  );
+  expect(editingHtml).toContain("textarea");
+  expect(editingHtml).toContain("Keep this draft visible on publish failure");
+  expect(editingHtml).toContain("Publish review comments");
+
+  const failedHtml = renderToStaticMarkup(
+    <DraftReviewTray
+      drafts={[draft]}
+      publishError="The selected target thread is no longer open."
+    />,
+  );
+  expect(failedHtml).toContain("Publish failed. Drafts were kept.");
+  expect(failedHtml).toContain("The selected target thread is no longer open.");
+  expect(failedHtml).toContain("Keep this draft visible on publish failure");
+
+  const successHtml = renderToStaticMarkup(
+    <DraftReviewTray
+      drafts={[]}
+      publishedBatchId="review-batch-test-1"
+    />,
+  );
+  expect(successHtml).toContain("Published review batch review-batch-test-1");
+  expect(successHtml).toContain("visible to agents");
+});
+
 it("renders comment activity in workspace comments rows", () => {
   const html = renderToStaticMarkup(
     <CommentsPanel

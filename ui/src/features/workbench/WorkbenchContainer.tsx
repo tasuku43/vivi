@@ -204,6 +204,12 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const [comments, setComments] = useState<ViviComment[]>([]);
   const [draftComments, setDraftComments] = useState<DraftReviewComment[]>([]);
   const [draftPublishing, setDraftPublishing] = useState(false);
+  const [draftPublishError, setDraftPublishError] = useState<string | null>(
+    null,
+  );
+  const [lastPublishedReviewBatchId, setLastPublishedReviewBatchId] = useState<
+    string | null
+  >(null);
   const [commentActivity, setCommentActivity] = useState(
     emptyCommentActivityState,
   );
@@ -409,6 +415,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       body: trimmedBody,
       source: "human",
     });
+    setDraftPublishError(null);
+    setLastPublishedReviewBatchId(null);
     setDraftComments((items) =>
       mergeDraftComments(items, [draftComment], null),
     );
@@ -418,17 +426,23 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
 
   async function updateDraftReviewComment(id: string, body: string) {
     const draft = await client.updateDraftReviewComment({ id, body });
+    setDraftPublishError(null);
+    setLastPublishedReviewBatchId(null);
     setDraftComments((items) => mergeDraftComments(items, [draft], null));
   }
 
   async function deleteDraftReviewComment(id: string) {
     await client.deleteDraftReviewComment(id);
+    setDraftPublishError(null);
+    setLastPublishedReviewBatchId(null);
     setDraftComments((items) => items.filter((draft) => draft.id !== id));
   }
 
   async function publishDraftReviewComments() {
     if (!draftComments.length) return;
     setDraftPublishing(true);
+    setDraftPublishError(null);
+    setLastPublishedReviewBatchId(null);
     try {
       const batch = await client.publishDraftReviewComments();
       setComments((items) =>
@@ -439,7 +453,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         ),
       );
       setDraftComments([]);
+      setLastPublishedReviewBatchId(batch.reviewBatchId);
       await loadComments(null);
+    } catch (err) {
+      setDraftPublishError(errorMessage(err));
+      throw err;
     } finally {
       setDraftPublishing(false);
     }
@@ -1961,6 +1979,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       <DraftReviewTray
         drafts={draftComments}
         publishing={draftPublishing}
+        publishError={draftPublishError}
+        publishedBatchId={lastPublishedReviewBatchId}
         onOpenPath={(path) =>
           void loadFile(path, layout.activePaneId, "preview").catch((err) =>
             setError(String(err)),
@@ -2431,6 +2451,12 @@ function commentActivityThreadTargets({
     if (targets.length >= 40) break;
   }
   return targets;
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "string" && error) return error;
+  return "Unknown publish error";
 }
 
 interface DOMRectLike {
