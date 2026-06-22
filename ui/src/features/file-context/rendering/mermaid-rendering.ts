@@ -93,15 +93,29 @@ function sanitizeMermaidSvg(svg: string): string {
   for (const element of Array.from(document.querySelectorAll("*"))) {
     for (const attribute of Array.from(element.attributes)) {
       const name = attribute.name.toLowerCase();
-      const value = attribute.value.trim().toLowerCase();
       if (name.startsWith("on")) element.removeAttribute(attribute.name);
       if (
         (name === "href" || name.endsWith(":href")) &&
-        value.startsWith("javascript:")
+        !isSafeSvgReference(attribute.value)
       ) {
         element.removeAttribute(attribute.name);
       }
     }
   }
   return new XMLSerializer().serializeToString(document.documentElement);
+}
+
+export function isSafeSvgReference(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.startsWith("#")) return true;
+  try {
+    const parsed = new URL(trimmed, "https://vivi.local/");
+    return (
+      parsed.protocol === "https:" ||
+      parsed.protocol === "http:" ||
+      parsed.protocol === "mailto:"
+    );
+  } catch {
+    return false;
+  }
 }

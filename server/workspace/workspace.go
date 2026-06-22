@@ -520,7 +520,10 @@ func (fsys *FS) resolvePath(input string, requireNonEmpty bool) (resolvedPath, e
 }
 
 func (fsys *FS) scan(relativeDir string, parent *string, depth int, stats *TreeStats) ([]Node, error) {
-	absoluteDir := filepath.Join(fsys.root, filepath.FromSlash(relativeDir))
+	absoluteDir, ok := fsys.internalAbsolutePath(relativeDir)
+	if !ok {
+		return nil, requestError("path escapes root")
+	}
 	entries, err := os.ReadDir(absoluteDir)
 	if err != nil {
 		return nil, err
@@ -536,7 +539,10 @@ func (fsys *FS) scan(relativeDir string, parent *string, depth int, stats *TreeS
 		if fsys.isIgnored(relative) {
 			continue
 		}
-		absolute := filepath.Join(fsys.root, filepath.FromSlash(relative))
+		absolute, ok := fsys.internalAbsolutePath(relative)
+		if !ok {
+			continue
+		}
 		inside, err := fsys.realPathInsideRoot(absolute)
 		if err != nil || !inside {
 			continue
@@ -597,7 +603,11 @@ func (fsys *FS) scan(relativeDir string, parent *string, depth int, stats *TreeS
 }
 
 func (fsys *FS) walkFiles(relativeDir string, stats *SearchStats, onFile func(FileSearchResult) bool) error {
-	entries, err := os.ReadDir(filepath.Join(fsys.root, filepath.FromSlash(relativeDir)))
+	absoluteDir, ok := fsys.internalAbsolutePath(relativeDir)
+	if !ok {
+		return nil
+	}
+	entries, err := os.ReadDir(absoluteDir)
 	if err != nil {
 		return nil
 	}
@@ -611,7 +621,10 @@ func (fsys *FS) walkFiles(relativeDir string, stats *SearchStats, onFile func(Fi
 		if fsys.isIgnored(relative) {
 			continue
 		}
-		absolute := filepath.Join(fsys.root, filepath.FromSlash(relative))
+		absolute, ok := fsys.internalAbsolutePath(relative)
+		if !ok {
+			continue
+		}
 		inside, err := fsys.realPathInsideRoot(absolute)
 		if err != nil || !inside {
 			continue
@@ -682,7 +695,10 @@ func cloneFileSearchResults(files []FileSearchResult) []FileSearchResult {
 }
 
 func (fsys *FS) walkWatchEntries(relativeDir string, entries map[string]WatchEntry, stats *WatchStats) error {
-	absoluteDir := filepath.Join(fsys.root, filepath.FromSlash(relativeDir))
+	absoluteDir, ok := fsys.internalAbsolutePath(relativeDir)
+	if !ok {
+		return nil
+	}
 	dirEntries, err := os.ReadDir(absoluteDir)
 	if err != nil {
 		return nil
@@ -696,7 +712,10 @@ func (fsys *FS) walkWatchEntries(relativeDir string, entries map[string]WatchEnt
 		if fsys.isIgnored(relative) {
 			continue
 		}
-		absolute := filepath.Join(fsys.root, filepath.FromSlash(relative))
+		absolute, ok := fsys.internalAbsolutePath(relative)
+		if !ok {
+			continue
+		}
 		inside, err := fsys.realPathInsideRoot(absolute)
 		if err != nil || !inside {
 			continue
@@ -742,6 +761,18 @@ func (fsys *FS) realPathInsideRoot(absolute string) (bool, error) {
 		return false, err
 	}
 	return insidePath(fsys.rootReal, target), nil
+}
+
+func (fsys *FS) internalAbsolutePath(relative string) (string, bool) {
+	normalized, err := normalizeRelativePath(relative)
+	if err != nil {
+		return "", false
+	}
+	absolute := filepath.Join(fsys.root, filepath.FromSlash(normalized))
+	if !insidePath(fsys.root, absolute) {
+		return "", false
+	}
+	return absolute, true
 }
 
 func (fsys *FS) isIgnored(relative string) bool {

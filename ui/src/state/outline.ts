@@ -24,18 +24,35 @@ export function extractMarkdownOutline(markdown: string): OutlineHeading[] {
 }
 
 export function extractHtmlOutline(html: string): OutlineHeading[] {
-  const htmlHeadings = [
-    ...html.matchAll(/<h([12])\b([^>]*)>([\s\S]*?)<\/h\1>/gi),
-  ].map((match) => {
+  const htmlHeadings: Array<{
+    level: 1 | 2;
+    text: string;
+    existingId?: string;
+  }> = [];
+  let index = 0;
+  while (index < html.length) {
+    const start = findNextHeadingStart(html, index);
+    if (start === -1) break;
+    const level = html[start + 2];
+    const tagEnd = findTagEnd(html, start);
+    if (tagEnd === -1 || (level !== "1" && level !== "2")) break;
+    const openingTag = html.slice(start, tagEnd + 1);
+    const closingTag = `</h${level}>`;
+    const closeStart = html.toLowerCase().indexOf(closingTag, tagEnd + 1);
+    if (closeStart === -1) {
+      index = tagEnd + 1;
+      continue;
+    }
     const existingId = /\sid\s*=\s*["']([^"']+)["']/i
-      .exec(match[2])?.[1]
+      .exec(openingTag)?.[1]
       ?.trim();
-    return {
+    htmlHeadings.push({
       existingId,
-      level: Number(match[1]) as 1 | 2,
-      text: stripTags(match[3]).trim(),
-    };
-  });
+      level: Number(level) as 1 | 2,
+      text: stripTags(html.slice(tagEnd + 1, closeStart)).trim(),
+    });
+    index = closeStart + closingTag.length;
+  }
   return extractPlainHeadingOutline(htmlHeadings);
 }
 
@@ -112,7 +129,27 @@ export function slugify(value: string): string {
 }
 
 function stripTags(value: string): string {
-  return value.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ");
+  let output = "";
+  let index = 0;
+  while (index < value.length) {
+    const tagStart = value.indexOf("<", index);
+    if (tagStart === -1) {
+      output += value.slice(index);
+      break;
+    }
+    output += value.slice(index, tagStart);
+    const tagEnd = findTagEnd(value, tagStart);
+    if (tagEnd === -1) break;
+    const tagName = tagNameFromOpeningTag(value.slice(tagStart, tagEnd + 1));
+    if (tagName === "script" || tagName === "style") {
+      const closeTag = `</${tagName}>`;
+      const closeStart = value.toLowerCase().indexOf(closeTag, tagEnd + 1);
+      index = closeStart === -1 ? tagEnd + 1 : closeStart + closeTag.length;
+      continue;
+    }
+    index = tagEnd + 1;
+  }
+  return output.replace(/&nbsp;/g, " ");
 }
 
 function escapeAttribute(value: string): string {
@@ -120,4 +157,47 @@ function escapeAttribute(value: string): string {
     .replace(/&/g, "&amp;")
     .replace(/"/g, "&quot;")
     .replace(/</g, "&lt;");
+}
+
+function findTagEnd(value: string, start: number): number {
+  let quote: string | null = null;
+  for (let index = start + 1; index < value.length; index += 1) {
+    const character = value[index];
+    if (quote) {
+      if (character === quote) quote = null;
+      continue;
+    }
+    if (character === `"` || character === `'`) {
+      quote = character;
+      continue;
+    }
+    if (character === ">") return index;
+  }
+  return -1;
+}
+
+function findNextHeadingStart(html: string, from: number): number {
+  for (let index = from; index < html.length - 2; index += 1) {
+    if (html[index] !== "<") continue;
+    const h = html[index + 1];
+    const level = html[index + 2];
+    if ((h !== "h" && h !== "H") || (level !== "1" && level !== "2")) {
+      continue;
+    }
+    const boundary = html[index + 3];
+    if (boundary === ">" || boundary === "/" || /\s/.test(boundary ?? "")) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function tagNameFromOpeningTag(tag: string): string | null {
+  const trimmed = tag.slice(1).trimStart();
+  let name = "";
+  for (const character of trimmed) {
+    if (!/[a-z0-9]/i.test(character)) break;
+    name += character.toLowerCase();
+  }
+  return name || null;
 }

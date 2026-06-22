@@ -1190,13 +1190,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       openMovedTarget(currentFileOpenThreadTargets, "next");
       return;
     }
-    const escapedId =
-      typeof CSS !== "undefined" && CSS.escape
-        ? CSS.escape(activeCommentId)
-        : activeCommentId.replace(/"/g, '\\"');
-    const target = document.querySelector<HTMLElement>(
-      `[data-comment-id="${escapedId}"], .inline-comment-card`,
-    );
+    const target =
+      Array.from(
+        document.querySelectorAll<HTMLElement>("[data-comment-id]"),
+      ).find((element) => element.dataset.commentId === activeCommentId) ??
+      document.querySelector<HTMLElement>(".inline-comment-card");
     target?.focus();
   }
 
@@ -1331,11 +1329,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     const viewer = pane?.querySelector<HTMLElement>(".viewer-pane");
     if (!viewer) return;
 
-    const escapedId =
-      typeof CSS !== "undefined" && CSS.escape
-        ? CSS.escape(id)
-        : id.replace(/"/g, '\\"');
-    const markdownTarget = viewer.querySelector<HTMLElement>(`#${escapedId}`);
+    const markdownTarget = Array.from(
+      viewer.querySelectorAll<HTMLElement>("[id]"),
+    ).find((element) => element.id === id);
     if (markdownTarget) {
       markdownTarget.scrollIntoView({ block: "start", behavior: "smooth" });
       return;

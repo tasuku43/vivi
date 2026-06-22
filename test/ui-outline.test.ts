@@ -56,4 +56,18 @@ title: Outline Example
     expect(addHtmlHeadingIds(html)).toContain('<h2 id="custom">Intro</h2>');
     expect(addHtmlHeadingIds(html)).toContain('<h2 id="intro">Intro</h2>');
   });
+
+  it("strips HTML tags before deriving generated heading ids", () => {
+    const html =
+      '<h1><script>alert("x")</script>Safe Title</h1><h2 data-label="one > two">Two</h2>';
+
+    expect(extractHtmlOutline(html)).toEqual([
+      { id: "safe-title", level: 1, text: "Safe Title" },
+      { id: "two", level: 2, text: "Two" },
+    ]);
+    expect(addHtmlHeadingIds(html)).toContain('<h1 id="safe-title">');
+    expect(addHtmlHeadingIds(html)).toContain(
+      '<h2 id="two" data-label="one > two">',
+    );
+  });
 });

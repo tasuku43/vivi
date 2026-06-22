@@ -24,9 +24,11 @@ import {
   type MermaidPreviewTheme,
 } from "../domain/mermaid-theme.js";
 import {
+  escapeAttribute,
   escapeHtml,
   hasCustomMermaidStyle,
 } from "../domain/mermaid-preview.js";
+import { normalizeRelativePath } from "../domain/path-policy.js";
 import { addRenderedCommentBlockIdsToHtml } from "../domain/rendered-comment-blocks.js";
 
 export interface ServerOptions {
@@ -897,9 +899,8 @@ async function serveSpa(
   const base = staticDir ?? defaultStaticDir();
   const requested =
     req.url && req.url !== "/" ? req.url.split("?")[0] : "/index.html";
-  const safeRequested = requested?.replace(/^\/+/, "") || "index.html";
-  const filePath = path.resolve(base, safeRequested);
-  if (!isInside(base, filePath)) {
+  const filePath = resolveStaticAssetPath(base, requested);
+  if (!filePath) {
     sendJson(res, 400, { error: "static path escapes root" });
     return;
   }
@@ -1005,32 +1006,44 @@ function positiveVariable(
   return Math.floor(value);
 }
 
-function statusForError(message: string): number {
-  if (message.includes("too large")) return 413;
+function statusForPublicError(message: string): number | null {
+  if (message === "file is too large to preview") return 413;
   if (
-    message.includes("no such file") ||
-    message.includes("ENOENT") ||
-    message.includes("not a file") ||
-    message.includes("not an HTML file") ||
-    message.includes("not found")
-  ) {
+    message === "path is not a file" ||
+    message === "path is not an HTML file"
+  )
     return 404;
-  }
   if (
-    message.includes("path") ||
-    message.includes("absolute") ||
-    message.includes("root") ||
-    message.includes("ignored") ||
-    message.includes("excluded") ||
-    message.includes("invalid") ||
-    message.includes("required") ||
-    message.includes("must") ||
-    message.includes("only target") ||
-    message.includes("does not match")
+    [
+      "path contains invalid characters",
+      "absolute paths are not allowed",
+      "path escapes root",
+      "path is ignored",
+      "path is excluded",
+      "file path is required",
+      "request body too large",
+      "JSON request body is required",
+      "invalid JSON request body",
+      "comment write APIs require application/json",
+      "invalid Host header for local write API",
+      "invalid Origin header for local write API",
+      "comment id is required",
+      "thread id is required",
+      "draft id is required",
+      "client event id must be a string",
+      "path is required",
+      "body is required",
+      "lineStart must be positive",
+      "lineEnd must be positive",
+      "lineEnd must be greater than or equal to lineStart",
+      "diff line range is invalid",
+      "only target comment writes may be observed",
+      "target comment id does not match request",
+    ].includes(message)
   ) {
     return 400;
   }
-  return 500;
+  return null;
 }
 
 function normalizeHttpError(error: unknown): {
@@ -1053,12 +1066,20 @@ function normalizeHttpError(error: unknown): {
       status: code,
     };
   }
-  const httpStatus = statusForError(message);
+  const publicStatus = statusForPublicError(message);
+  if (!publicStatus) {
+    return {
+      httpStatus: 500,
+      message: "internal server error",
+      reason: "An internal error occurred.",
+      status: "internal_error",
+    };
+  }
   return {
-    httpStatus,
+    httpStatus: publicStatus,
     message,
     reason: message,
-    status: httpStatus >= 500 ? "internal_error" : "request_error",
+    status: "request_error",
   };
 }
 
@@ -1071,10 +1092,10 @@ function logHttpError(
   const target = req.url ?? "/";
   const message = `[vivi] ${method} ${target} failed with ${normalized.httpStatus}: ${normalized.reason}`;
   if (normalized.httpStatus >= 500) {
-    console.error(message, error);
+    console.error("%s", message, error);
     return;
   }
-  console.warn(message);
+  console.warn("%s", message);
 }
 
 function reasonForFileSystemCode(code: string): string | null {
@@ -1125,6 +1146,25 @@ function isInside(root: string, target: string): boolean {
   );
 }
 
+function resolveStaticAssetPath(
+  root: string,
+  requestedPath: string,
+): string | null {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(requestedPath);
+  } catch {
+    return null;
+  }
+  const normalized = normalizeRelativePath(
+    decoded === "/" ? "index.html" : decoded.replace(/^\/+/, ""),
+  );
+  if (!normalized.ok) return null;
+  const relativePath = normalized.relativePath || "index.html";
+  const absolutePath = path.join(path.resolve(root), relativePath);
+  return isInside(root, absolutePath) ? absolutePath : null;
+}
+
 function htmlPreviewCsp(allowHtmlScripts: boolean, nonce: string): string {
   const base = [
     "default-src 'self' data: blob:",
@@ -1136,6 +1176,11 @@ function htmlPreviewCsp(allowHtmlScripts: boolean, nonce: string): string {
     allowHtmlScripts
       ? "script-src 'self' 'unsafe-inline'"
       : `script-src 'nonce-${nonce}'`,
+  );
+  base.push(
+    allowHtmlScripts
+      ? "sandbox allow-same-origin allow-scripts"
+      : "sandbox allow-same-origin",
   );
   return base.join("; ");
 }
@@ -1163,21 +1208,66 @@ function withPreviewBase(html: string, relativePath: string): string {
 
 function addHtmlHeadingIds(html: string): string {
   const used = new Map<string, number>();
-  return html.replace(
-    /<h([12])(\s[^>]*)?>([\s\S]*?)<\/h\1>/gi,
-    (match, rawLevel: string, rawAttributes = "", innerHtml: string) => {
-      if (/\sid\s*=/i.test(rawAttributes)) return match;
-      const text = innerHtml
-        .replace(/<[^>]+>/g, "")
-        .replace(/&nbsp;/g, " ")
-        .trim();
-      const base = slugify(text) || `heading-${used.size + 1}`;
-      const count = used.get(base) ?? 0;
-      used.set(base, count + 1);
-      const id = count === 0 ? base : `${base}-${count + 1}`;
-      return `<h${rawLevel}${rawAttributes} id="${escapeAttribute(id)}">${innerHtml}</h${rawLevel}>`;
-    },
-  );
+  let output = "";
+  let index = 0;
+  while (index < html.length) {
+    const start = findNextHeadingStart(html, index);
+    if (start === -1) {
+      output += html.slice(index);
+      break;
+    }
+    output += html.slice(index, start);
+    const level = html[start + 2];
+    const tagEnd = findTagEnd(html, start);
+    if (tagEnd === -1 || (level !== "1" && level !== "2")) {
+      output += html.slice(start);
+      break;
+    }
+    const openingTag = html.slice(start, tagEnd + 1);
+    const closingTag = `</h${level}>`;
+    const closeStart = html.toLowerCase().indexOf(closingTag, tagEnd + 1);
+    if (closeStart === -1) {
+      output += openingTag;
+      index = tagEnd + 1;
+      continue;
+    }
+    const innerHtml = html.slice(tagEnd + 1, closeStart);
+    if (/\sid\s*=/i.test(openingTag)) {
+      output += html.slice(start, closeStart + closingTag.length);
+      index = closeStart + closingTag.length;
+      continue;
+    }
+    const text = htmlToText(innerHtml).trim();
+    const base = slugify(text) || `heading-${used.size + 1}`;
+    const count = used.get(base) ?? 0;
+    used.set(base, count + 1);
+    const id = count === 0 ? base : `${base}-${count + 1}`;
+    output += `${addAttributeToOpeningTag(openingTag, `id="${escapeAttribute(id)}"`)}${innerHtml}${html.slice(closeStart, closeStart + closingTag.length)}`;
+    index = closeStart + closingTag.length;
+  }
+  return output;
+}
+
+function findNextHeadingStart(html: string, from: number): number {
+  for (let index = from; index < html.length - 2; index += 1) {
+    if (html[index] !== "<") continue;
+    const h = html[index + 1];
+    const level = html[index + 2];
+    if ((h !== "h" && h !== "H") || (level !== "1" && level !== "2")) {
+      continue;
+    }
+    const boundary = html[index + 3];
+    if (boundary === ">" || boundary === "/" || /\s/.test(boundary ?? "")) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function addAttributeToOpeningTag(tag: string, attribute: string): string {
+  const suffix = /\/\s*>$/.test(tag) ? "/>" : ">";
+  const body = tag.slice(0, -suffix.length).trimEnd();
+  return `${body} ${attribute}${suffix}`;
 }
 
 function renderEmbeddedMermaidPreviewHtml(
@@ -1232,15 +1322,66 @@ function hasMermaidClass(attributes: string): boolean {
 }
 
 function htmlToText(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
+  return stripHtmlTags(html)
     .replace(/&nbsp;/g, " ")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&");
+}
+
+function stripHtmlTags(html: string): string {
+  let output = "";
+  let index = 0;
+  while (index < html.length) {
+    const tagStart = html.indexOf("<", index);
+    if (tagStart === -1) {
+      output += html.slice(index);
+      break;
+    }
+    output += html.slice(index, tagStart);
+    const tagEnd = findTagEnd(html, tagStart);
+    if (tagEnd === -1) break;
+    const rawTag = html.slice(tagStart, tagEnd + 1);
+    const tagName = tagNameFromOpeningTag(rawTag);
+    if (tagName === "script" || tagName === "style") {
+      const closeTag = `</${tagName}>`;
+      const closeStart = html.toLowerCase().indexOf(closeTag, tagEnd + 1);
+      index = closeStart === -1 ? tagEnd + 1 : closeStart + closeTag.length;
+      continue;
+    }
+    if (/^<br\s*\/?>$/i.test(rawTag)) output += "\n";
+    index = tagEnd + 1;
+  }
+  return output;
+}
+
+function findTagEnd(html: string, start: number): number {
+  let quote: string | null = null;
+  for (let index = start + 1; index < html.length; index += 1) {
+    const character = html[index];
+    if (quote) {
+      if (character === quote) quote = null;
+      continue;
+    }
+    if (character === `"` || character === `'`) {
+      quote = character;
+      continue;
+    }
+    if (character === ">") return index;
+  }
+  return -1;
+}
+
+function tagNameFromOpeningTag(tag: string): string | null {
+  const trimmed = tag.slice(1).trimStart();
+  let name = "";
+  for (const character of trimmed) {
+    if (!/[a-z0-9]/i.test(character)) break;
+    name += character.toLowerCase();
+  }
+  return name || null;
 }
 
 function injectHtmlPreviewRuntime(
@@ -1297,11 +1438,9 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
   let activeCommentId = null;
   let draftingBlockId = null;
   const post = (message) => parent.postMessage({ path, ...message }, "*");
-  const escapeSelectorValue = (value) => String(value).replace(/\\\\/g, "\\\\\\\\").replace(/"/g, '\\\\"');
-  const escapeCssIdentifier = (value) => globalThis.CSS?.escape ? CSS.escape(value) : String(value).replace(/[^a-zA-Z0-9_-]/g, (character) => "\\\\" + character);
   const cssPath = (element) => {
     if (!element || element.nodeType !== Node.ELEMENT_NODE) return undefined;
-    if (element.id) return "#" + escapeCssIdentifier(element.id);
+    if (element.id && globalThis.CSS?.escape) return "#" + CSS.escape(element.id);
     const parts = [];
     let current = element;
     while (current && current.nodeType === Node.ELEMENT_NODE && current !== document.body) {
@@ -1334,7 +1473,7 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
   };
   const findBlocksForComment = (comment) => {
     if (comment.blockId) {
-      const byBlock = document.querySelector(\`[data-vivi-comment-block-id="\${escapeSelectorValue(comment.blockId)}"]\`);
+      const byBlock = Array.from(document.querySelectorAll(blockSelector)).find((block) => block.dataset.viviCommentBlockId === comment.blockId);
       if (byBlock) return [byBlock];
     }
     if (comment.selector) {
@@ -1570,13 +1709,6 @@ function slugify(value: string): string {
     .trim()
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
-}
-
-function escapeAttribute(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;");
 }
 
 function contentTypeFor(filePath: string): string {

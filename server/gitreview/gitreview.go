@@ -101,7 +101,7 @@ func (reviewer *Reviewer) ReadChanges(ctx context.Context) (summary Summary) {
 		summary = unavailable(reason)
 		return summary
 	}
-	output, reason, ok := reviewer.git(ctx, "status", "--porcelain=v1", "--untracked-files=all", "-z", "--", ".")
+	output, reason, ok := reviewer.gitStatus(ctx)
 	if !ok {
 		if reason == timeoutReason {
 			reviewer.suppressedTill = time.Now().Add(30 * time.Second)
@@ -128,7 +128,7 @@ func (reviewer *Reviewer) ReadChanges(ctx context.Context) (summary Summary) {
 }
 
 func (reviewer *Reviewer) ReadDiffBases(ctx context.Context) DiffBaseSummary {
-	output, reason, ok := reviewer.git(ctx, "log", "--max-count=8", "--format=%H%x00%h%x00%s%x00")
+	output, reason, ok := reviewer.gitLog(ctx)
 	if !ok {
 		return DiffBaseSummary{Available: false, Reason: reason, Options: []DiffBase{}}
 	}
@@ -164,6 +164,9 @@ func (reviewer *Reviewer) ReadDiff(ctx context.Context, relativePath, baseRef st
 	if relativePath == "" {
 		return unavailableDiff(relativePath, "file path is required")
 	}
+	if _, ok := reviewer.absolutePathForWorkspacePath(relativePath); !ok {
+		return unavailableDiff(relativePath, "path escapes root")
+	}
 	base, ok := reviewer.allowedBase(ctx, baseRef)
 	if !ok {
 		return unavailableDiff(relativePath, "Diff base is not an allowed recent commit.")
@@ -196,10 +199,11 @@ func (reviewer *Reviewer) ReadDiff(ctx context.Context, relativePath, baseRef st
 	if selected.Status == "added" && base.Ref == "HEAD" {
 		return reviewer.addedDiff(relativePath, base)
 	}
-	output, reason, ok := reviewer.git(ctx, "diff", "--unified=1000000", base.Ref, "--", relativePath)
+	output, reason, ok := reviewer.gitWorkspaceDiff(ctx, base.Ref)
 	if !ok {
 		return unavailableDiff(relativePath, reason)
 	}
+	output = diffForPath(output, relativePath)
 	if strings.TrimSpace(output) == "" {
 		return unavailableDiff(relativePath, "No text diff is available for this file.")
 	}
@@ -213,7 +217,10 @@ func (reviewer *Reviewer) ReadDiff(ctx context.Context, relativePath, baseRef st
 }
 
 func (reviewer *Reviewer) addedDiff(relativePath string, base DiffBase) TextDiff {
-	absolute := filepath.Join(reviewer.root, filepath.FromSlash(relativePath))
+	absolute, ok := reviewer.absolutePathForWorkspacePath(relativePath)
+	if !ok {
+		return unavailableDiff(relativePath, "path escapes root")
+	}
 	info, err := os.Stat(absolute)
 	if err != nil {
 		return unavailableDiff(relativePath, "File no longer exists in the working tree.")
@@ -264,7 +271,10 @@ func (reviewer *Reviewer) classify(change Change) []Change {
 		change.Kind = "file"
 		return []Change{change}
 	}
-	absolute := filepath.Join(reviewer.root, filepath.FromSlash(change.Path))
+	absolute, ok := reviewer.absolutePathForWorkspacePath(change.Path)
+	if !ok {
+		return nil
+	}
 	linkInside, isLink := reviewer.symlinkInsideRoot(absolute)
 	if isLink && !linkInside {
 		return nil
@@ -297,7 +307,10 @@ func (reviewer *Reviewer) expandAddedDirectory(relative, absolute string) []Chan
 		if isIgnored(childRelative) {
 			continue
 		}
-		childAbsolute := filepath.Join(absolute, entry.Name())
+		childAbsolute, ok := reviewer.absolutePathForWorkspacePath(childRelative)
+		if !ok {
+			continue
+		}
 		if linkInside, isLink := reviewer.symlinkInsideRoot(childAbsolute); isLink && !linkInside {
 			continue
 		}
@@ -321,7 +334,7 @@ func (reviewer *Reviewer) expandAddedDirectory(relative, absolute string) []Chan
 }
 
 func (reviewer *Reviewer) workspace(ctx context.Context) (string, string, string, bool) {
-	output, reason, ok := reviewer.git(ctx, "rev-parse", "--show-toplevel")
+	output, reason, ok := reviewer.gitRevParseTopLevel(ctx)
 	if !ok {
 		if strings.Contains(reason, "not a git repository") || strings.Contains(reason, "not a Git repository") {
 			return "", "", "This workspace is not a Git repository.", false
@@ -355,10 +368,33 @@ func (reviewer *Reviewer) symlinkInsideRoot(absolute string) (bool, bool) {
 	return insidePath(reviewer.rootReal, target), true
 }
 
-func (reviewer *Reviewer) git(ctx context.Context, args ...string) (string, string, bool) {
+func (reviewer *Reviewer) gitStatus(ctx context.Context) (string, string, bool) {
+	command := exec.Command("git", "status", "--porcelain=v1", "--untracked-files=all", "-z", "--", ".")
+	return reviewer.runGit(ctx, command)
+}
+
+func (reviewer *Reviewer) gitLog(ctx context.Context) (string, string, bool) {
+	command := exec.Command("git", "log", "--max-count=8", "--format=%H%x00%h%x00%s%x00")
+	return reviewer.runGit(ctx, command)
+}
+
+func (reviewer *Reviewer) gitRevParseTopLevel(ctx context.Context) (string, string, bool) {
+	command := exec.Command("git", "rev-parse", "--show-toplevel")
+	return reviewer.runGit(ctx, command)
+}
+
+func (reviewer *Reviewer) gitWorkspaceDiff(ctx context.Context, baseRef string) (string, string, bool) {
+	ref := strings.TrimSpace(baseRef)
+	if ref == "" {
+		ref = "HEAD"
+	}
+	command := exec.Command("git", "diff", "--unified=1000000", ref, "--", ".")
+	return reviewer.runGit(ctx, command)
+}
+
+func (reviewer *Reviewer) runGit(ctx context.Context, command *exec.Cmd) (string, string, bool) {
 	timeoutCtx, cancel := context.WithTimeout(ctx, reviewer.timeout)
 	defer cancel()
-	command := exec.Command("git", args...)
 	command.Dir = reviewer.root
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	var stdout bytes.Buffer
@@ -392,6 +428,18 @@ func (reviewer *Reviewer) git(ctx context.Context, args ...string) (string, stri
 		return "", timeoutReason, false
 	}
 	return stdout.String(), "", true
+}
+
+func (reviewer *Reviewer) absolutePathForWorkspacePath(relative string) (string, bool) {
+	normalized, err := normalizeRelativePath(relative)
+	if err != nil || normalized == "" {
+		return "", false
+	}
+	absolute := filepath.Join(reviewer.root, filepath.FromSlash(normalized))
+	if !insidePath(reviewer.root, absolute) {
+		return "", false
+	}
+	return absolute, true
 }
 
 func killProcessGroup(command *exec.Cmd) {
@@ -477,6 +525,45 @@ func gitPathToWorkspace(pathname, prefix string) (string, bool) {
 	}
 	result := strings.TrimPrefix(normalized, needle)
 	return result, result != ""
+}
+
+func diffForPath(diff, relativePath string) string {
+	lines := strings.Split(diff, "\n")
+	blocks := []string{}
+	current := []string{}
+	for _, line := range lines {
+		if strings.HasPrefix(line, "diff --git ") {
+			if len(current) > 0 {
+				blocks = append(blocks, strings.Join(current, "\n"))
+			}
+			current = []string{line}
+			continue
+		}
+		if len(current) > 0 {
+			current = append(current, line)
+		}
+	}
+	if len(current) > 0 {
+		blocks = append(blocks, strings.Join(current, "\n"))
+	}
+	for _, block := range blocks {
+		oldPath, newPath, ok := diffHeaderPaths(block)
+		if ok && (oldPath == relativePath || newPath == relativePath) {
+			return strings.TrimRight(block, "\n")
+		}
+	}
+	return ""
+}
+
+func diffHeaderPaths(block string) (string, string, bool) {
+	firstLine, _, _ := strings.Cut(block, "\n")
+	fields := strings.Fields(firstLine)
+	if len(fields) < 4 || fields[0] != "diff" || fields[1] != "--git" {
+		return "", "", false
+	}
+	oldPath := strings.TrimPrefix(fields[2], "a/")
+	newPath := strings.TrimPrefix(fields[3], "b/")
+	return oldPath, newPath, oldPath != "" && newPath != ""
 }
 
 func normalizeRelativePath(input string) (string, error) {
