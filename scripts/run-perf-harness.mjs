@@ -10,6 +10,8 @@ import {
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
+import { readOtelSpans, summarizeOperationSpans } from "./perf-otel-summary.mjs";
+
 const cwd = process.cwd();
 const artifactsDir = path.join(cwd, "artifacts", "perf");
 const defaultWorkspace = path.join(artifactsDir, "synthetic-workspace");
@@ -19,103 +21,263 @@ const workspaceRoot = process.env.VIVI_PERF_WORKSPACE
 const binary = path.join(cwd, process.platform === "win32" ? "vivi-otel.exe" : "vivi-otel");
 const otelFile = path.join(artifactsDir, "otel.jsonl");
 const summaryFile = path.join(artifactsDir, "summary.json");
+const runName = process.env.VIVI_PERF_RUN_NAME ?? new Date().toISOString().replace(/[:.]/g, "-");
 
 mkdirSync(artifactsDir, { recursive: true });
 ensureBinary();
 const workspace = prepareWorkspace(workspaceRoot);
 
 const startedAt = new Date();
-const child = spawn(binary, [workspaceRoot, "--host", "127.0.0.1", "--port", "0", "--git-review-timeout", "1s"], {
-  cwd,
-  env: {
-    ...process.env,
-    VIVI_OTEL_EXPORTER_OTLP_ENDPOINT:
-      process.env.VIVI_OTEL_EXPORTER_OTLP_ENDPOINT ?? "localhost:4317",
-  },
-  stdio: ["ignore", "pipe", "pipe"],
-});
+const scenarios = [];
+const baselineError = [];
 
-let stdout = "";
-let stderr = "";
-const urlPromise = new Promise((resolve, reject) => {
-  const timeout = setTimeout(() => reject(new Error("timed out waiting for Vivi URL")), 10_000);
-  child.stdout.on("data", (chunk) => {
-    stdout += chunk.toString();
-    const match = stdout.match(/http:\/\/127\.0\.0\.1:\d+/);
-    if (match) {
-      clearTimeout(timeout);
-      resolve(match[0]);
-    }
-  });
-});
-child.stderr.on("data", (chunk) => {
-  stderr += chunk.toString();
-});
-
-let summary;
 try {
-  const baseURL = await urlPromise;
-  const operations = {};
+  scenarios.push(await runScenario("idle_watch", async () => {
+    const idleMs = numberEnv("VIVI_PERF_IDLE_MS", 3500);
+    await delay(idleMs);
+    return { idleMs };
+  }));
 
-  operations.fileSearch = await graphql(baseURL, `query PerfFileSearch($query: String!, $limit: Int) {
-    fileSearch(query: $query, limit: $limit) {
-      results { path }
-      stats { durationMs scannedDirectories scannedFiles readFiles skippedFiles }
+  scenarios.push(await runScenario("git_review", async ({ baseURL }) => {
+    const started = Date.now();
+    const response = await graphql(baseURL, `query PerfReviewQueue {
+      reviewQueue {
+        available
+        reason
+        changes { path status kind }
+      }
+    }`, {});
+    const reviewQueue = response.reviewQueue;
+    return {
+      durationMs: Date.now() - started,
+      available: reviewQueue.available,
+      reason: reviewQueue.reason ?? null,
+      resultCount: reviewQueue.changes.length,
+      countsByStatus: countBy(reviewQueue.changes, "status"),
+      countsByKind: countBy(reviewQueue.changes, "kind"),
+    };
+  }));
+
+  scenarios.push(await runScenario("file_search", async ({ baseURL }) => {
+    const queries = ["sched", "mm", "kconfig"];
+    const results = [];
+    for (const query of queries) {
+      const response = await graphql(baseURL, `query PerfFileSearch($query: String!, $limit: Int) {
+        fileSearch(query: $query, limit: $limit) {
+          results { path }
+          stats { durationMs scannedDirectories scannedFiles readFiles skippedFiles }
+        }
+      }`, { query, limit: 25 });
+      results.push({
+        query,
+        resultCount: response.fileSearch.results.length,
+        stats: response.fileSearch.stats,
+      });
     }
-  }`, { query: "file-00", limit: 25 });
+    return { queries: results, aggregate: aggregateSearchStats(results) };
+  }));
 
-  operations.textSearch = await graphql(baseURL, `query PerfTextSearch($query: String!, $limit: Int) {
-    textSearch(query: $query, limit: $limit) {
-      results { path lineNumber }
-      stats { durationMs scannedDirectories scannedFiles readFiles skippedFiles }
+  scenarios.push(await runScenario("content_search", async ({ baseURL }) => {
+    const queries = ["EXPORT_SYMBOL_GPL", "spin_lock", "CONFIG_SCHED"];
+    const results = [];
+    for (const query of queries) {
+      const response = await graphql(baseURL, `query PerfTextSearch($query: String!, $limit: Int) {
+        textSearch(query: $query, limit: $limit) {
+          results { path lineNumber }
+          stats { durationMs scannedDirectories scannedFiles readFiles skippedFiles }
+        }
+      }`, { query, limit: 20 });
+      results.push({
+        query,
+        resultCount: response.textSearch.results.length,
+        stats: response.textSearch.stats,
+      });
     }
-  }`, { query: "needle", limit: 40 });
+    return { queries: results, aggregate: aggregateSearchStats(results) };
+  }));
 
-  operations.reviewQueue = await graphql(baseURL, `query PerfReviewQueue {
-    reviewQueue {
-      available
-      reason
-      changes { path status kind }
+  scenarios.push(await runScenario("file_change", async ({ baseURL }) => {
+    const probe = path.join(workspaceRoot, `vivi-perf-watch-${process.pid}-${Date.now()}.md`);
+    const relativeProbe = path.basename(probe);
+    try {
+      const observed = await waitForWorkspaceEvent(baseURL, relativeProbe, async () => {
+        writeFileSync(probe, "# Vivi perf watch probe\n", "utf8");
+      });
+      await delay(numberEnv("VIVI_PERF_POST_CHANGE_MS", 1200));
+      return observed;
+    } finally {
+      rmSync(probe, { force: true });
     }
-  }`, {});
-
-  const syntheticProbe = path.join(workspaceRoot, "dir-000", "file-000.md");
-  if (existsSync(syntheticProbe)) {
-    writeFileSync(syntheticProbe, "# file 000\nneedle changed\n", "utf8");
-  }
-  writeFileSync(path.join(workspaceRoot, "watch-created.md"), "# Watch\nneedle new\n", "utf8");
-  await delay(1_500);
-
-  stopServer(child);
-  await waitForExit(child);
-  await delay(1_000);
-
-  summary = buildSummary({
-    startedAt,
-    workspace,
-    operations,
-    stdout,
-    stderr,
-    exitCode: child.exitCode,
-  });
+  }));
 } catch (error) {
-  stopServer(child);
-  await waitForExit(child).catch(() => {});
-  summary = buildSummary({
-    startedAt,
-    workspace,
-    operations: {},
-    stdout,
-    stderr,
-    exitCode: child.exitCode,
-    error: error instanceof Error ? error.message : String(error),
-  });
-  writeFileSync(summaryFile, `${JSON.stringify(summary, null, 2)}\n`);
-  throw error;
+  baselineError.push(error instanceof Error ? error.message : String(error));
 }
 
-writeFileSync(summaryFile, `${JSON.stringify(summary, null, 2)}\n`);
+const finishedAt = new Date();
+const summary = {
+  schemaVersion: 2,
+  runName,
+  startedAt: startedAt.toISOString(),
+  finishedAt: finishedAt.toISOString(),
+  durationMs: finishedAt.getTime() - startedAt.getTime(),
+  binary: path.basename(binary),
+  workspace,
+  scenarios,
+  artifacts: {
+    otelJsonl: path.relative(cwd, otelFile),
+    summaryJson: path.relative(cwd, summaryFile),
+    namedSummaryJson: path.relative(cwd, namedSummaryFile(runName)),
+  },
+  errors: baselineError,
+};
+
+writeJSON(summaryFile, summary);
+writeJSON(namedSummaryFile(runName), summary);
 console.log(`perf summary written to ${path.relative(cwd, summaryFile)}`);
+console.log(`named perf summary written to ${path.relative(cwd, namedSummaryFile(runName))}`);
+
+if (baselineError.length > 0) {
+  process.exitCode = 1;
+}
+
+async function runScenario(name, run) {
+  const started = new Date();
+  resetOtelFile();
+  const child = startServer();
+  let stdout = "";
+  let stderr = "";
+  const urlPromise = waitForServerURL(child, (chunk) => {
+    stdout += chunk;
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk.toString();
+  });
+
+  let result = null;
+  let error = null;
+  try {
+    const baseURL = await urlPromise;
+    result = await run({ baseURL });
+  } catch (caught) {
+    error = caught instanceof Error ? caught.message : String(caught);
+  } finally {
+    stopServer(child);
+    await waitForExit(child).catch(() => {});
+    await delay(1200);
+  }
+
+  const finished = new Date();
+  const spans = readOtelSpans(otelFile);
+  const telemetry = summarizeOperationSpans(spans, finished.getTime() - started.getTime());
+  return {
+    name,
+    startedAt: started.toISOString(),
+    finishedAt: finished.toISOString(),
+    durationMs: finished.getTime() - started.getTime(),
+    result,
+    telemetry,
+    process: {
+      exitCode: child.exitCode,
+      telemetryWarning: stderr.includes("OpenTelemetry enabled, but collector"),
+    },
+    stdout,
+    stderr: stderr.trim(),
+    error,
+  };
+}
+
+function startServer() {
+  return spawn(binary, [workspaceRoot, "--host", "127.0.0.1", "--port", "0", "--git-review-timeout", "3s"], {
+    cwd,
+    env: {
+      ...process.env,
+      VIVI_OTEL_EXPORTER_OTLP_ENDPOINT:
+        process.env.VIVI_OTEL_EXPORTER_OTLP_ENDPOINT ?? "localhost:4317",
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+}
+
+function waitForServerURL(child, onStdout) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("timed out waiting for Vivi URL")), 20_000);
+    child.stdout.on("data", (chunk) => {
+      const text = chunk.toString();
+      onStdout(text);
+      const match = text.match(/http:\/\/127\.0\.0\.1:\d+/);
+      if (match) {
+        clearTimeout(timeout);
+        resolve(match[0]);
+      }
+    });
+    child.once("exit", () => {
+      clearTimeout(timeout);
+      reject(new Error("Vivi exited before printing a URL"));
+    });
+  });
+}
+
+async function waitForWorkspaceEvent(baseURL, expectedPath, action) {
+  const controller = new AbortController();
+  const response = await fetch(`${baseURL}/events`, { signal: controller.signal });
+  if (!response.ok || !response.body) {
+    throw new Error(`events stream failed with ${response.status}`);
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  const started = Date.now();
+  let connected = false;
+
+  const readerLoop = (async () => {
+    while (Date.now() - started < 7000) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      if (!connected && buffer.includes(": connected")) {
+        connected = true;
+        await action();
+      }
+      const chunks = buffer.split(/\n\n/);
+      buffer = chunks.pop() ?? "";
+      for (const chunk of chunks) {
+        const data = chunk.split(/\r?\n/).find((line) => line.startsWith("data: "));
+        if (!data) continue;
+        const event = JSON.parse(data.slice("data: ".length));
+        if (event.path === expectedPath) {
+          controller.abort();
+          return {
+            path: expectedPath,
+            eventType: event.type,
+            eventVersion: event.version,
+            latencyMs: Date.now() - started,
+          };
+        }
+      }
+    }
+    throw new Error(`timed out waiting for workspace event for ${expectedPath}`);
+  })();
+
+  try {
+    return await readerLoop;
+  } finally {
+    controller.abort();
+    await reader.cancel().catch(() => {});
+  }
+}
+
+async function graphql(baseURL, query, variables) {
+  const response = await fetch(`${baseURL}/graphql`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ query, variables }),
+  });
+  const body = await response.json();
+  if (!response.ok || body.errors) {
+    throw new Error(JSON.stringify(body.errors ?? body));
+  }
+  return body.data;
+}
 
 function ensureBinary() {
   if (existsSync(binary)) return;
@@ -133,8 +295,8 @@ function prepareWorkspace(root) {
   const provided = Boolean(process.env.VIVI_PERF_WORKSPACE);
   if (!provided) {
     rmSync(root, { recursive: true, force: true });
-    const dirs = Number.parseInt(process.env.VIVI_PERF_DIRS ?? "24", 10);
-    const filesPerDir = Number.parseInt(process.env.VIVI_PERF_FILES_PER_DIR ?? "40", 10);
+    const dirs = numberEnv("VIVI_PERF_DIRS", 24);
+    const filesPerDir = numberEnv("VIVI_PERF_FILES_PER_DIR", 40);
     for (let dirIndex = 0; dirIndex < dirs; dirIndex++) {
       const dirName = `dir-${String(dirIndex).padStart(3, "0")}`;
       const dir = path.join(root, dirName);
@@ -149,13 +311,14 @@ function prepareWorkspace(root) {
         );
       }
     }
+    writeFileSync(path.join(root, "pending-review.md"), "# Pending review\nneedle pending\n", "utf8");
   }
 
   const git = initializeGit(root, provided);
-  writeFileSync(path.join(root, "pending-review.md"), "# Pending review\nneedle pending\n", "utf8");
   const counts = countWorkspace(root);
   return {
     root: path.relative(cwd, root) || ".",
+    absoluteRoot: root,
     provided,
     synthetic: !provided,
     directories: counts.directories,
@@ -181,19 +344,6 @@ function initializeGit(root, provided) {
   return { initialized: existsSync(path.join(root, ".git")) };
 }
 
-async function graphql(baseURL, query, variables) {
-  const response = await fetch(`${baseURL}/graphql`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ query, variables }),
-  });
-  const body = await response.json();
-  if (!response.ok || body.errors) {
-    throw new Error(JSON.stringify(body.errors ?? body));
-  }
-  return body.data;
-}
-
 function stopServer(child) {
   if (child.exitCode !== null || child.signalCode !== null) return;
   child.kill("SIGINT");
@@ -204,58 +354,28 @@ function waitForExit(child) {
   return new Promise((resolve) => child.once("exit", resolve));
 }
 
-function buildSummary({ startedAt, workspace, operations, stdout, stderr, exitCode, error }) {
-  const finishedAt = new Date();
-  const textSearch = operations.textSearch?.textSearch;
-  const fileSearch = operations.fileSearch?.fileSearch;
-  const reviewQueue = operations.reviewQueue?.reviewQueue;
-  return {
-    startedAt: startedAt.toISOString(),
-    finishedAt: finishedAt.toISOString(),
-    durationMs: finishedAt.getTime() - startedAt.getTime(),
-    binary: path.basename(binary),
-    workspace,
-    operations: {
-      fileSearch: summarizeSearch(fileSearch),
-      contentSearch: summarizeSearch(textSearch),
-      gitReviewStatusRefresh: reviewQueue
-        ? {
-            available: reviewQueue.available,
-            resultCount: reviewQueue.changes.length,
-            reason: reviewQueue.reason ?? null,
-          }
-        : null,
-      watchLoop: {
-        triggeredMutations: 2,
-        waitMs: 1500,
-      },
+function aggregateSearchStats(items) {
+  return items.reduce(
+    (aggregate, item) => {
+      aggregate.resultCount += item.resultCount;
+      aggregate.durationMs += item.stats.durationMs;
+      aggregate.scannedDirectories += item.stats.scannedDirectories;
+      aggregate.scannedFiles += item.stats.scannedFiles;
+      aggregate.readFiles += item.stats.readFiles;
+      aggregate.skippedFiles += item.stats.skippedFiles;
+      return aggregate;
     },
-    artifacts: {
-      otelJsonl: path.relative(cwd, otelFile),
-      summaryJson: path.relative(cwd, summaryFile),
-      otelJsonlRecords: countJSONLLines(otelFile),
-    },
-    process: {
-      exitCode,
-      telemetryWarning: stderr.includes("OpenTelemetry enabled, but collector"),
-    },
-    error: error ?? null,
-  };
+    { resultCount: 0, durationMs: 0, scannedDirectories: 0, scannedFiles: 0, readFiles: 0, skippedFiles: 0 },
+  );
 }
 
-function summarizeSearch(response) {
-  if (!response) return null;
-  return {
-    resultCount: response.results.length,
-    stats: response.stats,
-  };
-}
-
-function countJSONLLines(file) {
-  if (!existsSync(file)) return 0;
-  return readFileSync(file, "utf8")
-    .split(/\r?\n/)
-    .filter((line) => line.trim() !== "").length;
+function countBy(items, key) {
+  const counts = {};
+  for (const item of items) {
+    const value = item[key] || "unknown";
+    counts[value] = (counts[value] ?? 0) + 1;
+  }
+  return counts;
 }
 
 function countWorkspace(root) {
@@ -283,4 +403,21 @@ function readdirSafe(dir) {
   } catch {
     return [];
   }
+}
+
+function resetOtelFile() {
+  writeFileSync(otelFile, "", "utf8");
+}
+
+function namedSummaryFile(name) {
+  return path.join(artifactsDir, `${name}.summary.json`);
+}
+
+function writeJSON(file, value) {
+  writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function numberEnv(name, fallback) {
+  const value = Number.parseInt(process.env[name] ?? "", 10);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
 }

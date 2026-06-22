@@ -15,6 +15,8 @@ Use watcher events as the primary signal. Use hashes and versions as validation 
 
 - Refetch the currently open file when it changes.
 - Refetch the tree on add/remove events.
+- Back off recursive polling after repeated empty watch scans, while resetting to
+  the normal interval as soon as a filesystem event is emitted.
 - Preserve selected and expanded state in the UI.
 - Bound initial sidebar expansion so large trees do not mount every descendant on first render.
 - Cap rendered visible sidebar rows after large folders are expanded, while keeping selected and changed paths plus their ancestors rendered.
@@ -78,8 +80,9 @@ npm run perf:otel
 ```
 
 By default it creates a disposable synthetic workspace under
-`artifacts/perf/synthetic-workspace`, starts `vivi-otel`, triggers file search,
-content search, Git review refresh, and watch-loop mutations, then writes:
+`artifacts/perf/synthetic-workspace`, starts `vivi-otel`, and measures idle
+watching, one file-change probe, Git review refresh, filename search, and
+content search as separate scenarios. It writes:
 
 ```text
 artifacts/perf/summary.json
@@ -93,8 +96,16 @@ VIVI_PERF_DIRS=80 VIVI_PERF_FILES_PER_DIR=80 npm run perf:otel
 VIVI_PERF_WORKSPACE=/path/to/disposable-workspace npm run perf:otel
 ```
 
-When `VIVI_PERF_WORKSPACE` is set, the harness creates probe files in that
-workspace. Use a disposable directory.
+When `VIVI_PERF_WORKSPACE` is set, the harness does not initialize Git or add
+review fixtures. The file-change scenario creates one temporary root-level
+probe file and removes it before exiting, so real repositories can be measured
+without leaving perf files behind.
+
+Use `VIVI_PERF_RUN_NAME=<name>` to keep a named copy of the summary at:
+
+```text
+artifacts/perf/<name>.summary.json
+```
 
 ### Reading Results
 

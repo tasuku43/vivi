@@ -51,6 +51,11 @@ type Server struct {
 	connMu      sync.Mutex
 }
 
+const (
+	watchBaseInterval    = 750 * time.Millisecond
+	watchMaxIdleInterval = 2 * time.Second
+)
+
 func Start(ctx context.Context, options Options) (*Server, error) {
 	mux := http.NewServeMux()
 	app := application.NewService(application.Options{
@@ -343,13 +348,14 @@ func (server *Server) watch(ctx context.Context) {
 		fmt.Fprintf(os.Stderr, "[vivi] watcher initial scan failed: %v\n", err)
 		previous = map[string]workspace.WatchEntry{}
 	}
-	ticker := time.NewTicker(750 * time.Millisecond)
-	defer ticker.Stop()
+	idleScans := 0
 	for {
+		timer := time.NewTimer(watchInterval(idleScans))
 		select {
 		case <-ctx.Done():
+			timer.Stop()
 			return
-		case <-ticker.C:
+		case <-timer.C:
 			started := time.Now()
 			current, stats, err := server.options.Workspace.WatchEntriesWithStats()
 			if err != nil {
@@ -360,6 +366,7 @@ func (server *Server) watch(ctx context.Context) {
 					Error:              true,
 				})
 				fmt.Fprintf(os.Stderr, "[vivi] watcher scan failed: %v\n", err)
+				idleScans = 0
 				continue
 			}
 			emittedEvents := 0
@@ -389,8 +396,27 @@ func (server *Server) watch(ctx context.Context) {
 				ResultCount:        len(current),
 			})
 			previous = current
+			if emittedEvents == 0 {
+				idleScans++
+			} else {
+				idleScans = 0
+			}
 		}
 	}
+}
+
+func watchInterval(idleScans int) time.Duration {
+	if idleScans <= 0 {
+		return watchBaseInterval
+	}
+	interval := watchBaseInterval
+	for range idleScans {
+		interval *= 2
+		if interval >= watchMaxIdleInterval {
+			return watchMaxIdleInterval
+		}
+	}
+	return interval
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {
