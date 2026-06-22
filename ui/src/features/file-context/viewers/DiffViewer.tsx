@@ -48,6 +48,7 @@ export function DiffViewer({
   onCreateComment,
   comments = [],
   activeCommentId,
+  expandActiveCommentThread = true,
   onOpenComment,
   onCommentStatusChange,
   threadActivities = {},
@@ -63,6 +64,7 @@ export function DiffViewer({
   onCreateComment?: CommentCreateHandler;
   comments?: ViviComment[];
   activeCommentId?: string | null;
+  expandActiveCommentThread?: boolean;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities?: Record<string, CommentActivitySummary>;
@@ -102,6 +104,7 @@ export function DiffViewer({
             onCreateComment={onCreateComment}
             comments={comments}
             activeCommentId={activeCommentId}
+            expandActiveCommentThread={expandActiveCommentThread}
             onOpenComment={onOpenComment}
             onCommentStatusChange={onCommentStatusChange}
             threadActivities={threadActivities}
@@ -131,6 +134,7 @@ function SourceDiff({
   onCreateComment,
   comments,
   activeCommentId,
+  expandActiveCommentThread,
   onOpenComment,
   onCommentStatusChange,
   threadActivities,
@@ -142,6 +146,7 @@ function SourceDiff({
   onCreateComment?: CommentCreateHandler;
   comments: ViviComment[];
   activeCommentId?: string | null;
+  expandActiveCommentThread: boolean;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities: Record<string, CommentActivitySummary>;
@@ -181,7 +186,10 @@ function SourceDiff({
       )
     : undefined;
   const visibleThreadKey =
-    draftThread?.thread.key ?? openThreadKey ?? activeThread?.key ?? null;
+    draftThread?.thread.key ??
+    openThreadKey ??
+    (expandActiveCommentThread ? activeThread?.key : null) ??
+    null;
 
   useEffect(() => {
     let cancelled = false;

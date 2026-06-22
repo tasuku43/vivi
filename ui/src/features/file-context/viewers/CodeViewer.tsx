@@ -40,6 +40,7 @@ export function CodeViewer({
   onCreateComment,
   comments = [],
   activeCommentId,
+  expandActiveCommentThread = true,
   onOpenComment,
   onCloseComment,
   onCommentStatusChange,
@@ -62,6 +63,7 @@ export function CodeViewer({
   onCreateComment?: CommentCreateHandler;
   comments?: ViviComment[];
   activeCommentId?: string | null;
+  expandActiveCommentThread?: boolean;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onCloseComment?: () => void;
   onCommentStatusChange?: CommentStatusChangeHandler;
@@ -195,6 +197,7 @@ export function CodeViewer({
           onCreateComment={onCreateComment}
           comments={comments}
           activeCommentId={activeCommentId}
+          expandActiveCommentThread={expandActiveCommentThread}
           onOpenComment={onOpenComment}
           threadActivities={threadActivities}
         />
@@ -207,6 +210,7 @@ export function CodeViewer({
           focusRevision={focusRevision}
           comments={comments}
           activeCommentId={activeCommentId}
+          expandActiveCommentThread={expandActiveCommentThread}
           onSelectionChange={onSelectionChange}
           onCreateComment={onCreateComment}
           onOpenComment={onOpenComment}

@@ -2463,6 +2463,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                     : []
                 }
                 activeCommentId={activeCommentId}
+                expandActiveCommentThread={!commentsPanelOpen}
                 onOpenComment={openInlineComment}
                 onCloseComment={closeInlineComment}
                 onCommentStatusChange={updateCommentStatus}

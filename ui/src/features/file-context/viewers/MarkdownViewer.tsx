@@ -67,6 +67,7 @@ export function MarkdownViewer({
   onCreateComment,
   comments = [],
   activeCommentId,
+  expandActiveCommentThread = true,
   onOpenComment,
   onCloseComment,
   onCommentStatusChange,
@@ -88,6 +89,7 @@ export function MarkdownViewer({
   onCreateComment?: CommentCreateHandler;
   comments?: ViviComment[];
   activeCommentId?: string | null;
+  expandActiveCommentThread?: boolean;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onCloseComment?: () => void;
   onCommentStatusChange?: CommentStatusChangeHandler;
@@ -346,6 +348,7 @@ export function MarkdownViewer({
           file={file}
           comments={comments}
           activeCommentId={activeCommentId}
+          expandActiveCommentThread={expandActiveCommentThread}
           onOpenComment={onOpenComment}
           threadActivities={threadActivities}
         />
@@ -368,6 +371,7 @@ export function MarkdownViewer({
           focusRevision={focusRevision}
           comments={comments}
           activeCommentId={activeCommentId}
+          expandActiveCommentThread={expandActiveCommentThread}
           onSelectionChange={setSourceSelectedRange}
           onCreateComment={onCreateComment}
           onOpenComment={onOpenComment}

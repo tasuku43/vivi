@@ -35,6 +35,7 @@ export function SourceCommentSurface({
   className,
   comments = [],
   activeCommentId,
+  expandActiveCommentThread = true,
   onSelectionChange,
   onCreateComment,
   onOpenComment,
@@ -50,6 +51,7 @@ export function SourceCommentSurface({
   className?: string;
   comments?: ViviComment[];
   activeCommentId?: string | null;
+  expandActiveCommentThread?: boolean;
   onSelectionChange: (range: LineRange | null) => void;
   onCreateComment?: CommentCreateHandler;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
@@ -82,7 +84,10 @@ export function SourceCommentSurface({
       )
     : undefined;
   const visibleThreadKey =
-    draftThread?.thread.key ?? openThreadKey ?? activeThread?.key ?? null;
+    draftThread?.thread.key ??
+    openThreadKey ??
+    (expandActiveCommentThread ? activeThread?.key : null) ??
+    null;
 
   useEffect(() => {
     setAnchorLine(null);

@@ -774,6 +774,30 @@ it("renders code line comments as an inline thread with replies", () => {
   expect(html).not.toContain(">Comment<");
 });
 
+it("can keep the current stop highlighted without expanding the source thread", () => {
+  const html = renderToStaticMarkup(
+    <CodeViewer
+      file={codeFile}
+      theme="dark"
+      selectedRange={null}
+      comments={[codeLineReply, codeLineComment]}
+      activeCommentId={codeLineComment.id}
+      expandActiveCommentThread={false}
+      onSelectionChange={() => undefined}
+      onOpenComment={() => undefined}
+      onCreateComment={() => undefined}
+    />,
+  );
+
+  expect(html).toContain('class="code-line has-comment active-comment"');
+  expect(html).toContain(`data-comment-id="${codeLineComment.id}"`);
+  expect(html).toContain('aria-label="Open comment thread on line 2"');
+  expect(html).not.toContain("code-comment-thread-row");
+  expect(html).not.toContain("Comment thread for line 2");
+  expect(html).not.toContain("Current stop");
+  expect(html).not.toContain("Reply to thread");
+});
+
 it("keeps inline comment submit on Cmd/Ctrl Enter while Shift Enter stays editable", () => {
   expect(isCommentSubmitShortcut({ key: "Enter", metaKey: true })).toBe(true);
   expect(isCommentSubmitShortcut({ key: "Enter", ctrlKey: true })).toBe(true);

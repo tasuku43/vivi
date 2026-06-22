@@ -88,6 +88,7 @@ export function FileViewer({
   onCreateComment,
   comments = [],
   activeCommentId,
+  expandActiveCommentThread = true,
   onOpenComment,
   onCloseComment,
   onCommentStatusChange,
@@ -119,6 +120,7 @@ export function FileViewer({
   onCreateComment?: CommentCreateHandler;
   comments?: ViviComment[];
   activeCommentId?: string | null;
+  expandActiveCommentThread?: boolean;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onCloseComment?: () => void;
   onCommentStatusChange?: CommentStatusChangeHandler;
@@ -219,6 +221,7 @@ export function FileViewer({
             onCreateComment={onCreateComment}
             comments={comments}
             activeCommentId={activeCommentId}
+            expandActiveCommentThread={expandActiveCommentThread}
             onOpenComment={onOpenComment}
             onCloseComment={onCloseComment}
             onCommentStatusChange={onCommentStatusChange}
@@ -319,6 +322,7 @@ export function FileViewer({
             onCreateComment={onCreateComment}
             comments={comments}
             activeCommentId={activeCommentId}
+            expandActiveCommentThread={expandActiveCommentThread}
             onOpenComment={onOpenComment}
             onCloseComment={onCloseComment}
             onCommentStatusChange={onCommentStatusChange}
