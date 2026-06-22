@@ -39,3 +39,16 @@ func TestHTMLPreviewCSPIncludesSandbox(t *testing.T) {
 		t.Fatalf("script CSP = %q, want opt-in scripts in sandbox", scriptPolicy)
 	}
 }
+
+func TestHTMLPreviewRuntimeHandlesRepeatedBodyLikeInput(t *testing.T) {
+	input := "<body " + strings.Repeat("<body ", 2000) + "><p>ok</p></body>"
+
+	rendered := injectPreviewRuntime(input, "index.html", "nonce", "dark", false, false)
+
+	if !strings.Contains(rendered, `data-vivi-mermaid-preview`) {
+		t.Fatalf("rendered preview is missing runtime style marker")
+	}
+	if !strings.Contains(rendered, input) {
+		t.Fatalf("rendered preview should preserve the local HTML body")
+	}
+}

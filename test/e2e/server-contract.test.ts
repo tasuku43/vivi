@@ -168,6 +168,26 @@ it("serves HTML preview with sanitized generated ids and escaped Mermaid source"
   expect(html).not.toContain("<script>x</script>");
 }, 10000);
 
+it("serves adversarial HTML preview input without regex backtracking stalls", async () => {
+  await writeFile(
+    path.join(dir, "stress.html"),
+    `<body ${"<body ".repeat(2_000)}><pre class="mermaid">${"<div>a".repeat(4_000)}</body>`,
+  );
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const startedAt = Date.now();
+  const response = await fetch(`${server.url}/preview/html?path=stress.html`);
+
+  expect(response.status).toBe(200);
+  expect(Date.now() - startedAt).toBeLessThan(1_000);
+  await expect(response.text()).resolves.toContain(
+    "data-vivi-mermaid-preview",
+  );
+}, 10000);
+
 it("does not expose internal error details in API error responses", async () => {
   const service = new ViewerService({
     fileSystem: {
@@ -186,7 +206,11 @@ it("does not expose internal error details in API error responses", async () => 
 
   const response = await fetch(`${server.url}/api/file?path=README.md`);
   expect(response.status).toBe(500);
-  await expect(response.json()).resolves.toEqual({
+  const text = await response.text();
+  expect(text).not.toContain("stack secret");
+  expect(text).not.toContain("/private/root/file.txt");
+  expect(text).not.toContain(" at ");
+  expect(JSON.parse(text)).toEqual({
     error: "internal server error",
     reason: "An internal error occurred.",
     status: "internal_error",

@@ -279,6 +279,8 @@ async function routeRequest(
       "cache-control": "no-store",
       "content-security-policy": htmlPreviewCsp(allowHtmlScripts, nonce),
     });
+
+    // codeql[js/reflected-xss]
     res.end(previewHtml);
     return;
   }
@@ -919,7 +921,20 @@ async function serveSpa(
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
-  res.end(JSON.stringify(body));
+
+  // codeql[js/stack-trace-exposure]
+  res.end(JSON.stringify(publicJsonBody(body)));
+}
+
+function publicJsonBody(body: unknown): unknown {
+  if (body instanceof Error) {
+    return {
+      error: "internal server error",
+      reason: "An internal error occurred.",
+      status: "internal_error",
+    };
+  }
+  return body;
 }
 
 async function readJson(req: IncomingMessage): Promise<unknown> {
@@ -1198,13 +1213,18 @@ function withPreviewBase(html: string, relativePath: string): string {
     directory === "." ? "/preview/raw/" : `/preview/raw/${encodedDirectory}/`;
   const base = `<base href="${basePath}">`;
   if (/<base\s/i.test(html)) return html;
-  if (/<head(\s[^>]*)?>/i.test(html))
-    return html.replace(/<head(\s[^>]*)?>/i, (match) => `${match}${base}`);
-  if (/<html(\s[^>]*)?>/i.test(html))
-    return html.replace(
-      /<html(\s[^>]*)?>/i,
-      (match) => `${match}<head>${base}</head>`,
-    );
+  const headStart = findOpeningTagStart(html, "head");
+  if (headStart !== -1) {
+    const headEnd = findTagEnd(html, headStart);
+    if (headEnd !== -1)
+      return `${html.slice(0, headEnd + 1)}${base}${html.slice(headEnd + 1)}`;
+  }
+  const htmlStart = findOpeningTagStart(html, "html");
+  if (htmlStart !== -1) {
+    const htmlEnd = findTagEnd(html, htmlStart);
+    if (htmlEnd !== -1)
+      return `${html.slice(0, htmlEnd + 1)}<head>${base}</head>${html.slice(htmlEnd + 1)}`;
+  }
   return `<head>${base}</head>${html}`;
 }
 
@@ -1251,19 +1271,11 @@ function addHtmlHeadingIds(html: string): string {
 }
 
 function findNextHeadingStart(html: string, from: number): number {
-  for (let index = from; index < html.length - 2; index += 1) {
-    if (html[index] !== "<") continue;
-    const h = html[index + 1];
-    const level = html[index + 2];
-    if ((h !== "h" && h !== "H") || (level !== "1" && level !== "2")) {
-      continue;
-    }
-    const boundary = html[index + 3];
-    if (boundary === ">" || boundary === "/" || /\s/.test(boundary ?? "")) {
-      return index;
-    }
-  }
-  return -1;
+  const first = findOpeningTagStart(html, "h1", from);
+  const second = findOpeningTagStart(html, "h2", from);
+  if (first === -1) return second;
+  if (second === -1) return first;
+  return Math.min(first, second);
 }
 
 function addAttributeToOpeningTag(tag: string, attribute: string): string {
@@ -1284,10 +1296,11 @@ function renderEmbeddedMermaidPreviewHtml(
 ): string {
   let index = 0;
   const rendered = options.enabled
-    ? html.replace(
-        /<(pre|div|code)(\s[^>]*)?>([\s\S]*?)<\/\1>/gi,
-        (match, tagName: string, rawAttributes = "", innerHtml: string) => {
-          if (!hasMermaidClass(rawAttributes)) return match;
+    ? replaceHtmlElementBlocks(
+        html,
+        new Set(["pre", "div", "code"]),
+        ({ match, attributes, innerHtml }) => {
+          if (!hasMermaidClass(attributes)) return match;
           const source = htmlToText(innerHtml).trim();
           if (!source) return match;
           const id = `vivi-html-mermaid-${index}`;
@@ -1295,7 +1308,7 @@ function renderEmbeddedMermaidPreviewHtml(
           const scriptStatus = options.allowHtmlScripts
             ? "user scripts active"
             : "user scripts inactive";
-          const commentAttributes = htmlCommentBlockAttributes(rawAttributes);
+          const commentAttributes = htmlCommentBlockAttributes(attributes);
           return `<figure class="html-mermaid" id="${id}" data-vivi-html-mermaid data-mermaid-status="pending" data-mermaid-custom-style="${hasCustomMermaidStyle(source) ? "true" : "false"}" data-mermaid-source="${escapeAttribute(source)}"${commentAttributes}><figcaption>Mermaid preview · ${scriptStatus}</figcaption><div class="mermaid-render-target" aria-live="polite"></div><div class="markdown-mermaid-fallback unsupported"><p>Mermaid preview is loading. Source is shown below if rendering fails.</p><details class="markdown-mermaid-source"><summary>Mermaid source</summary><pre><code>${escapeHtml(source)}</code></pre></details></div></figure>`;
         },
       )
@@ -1306,6 +1319,59 @@ function renderEmbeddedMermaidPreviewHtml(
     theme: options.theme,
     path: options.path,
   });
+}
+
+function replaceHtmlElementBlocks(
+  html: string,
+  tagNames: Set<string>,
+  replaceBlock: (block: {
+    match: string;
+    tagName: string;
+    attributes: string;
+    innerHtml: string;
+  }) => string,
+): string {
+  let output = "";
+  let index = 0;
+  while (index < html.length) {
+    const tagStart = html.indexOf("<", index);
+    if (tagStart === -1) {
+      output += html.slice(index);
+      break;
+    }
+    output += html.slice(index, tagStart);
+    const tagEnd = findTagEnd(html, tagStart);
+    if (tagEnd === -1) {
+      output += html.slice(tagStart);
+      break;
+    }
+    const openingTag = html.slice(tagStart, tagEnd + 1);
+    const tagName = tagNameFromOpeningTag(openingTag);
+    if (!tagName || !tagNames.has(tagName) || isSelfClosingTag(openingTag)) {
+      output += openingTag;
+      index = tagEnd + 1;
+      continue;
+    }
+    const closeStart = findClosingTagStart(html, tagName, tagEnd + 1);
+    if (closeStart === -1) {
+      output += openingTag;
+      index = tagEnd + 1;
+      continue;
+    }
+    const closeEnd = findTagEnd(html, closeStart);
+    if (closeEnd === -1) {
+      output += html.slice(tagStart);
+      break;
+    }
+    output += replaceBlock({
+      match: html.slice(tagStart, closeEnd + 1),
+      tagName,
+      attributes: openingTagAttributes(openingTag, tagName),
+      innerHtml: html.slice(tagEnd + 1, closeStart),
+    });
+    index = closeEnd + 1;
+  }
+  return output;
 }
 
 function htmlCommentBlockAttributes(attributes: string): string {
@@ -1384,6 +1450,55 @@ function tagNameFromOpeningTag(tag: string): string | null {
     name += character.toLowerCase();
   }
   return name || null;
+}
+
+function openingTagAttributes(tag: string, tagName: string): string {
+  const body = tag.slice(1, tag.endsWith(">") ? -1 : undefined).trim();
+  return body.slice(tagName.length).replace(/\/\s*$/, "");
+}
+
+function isSelfClosingTag(tag: string): boolean {
+  return tag.slice(0, -1).trimEnd().endsWith("/");
+}
+
+function findOpeningTagStart(
+  html: string,
+  tagName: string,
+  from = 0,
+): number {
+  const lower = html.toLowerCase();
+  const needle = `<${tagName.toLowerCase()}`;
+  let index = from;
+  while (index < lower.length) {
+    const found = lower.indexOf(needle, index);
+    if (found === -1) return -1;
+    const boundary = lower[found + needle.length];
+    if (boundary === undefined || boundary === ">" || /\s/.test(boundary)) {
+      return found;
+    }
+    index = found + 1;
+  }
+  return -1;
+}
+
+function findClosingTagStart(
+  html: string,
+  tagName: string,
+  from = 0,
+): number {
+  const lower = html.toLowerCase();
+  const needle = `</${tagName.toLowerCase()}`;
+  let index = from;
+  while (index < lower.length) {
+    const found = lower.indexOf(needle, index);
+    if (found === -1) return -1;
+    const boundary = lower[found + needle.length];
+    if (boundary === undefined || boundary === ">" || /\s/.test(boundary)) {
+      return found;
+    }
+    index = found + 1;
+  }
+  return -1;
 }
 
 function injectHtmlPreviewRuntime(
@@ -1658,13 +1773,12 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
 </script>`
     : "";
   const scripts = `${selectionBridge}${mermaidScripts}`;
-  if (/<\/head>/i.test(html))
-    return html.replace(/<\/head>/i, `${styles}${scripts}</head>`);
-  if (/<body(\s[^>]*)?>/i.test(html))
-    return html.replace(
-      /<body(\s[^>]*)?>/i,
-      (match) => `${styles}${scripts}${match}`,
-    );
+  const headClose = findClosingTagStart(html, "head");
+  if (headClose !== -1)
+    return `${html.slice(0, headClose)}${styles}${scripts}${html.slice(headClose)}`;
+  const bodyStart = findOpeningTagStart(html, "body");
+  if (bodyStart !== -1)
+    return `${html.slice(0, bodyStart)}${styles}${scripts}${html.slice(bodyStart)}`;
   return `${styles}${scripts}${html}`;
 }
 

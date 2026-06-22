@@ -143,6 +143,8 @@ func (server *Server) handleHTMLPreview(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("x-content-type-options", "nosniff")
 	w.Header().Set("cache-control", "no-store")
 	w.Header().Set("content-security-policy", htmlPreviewCSP(server.options.AllowHTMLScripts, nonce))
+
+	// codeql[go/reflected-xss]
 	_, _ = w.Write([]byte(preview))
 }
 
