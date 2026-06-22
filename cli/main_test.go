@@ -24,6 +24,19 @@ func TestHelpTextSurfacesAgentCommentsLoop(t *testing.T) {
 func TestCommentsHelpTextSurfacesWorkSession(t *testing.T) {
 	help := commentsHelpText()
 	for _, text := range []string{
+		"Agent quick path:",
+		"1. Discover the contract: vivi comments protocol --json",
+		"2. Cache schemas offline: vivi comments schema all --json",
+		"3. Check startup state: vivi comments doctor --actor <actor> --json",
+		"4. Resume owned work first: vivi comments mine --actor <actor> --full --json",
+		"5. Run the resident loop: vivi comments work --actor <actor> --wait --loop --idle-events --full --json",
+		"6. Execute suggestedCommands from protocol, doctor, work, follow, check, and errors before inventing argv",
+		"Agent write rules:",
+		"Read stdinSchemaCommand before stdinRequired writes",
+		"Use --require-claim for triage, release, done, and dismiss in background loops",
+		"Reuse a stable --client-event-id only for retries of the same logical write",
+		"Run comments check <thread-id> --actor <actor> --full --json before writing when ownership may be stale",
+		"Prefer done/dismiss --result-file - for terminal replies and release --triage-file - for blocked handoffs",
 		"vivi comments protocol --json",
 		"vivi comments protocol --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"vivi comments schema <protocol|doctor|triage|result|claim|inbox|mine|batch|check|commentTriageOutput|commentReleaseOutput|commentResultOutput|suggestedCommand|writeReceipt|receiptVerification|receiptLedgerVerification|activityBatch|workClaimed|workIdle|openWorklist|error|all> --json",

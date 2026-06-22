@@ -82,6 +82,11 @@ Default rich preview limit: `1048576` bytes. Use `--max-file-size <bytes>` to ch
 need to work through local comment threads. It talks to a running Vivi server
 through GraphQL and does not edit comment storage directly. The server URL is
 resolved from `--url`, then `VIVI_URL`, then `http://127.0.0.1:4317`.
+`vivi comments --help` is part of that agent contract: its first screen gives
+the recommended startup order (`protocol`, `schema all`, `doctor`, `mine`,
+`work`) and the write rules for claim-guarded triage, release, done, and
+dismiss commands, so adapters can orient from help text before relying on
+hard-coded command recipes.
 
 The v1 commands are:
 
