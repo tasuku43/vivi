@@ -93,6 +93,8 @@ func TestWatchEntriesWithStatsCountsWorkspaceScan(t *testing.T) {
 	mustWrite(t, root, "docs/guide.md", []byte("# Guide\n"))
 	mustWrite(t, root, "src/app.ts", []byte("export const ok = true\n"))
 	mustWrite(t, root, "node_modules/ignored.js", []byte("ignored\n"))
+	mustWrite(t, root, ".tmp-go-build-cache/ignored.test", []byte("ignored\n"))
+	mustWrite(t, root, "storybook-static/ignored.html", []byte("ignored\n"))
 
 	fsys, err := New(Options{Root: root})
 	if err != nil {
@@ -108,6 +110,12 @@ func TestWatchEntriesWithStatsCountsWorkspaceScan(t *testing.T) {
 	}
 	if _, ok := entries["node_modules/ignored.js"]; ok {
 		t.Fatalf("ignored file should not be included: %#v", entries)
+	}
+	if _, ok := entries[".tmp-go-build-cache/ignored.test"]; ok {
+		t.Fatalf("go build cache should not be included: %#v", entries)
+	}
+	if _, ok := entries["storybook-static/ignored.html"]; ok {
+		t.Fatalf("storybook build output should not be included: %#v", entries)
 	}
 	if stats.ScannedDirectories != 3 {
 		t.Fatalf("scanned directories = %d, want 3", stats.ScannedDirectories)

@@ -78,6 +78,20 @@ line
     ]);
   });
 
+  it("keeps block annotation linear for many nested-looking tags", () => {
+    const html = `<body ${"<body ".repeat(2_000)}><pre class="mermaid">${"<div>a".repeat(4_000)}</body>`;
+
+    expect(addRenderedCommentBlockIdsToHtml(html)).toContain(
+      '<pre class="mermaid" data-vivi-comment-block-id="vivi-block-1"',
+    );
+    expect(renderedCommentBlocksForHtml(html)).toEqual([
+      expect.objectContaining({
+        blockId: "vivi-block-1",
+        tagName: "pre",
+      }),
+    ]);
+  });
+
   it("projects source comments into document blocks without changing storage", () => {
     expect(
       renderedCommentSummaryForComment(

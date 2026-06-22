@@ -3,14 +3,20 @@ export type KeyboardShortcutAction =
   | "search-text"
   | "toggle-diff"
   | "toggle-source"
-  | "toggle-comments"
+  | "toggle-sidebar"
+  | "toggle-inspector"
+  | "focus-comments-panel"
   | "focus-review-queue"
   | "focus-current-inline-thread"
+  | "toggle-current-thread-status"
+  | "archive-current-thread"
   | "open-latest-unread"
   | "open-next-review"
   | "open-previous-review"
   | "open-next-thread"
   | "open-previous-thread"
+  | "open-next-search-result"
+  | "open-previous-search-result"
   | "close-active-tab"
   | "toggle-shortcuts"
   | "dismiss-overlays";
@@ -34,16 +40,24 @@ export function keyboardShortcutAction(
   const key = event.key.toLowerCase();
   if (!event.shiftKey && key === "k") return "quick-open";
   if (event.shiftKey && key === "f") return "search-text";
-  if (event.shiftKey && key === "c") return "toggle-comments";
+  if (event.shiftKey && key === "c") return "focus-comments-panel";
   if (!event.shiftKey && key === "d") return "toggle-diff";
   if (!event.shiftKey && key === "e") return "toggle-source";
+  if (!event.shiftKey && key === "b") return "toggle-sidebar";
+  if (event.shiftKey && key === "\\") return "toggle-inspector";
   if (event.shiftKey && key === "r") return "focus-review-queue";
   if (!event.shiftKey && key === "i") return "focus-current-inline-thread";
+  if (event.shiftKey && event.key === "Enter")
+    return "toggle-current-thread-status";
+  if (event.shiftKey && event.key === "Backspace")
+    return "archive-current-thread";
   if (event.shiftKey && key === "u") return "open-latest-unread";
   if (event.shiftKey && key === "j") return "open-next-review";
   if (event.shiftKey && key === "k") return "open-previous-review";
   if (!event.shiftKey && key === "]") return "open-next-thread";
   if (!event.shiftKey && key === "[") return "open-previous-thread";
+  if (!event.shiftKey && key === "g") return "open-next-search-result";
+  if (event.shiftKey && key === "g") return "open-previous-search-result";
   if (!event.shiftKey && key === "w") return "close-active-tab";
   if (!event.shiftKey && key === "/") return "toggle-shortcuts";
 

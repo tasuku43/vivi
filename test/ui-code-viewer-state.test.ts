@@ -163,6 +163,61 @@ it("groups multiple comments on one code line into an ordered thread", () => {
   ]);
 });
 
+it("uses the latest published update as inline thread status", () => {
+  const anchor = {
+    surface: "source" as const,
+    canonical: { path: "src/app.ts", lineStart: 2, lineEnd: 2 },
+  };
+  const threads = codeCommentThreads([
+    {
+      id: "root",
+      threadId: "thread-a",
+      path: "src/app.ts",
+      viewerKind: "text",
+      anchor,
+      body: "First",
+      status: "open",
+      createdAt: "2026-06-19T01:00:00.000Z",
+      updatedAt: "2026-06-19T01:00:00.000Z",
+    },
+    {
+      id: "resolved",
+      threadId: "thread-a",
+      path: "src/app.ts",
+      viewerKind: "text",
+      anchor,
+      body: "Resolved now",
+      status: "resolved",
+      createdAt: "2026-06-19T01:10:00.000Z",
+      updatedAt: "2026-06-19T01:10:00.000Z",
+    },
+    draftReviewCommentAsViviComment(
+      {
+        id: "draft-1",
+        threadId: "thread-a",
+        path: "src/app.ts",
+        viewerKind: "text",
+        anchor,
+        body: "Unpublished reply should not reopen the thread",
+        source: "human",
+        createdAt: "2026-06-19T01:20:00.000Z",
+        updatedAt: "2026-06-19T01:20:00.000Z",
+      },
+      [],
+    ),
+  ]);
+
+  expect(threads[0]).toMatchObject({
+    key: JSON.stringify(["thread", "thread-a"]),
+    status: "resolved",
+  });
+  expect(threads[0]?.comments.map((comment) => comment.id)).toEqual([
+    "root",
+    "resolved",
+    "draft:draft-1",
+  ]);
+});
+
 it("groups multiple same-anchor draft review comments into one draft thread", () => {
   const anchor = {
     surface: "source" as const,

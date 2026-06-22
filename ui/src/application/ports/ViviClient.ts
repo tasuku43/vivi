@@ -27,6 +27,15 @@ import type {
 } from "../../domain/search.js";
 import type { WorkspaceSnapshot } from "../../domain/workspace.js";
 
+export type WorkspaceConnectionStatus =
+  | "connecting"
+  | "connected"
+  | "disconnected";
+
+export interface WorkspaceEventSubscriptionOptions {
+  onStatus?: (status: WorkspaceConnectionStatus) => void;
+}
+
 export interface ViviClient {
   getWorkspace(): Promise<WorkspaceSnapshot>;
   getTree(input?: { path?: string; depth?: number }): Promise<TreeSnapshot>;
@@ -81,5 +90,8 @@ export interface ViviClient {
     limit?: number;
     signal?: AbortSignal;
   }): Promise<TextSearchResult[]>;
-  subscribeWorkspaceEvents(onEvent: (event: FsEvent) => void): () => void;
+  subscribeWorkspaceEvents(
+    onEvent: (event: FsEvent) => void,
+    options?: WorkspaceEventSubscriptionOptions,
+  ): () => void;
 }

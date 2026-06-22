@@ -53,6 +53,8 @@ export {
 export function MarkdownViewer({
   file,
   mode: controlledMode,
+  focusLineNumber,
+  focusRevision,
   toolbarAction,
   diff,
   diffLoading,
@@ -65,6 +67,7 @@ export function MarkdownViewer({
   onCreateComment,
   comments = [],
   activeCommentId,
+  expandActiveCommentThread = true,
   onOpenComment,
   onCloseComment,
   onCommentStatusChange,
@@ -72,6 +75,8 @@ export function MarkdownViewer({
 }: {
   file: FilePayload;
   mode?: ViewerMode;
+  focusLineNumber?: number | null;
+  focusRevision?: number;
   toolbarAction?: ReactNode;
   diff?: TextDiff | null;
   diffLoading?: boolean;
@@ -84,6 +89,7 @@ export function MarkdownViewer({
   onCreateComment?: CommentCreateHandler;
   comments?: ViviComment[];
   activeCommentId?: string | null;
+  expandActiveCommentThread?: boolean;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onCloseComment?: () => void;
   onCommentStatusChange?: CommentStatusChangeHandler;
@@ -342,6 +348,7 @@ export function MarkdownViewer({
           file={file}
           comments={comments}
           activeCommentId={activeCommentId}
+          expandActiveCommentThread={expandActiveCommentThread}
           onOpenComment={onOpenComment}
           threadActivities={threadActivities}
         />
@@ -360,8 +367,11 @@ export function MarkdownViewer({
           file={file}
           className="markdown-source"
           selectedRange={sourceSelectedRange}
+          focusLineNumber={focusLineNumber}
+          focusRevision={focusRevision}
           comments={comments}
           activeCommentId={activeCommentId}
+          expandActiveCommentThread={expandActiveCommentThread}
           onSelectionChange={setSourceSelectedRange}
           onCreateComment={onCreateComment}
           onOpenComment={onOpenComment}
@@ -381,6 +391,7 @@ export function MarkdownViewer({
                   ? threadActivities[renderedThreadId]
                   : undefined
               }
+              activeCommentId={activeCommentId}
               onCreateComment={onCreateComment}
               onStatusChange={onCommentStatusChange}
               onClose={closeRenderedThread}
@@ -486,6 +497,7 @@ function renderedThreadModel(
     path,
     lineStart,
     lineEnd,
+    status: "open",
     comments,
   };
 }

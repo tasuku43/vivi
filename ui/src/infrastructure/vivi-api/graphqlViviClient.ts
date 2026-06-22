@@ -1,4 +1,7 @@
-import type { ViviClient } from "../../application/ports/ViviClient.js";
+import type {
+  ViviClient,
+  WorkspaceEventSubscriptionOptions,
+} from "../../application/ports/ViviClient.js";
 import type {
   CommentListFilters,
   CommentExportFilters,
@@ -335,12 +338,18 @@ export class GraphqlViviClient implements ViviClient {
 
   subscribeWorkspaceEvents(
     onEvent: (event: ReturnType<typeof adaptGraphqlWorkspaceEvent>) => void,
+    options: WorkspaceEventSubscriptionOptions = {},
   ) {
     const params = new URLSearchParams({
       operationName: "WorkspaceEvents",
       query: print(WorkspaceEventsDocument),
     });
     const source = this.createEventSource(this.url(`/graphql?${params}`));
+    options.onStatus?.("connecting");
+    source.addEventListener("open", () => options.onStatus?.("connected"));
+    source.addEventListener("error", () =>
+      options.onStatus?.("disconnected"),
+    );
     const listener = (raw: Event) => {
       const event = parseWorkspaceEvent((raw as MessageEvent<string>).data);
       onEvent(adaptGraphqlWorkspaceEvent(event));

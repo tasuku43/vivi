@@ -591,7 +591,7 @@ func normalizeRelativePath(input string) (string, error) {
 func isIgnored(relative string) bool {
 	for _, segment := range strings.Split(relative, "/") {
 		switch segment {
-		case ".git", "node_modules", ".turbo", ".next", ".cache", "dist", "coverage":
+		case ".git", "node_modules", ".turbo", ".next", ".cache", ".parcel-cache", ".vite", ".tmp-go-build-cache", ".tmp-go-mod-cache", "dist", "coverage", "storybook-static":
 			return true
 		}
 	}

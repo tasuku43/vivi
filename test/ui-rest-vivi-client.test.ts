@@ -147,3 +147,59 @@ it("updates comment thread status through REST compatibility calls", async () =>
     "/api/v1/comments/c1",
   ]);
 });
+
+it("reports REST workspace event connection status", () => {
+  const sources: FakeEventSource[] = [];
+  const client = new RestViviClient({
+    createEventSource(url) {
+      const source = new FakeEventSource(url);
+      sources.push(source);
+      return source as unknown as EventSource;
+    },
+  });
+  const onEvent = vi.fn();
+  const onStatus = vi.fn();
+
+  const unsubscribe = client.subscribeWorkspaceEvents(onEvent, { onStatus });
+  expect(sources[0]?.url).toBe("/events");
+  expect(onStatus).toHaveBeenCalledWith("connecting");
+
+  sources[0]!.emit("open", { data: "" });
+  expect(onStatus).toHaveBeenCalledWith("connected");
+  sources[0]!.emit("fs", {
+    data: JSON.stringify({ type: "change", path: "README.md", version: 2 }),
+  });
+  expect(onEvent).toHaveBeenCalledWith({
+    type: "change",
+    path: "README.md",
+    version: 2,
+  });
+  sources[0]!.emit("error", { data: "" });
+  expect(onStatus).toHaveBeenCalledWith("disconnected");
+
+  unsubscribe();
+  expect(sources[0]!.closed).toBe(true);
+});
+
+class FakeEventSource {
+  readonly listeners = new Map<string, Array<(event: MessageEvent) => void>>();
+  closed = false;
+
+  constructor(readonly url: string) {}
+
+  addEventListener(type: string, listener: EventListener): void {
+    const listeners = this.listeners.get(type) ?? [];
+    listeners.push(listener as (event: MessageEvent) => void);
+    this.listeners.set(type, listeners);
+  }
+
+  emit(type: string, event: Pick<MessageEvent<string>, "data">): void {
+    for (const listener of this.listeners.get(type) ?? []) {
+      listener(event as MessageEvent);
+    }
+  }
+
+  close(): void {
+    this.closed = true;
+  }
+}

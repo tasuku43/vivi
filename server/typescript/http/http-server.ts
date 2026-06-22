@@ -1229,6 +1229,8 @@ function withPreviewBase(html: string, relativePath: string): string {
 }
 
 function addHtmlHeadingIds(html: string): string {
+  const lower = html.toLowerCase();
+  if (!lower.includes("<h1") && !lower.includes("<h2")) return html;
   const used = new Map<string, number>();
   let output = "";
   let index = 0;
@@ -1294,6 +1296,14 @@ function renderEmbeddedMermaidPreviewHtml(
     path: string;
   },
 ): string {
+  if (options.enabled && !hasClosedMermaidCandidate(html)) {
+    return injectHtmlPreviewRuntime(html, {
+      includeMermaidRuntime: false,
+      nonce: options.nonce,
+      theme: options.theme,
+      path: options.path,
+    });
+  }
   let index = 0;
   const rendered = options.enabled
     ? replaceHtmlElementBlocks(
@@ -1387,6 +1397,16 @@ function htmlCommentBlockAttributes(attributes: string): string {
 function hasMermaidClass(attributes: string): boolean {
   const match = /\sclass\s*=\s*(["'])(.*?)\1/i.exec(attributes);
   return Boolean(match?.[2].split(/\s+/).includes("mermaid"));
+}
+
+function hasClosedMermaidCandidate(html: string): boolean {
+  const lower = html.toLowerCase();
+  if (!lower.includes("mermaid")) return false;
+  return (
+    lower.includes("</pre>") ||
+    lower.includes("</div>") ||
+    lower.includes("</code>")
+  );
 }
 
 function htmlToText(html: string): string {

@@ -53,6 +53,42 @@ func TestHTMLPreviewRuntimeHandlesRepeatedBodyLikeInput(t *testing.T) {
 	}
 }
 
+func TestWithPreviewBaseSkipsHeadRegexForRepeatedBodyLikeInput(t *testing.T) {
+	input := "<body " + strings.Repeat("<body ", 2000) + "><p>ok</p></body>"
+
+	rendered := withPreviewBase(input, "docs/index.html")
+
+	if !strings.HasPrefix(rendered, `<head><base href="/preview/raw/docs/"></head>`) {
+		t.Fatalf("rendered preview should prepend a relative preview base")
+	}
+	if !strings.Contains(rendered, input) {
+		t.Fatalf("rendered preview should preserve the local HTML body")
+	}
+}
+
+func TestHTMLPreviewSkipsUnclosedMermaidCandidates(t *testing.T) {
+	input := `<body ` + strings.Repeat("<body ", 2000) + `><pre class="mermaid">` + strings.Repeat("<div>a", 4000) + `</body>`
+
+	rendered := renderEmbeddedMermaidPreviewHTML(input, "index.html", "nonce", "dark", false)
+
+	if !strings.Contains(rendered, `data-vivi-mermaid-preview`) {
+		t.Fatalf("rendered preview is missing runtime style marker")
+	}
+	if strings.Contains(rendered, `data-vivi-html-mermaid`) {
+		t.Fatalf("unclosed mermaid candidate should not be converted")
+	}
+}
+
+func TestAddHeadingIDsSkipsDocumentsWithoutHeadingCandidates(t *testing.T) {
+	input := `<body ` + strings.Repeat("<body ", 2000) + `><p>ok</p></body>`
+
+	rendered := addHeadingIDs(input)
+
+	if rendered != input {
+		t.Fatalf("document without h1/h2 candidates should be unchanged")
+	}
+}
+
 func TestRenderedHTMLCommentBlocksAreAnnotatedSafely(t *testing.T) {
 	html := addRenderedCommentBlockIDsToHTML(`<script>const example = "<p>not markup</p>";</script>
 <template><p>not rendered</p></template>

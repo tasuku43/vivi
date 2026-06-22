@@ -61,7 +61,7 @@ export interface ReviewWorkbenchStoryProps {
   viewerMode?: ViewerMode;
   commentsPanelOpen?: boolean;
   commentsPanelQuery?: string;
-  commentsPanelStatus?: "all" | "open" | "resolved" | "archived";
+  commentsPanelStatus?: "all" | "attention" | "open" | "resolved" | "archived";
   commandPaletteOpen?: boolean;
   shortcutHelpOpen?: boolean;
   draftPublishing?: boolean;
@@ -278,12 +278,19 @@ export function ReviewWorkbenchStory({
         />
       </div>
       <footer className="statusbar">
-        <span>
-          {activeTabs.length} tabs · {reviewItems.length} to review ·{" "}
-          {nodes.length} root entries
+        <span className="statusbar-group">
+          <span className="status-dot live" aria-hidden="true" />
+          {nodes.length} root entries · {activeTabs.length} open tabs
         </span>
-        <span>
-          {comments.length} comments · {draftComments.length} drafts ·{" "}
+        <span className="statusbar-group">
+          {reviewItems.length} review files · {comments.length} comments ·{" "}
+          {draftComments.length} drafts
+        </span>
+        <span className="statusbar-group">
+          <span
+            className={`status-dot ${state === "loading" ? "pending" : "live"}`}
+            aria-hidden="true"
+          />
           {statusLabel}
         </span>
       </footer>
@@ -327,26 +334,10 @@ export function ReviewWorkbenchStory({
           },
         ]}
         textLoading={false}
-        actions={[
-          {
-            id: "next-open-thread",
-            label: "Next open thread",
-            detail: "Move to the next unresolved review thread",
-            shortcut: "Cmd ]",
-          },
-          {
-            id: "publish-drafts",
-            label: "Publish draft review comments",
-            detail: "Create one PublishedReviewBatch from all drafts",
-            shortcut: "Cmd Enter",
-            disabled: !draftComments.length,
-          },
-        ]}
         onQueryChange={noop}
         onModeChange={noop}
         onClose={noop}
         onOpenPath={noop}
-        onRunAction={noop}
       />
       <ShortcutHelp open={shortcutHelpOpen} onClose={noop} />
       <CommentsPanel
@@ -365,7 +356,7 @@ export function ReviewWorkbenchStory({
         publishing={draftPublishing}
         publishError={draftPublishError}
         publishedBatchId={publishedBatchId}
-        onOpenPath={noop}
+        onOpenDraft={noop}
         onUpdateDraft={noop}
         onDeleteDraft={noop}
         onPublishAll={noop}

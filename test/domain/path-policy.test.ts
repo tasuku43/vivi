@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { normalizeRelativePath } from "../../server/typescript/domain/path-policy.js";
+import {
+  isIgnoredPath,
+  normalizeRelativePath,
+} from "../../server/typescript/domain/path-policy.js";
 
 it("normalizes safe relative paths", () => {
   expect(normalizeRelativePath("./docs/../README.md")).toEqual({
@@ -27,4 +30,10 @@ it("rejects null byte paths", () => {
     ok: false,
     reason: "path contains invalid characters",
   });
+});
+
+it("ignores build and tool caches by default", () => {
+  expect(isIgnoredPath(".tmp-go-build-cache/test-cache")).toBe(true);
+  expect(isIgnoredPath("ui/storybook-static/index.html")).toBe(true);
+  expect(isIgnoredPath("src/.vite/deps/react.js")).toBe(true);
 });
