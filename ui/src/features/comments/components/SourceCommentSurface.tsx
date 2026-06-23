@@ -15,6 +15,7 @@ import {
   flushDeferredSourceHighlightState,
   hasTextSelectionInElement,
   lineRangeForQuote,
+  matchingCodeCommentThread,
   nextDeferredSourceHighlightState,
   rectLikeFromElement,
   scheduleSelectionCommentUpdate,
@@ -90,7 +91,11 @@ export function SourceCommentSurface({
         thread.comments.some((comment) => comment.id === activeCommentId),
       )
     : undefined;
+  const persistedDraftThread = draftThread
+    ? matchingCodeCommentThread(commentThreads, draftThread.thread)
+    : undefined;
   const visibleThreadKey =
+    persistedDraftThread?.key ??
     draftThread?.thread.key ??
     openThreadKey ??
     (expandActiveCommentThread ? activeThread?.key : null) ??
@@ -326,11 +331,6 @@ export function SourceCommentSurface({
           (thread) =>
             thread.key === visibleThreadKey && thread.lineEnd === lineNumber,
         );
-        const persistedDraftThread = draftThread
-          ? commentThreads.find(
-              (thread) => thread.key === draftThread.thread.key,
-            )
-          : undefined;
         const draftingRangeLine = Boolean(
           draftThread &&
           !persistedDraftThread &&

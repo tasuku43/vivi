@@ -215,6 +215,21 @@ export function codeCommentThreads(
     );
 }
 
+export function matchingCodeCommentThread(
+  threads: CodeCommentThread[],
+  target: CodeCommentThread,
+): CodeCommentThread | undefined {
+  return (
+    threads.find((thread) => thread.key === target.key) ??
+    threads.find(
+      (thread) =>
+        thread.path === target.path &&
+        thread.lineStart === target.lineStart &&
+        thread.lineEnd === target.lineEnd,
+    )
+  );
+}
+
 function latestPublishedStatus(comments: ThreadComment[]): CommentStatus {
   const published = comments.filter((comment) => !isDraftThreadComment(comment));
   if (!published.length) return "open";

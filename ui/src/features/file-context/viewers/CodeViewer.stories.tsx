@@ -1,8 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useState, type ComponentProps } from "react";
 import { expect, fn, userEvent, within } from "storybook/test";
+import { draftReviewCommentAsViviComment } from "../../../state/comments.js";
 import {
   commentsForPath,
   sampleDiff,
+  sampleDraftComments,
   sampleFiles,
   sampleThreadActivities,
 } from "../../../storybook/fixtures/review-lab.js";
@@ -110,9 +113,59 @@ export const NarrowInlineCommentDraft: Story = {
   },
 };
 
+export const SavedInlineDraftRemainsVisible: Story = {
+  tags: ["interaction"],
+  args: {
+    comments: [],
+    selectedRange: null,
+  },
+  render: (args) => <SavedInlineDraftHarness {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Add comment on line 6" }),
+    );
+    await userEvent.type(
+      canvas.getByLabelText("New line comment"),
+      "Persist this draft in place.",
+    );
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Save draft comment" }),
+    );
+
+    await expect(canvas.getByText("Persist this draft in place.")).toBeVisible();
+    await expect(canvas.getByText("1 message")).toBeVisible();
+    expect(canvas.getAllByText("Draft").length).toBeGreaterThan(0);
+  },
+};
+
 export const LoadingHighlightFallback: Story = {
   args: {
     selectedRange: null,
     comments: [],
   },
 };
+
+function SavedInlineDraftHarness(args: ComponentProps<typeof CodeViewer>) {
+  const [comments, setComments] = useState(args.comments ?? []);
+
+  return (
+    <CodeViewer
+      {...args}
+      comments={comments}
+      onCreateComment={async (_draft, body) => {
+        const fixture = sampleDraftComments[0]!;
+        setComments([
+          draftReviewCommentAsViviComment(
+            {
+              ...fixture,
+              body,
+              updatedAt: "2026-06-23T10:10:00.000Z",
+            },
+            [],
+          ),
+        ]);
+      }}
+    />
+  );
+}

@@ -13,6 +13,7 @@ import {
   codeCommentThreads,
   commentsForLine,
   diffCommentDraft,
+  matchingCodeCommentThread,
   rectLikeFromElement,
   scheduleSelectionCommentUpdate,
   type CommentCreateHandler,
@@ -161,7 +162,11 @@ function SourceDiff({
         thread.comments.some((comment) => comment.id === activeCommentId),
       )
     : undefined;
+  const persistedDraftThread = draftThread
+    ? matchingCodeCommentThread(commentThreads, draftThread.thread)
+    : undefined;
   const visibleThreadKey =
+    persistedDraftThread?.key ??
     draftThread?.thread.key ??
     openThreadKey ??
     (expandActiveCommentThread ? activeThread?.key : null) ??
@@ -318,11 +323,6 @@ function SourceDiff({
                   thread.lineEnd === currentLine,
               )
             : undefined;
-        const persistedDraftThread = draftThread
-          ? commentThreads.find(
-              (thread) => thread.key === draftThread.thread.key,
-            )
-          : undefined;
         const draftingRangeLine = Boolean(
           currentLine &&
           draftThread &&
