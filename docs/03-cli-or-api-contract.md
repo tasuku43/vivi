@@ -1154,8 +1154,8 @@ event is shaped as:
       {
         "intent": "claim_next_open_thread",
         "command": "comments work",
-        "args": ["comments", "work", "--actor", "codex:agent", "--full", "--json"],
-        "reason": "Claim the next open thread and receive a self-describing work event."
+        "args": ["comments", "work", "--actor", "codex:agent", "--once", "--full", "--json"],
+        "reason": "Claim the next open thread, emit one self-describing work event, and exit."
       }
     ]
   },
@@ -1174,12 +1174,12 @@ future open-worklist change. If delivery can be duplicated across process
 restarts, agents should key their own work by `cursor` and thread ids.
 When open threads are available, `summary.recommendedAction` is
 `claim_open_work` and `summary.suggestedCommands` includes
-`comments work --actor <actor> --full --json` so a resident adapter can claim
-the next thread without hard-coding the handoff. That suggestion includes a
-cursor-derived `clientEventId` and matching `--client-event-id` argv for
-retry-safe claim correlation. It also preserves the watch command's resolved
-`--url` and receipt ledger flag when present. When the worklist is empty the
-recommended action is `wait_for_open_work`.
+`comments work --actor <actor> --once --full --json` so an agent can claim the
+next thread and return control to its own coding loop without hard-coding the
+handoff. That suggestion includes a cursor-derived `clientEventId` and matching
+`--client-event-id` argv for retry-safe claim correlation. It also preserves the
+watch command's resolved `--url` and receipt ledger flag when present. When the
+worklist is empty the recommended action is `wait_for_open_work`.
 
 Pass `--full` to add the complete `items` array to each delivered watch event.
 Pass `--with-context` and/or `--with-diff` for narrower item payloads. When

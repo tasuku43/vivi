@@ -93,6 +93,7 @@ func TestCommentsHelpTextSurfacesWorkSession(t *testing.T) {
 		"vivi comments schema <protocol|doctor|triage|result|claim|inbox|mine|batch|check|commentTriageOutput|commentReleaseOutput|commentResultOutput|suggestedCommand|writeReceipt|receiptVerification|receiptLedgerVerification|activityBatch|workClaimed|workIdle|openWorklist|error|all> --json",
 		"vivi comments doctor --actor claude-code --json",
 		"vivi comments doctor --actor claude-code --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
+		"vivi comments work --once --actor claude-code --full --json",
 		"vivi comments work --wait --actor claude-code --full --json",
 		"vivi comments work --loop --actor claude-code --idle-events --full --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"vivi comments release <thread-id> --triage-file - --actor claude-code --require-claim --json",
@@ -124,6 +125,7 @@ func TestCommentsHelpTextSurfacesWorkSession(t *testing.T) {
 		"--comment-limit <count>    Limit emitted thread comments to the most recent count",
 		"--renew-interval <dur>     Work lease renewal interval",
 		"--idle-events              Emit comment_work_idle heartbeat events",
+		"--once                     Poll once, emit at most one idle/claimed work event, and exit",
 		"--loop                     Keep comments work running",
 		"--max-events <count>       Stop streaming commands after emitting count events",
 	} {

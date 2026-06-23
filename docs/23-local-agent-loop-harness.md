@@ -151,9 +151,10 @@ The stream events also carry `eventSchema` and `eventSchemaCommand`, letting a
 resident adapter validate each NDJSON line without carrying its own event-type
 lookup table. `comments watch` now participates in that same protocol: each
 open-worklist event identifies `commentOpenWorklistEvent` and suggests
-`claim_next_open_thread` via `comments work --actor <actor> --full --json`,
-so the fake agent can move from GUI-published feedback to a claimed work item
-without hard-coded command recipes.
+`claim_next_open_thread` via
+`comments work --actor <actor> --once --full --json`, so the fake agent can move
+from GUI-published feedback to a claimed work item without hard-coded command
+recipes or accidentally staying attached to a follow stream.
 When a suggested command includes `clientEventId`, the harness treats that
 value as the operation id for one logical attempt. Real adapters should do the
 same for structured writes: reuse the id on retry so `comment_added` and

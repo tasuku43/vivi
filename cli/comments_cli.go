@@ -2712,9 +2712,9 @@ func commentOpenWorklistEventSchema() commentSchemaOutput {
 					{
 						"intent":        "claim_next_open_thread",
 						"command":       "comments work",
-						"args":          []string{"comments", "work", "--actor", "codex:agent", "--client-event-id", "watch:open:...:claim", "--full", "--json"},
+						"args":          []string{"comments", "work", "--actor", "codex:agent", "--client-event-id", "watch:open:...:claim", "--once", "--full", "--json"},
 						"clientEventId": "watch:open:...:claim",
-						"reason":        "Claim the next open thread and receive a self-describing work event.",
+						"reason":        "Claim the next open thread, emit one self-describing work event, and exit.",
 					},
 				},
 			},
@@ -3848,7 +3848,7 @@ func suggestedCommandsForOpenWorklist(actorID string, cursor string, serverURL s
 	}
 	clientEventID := commentSuggestedClientEventID("watch", cursor, "claim")
 	return []commentSuggestedCommand{
-		suggestedCommentsCommandWithClientEventID("claim_next_open_thread", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "work", "--actor", actorID, "--full", "--json"}), serverURL, receiptLog), "", "Claim the next open thread and receive a self-describing work event.", clientEventID),
+		suggestedCommentsCommandWithClientEventID("claim_next_open_thread", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "work", "--actor", actorID, "--once", "--full", "--json"}), serverURL, receiptLog), "", "Claim the next open thread, emit one self-describing work event, and exit.", clientEventID),
 	}
 }
 
@@ -6728,6 +6728,7 @@ func commentsHelpText() string {
 		"  vivi comments claim --actor claude-code --review-batch review-batch-... --full --json",
 		"  vivi comments claim <thread-id> --actor claude-code --lease 10m --json",
 		"  vivi comments claim --wait --actor claude-code --full --json",
+		"  vivi comments work --once --actor claude-code --full --json",
 		"  vivi comments work --wait --actor claude-code --full --json",
 		"  vivi comments work --loop --actor claude-code --idle-events --full --json",
 		"  vivi comments work --loop --actor claude-code --idle-events --full --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
@@ -6816,7 +6817,7 @@ func commentsHelpText() string {
 		"  --loop                     Keep comments work running and claim the next item after terminal status",
 		"  --cursor <cursor>          Suppress an already delivered watch/follow snapshot",
 		"  --no-initial               Wait for the next watch/follow change",
-		"  --once                     Poll once and exit",
+		"  --once                     Poll once, emit at most one idle/claimed work event, and exit",
 		"  --max-events <count>       Stop streaming commands after emitting count events",
 	}, "\n")
 }

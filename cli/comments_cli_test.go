@@ -820,7 +820,7 @@ func TestCommentsCLIInboxClassifiesOpenAgentWork(t *testing.T) {
 	if inboxPayload.Unclaimed.Count != 2 || !containsCommentThread(inboxPayload.Unclaimed.Threads, mineID) || !containsCommentThread(inboxPayload.Unclaimed.Threads, unclaimedID) {
 		t.Fatalf("unclaimed after release = %#v", inboxPayload.Unclaimed.Threads)
 	}
-	if !inboxPayload.Summary.RequiresAttention || inboxPayload.Summary.RecommendedAction != "claim_open_work" || inboxPayload.Summary.TotalOpenThreadCount != 4 || inboxPayload.Summary.OpenThreadCount != 3 || inboxPayload.Summary.SourceUnavailableCount != 1 || inboxPayload.Summary.MineCount != 0 || inboxPayload.Summary.UnclaimedCount != 2 || inboxPayload.Summary.ClaimedByOthersCount != 1 || len(inboxPayload.Summary.SuggestedCommands) != 1 || inboxPayload.Summary.SuggestedCommands[0].Intent != "claim_next_open_thread" || inboxPayload.Summary.SuggestedCommands[0].Command != "comments work" || inboxPayload.Summary.SuggestedCommands[0].ClientEventID == "" {
+	if !inboxPayload.Summary.RequiresAttention || inboxPayload.Summary.RecommendedAction != "claim_open_work" || inboxPayload.Summary.TotalOpenThreadCount != 4 || inboxPayload.Summary.OpenThreadCount != 3 || inboxPayload.Summary.SourceUnavailableCount != 1 || inboxPayload.Summary.MineCount != 0 || inboxPayload.Summary.UnclaimedCount != 2 || inboxPayload.Summary.ClaimedByOthersCount != 1 || len(inboxPayload.Summary.SuggestedCommands) != 1 || inboxPayload.Summary.SuggestedCommands[0].Intent != "claim_next_open_thread" || inboxPayload.Summary.SuggestedCommands[0].Command != "comments work" || inboxPayload.Summary.SuggestedCommands[0].ClientEventID == "" || !containsString(inboxPayload.Summary.SuggestedCommands[0].Args, "--once") {
 		t.Fatalf("inbox summary after release = %#v", inboxPayload.Summary)
 	}
 }
@@ -2532,7 +2532,7 @@ func TestCommentsCLIWatchStreamsOpenWorklistSnapshots(t *testing.T) {
 	if initial.Summary.RecommendedAction != "claim_open_work" || initial.Summary.OpenThreadCount != 1 || !containsString(initial.Summary.AttentionReasons, "open_threads_available") {
 		t.Fatalf("initial watch summary = %#v", initial.Summary)
 	}
-	if len(initial.Summary.SuggestedCommands) != 1 || initial.Summary.SuggestedCommands[0].Intent != "claim_next_open_thread" || initial.Summary.SuggestedCommands[0].Command != "comments work" || initial.Summary.SuggestedCommands[0].ClientEventID == "" || !containsString(initial.Summary.SuggestedCommands[0].Args, "--client-event-id") || !containsString(initial.Summary.SuggestedCommands[0].Args, initial.Summary.SuggestedCommands[0].ClientEventID) || !containsString(initial.Summary.SuggestedCommands[0].Args, "--full") || !containsString(initial.Summary.SuggestedCommands[0].Args, server.URL) {
+	if len(initial.Summary.SuggestedCommands) != 1 || initial.Summary.SuggestedCommands[0].Intent != "claim_next_open_thread" || initial.Summary.SuggestedCommands[0].Command != "comments work" || initial.Summary.SuggestedCommands[0].ClientEventID == "" || !containsString(initial.Summary.SuggestedCommands[0].Args, "--client-event-id") || !containsString(initial.Summary.SuggestedCommands[0].Args, initial.Summary.SuggestedCommands[0].ClientEventID) || !containsString(initial.Summary.SuggestedCommands[0].Args, "--once") || !containsString(initial.Summary.SuggestedCommands[0].Args, "--full") || !containsString(initial.Summary.SuggestedCommands[0].Args, server.URL) {
 		t.Fatalf("initial watch suggested commands = %#v", initial.Summary.SuggestedCommands)
 	}
 	if initial.Threads[0].Status != "open" || len(initial.Threads[0].Comments) != 1 {

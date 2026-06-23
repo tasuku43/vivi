@@ -558,9 +558,9 @@ Every watch event carries `schemaVersion`, `eventSchema:
 "commentOpenWorklistEvent"`, and `eventSchemaCommand`, plus a `summary` that
 recommends `claim_open_work` when open threads exist. With `--actor`, the
 summary includes a `claim_next_open_thread` suggestion for
-`comments work --actor <actor> --full --json`, giving background adapters a
-machine-readable handoff from passive GUI feedback intake to an owned claim.
-The suggestion includes a cursor-derived `clientEventId` and matching
+`comments work --actor <actor> --once --full --json`, giving adapters a
+machine-readable one-shot handoff from passive GUI feedback intake to an owned
+claim. The suggestion includes a cursor-derived `clientEventId` and matching
 `--client-event-id` argv so the claim activity can be correlated and retried
 without inventing a separate id, and it keeps the same resolved `--url` as the
 watch stream that emitted it.
