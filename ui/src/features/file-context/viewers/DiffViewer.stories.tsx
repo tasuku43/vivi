@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { expect, fn, within } from "storybook/test";
 import {
   commentsForPath,
   htmlDiff,
@@ -24,6 +25,7 @@ const meta = {
     diff: sampleDiff,
     comments: commentsForPath(sampleFiles.code.path),
     threadActivities: sampleThreadActivities,
+    onOpenComment: fn(),
   },
 } satisfies Meta<typeof DiffViewer>;
 
@@ -31,8 +33,22 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const DiffCommentOnAddedLine: Story = {
+  tags: ["interaction"],
   args: {
     activeCommentId: "comment-diff-added",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("region", {
+        name: `Diff from HEAD for ${sampleFiles.code.path}`,
+      }),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getAllByRole("button", {
+        name: /Open comment thread on line/,
+      })[0],
+    ).toBeInTheDocument();
   },
 };
 

@@ -84,14 +84,35 @@ tasks:
     cmds:
       - npm run build:storybook
 
+  ui:storybook:verify:
+    desc: Verify Storybook product-surface coverage and interaction story hooks
+    cmds:
+      - npm run storybook:verify
+
+  ui:storybook:test:
+    desc: Run tagged Storybook interaction stories
+    cmds:
+      - npm run storybook:test
+
   storybook:
     desc: Start Storybook for the review UI regression lab
     cmds:
       - task: ui:storybook
 
+  storybook:verify:
+    desc: Verify Storybook product-surface coverage and interaction story hooks
+    cmds:
+      - task: ui:storybook:verify
+
+  storybook:test:
+    desc: Run tagged Storybook interaction stories
+    cmds:
+      - task: ui:storybook:test
+
   storybook:build:
     desc: Build Storybook as a verification step
     cmds:
+      - task: ui:storybook:verify
       - task: ui:storybook:build
 
   server:test:

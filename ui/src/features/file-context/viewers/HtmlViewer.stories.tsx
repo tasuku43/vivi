@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { expect, fn, userEvent, within } from "storybook/test";
 import {
   commentsForPath,
   htmlDiff,
@@ -20,12 +21,12 @@ const meta = {
     theme: "light",
     comments: commentsForPath(sampleFiles.html.path),
     threadActivities: sampleThreadActivities,
-    onModeChange: () => undefined,
-    onDiffToggle: () => undefined,
-    onCreateComment: () => undefined,
-    onOpenComment: () => undefined,
-    onCloseComment: () => undefined,
-    onCommentStatusChange: () => undefined,
+    onModeChange: fn(),
+    onDiffToggle: fn(),
+    onCreateComment: fn(),
+    onOpenComment: fn(),
+    onCloseComment: fn(),
+    onCommentStatusChange: fn(),
   },
 } satisfies Meta<typeof HtmlViewer>;
 
@@ -33,9 +34,20 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const SourceHtmlComment: Story = {
+  tags: ["interaction"],
   args: {
     mode: "source",
     activeCommentId: "comment-html-rendered",
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("list")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Preview" }));
+    await expect(args.onModeChange).toHaveBeenCalledWith("preview");
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Diff from HEAD" }),
+    );
+    await expect(args.onDiffToggle).toHaveBeenCalled();
   },
 };
 

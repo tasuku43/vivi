@@ -21,6 +21,15 @@ close to the public domain and GraphQL contract: `ViviComment`,
 `DraftReviewComment`, `PublishedReviewBatch`, `reviewBatchId`, diff anchors, and
 comment thread activity events.
 
+The product coverage contract lives in
+`ui/src/storybook/storybook-lab.manifest.json`. It maps each UI surface to the
+stories that must keep representing it. Future UI work should update the
+manifest whenever a new product-facing surface appears.
+
+Agent-facing Storybook workflow lives in `ui/src/storybook/README.md`. Agents
+should read that file before changing visible UI so the story, fixture, and
+interaction-test conventions stay local to the product.
+
 ## Storybook vs E2E
 
 Storybook should not emulate full filesystem, HTTP, GraphQL, SSE, or iframe
@@ -43,6 +52,18 @@ Use E2E for:
 
 ## Verification
 
+Verify the coverage manifest and representative interaction hooks with:
+
+```bash
+task storybook:verify
+```
+
+Run representative Storybook `play` interactions with:
+
+```bash
+task storybook:test
+```
+
 Run the lightweight Storybook build with:
 
 ```bash
@@ -56,6 +77,8 @@ task check
 ```
 
 Representative stories opt into `@storybook/addon-a11y` with
-`parameters.a11y.test = "error"`. Broader interaction tests should be added as a
-separate lightweight task if they become useful; they should not make `task
-check` timing-sensitive.
+`parameters.a11y.test = "error"`. Interaction smoke checks live in Storybook
+`play` functions on selected representative stories and are tagged with
+`interaction` so `task storybook:test` stays focused. They should cover the
+gesture or keyboard contract without emulating filesystem, HTTP, GraphQL, SSE, or
+server-backed iframe behavior.

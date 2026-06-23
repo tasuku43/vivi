@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "purpose": "Vivi Storybook is the fast UI regression lab for the local review adapter. Every product-facing UI slice should be represented by at least one stable story and, when the behavior is interactive, one representative interaction story.",
+  "storyFiles": [
+    "ui/src/features/command-palette/CommandPalette.stories.tsx",
+    "ui/src/features/comments/Activity.stories.tsx",
+    "ui/src/features/comments/CodeCommentThread.stories.tsx",
+    "ui/src/features/comments/CommentsPanel.stories.tsx",
+    "ui/src/features/comments/DraftReviewTray.stories.tsx",
+    "ui/src/features/file-context/FileContextPane.stories.tsx",
+    "ui/src/features/file-context/components/FileViewer.stories.tsx",
+    "ui/src/features/file-context/viewers/CodeViewer.stories.tsx",
+    "ui/src/features/file-context/viewers/DiffViewer.stories.tsx",
+    "ui/src/features/file-context/viewers/HtmlViewer.stories.tsx",
+    "ui/src/features/file-context/viewers/MarkdownViewer.stories.tsx",
+    "ui/src/features/review-queue/ReviewQueuePanel.stories.tsx",
+    "ui/src/features/workbench/WorkbenchView.stories.tsx",
+    "ui/src/shared/components/Navigation.stories.tsx"
+  ],
+  "surfaces": [
+    {
+      "id": "workspace-shell",
+      "label": "Workspace shell",
+      "intent": "Preserve the classic local workspace frame: topbar, live tree, tabs, active viewer, right inspector, and status states.",
+      "requiredStories": [
+        "Screens/Workbench/WorkspaceWithFileTreeAndSelectedFile",
+        "Screens/Workbench/LoadingState",
+        "Screens/Workbench/ErrorState",
+        "Screens/Workbench/DisconnectedState",
+        "Navigation/Core/SidebarFileTree",
+        "Navigation/Core/Tabs",
+        "Navigation/Core/Statusbar"
+      ],
+      "interactionStories": [
+        "Screens/Workbench/WorkspaceWithFileTreeAndSelectedFile"
+      ]
+    },
+    {
+      "id": "review-navigation",
+      "label": "Review navigation",
+      "intent": "Keep Review Queue, comments inbox, unread activity, and agent replies visible as the primary right-inspector workflow.",
+      "requiredStories": [
+        "Review/Review Queue/Inspector/ReviewQueueItemWithOpenThreads",
+        "Review/Review Queue/Inspector/ReviewQueueItemWithLatestAgentActivity",
+        "Review/Review Queue/Inspector/GitReviewUnavailable",
+        "Review/Comments/Comments Panel/WorkspaceComments",
+        "Review/Comments/Comments Panel/AgentActivityVisible",
+        "System/States/Activity/CommentsWatchDisconnected"
+      ],
+      "interactionStories": [
+        "Review/Comments/Comments Panel/WorkspaceComments"
+      ]
+    },
+    {
+      "id": "comment-lifecycle",
+      "label": "Comment lifecycle",
+      "intent": "Represent open, resolved, archived, draft, published, failure, and agent-read/reply states without requiring a backend.",
+      "requiredStories": [
+        "Review/Comments/Inline Thread/Open",
+        "Review/Comments/Inline Thread/Resolved",
+        "Review/Comments/Inline Thread/Archived",
+        "Review/Comments/Inline Thread/AgentHasReadThread",
+        "Review/Comments/Inline Thread/AgentHasReplied",
+        "Review/Drafts/Draft Review Tray/PublishCtaEnabled",
+        "Review/Drafts/Draft Review Tray/PublishFailure",
+        "Review/Drafts/Draft Review Tray/PublishedStateWithOpenThreads"
+      ],
+      "interactionStories": [
+        "Review/Comments/Inline Thread/Open",
+        "Review/Drafts/Draft Review Tray/PublishCtaEnabled"
+      ]
+    },
+    {
+      "id": "viewer-coverage",
+      "label": "Viewer coverage",
+      "intent": "Cover every product viewer surface: Markdown, HTML, code, JSON, CSV/text, Mermaid, image, unknown text, large text, and binary metadata.",
+      "requiredStories": [
+        "Viewers/File Coverage/FileViewer/UnknownTextFallback",
+        "Viewers/File Coverage/FileViewer/MarkdownKnownViewer",
+        "Viewers/File Coverage/FileViewer/CodeWithLocalOutline",
+        "Viewers/File Coverage/FileViewer/HtmlKnownViewer",
+        "Viewers/File Coverage/FileViewer/JsonKnownViewer",
+        "Viewers/File Coverage/FileViewer/CsvTableFallback",
+        "Viewers/File Coverage/FileViewer/MermaidKnownViewer",
+        "Viewers/File Coverage/FileViewer/ImageKnownViewer",
+        "Viewers/File Coverage/FileViewer/BinaryMetadata",
+        "Viewers/File Coverage/FileViewer/LargeTextLimitedPreview",
+        "Viewers/File Coverage/FileViewer/LargeBinaryMetadata"
+      ],
+      "interactionStories": [
+        "Viewers/Code/CodeViewer/SourceWithOpenThread",
+        "Viewers/Markdown/MarkdownViewer/RenderedMarkdownComment",
+        "Viewers/HTML/HtmlViewer/SourceHtmlComment"
+      ]
+    },
+    {
+      "id": "diff-review",
+      "label": "Diff review",
+      "intent": "Keep source diffs, rendered Markdown/HTML diffs, unavailable diffs, binary diffs, and diff comments visible.",
+      "requiredStories": [
+        "Review/Diff/Diff Viewer/DiffCommentOnAddedLine",
+        "Review/Diff/Diff Viewer/DiffCommentOnRemovedLine",
+        "Review/Diff/Diff Viewer/RenderedMarkdownComment",
+        "Review/Diff/Diff Viewer/RenderedHtmlComment",
+        "Review/Diff/Diff Viewer/Unavailable",
+        "Review/Diff/Diff Viewer/BinaryDiff",
+        "Viewers/FileViewer Shell/CodeDiff"
+      ],
+      "interactionStories": [
+        "Review/Diff/Diff Viewer/DiffCommentOnAddedLine"
+      ]
+    },
+    {
+      "id": "navigation-overlays",
+      "label": "Navigation overlays",
+      "intent": "Cover Cmd/Ctrl+K quick open, text search, command mode, shortcut help, topbar, tree, and tabs.",
+      "requiredStories": [
+        "Navigation/Command Palette/QuickOpen",
+        "Navigation/Command Palette/TextSearch",
+        "Navigation/Command Palette/Actions",
+        "Navigation/Command Palette/Loading",
+        "Navigation/Command Palette/Empty",
+        "Navigation/Core/TopbarStory",
+        "Navigation/Core/ShortcutHelpOverlay",
+        "Screens/Workbench/CommandPaletteOpen",
+        "Screens/Workbench/ShortcutHelpOpen"
+      ],
+      "interactionStories": [
+        "Navigation/Command Palette/QuickOpen",
+        "Navigation/Command Palette/Actions"
+      ]
+    },
+    {
+      "id": "stress-and-empty-states",
+      "label": "Stress and empty states",
+      "intent": "Make dense review sessions, empty workspaces, long lists, loading states, and missing results easy to inspect before E2E.",
+      "requiredStories": [
+        "Screens/Workbench/EmptyWorkspace",
+        "Screens/Workbench/ManyFilesManyComments",
+        "Review/Review Queue/Inspector/ManyFiles",
+        "Review/Comments/Comments Panel/ManyComments",
+        "Review/Drafts/Draft Review Tray/ManyDrafts",
+        "Review/Comments/Comments Panel/NoMatchingComments",
+        "Review/Drafts/Draft Review Tray/EmptyDrafts"
+      ],
+      "interactionStories": []
+    }
+  ],
+  "agentWorkflow": [
+    "Read ui/src/storybook/README.md before changing product UI.",
+    "Update or add a story for every user-visible UI state you changed.",
+    "If the UI introduces a new product-facing surface, add it to this manifest.",
+    "Add a play interaction for one representative story when the change affects keyboard, pointer, focus, or form behavior.",
+    "Run task storybook:verify and task storybook:build before handing off UI changes."
+  ]
+}

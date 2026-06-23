@@ -157,7 +157,7 @@ export function ReviewWorkbenchStory({
           } as CSSProperties
         }
       >
-        <aside className="sidebar">
+        <aside className="sidebar" aria-label="File explorer">
           <div className="panel-title">
             <span>Explorer</span>
             <span className={state === "disconnected" ? "pill active" : "pill"}>

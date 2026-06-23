@@ -37,9 +37,11 @@
     "generate": "npm run generate:ui-graphql && task generate:graphql",
     "storybook": "npm --prefix ui run storybook",
     "build:storybook": "npm --prefix ui run build-storybook",
+    "storybook:verify": "node scripts/verify-storybook-lab.mjs",
+    "storybook:test": "node scripts/run-storybook-interactions.mjs",
     "validate:scaffold": "node scripts/validate-scaffold.mjs",
     "security:policy": "node scripts/check-supply-chain.mjs",
-    "check": "npm run generate:ui-graphql && npm run validate:scaffold && npm run security:policy && npm run lint && npm run test:architecture && npm run typecheck && npm run test && npm run eval && npm run build && npm run build:go && npm run e2e && npm run build:storybook && npm run test:go"
+    "check": "npm run generate:ui-graphql && npm run validate:scaffold && npm run security:policy && npm run lint && npm run test:architecture && npm run storybook:verify && npm run typecheck && npm run test && npm run eval && npm run build && npm run build:go && npm run e2e && npm run build:storybook && npm run test:go"
   },
   "dependencies": {
     "graphql": "^16.14.2",
@@ -57,6 +59,7 @@
     "@storybook/addon-a11y": "^10.4.6",
     "@storybook/addon-docs": "^10.4.6",
     "@storybook/react-vite": "^10.4.6",
+    "@storybook/test-runner": "^0.24.4",
     "@types/node": "26.0.0",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",

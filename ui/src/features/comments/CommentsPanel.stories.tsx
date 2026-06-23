@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { expect, fn, userEvent, within } from "storybook/test";
 import { CommentsPanel } from "./components/CommentsPanel.js";
 import { InlineCommentCard } from "./components/InlineCommentCard.js";
 import {
@@ -21,18 +22,35 @@ const meta = {
     statusFilter: "all",
     threadActivities: sampleThreadActivities,
     unreadReviewPaths: new Set(["docs/agent-handoff.md"]),
-    onQueryChange: () => undefined,
-    onStatusFilterChange: () => undefined,
-    onClose: () => undefined,
-    onOpenComment: () => undefined,
-    onStatusChange: () => undefined,
+    onQueryChange: fn(),
+    onStatusFilterChange: fn(),
+    onClose: fn(),
+    onOpenComment: fn(),
+    onStatusChange: fn(),
   },
 } satisfies Meta<typeof CommentsPanel>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const WorkspaceComments: Story = {};
+export const WorkspaceComments: Story = {
+  tags: ["interaction"],
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("complementary", { name: "Comments" }),
+    ).toBeInTheDocument();
+    await userEvent.type(canvas.getByLabelText("Search comments"), "agent");
+    await expect(args.onQueryChange).toHaveBeenCalled();
+    const filters = canvas.getByRole("group", {
+      name: "Comment status filters",
+    });
+    await userEvent.click(
+      within(filters).getByRole("button", { name: /open/i }),
+    );
+    await expect(args.onStatusFilterChange).toHaveBeenCalledWith("open");
+  },
+};
 
 export const OpenOnly: Story = {
   args: {
