@@ -71,6 +71,20 @@ export function commentViewerKindForFile(file: FilePayload): CommentViewerKind {
   return "unknown";
 }
 
+export function commentAnchorSourceChanged(
+  comment: ViviComment,
+  file: FilePayload | null | undefined,
+): boolean {
+  const anchorHash = comment.anchor.canonical.fileHash?.trim();
+  return Boolean(
+    file &&
+      comment.path === file.path &&
+      anchorHash &&
+      file.etag &&
+      anchorHash !== file.etag,
+  );
+}
+
 export function sourceCommentDraft(
   file: FilePayload,
   range: LineRange | null,

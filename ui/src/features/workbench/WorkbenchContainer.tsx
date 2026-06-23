@@ -2318,6 +2318,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         statusFilter={commentsPanelStatus}
         threadActivities={commentActivitySummaries}
         unreadReviewPaths={unreadReviewPathSet}
+        knownMissingPaths={knownMissingCommentPathSet}
+        currentFile={file}
         activeCommentId={activeCommentId}
         onQueryChange={setCommentsPanelQuery}
         onStatusFilterChange={setCommentsPanelStatus}

@@ -14,6 +14,7 @@ import {
   type LineRange,
 } from "../../state/code-viewer.js";
 import {
+  commentAnchorSourceChanged,
   commentLineLabel,
   commentLocationLabel,
   statusLabel,
@@ -487,6 +488,9 @@ export function Inspector({
                     primaryComment;
                   const latestActivity = activity?.inline[0];
                   const locationLabel = commentLocationLabel(primaryComment);
+                  const sourceChanged = thread.comments.some((comment) =>
+                    commentAnchorSourceChanged(comment, file),
+                  );
                   const latestPreview = truncateCommentPreview(
                     latestComment.body,
                     96,
@@ -534,6 +538,14 @@ export function Inspector({
                           {active ? (
                             <span className="active-comment-current">
                               Current thread
+                            </span>
+                          ) : null}
+                          {sourceChanged ? (
+                            <span
+                              className="comment-anchor-warning"
+                              aria-label="Current file content differs from this comment anchor"
+                            >
+                              Source changed
                             </span>
                           ) : null}
                         </span>

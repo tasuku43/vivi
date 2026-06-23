@@ -119,6 +119,24 @@ export const ResolvedThreadActivityIsHistory: Story = {
   },
 };
 
+export const ActiveFileSourceChangedAnchor: Story = {
+  args: {
+    comments: [
+      {
+        ...sampleComments[0]!,
+        anchor: {
+          ...sampleComments[0]!.anchor,
+          canonical: {
+            ...sampleComments[0]!.anchor.canonical,
+            fileHash: "sha256:older-workbench",
+          },
+        },
+      },
+    ],
+    reviewComments: sampleComments,
+  },
+};
+
 export const PublishedOpenThreads: Story = {
   args: {
     file: sampleFiles.markdown,

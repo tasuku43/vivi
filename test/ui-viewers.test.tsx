@@ -2502,6 +2502,69 @@ it("renders comment activity in workspace comments rows", () => {
   expect(html).toContain("Open");
 });
 
+it("marks workspace comment rows when the open file changed since the anchor", () => {
+  const staleComment: ViviComment = {
+    ...codeLineComment,
+    anchor: {
+      ...codeLineComment.anchor,
+      canonical: {
+        ...codeLineComment.anchor.canonical,
+        fileHash: "sha256:older",
+      },
+    },
+  };
+  const html = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={[staleComment]}
+      currentFile={codeFile}
+      query=""
+      statusFilter="open"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Source changed");
+  expect(html).toContain(
+    'aria-label="Current file content differs from this comment anchor"',
+  );
+});
+
+it("marks workspace comment rows when the source path is missing", () => {
+  const missingComment: ViviComment = {
+    ...codeLineComment,
+    path: "README.md",
+    anchor: {
+      ...codeLineComment.anchor,
+      canonical: {
+        ...codeLineComment.anchor.canonical,
+        path: "README.md",
+      },
+    },
+  };
+  const html = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={[missingComment]}
+      knownMissingPaths={new Set(["README.md"])}
+      query=""
+      statusFilter="open"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Source missing");
+  expect(html).toContain(
+    'aria-label="This comment points to a path that is not present in the current workspace tree"',
+  );
+});
+
 it("maps comments inbox arrow keys to stable thread rows", () => {
   expect(commentInboxKeyboardTarget("ArrowDown", -1, 3)).toBe(0);
   expect(commentInboxKeyboardTarget("ArrowDown", 0, 3)).toBe(1);
@@ -3188,6 +3251,44 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
   );
   expect(html).toContain("Review Queue");
   expect(html).toContain("1 open thread");
+});
+
+it("marks active file comment threads when the file changed since the anchor", () => {
+  const staleComment: ViviComment = {
+    ...codeLineComment,
+    anchor: {
+      ...codeLineComment.anchor,
+      canonical: {
+        ...codeLineComment.anchor.canonical,
+        fileHash: "sha256:older",
+      },
+    },
+  };
+  const html = renderToStaticMarkup(
+    <Inspector
+      file={codeFile}
+      reviewChanges={[]}
+      reviewItems={[]}
+      reviewDiffStats={{}}
+      loadingReviewDiffs={{}}
+      unreadReviewPaths={new Set()}
+      comments={[staleComment]}
+      selectedCodeRange={null}
+      activePath="src/app.ts"
+      activePaneId="main"
+      onOpenEventPath={() => undefined}
+      onConfirmEventPath={() => undefined}
+      onOpenNextChanged={() => undefined}
+      onOpenPreviousChanged={() => undefined}
+      onOpenAllChanged={() => undefined}
+      onRevealInTree={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Source changed");
+  expect(html).toContain(
+    'aria-label="Current file content differs from this comment anchor"',
+  );
 });
 
 it("keeps resolved-only Review Queue files out of next-stop guidance", () => {

@@ -5,6 +5,7 @@ import { InlineCommentCard } from "./components/InlineCommentCard.js";
 import {
   manyReviewComments,
   sampleComments,
+  sampleFiles,
   sampleThreadActivities,
 } from "../../storybook/fixtures/review-lab.js";
 
@@ -68,6 +69,46 @@ export const ResolvedAndArchivedHistory: Story = {
 export const AgentActivityVisible: Story = {
   args: {
     query: "WorkbenchContainer",
+  },
+};
+
+export const SourceChangedAnchor: Story = {
+  args: {
+    comments: [
+      {
+        ...sampleComments[0]!,
+        anchor: {
+          ...sampleComments[0]!.anchor,
+          canonical: {
+            ...sampleComments[0]!.anchor.canonical,
+            fileHash: "sha256:older-workbench",
+          },
+        },
+      },
+    ],
+    currentFile: sampleFiles.code,
+    statusFilter: "open",
+  },
+};
+
+export const SourceMissingAnchor: Story = {
+  args: {
+    comments: [
+      {
+        ...sampleComments[0]!,
+        path: "README.md",
+        anchor: {
+          ...sampleComments[0]!.anchor,
+          canonical: {
+            ...sampleComments[0]!.anchor.canonical,
+            path: "README.md",
+            quote: "# Vivi",
+          },
+        },
+      },
+    ],
+    knownMissingPaths: new Set(["README.md"]),
+    statusFilter: "open",
   },
 };
 

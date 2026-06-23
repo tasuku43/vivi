@@ -3,9 +3,11 @@ import type {
   CommentStatus,
   ViviComment,
 } from "../../../domain/comments.js";
+import type { FilePayload } from "../../../domain/fs-node.js";
 import type { CommentActivitySummary } from "../../../state/comment-activity.js";
 import { activityLabel, actorLabel } from "../../../state/comment-activity.js";
 import {
+  commentAnchorSourceChanged,
   commentLineLabel,
   commentLocationLabel,
   statusLabel,
@@ -20,6 +22,8 @@ export function CommentsPanel({
   query,
   statusFilter,
   unreadReviewPaths = emptyUnreadReviewPaths,
+  knownMissingPaths = emptyMissingPaths,
+  currentFile = null,
   activeCommentId = null,
   onQueryChange,
   onStatusFilterChange,
@@ -33,6 +37,8 @@ export function CommentsPanel({
   query: string;
   statusFilter: StatusFilter;
   unreadReviewPaths?: ReadonlySet<string>;
+  knownMissingPaths?: ReadonlySet<string>;
+  currentFile?: FilePayload | null;
   activeCommentId?: string | null;
   onQueryChange: (query: string) => void;
   onStatusFilterChange: (status: StatusFilter) => void;
@@ -238,6 +244,23 @@ export function CommentsPanel({
           visibleThreads.map((thread, index) => {
             const activity = threadActivities[thread.threadId];
             const latest = thread.latestComment;
+            const sourceMissing = knownMissingPaths.has(thread.path);
+            const sourceChanged = thread.comments.some((comment) =>
+              commentAnchorSourceChanged(comment, currentFile),
+            );
+            const sourceState = sourceMissing
+              ? {
+                  label: "Source missing",
+                  aria:
+                    "This comment points to a path that is not present in the current workspace tree",
+                }
+              : sourceChanged
+                ? {
+                    label: "Source changed",
+                    aria:
+                      "Current file content differs from this comment anchor",
+                  }
+                : null;
             const searchMatch = commentThreadSearchMatch(thread, query);
             const active = commentThreadContainsComment(thread, activeCommentId);
             const toggleStatusLabel =
@@ -301,6 +324,14 @@ export function CommentsPanel({
                       {thread.needsAttention ? (
                         <span className="global-comment-attention">
                           Needs attention
+                        </span>
+                      ) : null}
+                      {sourceState ? (
+                        <span
+                          className="comment-anchor-warning"
+                          aria-label={sourceState.aria}
+                        >
+                          {sourceState.label}
                         </span>
                       ) : null}
                       {active ? (
@@ -508,6 +539,7 @@ function commentThreadContainsComment(
 }
 
 const emptyUnreadReviewPaths = new Set<string>();
+const emptyMissingPaths = new Set<string>();
 
 function groupCommentsByThread(
   comments: ViviComment[],
