@@ -46,7 +46,7 @@ vivi comments schema commentActivityBatchEvent --json
 vivi comments schema commentWorkClaimedEvent --json
 vivi comments schema commentWorkIdleEvent --json
 vivi comments schema commentOpenWorklistEvent --json
-vivi review queue --json
+vivi review queue --actor codex --json
 vivi review bases --json
 vivi review diff README.md --base HEAD --json
 vivi comments watch --actor claude-code --full --json
@@ -202,14 +202,17 @@ only for the matching batch threads.
 
 `vivi review` is the read-only Git working-tree review CLI for coding agents
 that need changed-file context before or alongside human GUI feedback.
-`review queue --json` returns the cheap changed-file list plus available diff
-bases and `summary.suggestedCommands` for both the first `review diff` command
-and the resident `comments work --wait --loop --idle-events --full --json`
-feedback loop. It does not claim comment threads and does not load every diff in
-large repositories. Use `review bases --json` to list recent allowed diff bases,
-and `review diff <path> --base HEAD --json` to fetch one `TextDiff` payload for a
-changed file. Use the `comments` commands when the agent needs human feedback
-threads, ownership, or terminal replies.
+`review queue --actor <actor> --json` returns the cheap changed-file list plus
+available diff bases and `summary.suggestedCommands` for both the first
+`review diff` command and an executable resident
+`comments work --actor <actor> --wait --loop --idle-events --full --json`
+feedback loop. Without `--actor`, the queue points agents at
+`comments doctor --actor <actor-id> --json` instead of emitting a `comments work`
+recipe that cannot run. It does not claim comment threads and does not load
+every diff in large repositories. Use `review bases --json` to list recent
+allowed diff bases, and `review diff <path> --base HEAD --json` to fetch one
+`TextDiff` payload for a changed file. Use the `comments` commands when the
+agent needs human feedback threads, ownership, or terminal replies.
 When a `review` command fails with JSON enabled, it returns a structured
 `error` envelope with a stable `code`, original argv, recoverability, and
 suggested retry/help commands.

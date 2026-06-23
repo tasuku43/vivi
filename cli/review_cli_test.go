@@ -23,7 +23,7 @@ func TestReviewCLIQueueAndDiffGuideAgentReview(t *testing.T) {
 	})
 	defer server.Close()
 
-	queue := runReviewCLIForTest(t, "queue", "--url", server.URL, "--json")
+	queue := runReviewCLIForTest(t, "queue", "--url", server.URL, "--actor", "codex:test", "--json")
 	var queuePayload struct {
 		SchemaVersion int                         `json:"schemaVersion"`
 		Available     bool                        `json:"available"`
@@ -48,8 +48,17 @@ func TestReviewCLIQueueAndDiffGuideAgentReview(t *testing.T) {
 	if len(queuePayload.Summary.SuggestedCommands) != 2 || queuePayload.Summary.SuggestedCommands[0].Command != "review diff" || !containsString(queuePayload.Summary.SuggestedCommands[0].Args, "README.md") || !containsString(queuePayload.Summary.SuggestedCommands[0].Args, server.URL) {
 		t.Fatalf("review queue suggestions = %#v", queuePayload.Summary.SuggestedCommands)
 	}
-	if queuePayload.Summary.SuggestedCommands[1].Command != "comments work" || queuePayload.Summary.SuggestedCommands[1].Intent != "wait_for_gui_feedback" || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, "--wait") || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, "--loop") || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, server.URL) {
+	if queuePayload.Summary.SuggestedCommands[1].Command != "comments work" || queuePayload.Summary.SuggestedCommands[1].Intent != "wait_for_gui_feedback" || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, "--actor") || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, "codex:test") || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, "--wait") || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, "--loop") || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, server.URL) || queuePayload.Summary.SuggestedCommands[1].ClientEventID == "" {
 		t.Fatalf("review queue suggestions = %#v", queuePayload.Summary.SuggestedCommands)
+	}
+
+	queueWithoutActor := runReviewCLIForTest(t, "queue", "--url", server.URL, "--json")
+	var queueWithoutActorPayload struct {
+		Summary reviewRoutingSummary `json:"summary"`
+	}
+	decodeReviewCLIJSON(t, queueWithoutActor, &queueWithoutActorPayload)
+	if len(queueWithoutActorPayload.Summary.SuggestedCommands) != 2 || queueWithoutActorPayload.Summary.SuggestedCommands[1].Command != "comments doctor" || queueWithoutActorPayload.Summary.SuggestedCommands[1].Intent != "choose_agent_actor" || !containsString(queueWithoutActorPayload.Summary.SuggestedCommands[1].Args, "<actor-id>") {
+		t.Fatalf("review queue suggestions without actor = %#v", queueWithoutActorPayload.Summary.SuggestedCommands)
 	}
 
 	bases := runReviewCLIForTest(t, "bases", "--url", server.URL, "--json")
@@ -81,10 +90,11 @@ func TestReviewHelpTextSurfacesAgentQuickPath(t *testing.T) {
 	for _, text := range []string{
 		"vivi review - agent-oriented Git review CLI",
 		"Git working-tree review queue",
-		"vivi review queue --json",
+		"vivi review queue --actor <actor> --json",
 		"vivi review bases --url",
 		"vivi review diff <path> --base HEAD",
-		"vivi comments work --wait --loop --idle-events --full --json",
+		"vivi comments work --actor <actor> --wait --loop --idle-events --full --json",
+		"--actor <id>",
 	} {
 		if !strings.Contains(help, text) {
 			t.Fatalf("review help text did not include %q\n%s", text, help)

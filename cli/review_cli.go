@@ -14,9 +14,10 @@ import (
 const reviewCLISchemaVersion = 1
 
 type reviewCommandOptions struct {
-	URL  string
-	JSON bool
-	Base string
+	URL   string
+	JSON  bool
+	Base  string
+	Actor string
 }
 
 type reviewQueueOutput struct {
@@ -204,11 +205,13 @@ func parseReviewFlags(command string, args []string) (reviewCommandOptions, []st
 	flags.StringVar(&options.URL, "url", options.URL, "Vivi server URL")
 	flags.BoolVar(&options.JSON, "json", true, "write JSON output")
 	flags.StringVar(&options.Base, "base", options.Base, "Git diff base ref")
+	flags.StringVar(&options.Actor, "actor", options.Actor, "Actor id for comments work suggestions")
 	flagArgs, positional := splitReviewFlagsAndPositionals(args)
 	if err := flags.Parse(flagArgs); err != nil {
 		return options, nil, err
 	}
 	options.URL = strings.TrimRight(options.URL, "/")
+	options.Actor = strings.TrimSpace(options.Actor)
 	if options.URL == "" {
 		options.URL = defaultCommentsURL
 	}
@@ -251,7 +254,7 @@ func reviewFlagRequiresValue(arg string) bool {
 		name = before
 	}
 	switch name {
-	case "url", "base":
+	case "url", "base", "actor":
 		return true
 	default:
 		return false
@@ -292,7 +295,7 @@ func reviewQueue(ctx context.Context, stdout io.Writer, options reviewCommandOpt
 		"count":         len(queue.Changes),
 		"changes":       queue.Changes,
 		"diffBases":     bases,
-		"summary":       summarizeReviewQueue(queue, bases, options.URL),
+		"summary":       summarizeReviewQueue(queue, bases, options.URL, options.Actor),
 	}
 	return writeJSON(stdout, output)
 }
@@ -344,7 +347,7 @@ func reviewDiff(ctx context.Context, stdout io.Writer, options reviewCommandOpti
 	})
 }
 
-func summarizeReviewQueue(queue reviewQueueOutput, bases reviewDiffBaseSummaryOutput, serverURL string) reviewRoutingSummary {
+func summarizeReviewQueue(queue reviewQueueOutput, bases reviewDiffBaseSummaryOutput, serverURL string, actorID string) reviewRoutingSummary {
 	summary := reviewRoutingSummary{
 		RequiresAttention: false,
 		AttentionReasons:  []string{},
@@ -359,7 +362,7 @@ func summarizeReviewQueue(queue reviewQueueOutput, bases reviewDiffBaseSummaryOu
 	}
 	if len(queue.Changes) == 0 {
 		summary.SuggestedCommands = []commentSuggestedCommand{
-			suggestedCommentsCommand("wait_for_gui_feedback", "comments work", withURLArg([]string{"comments", "work", "--wait", "--loop", "--idle-events", "--full", "--json"}, serverURL), "", "Wait for GUI review comments when there are no changed files to inspect."),
+			reviewQueueCommentsWorkSuggestion(actorID, serverURL, "Wait for GUI review comments when there are no changed files to inspect."),
 		}
 		return summary
 	}
@@ -373,9 +376,16 @@ func summarizeReviewQueue(queue reviewQueueOutput, bases reviewDiffBaseSummaryOu
 	firstPath := queue.Changes[0].Path
 	summary.SuggestedCommands = []commentSuggestedCommand{
 		suggestedCommentsCommand("inspect_first_changed_file_diff", "review diff", withURLArg([]string{"review", "diff", firstPath, "--base", base, "--json"}, serverURL), "", "Inspect the first changed file diff before deciding whether to comment or continue."),
-		suggestedCommentsCommand("wait_for_gui_feedback", "comments work", withURLArg([]string{"comments", "work", "--wait", "--loop", "--idle-events", "--full", "--json"}, serverURL), "", "Keep a resident GUI feedback loop running while reviewing changed files."),
+		reviewQueueCommentsWorkSuggestion(actorID, serverURL, "Keep a resident GUI feedback loop running while reviewing changed files."),
 	}
 	return summary
+}
+
+func reviewQueueCommentsWorkSuggestion(actorID string, serverURL string, description string) commentSuggestedCommand {
+	if actorID == "" {
+		return suggestedCommentsCommand("choose_agent_actor", "comments doctor", withURLArg([]string{"comments", "doctor", "--actor", "<actor-id>", "--json"}, serverURL), "", "Choose a stable actor id before starting a resident GUI feedback loop.")
+	}
+	return suggestedCommentsCommandWithClientEventID("wait_for_gui_feedback", "comments work", withURLArg([]string{"comments", "work", "--actor", actorID, "--wait", "--loop", "--idle-events", "--full", "--json"}, serverURL), "", description, "review-queue:"+actorID+":work")
 }
 
 func reviewHelpText() string {
@@ -383,18 +393,19 @@ func reviewHelpText() string {
 		"vivi review - agent-oriented Git review CLI",
 		"",
 		"Agent quick path:",
-		"  1. List the Git working-tree review queue: vivi review queue --json",
+		"  1. List the Git working-tree review queue: vivi review queue --actor <actor> --json",
 		"  2. Inspect a changed file: vivi review diff <path> --base HEAD --json",
-		"  3. Use vivi comments work --wait --loop --idle-events --full --json for human GUI feedback",
+		"  3. Use vivi comments work --actor <actor> --wait --loop --idle-events --full --json for human GUI feedback",
 		"",
 		"Usage:",
-		"  vivi review queue --url http://127.0.0.1:4317 --json",
+		"  vivi review queue --actor codex --url http://127.0.0.1:4317 --json",
 		"  vivi review bases --url http://127.0.0.1:4317 --json",
 		"  vivi review diff <path> --base HEAD --url http://127.0.0.1:4317 --json",
 		"",
 		"Options:",
 		"  --url <server>            Vivi server URL (default: VIVI_URL or http://127.0.0.1:4317)",
 		"  --base <ref>              Git diff base for review diff (default: HEAD)",
+		"  --actor <id>              Actor id used in comments work suggestions",
 		"  --json                    Write JSON output",
 	}, "\n")
 }
