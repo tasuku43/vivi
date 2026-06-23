@@ -421,6 +421,42 @@ export const MissingSourceErrorState: Story = {
   },
 };
 
+export const MissingSourceRecoversFromReviewQueue: Story = {
+  tags: ["interaction"],
+  parameters: {
+    a11y: { test: "todo" },
+  },
+  args: {
+    state: "error",
+    file: missingReadmeFile,
+    viewerError:
+      "Error: stat /Users/tasuku/work/github.com/torvalds/linux/README.md: no such file or directory",
+    viewerSourceMissing: true,
+    reviewQueueOpenFile: sampleFiles.code,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Source missing")).toBeInTheDocument();
+
+    const inspector = canvas.getByRole("complementary", {
+      name: "Review inspector",
+    });
+    await userEvent.click(
+      within(inspector).getByRole("button", {
+        name: /ui\/src\/features\/workbench\/WorkbenchContainer\.tsx/,
+      }),
+    );
+
+    await expect(canvas.queryByText("Source missing")).not.toBeInTheDocument();
+    await expect(
+      canvas.getByRole("tab", { name: /WorkbenchContainer\.tsx/ }),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByText(/const \[commentsPanelOpen, setCommentsPanelOpen\]/),
+    ).toBeInTheDocument();
+  },
+};
+
 export const DisconnectedState: Story = {
   args: {
     state: "disconnected",

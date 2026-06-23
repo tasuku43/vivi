@@ -145,6 +145,7 @@ import {
   latestUnreadActivityTarget,
   moveReviewNavigationTarget,
   openThreadNavigationTargets,
+  reviewQueueOpenTransition,
 } from "../ui/src/state/review-navigation.js";
 import {
   boundedVisibleTreeRows,
@@ -210,6 +211,26 @@ it("can show the same file in two split panes", () => {
     { path: "README.md", viewerKind: "markdown", paneId: "main" },
     { path: "README.md", viewerKind: "markdown", paneId: "side" },
   ]);
+});
+
+it("prepares Review Queue opens by clearing stale viewer state", () => {
+  const layout = setPaneActivePath(initialEditorLayout, "main", "README.md");
+  const transition = reviewQueueOpenTransition({
+    layout,
+    paneId: "main",
+    path: "src/app.ts",
+  });
+
+  expect(flattenPanes(transition.layout)).toEqual([
+    { id: "main", activePath: "src/app.ts" },
+  ]);
+  expect(transition.layout.activePaneId).toBe("main");
+  expect(transition.activeCommentId).toBeNull();
+  expect(transition.activeCommentRect).toBeNull();
+  expect(transition.commentsPanelOpen).toBe(false);
+  expect(transition.paletteOpen).toBe(false);
+  expect(transition.shortcutHelpOpen).toBe(false);
+  expect(transition.error).toBeNull();
 });
 
 it("reuses one preview tab per pane while preserving normal tabs", () => {

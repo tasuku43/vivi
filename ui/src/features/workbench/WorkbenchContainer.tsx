@@ -186,6 +186,7 @@ import {
   firstRelevantThreadForReviewItem,
   moveReviewNavigationTarget,
   openThreadNavigationTargets,
+  reviewQueueOpenTransition,
   unresolvedThreadNavigationTargets,
   type ReviewNavigationTarget,
 } from "../../state/review-navigation.js";
@@ -1229,15 +1230,29 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }
 
   function openReviewQueueItem(path: string, mode: OpenTabMode) {
+    const paneId = layout.activePaneId;
+    const transition = reviewQueueOpenTransition({ layout, paneId, path });
+    setActiveCommentId(transition.activeCommentId);
+    setActiveCommentRect(transition.activeCommentRect);
+    setPaletteOpen(transition.paletteOpen);
+    setShortcutHelpOpen(transition.shortcutHelpOpen);
+    setCommentsPanelOpen(transition.commentsPanelOpen);
+    setError(transition.error);
+    setLayout((current) => {
+      return reviewQueueOpenTransition({ layout: current, paneId, path })
+        .layout;
+    });
     const item = reviewItems.find((candidate) => candidate.path === path);
     const target = item
       ? firstRelevantThreadForReviewItem(item, comments)
       : null;
     if (target) {
-      void openReviewTarget(target, mode).catch((err) => setError(String(err)));
+      void openReviewTarget(target, mode, paneId).catch((err) =>
+        setError(String(err)),
+      );
       return;
     }
-    void loadFile(path, layout.activePaneId, mode).catch((err) =>
+    void loadFile(path, paneId, mode).catch((err) =>
       setError(String(err)),
     );
   }
@@ -1245,8 +1260,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   async function openReviewTarget(
     target: ReviewNavigationTarget,
     mode: OpenTabMode = "preview",
+    paneId = layout.activePaneId,
   ) {
-    const paneId = layout.activePaneId;
     setPaletteOpen(false);
     setShortcutHelpOpen(false);
     setCommentsPanelOpen(false);

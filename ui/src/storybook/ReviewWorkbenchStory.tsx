@@ -78,6 +78,7 @@ export interface ReviewWorkbenchStoryProps {
   draftPublishError?: string | null;
   viewerError?: string;
   viewerSourceMissing?: boolean;
+  reviewQueueOpenFile?: FilePayload;
   publishedBatchId?: string | null;
   activeCommentId?: string | null;
   inlineComment?: ViviComment | null;
@@ -111,6 +112,7 @@ export function ReviewWorkbenchStory({
   draftPublishError = null,
   viewerError = "Failed to load comments: simulated adapter failure for Storybook.",
   viewerSourceMissing = false,
+  reviewQueueOpenFile,
   publishedBatchId = null,
   activeCommentId = null,
   inlineComment = null,
@@ -119,6 +121,11 @@ export function ReviewWorkbenchStory({
   reviewLoading = false,
   treeChangedOnly = false,
 }: ReviewWorkbenchStoryProps) {
+  const [storyState, setStoryState] = useState(state);
+  const [storyFile, setStoryFile] = useState(file);
+  const [storyViewerError, setStoryViewerError] = useState(viewerError);
+  const [storyViewerSourceMissing, setStoryViewerSourceMissing] =
+    useState(viewerSourceMissing);
   const [storyActiveCommentId, setStoryActiveCommentId] =
     useState(activeCommentId);
   const [storyCommentsPanelOpen, setStoryCommentsPanelOpen] =
@@ -143,6 +150,22 @@ export function ReviewWorkbenchStory({
   }
 
   useEffect(() => {
+    setStoryState(state);
+  }, [state]);
+
+  useEffect(() => {
+    setStoryFile(file);
+  }, [file]);
+
+  useEffect(() => {
+    setStoryViewerError(viewerError);
+  }, [viewerError]);
+
+  useEffect(() => {
+    setStoryViewerSourceMissing(viewerSourceMissing);
+  }, [viewerSourceMissing]);
+
+  useEffect(() => {
     setStoryActiveCommentId(activeCommentId);
   }, [activeCommentId]);
 
@@ -162,15 +185,28 @@ export function ReviewWorkbenchStory({
     setCompactInspectorOpen(false);
   }, [compactInspector]);
 
-  const selectedPath = file?.path ?? null;
+  function openReviewQueuePath(path: string) {
+    if (!reviewQueueOpenFile || reviewQueueOpenFile.path !== path) return;
+    setStoryFile(reviewQueueOpenFile);
+    setStoryState("ready");
+    setStoryViewerSourceMissing(false);
+    setStoryActiveCommentId(null);
+    setStoryCommentsPanelOpen(false);
+  }
+
+  const selectedPath = storyFile?.path ?? null;
   const activeTabs =
     tabs ??
-    (file
-      ? sampleTabs.some((tab) => tab.path === file.path)
+    (storyFile
+      ? sampleTabs.some((tab) => tab.path === storyFile.path)
         ? sampleTabs
         : [
             ...sampleTabs,
-            { path: file.path, viewerKind: file.viewerKind, paneId: "main" },
+            {
+              path: storyFile.path,
+              viewerKind: storyFile.viewerKind,
+              paneId: "main",
+            },
           ]
       : []);
   const activeComments = selectedPath
@@ -185,15 +221,17 @@ export function ReviewWorkbenchStory({
     comments,
   );
   const outline =
-    file?.viewerKind === "markdown" ? extractMarkdownOutline(file.content) : [];
+    storyFile?.viewerKind === "markdown"
+      ? extractMarkdownOutline(storyFile.content)
+      : [];
   const resolvedViewerMode =
-    viewerMode ?? (file ? defaultViewerMode(file) : undefined);
+    viewerMode ?? (storyFile ? defaultViewerMode(storyFile) : undefined);
   const statusLabel =
-    state === "disconnected"
+    storyState === "disconnected"
       ? "comments watch disconnected"
-      : state === "loading"
+      : storyState === "loading"
         ? "loading workspace"
-        : state === "error"
+        : storyState === "error"
           ? "review adapter error"
           : "watching";
   const explorerFilterSummary = {
@@ -207,14 +245,14 @@ export function ReviewWorkbenchStory({
       className={[
         "app-shell",
         "story-workbench",
-        `story-workbench-${state}`,
+        `story-workbench-${storyState}`,
         compactInspector ? "story-workbench-compact-inspector" : "",
       ]
         .filter(Boolean)
         .join(" ")}
     >
       <Topbar
-        root={state === "empty" ? null : storyRoot}
+        root={storyState === "empty" ? null : storyRoot}
         themePreference="system"
         openCommentThreadCount={
           buildCommentThreads(comments).filter(
@@ -246,29 +284,29 @@ export function ReviewWorkbenchStory({
             <span>Explorer</span>
             <span
               aria-label={
-                state === "disconnected"
+                storyState === "disconnected"
                   ? "Workspace events disconnected"
                   : explorerFilterLabel(explorerFilterSummary)
               }
               className={
-                state === "disconnected" || treeChangedOnly
+                storyState === "disconnected" || treeChangedOnly
                   ? "pill active"
                   : "pill"
               }
               title={
-                state === "disconnected"
+                storyState === "disconnected"
                   ? "Workspace events disconnected"
                   : explorerFilterLabel(explorerFilterSummary)
               }
             >
-              {state === "disconnected"
+              {storyState === "disconnected"
                 ? "offline"
                 : explorerFilterText(explorerFilterSummary)}
             </span>
           </div>
-          {state === "loading" ? (
+          {storyState === "loading" ? (
             <p className="muted">Loading tree...</p>
-          ) : state === "empty" ? (
+          ) : storyState === "empty" ? (
             <p className="muted compact-empty">No workspace selected.</p>
           ) : (
             <TreeSidebar
@@ -306,23 +344,25 @@ export function ReviewWorkbenchStory({
               onManualDragStart={noop}
             />
             <div className="viewer-pane">
-              {state === "error" ? (
+              {storyState === "error" ? (
                 <WorkbenchErrorMessage
-                  error={viewerError}
+                  error={storyViewerError}
                   path={selectedPath}
-                  sourceMissing={viewerSourceMissing}
+                  sourceMissing={storyViewerSourceMissing}
                 />
-              ) : state === "loading" ? (
+              ) : storyState === "loading" ? (
                 <div className="empty-viewer" aria-live="polite">
                   Loading preview...
                 </div>
               ) : (
                 <FileViewer
-                  file={state === "empty" ? null : file}
+                  file={storyState === "empty" ? null : storyFile}
                   allowHtmlScripts={false}
                   theme="light"
                   selectedCodeRange={
-                    file?.viewerKind === "code" ? { start: 9, end: 12 } : null
+                    storyFile?.viewerKind === "code"
+                      ? { start: 9, end: 12 }
+                      : null
                   }
                   viewerMode={resolvedViewerMode}
                   diff={diff}
@@ -379,32 +419,34 @@ export function ReviewWorkbenchStory({
           </>
         ) : null}
         <Inspector
-          file={state === "empty" ? null : file}
+          file={storyState === "empty" ? null : storyFile}
           reviewChanges={reviewChanges}
           reviewItems={reviewItems}
           reviewUnavailableReason={
-            state === "disconnected"
+            storyState === "disconnected"
               ? "Comment activity subscription disconnected; showing last known review state."
               : null
           }
           reviewDiffStats={diffStats}
           loadingReviewDiffs={
-            state === "loading" && selectedPath ? { [selectedPath]: true } : {}
+            storyState === "loading" && selectedPath
+              ? { [selectedPath]: true }
+              : {}
           }
           unreadReviewPaths={unreadReviewPaths}
           comments={activeComments}
           draftComments={activeDrafts}
-          commentsLoading={state === "loading"}
+          commentsLoading={storyState === "loading"}
           threadActivities={threadActivities}
           selectedCodeRange={
-            file?.viewerKind === "code" ? { start: 9, end: 12 } : null
+            storyFile?.viewerKind === "code" ? { start: 9, end: 12 } : null
           }
           refreshedAt={
-            state === "disconnected" ? Date.now() - 90_000 : undefined
+            storyState === "disconnected" ? Date.now() - 90_000 : undefined
           }
           activePaneId="main"
-          onOpenEventPath={noop}
-          onConfirmEventPath={noop}
+          onOpenEventPath={openReviewQueuePath}
+          onConfirmEventPath={openReviewQueuePath}
           onOpenNextChanged={noop}
           onOpenPreviousChanged={noop}
           onOpenAllChanged={noop}
@@ -423,7 +465,7 @@ export function ReviewWorkbenchStory({
         </span>
         <span className="statusbar-group">
           <span
-            className={`status-dot ${state === "loading" ? "pending" : "live"}`}
+            className={`status-dot ${storyState === "loading" ? "pending" : "live"}`}
             aria-hidden="true"
           />
           {statusLabel}

@@ -6,6 +6,10 @@ import {
   type DraftReviewComment,
   type ViviComment,
 } from "../domain/comments.js";
+import {
+  setPaneActivePath,
+  type EditorLayout,
+} from "./editor-layout.js";
 import type { ReviewQueueItem } from "./review-queue.js";
 
 export type ReviewNavigationDirection = "next" | "previous";
@@ -31,6 +35,36 @@ export interface ReviewNavigationTarget {
   label: string;
   detail: string;
   sortKey: string;
+}
+
+export interface ReviewQueueOpenTransition {
+  activeCommentId: null;
+  activeCommentRect: null;
+  commentsPanelOpen: false;
+  error: null;
+  layout: EditorLayout;
+  paletteOpen: false;
+  shortcutHelpOpen: false;
+}
+
+export function reviewQueueOpenTransition({
+  layout,
+  paneId,
+  path,
+}: {
+  layout: EditorLayout;
+  paneId: string;
+  path: string;
+}): ReviewQueueOpenTransition {
+  return {
+    activeCommentId: null,
+    activeCommentRect: null,
+    commentsPanelOpen: false,
+    error: null,
+    layout: setPaneActivePath(layout, paneId, path),
+    paletteOpen: false,
+    shortcutHelpOpen: false,
+  };
 }
 
 export function openThreadNavigationTargets(
