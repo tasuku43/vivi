@@ -127,7 +127,10 @@ export function Inspector({
     }));
   const queueProgress = summarizeReviewQueue(queueItems);
   const queuePosition = reviewQueuePosition(queueItems, activePath);
-  const queueProgressValueText = reviewQueueProgressValueText(queueProgress);
+  const queueProgressValueText = reviewQueueProgressValueText(
+    queueProgress,
+    reviewLoading,
+  );
   const displayQueueItems = pinActiveReviewQueueItem(queueItems, activePath);
   const activeDisplayIndex = displayQueueItems.findIndex(
     (item) => item.path === queuePosition.activePath,
@@ -206,9 +209,11 @@ export function Inspector({
                 {queueProgress.seen}/{queueProgress.total}
               </strong>{" "}
               files seen
-              {queueProgress.unread
-                ? ` · ${queueProgress.unread} unseen`
-                : " · all seen"}
+              {reviewLoading
+                ? " · loading changed files"
+                : queueProgress.unread
+                  ? ` · ${queueProgress.unread} unseen`
+                  : " · all seen"}
               {queueProgress.openThreads
                 ? ` · ${queueProgress.openThreads} open ${queueProgress.openThreads === 1 ? "thread" : "threads"}`
                 : ""}
@@ -304,19 +309,14 @@ export function Inspector({
                     title="Click to preview; double-click to keep open as a tab"
                     type="button"
                   >
-                    <span
-                      className="sr-only"
-                      id={reviewQueueItemDescriptionId}
-                    >
+                    <span className="sr-only" id={reviewQueueItemDescriptionId}>
                       {reviewQueueItemDescription(item, {
                         active,
                         reviewStop,
                       })}
                     </span>
                     <span
-                      className={
-                        item.unread ? "unread-dot" : "unread-dot read"
-                      }
+                      className={item.unread ? "unread-dot" : "unread-dot read"}
                       aria-hidden="true"
                     />
                     <span className="file-icon change-icon">
@@ -497,8 +497,8 @@ export function Inspector({
               {activeThreadCounts.open === 1 ? "thread" : "threads"}
             </strong>
             <span>
-              {comments.length}{" "}
-              {comments.length === 1 ? "message" : "messages"} in this file
+              {comments.length} {comments.length === 1 ? "message" : "messages"}{" "}
+              in this file
             </span>
             {draftComments.length ? (
               <span className="draft-comment-summary">
@@ -518,7 +518,10 @@ export function Inspector({
               </div>
             ) : null}
             {activeThreads.length ? (
-              <div className="active-comment-threads" aria-label="Active file comment threads">
+              <div
+                className="active-comment-threads"
+                aria-label="Active file comment threads"
+              >
                 {activeThreads.slice(0, 4).map((thread) => {
                   const activity = threadActivities[thread.id];
                   const primaryComment = thread.comments[0]!;
@@ -536,14 +539,12 @@ export function Inspector({
                   const sourceState = sourceMissing
                     ? {
                         label: "Source missing",
-                        aria:
-                          "This comment points to a path that is not present in the current workspace tree",
+                        aria: "This comment points to a path that is not present in the current workspace tree",
                       }
                     : sourceChanged
                       ? {
                           label: "Source changed",
-                          aria:
-                            "Current file content differs from this comment anchor",
+                          aria: "Current file content differs from this comment anchor",
                         }
                       : null;
                   const latestPreview = truncateCommentPreview(
@@ -614,7 +615,9 @@ export function Inspector({
                         </span>
                         <span className="active-comment-thread-meta">
                           {thread.comments.length}{" "}
-                          {thread.comments.length === 1 ? "message" : "messages"}
+                          {thread.comments.length === 1
+                            ? "message"
+                            : "messages"}
                           {" · "}
                           updated {formatThreadTime(thread.updatedAt)}
                         </span>
@@ -748,12 +751,12 @@ export function Inspector({
                       <span className="outline-level">H{heading.level}</span>
                       <span className="outline-text">{heading.text}</span>
                       {heading.lineStart ? (
-                        <span className="outline-line">L{heading.lineStart}</span>
+                        <span className="outline-line">
+                          L{heading.lineStart}
+                        </span>
                       ) : null}
                       {active ? (
-                        <span className="outline-current">
-                          Current section
-                        </span>
+                        <span className="outline-current">Current section</span>
                       ) : null}
                     </button>
                   );
@@ -844,16 +847,21 @@ function activeFileReviewLabel(openComments: number): string {
   return `${openComments} open threads`;
 }
 
-function reviewQueueProgressValueText(queueProgress: {
-  seen: number;
-  total: number;
-  unread: number;
-}): string {
+function reviewQueueProgressValueText(
+  queueProgress: {
+    seen: number;
+    total: number;
+    unread: number;
+  },
+  reviewLoading: boolean,
+): string {
   return [
-    `${queueProgress.seen} of ${queueProgress.total} review files seen`,
-    queueProgress.unread
-      ? `${queueProgress.unread} unseen`
-      : "all review files seen",
+    `${queueProgress.seen} of ${queueProgress.total} ${reviewLoading ? "loaded review files" : "review files"} seen`,
+    reviewLoading
+      ? "loading changed files"
+      : queueProgress.unread
+        ? `${queueProgress.unread} unseen`
+        : "all review files seen",
   ].join(", ");
 }
 
@@ -1061,10 +1069,8 @@ function countThreadsByStatus(
 ): Record<CommentStatus, number> {
   return {
     open: threads.filter((thread) => thread.status === "open").length,
-    resolved: threads.filter((thread) => thread.status === "resolved")
-      .length,
-    archived: threads.filter((thread) => thread.status === "archived")
-      .length,
+    resolved: threads.filter((thread) => thread.status === "resolved").length,
+    archived: threads.filter((thread) => thread.status === "archived").length,
   };
 }
 
@@ -1077,7 +1083,8 @@ function summarizeActiveThreads(comments: ViviComment[]): CommentThread[] {
       ),
     }))
     .sort((a, b) => {
-      const statusDelta = commentStatusRank(a.status) - commentStatusRank(b.status);
+      const statusDelta =
+        commentStatusRank(a.status) - commentStatusRank(b.status);
       if (statusDelta) return statusDelta;
       return b.updatedAt.localeCompare(a.updatedAt);
     });

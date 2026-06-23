@@ -3590,6 +3590,48 @@ it("keeps the Review Queue in a loading state while Git review is loading", () =
   expect(html).not.toContain("Active queue clear");
 });
 
+it("does not mark comment-only Review Queue results complete while Git review is loading", () => {
+  const html = renderToStaticMarkup(
+    <Inspector
+      file={null}
+      reviewChanges={[]}
+      reviewItems={[
+        {
+          path: "net/netfilter/xt_RATEEST.c",
+          change: null,
+          threadCounts: { open: 1, resolved: 0, archived: 0 },
+          commentCount: 3,
+          unread: false,
+        },
+      ]}
+      reviewLoading
+      reviewDiffStats={{}}
+      loadingReviewDiffs={{}}
+      unreadReviewPaths={new Set()}
+      selectedCodeRange={null}
+      activePath="net/netfilter/xt_RATEEST.c"
+      activePaneId="main"
+      onOpenEventPath={() => undefined}
+      onConfirmEventPath={() => undefined}
+      onOpenNextChanged={() => undefined}
+      onOpenPreviousChanged={() => undefined}
+      onOpenAllChanged={() => undefined}
+      onRevealInTree={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("<strong>1/1</strong> files seen");
+  expect(html).toContain("loading changed files");
+  expect(html).toContain(
+    'aria-valuetext="1 of 1 loaded review files seen, loading changed files"',
+  );
+  expect(html).toContain(
+    'aria-label="Review queue, 1 of 1 loaded review files seen, loading changed files"',
+  );
+  expect(html).not.toContain("all seen");
+  expect(html).not.toContain("all review files seen");
+});
+
 it("shows partial Review Queue results as a warning", () => {
   const html = renderToStaticMarkup(
     <Inspector

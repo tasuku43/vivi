@@ -149,42 +149,42 @@ export const ResolvedThreadActivityIsHistory: Story = {
 };
 
 export const ResolvedThreadActivityFromUnknownActor: Story = {
-	args: {
-		file: sampleFiles.queue,
-		activePath: resolvedHandoffComment.path,
-		reviewChanges: [resolvedHandoffChange],
-		reviewItems: buildReviewQueueItems(
-			[resolvedHandoffChange],
-			[resolvedHandoffComment],
-			{
-				"thread-resolved": summarizeThreadActivity(
-					[
-						{
-							id: "activity-unknown-coding-agent",
-							threadId: "thread-resolved",
-							type: "thread_status_changed",
-							actor: unknownCodingAgent,
-							previousStatus: "open",
-							status: "resolved",
-							createdAt: "2026-06-20T09:05:00.000Z",
-						},
-					],
-					storyNow,
-				),
-			},
-			new Set(),
-		),
-		comments: [],
-		reviewComments: [resolvedHandoffComment],
-		unreadReviewPaths: new Set(),
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await expect(
-			canvas.getByText("coding-agent marked resolved"),
-		).toBeInTheDocument();
-		await expect(canvas.queryByText("Unknown agent")).not.toBeInTheDocument();
-	},
+  args: {
+    file: sampleFiles.queue,
+    activePath: resolvedHandoffComment.path,
+    reviewChanges: [resolvedHandoffChange],
+    reviewItems: buildReviewQueueItems(
+      [resolvedHandoffChange],
+      [resolvedHandoffComment],
+      {
+        "thread-resolved": summarizeThreadActivity(
+          [
+            {
+              id: "activity-unknown-coding-agent",
+              threadId: "thread-resolved",
+              type: "thread_status_changed",
+              actor: unknownCodingAgent,
+              previousStatus: "open",
+              status: "resolved",
+              createdAt: "2026-06-20T09:05:00.000Z",
+            },
+          ],
+          storyNow,
+        ),
+      },
+      new Set(),
+    ),
+    comments: [],
+    reviewComments: [resolvedHandoffComment],
+    unreadReviewPaths: new Set(),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByText("coding-agent marked resolved"),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByText("Unknown agent")).not.toBeInTheDocument();
+  },
 };
 
 export const ActiveFileSourceChangedAnchor: Story = {
@@ -368,5 +368,37 @@ export const LoadingGitReview: Story = {
     await expect(
       canvas.queryByText("Active queue clear"),
     ).not.toBeInTheDocument();
+  },
+};
+
+export const LoadingGitReviewWithOpenThreads: Story = {
+  args: {
+    file: null,
+    activePath: sampleFiles.code.path,
+    reviewChanges: [],
+    reviewItems: buildReviewQueueItems(
+      [],
+      sampleComments.filter(
+        (comment) => comment.path === sampleFiles.code.path,
+      ),
+      sampleThreadActivities,
+      new Set(),
+    ),
+    comments: [],
+    reviewComments: sampleComments.filter(
+      (comment) => comment.path === sampleFiles.code.path,
+    ),
+    reviewLoading: true,
+    unreadReviewPaths: new Set(),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("loading changed files")).toBeInTheDocument();
+    await expect(canvas.queryByText("all seen")).not.toBeInTheDocument();
+    await expect(
+      canvas.getByText(
+        "Loading Git review; open comment threads may appear before changed files.",
+      ),
+    ).toBeInTheDocument();
   },
 };
