@@ -1301,6 +1301,43 @@ func TestCommentsCLIProtocolPropagatesReceiptLogIntoAgentRecipes(t *testing.T) {
 	}
 }
 
+func TestCommentsCLIProtocolAndSchemaAcceptURLForAgentStartup(t *testing.T) {
+	serverURL := "http://127.0.0.1:4455"
+	out := runCommentsCLIForTest(t, "protocol", "--url", serverURL, "--json")
+	var payload struct {
+		Startup []struct {
+			Intent string   `json:"intent"`
+			Args   []string `json:"args"`
+		} `json:"startup"`
+		Recovery []struct {
+			Intent string   `json:"intent"`
+			Args   []string `json:"args"`
+		} `json:"recovery"`
+		PreferredLoop struct {
+			Args []string `json:"args"`
+		} `json:"preferredLoop"`
+		StructuredWrites []commentSuggestedCommand `json:"structuredWrites"`
+	}
+	decodeCLIJSON(t, out, &payload)
+	if len(payload.Startup) != 3 || !containsString(payload.Startup[0].Args, serverURL) || !containsString(payload.Startup[1].Args, serverURL) || !containsString(payload.Startup[2].Args, serverURL) {
+		t.Fatalf("protocol startup URL propagation = %#v", payload.Startup)
+	}
+	if len(payload.Recovery) != 1 || !containsString(payload.Recovery[0].Args, serverURL) {
+		t.Fatalf("protocol recovery URL propagation = %#v", payload.Recovery)
+	}
+	if !containsString(payload.PreferredLoop.Args, serverURL) {
+		t.Fatalf("preferred loop URL propagation = %#v", payload.PreferredLoop)
+	}
+	if len(payload.StructuredWrites) != 4 || !containsString(payload.StructuredWrites[0].Args, serverURL) {
+		t.Fatalf("structured write URL propagation = %#v", payload.StructuredWrites)
+	}
+
+	schema := runCommentsCLIForTest(t, "schema", "all", "--url", serverURL, "--json")
+	if !strings.Contains(schema.String(), "commentProtocolManifest") {
+		t.Fatalf("schema --url payload = %s", schema.String())
+	}
+}
+
 func TestCommentsCLIClassifiesServerUnreachableForAgentRecovery(t *testing.T) {
 	err := errors.New(`Post "http://127.0.0.1:4317/graphql": dial tcp 127.0.0.1:4317: connect: connection refused`)
 	if code := commentsErrorCode("doctor", err); code != "server_unreachable" {

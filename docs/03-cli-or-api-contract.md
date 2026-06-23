@@ -116,8 +116,10 @@ vivi comments release <thread-id> --actor codex --triage-file - --require-claim 
 vivi comments done <thread-id> --actor codex --body-file /tmp/vivi-reply.md --require-claim --json
 vivi comments done <thread-id> --actor codex --result-file /tmp/vivi-result.json --require-claim --json
 vivi comments protocol --json
+vivi comments protocol --url http://127.0.0.1:4317 --json
 vivi comments protocol --receipt-log /tmp/vivi-agent-receipts.jsonl --json
 vivi comments schema all --json
+vivi comments schema all --url http://127.0.0.1:4317 --json
 vivi comments doctor --actor codex --client-event-id doctor-start-1 --json
 vivi comments watch --actor claude-code --full --json
 vivi comments watch --actor claude-code --json
@@ -598,7 +600,9 @@ passive intake alternatives, single-thread companion commands, structured write
 recipes, schema lookup commands, and the JSON error policy. The protocol
 manifest is server-independent; it tells the adapter how to drive the CLI,
 while runtime events and `comments check` can still return more specific
-`suggestedCommands` for the current thread.
+`suggestedCommands` for the current thread. `protocol` and `schema` accept
+`--url` even though they do not contact the server; when a URL is supplied, the
+protocol carries that selected server through its runtime command recipes.
 The manifest is self-describing: `manifestSchema` is
 `commentProtocolManifest`, and `manifestSchemaCommand` is the exact argv for
 fetching the JSON Schema that validates `comments protocol --json`.

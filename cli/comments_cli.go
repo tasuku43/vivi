@@ -824,10 +824,17 @@ func parseCommentsSchemaFlags(args []string) (commentsCommandOptions, []string, 
 	options := commentsCommandOptions{JSON: true}
 	flags := flag.NewFlagSet("vivi comments schema", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
+	flags.StringVar(&options.URL, "url", "", "Vivi server URL")
 	flags.BoolVar(&options.JSON, "json", true, "write JSON output")
 	flagArgs, positional := splitCommentsFlagsAndPositionals(args)
 	if err := flags.Parse(flagArgs); err != nil {
 		return options, nil, err
+	}
+	options.URL = strings.TrimRight(options.URL, "/")
+	if options.URL != "" {
+		if _, err := url.ParseRequestURI(options.URL); err != nil {
+			return options, nil, fmt.Errorf("invalid --url: %w", err)
+		}
 	}
 	return options, append(positional, flags.Args()...), nil
 }
@@ -836,11 +843,18 @@ func parseCommentsProtocolFlags(args []string) (commentsCommandOptions, []string
 	options := commentsCommandOptions{JSON: true}
 	flags := flag.NewFlagSet("vivi comments protocol", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
+	flags.StringVar(&options.URL, "url", "", "Vivi server URL")
 	flags.BoolVar(&options.JSON, "json", true, "write JSON output")
 	flags.StringVar(&options.ReceiptLog, "receipt-log", "", "path to append successful write receipts as JSONL")
 	flagArgs, positional := splitCommentsFlagsAndPositionals(args)
 	if err := flags.Parse(flagArgs); err != nil {
 		return options, nil, err
+	}
+	options.URL = strings.TrimRight(options.URL, "/")
+	if options.URL != "" {
+		if _, err := url.ParseRequestURI(options.URL); err != nil {
+			return options, nil, fmt.Errorf("invalid --url: %w", err)
+		}
 	}
 	if strings.TrimSpace(options.ReceiptLog) == "-" {
 		return options, nil, errors.New("protocol --receipt-log requires a path, not -")
@@ -963,6 +977,7 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 	actor := "<actor-id>"
 	thread := "<thread-id>"
 	receiptLog := strings.TrimSpace(options.ReceiptLog)
+	serverURL := strings.TrimSpace(options.URL)
 	return map[string]any{
 		"name":                  "vivi-comments-agent-protocol",
 		"version":               commentsStreamSchemaVersion,
@@ -984,19 +999,19 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 			{
 				"intent":  "load_protocol_manifest",
 				"command": "comments protocol",
-				"args":    withReceiptLogArg([]string{"comments", "protocol", "--json"}, receiptLog),
+				"args":    withRuntimeArgs([]string{"comments", "protocol", "--json"}, serverURL, receiptLog),
 				"reason":  "Discover the preferred agent loop, schema commands, event names, and write preflight contract.",
 			},
 			{
 				"intent":  "cache_runtime_schemas",
 				"command": "comments schema",
-				"args":    []string{"comments", "schema", "all", "--json"},
+				"args":    withURLArg([]string{"comments", "schema", "all", "--json"}, serverURL),
 				"reason":  "Cache stdin and stream JSON Schemas without contacting a Vivi server.",
 			},
 			{
 				"intent":  "check_server_readiness",
 				"command": "comments doctor",
-				"args":    withReceiptLogArg([]string{"comments", "doctor", "--actor", actor, "--client-event-id", "<client-event-id>", "--json"}, receiptLog),
+				"args":    withRuntimeArgs([]string{"comments", "doctor", "--actor", actor, "--client-event-id", "<client-event-id>", "--json"}, serverURL, receiptLog),
 				"reason":  "Verify the selected Vivi server is reachable and discover the current open-work readiness before entering a resident loop.",
 			},
 		},
@@ -1004,14 +1019,14 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 			{
 				"intent":  "recover_owned_live_claims",
 				"command": "comments mine",
-				"args":    []string{"comments", "mine", "--actor", actor, "--full", "--json"},
+				"args":    withURLArg([]string{"comments", "mine", "--actor", actor, "--full", "--json"}, serverURL),
 				"reason":  "After an adapter restart, inspect live claims already owned by this actor before claiming new GUI feedback.",
 			},
 		},
 		"preferredLoop": map[string]any{
 			"intent":  "resident_owned_work_loop",
 			"command": "comments work",
-			"args":    withReceiptLogArg([]string{"comments", "work", "--actor", actor, "--client-event-id", "<client-event-id>", "--wait", "--loop", "--idle-events", "--full", "--json"}, receiptLog),
+			"args":    withRuntimeArgs([]string{"comments", "work", "--actor", actor, "--client-event-id", "<client-event-id>", "--wait", "--loop", "--idle-events", "--full", "--json"}, serverURL, receiptLog),
 			"events":  []string{"commentWorkClaimedEvent", "commentActivityBatchEvent", "commentWorkIdleEvent"},
 			"reason":  "Claim GUI feedback as owned work, keep the lease alive while working, observe follow-up activity, and continue to the next thread after terminal status.",
 		},
@@ -1019,14 +1034,14 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 			{
 				"intent":  "passive_open_worklist",
 				"command": "comments watch",
-				"args":    withReceiptLogArg([]string{"comments", "watch", "--actor", actor, "--client-event-id", "<client-event-id>", "--full", "--json"}, receiptLog),
+				"args":    withRuntimeArgs([]string{"comments", "watch", "--actor", actor, "--client-event-id", "<client-event-id>", "--full", "--json"}, serverURL, receiptLog),
 				"events":  []string{"commentOpenWorklistEvent"},
 				"reason":  "Observe GUI-published open threads without claiming them; follow the event's claim_next_open_thread suggestion to take ownership.",
 			},
 			{
 				"intent":  "blocking_single_claim",
 				"command": "comments claim",
-				"args":    withReceiptLogArg([]string{"comments", "claim", "--actor", actor, "--client-event-id", "<client-event-id>", "--wait", "--full", "--json"}, receiptLog),
+				"args":    withRuntimeArgs([]string{"comments", "claim", "--actor", actor, "--client-event-id", "<client-event-id>", "--wait", "--full", "--json"}, serverURL, receiptLog),
 				"reason":  "Wait for one claimable thread and return a single rich work item.",
 			},
 		},
@@ -1034,22 +1049,22 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 			{
 				"intent":  "follow_active_thread",
 				"command": "comments follow",
-				"args":    withReceiptLogArg([]string{"comments", "follow", thread, "--actor", actor, "--full", "--json"}, receiptLog),
+				"args":    withRuntimeArgs([]string{"comments", "follow", thread, "--actor", actor, "--full", "--json"}, serverURL, receiptLog),
 				"events":  []string{"commentActivityBatchEvent"},
 				"reason":  "Watch human follow-up, own replies, status changes, and releases for a thread already in progress.",
 			},
 			{
 				"intent":  "preflight_guarded_write",
 				"command": "comments check",
-				"args":    withReceiptLogArg([]string{"comments", "check", thread, "--actor", actor, "--full", "--json"}, receiptLog),
+				"args":    withRuntimeArgs([]string{"comments", "check", thread, "--actor", actor, "--full", "--json"}, serverURL, receiptLog),
 				"reason":  "Branch on live claim ownership before using --require-claim writes; prefer write.suggestedCommands when present.",
 			},
 		},
 		"structuredWrites": []commentSuggestedCommand{
-			suggestedCommentsCommandWithClientEventID("acknowledge_feedback", "comments triage", withReceiptLogArg([]string{"comments", "triage", thread, "--actor", actor, "--triage-file", "-", "--require-claim", "--json"}, receiptLog), "commentTriageFileInput", "Post a non-terminal structured acknowledgement, clarification request, or blocked status.", "<client-event-id>"),
-			suggestedCommentsCommandWithClientEventID("handoff_after_blocked_or_needs_info", "comments release", withReceiptLogArg([]string{"comments", "release", thread, "--actor", actor, "--triage-file", "-", "--require-claim", "--json"}, receiptLog), "commentTriageFileInput", "Post a structured blocked or needs-info handoff comment, then release the live claim for another attempt.", "<client-event-id>"),
-			suggestedCommentsCommandWithClientEventID("complete_after_verification", "comments done", withReceiptLogArg([]string{"comments", "done", thread, "--actor", actor, "--result-file", "-", "--require-claim", "--json"}, receiptLog), "commentResultFileInput", "Resolve the thread with structured verification after the fix is complete.", "<client-event-id>"),
-			suggestedCommentsCommandWithClientEventID("archive_after_decision", "comments dismiss", withReceiptLogArg([]string{"comments", "dismiss", thread, "--actor", actor, "--result-file", "-", "--require-claim", "--json"}, receiptLog), "commentResultFileInput", "Archive the thread with a structured explanation when the feedback is intentionally not fixed.", "<client-event-id>"),
+			suggestedCommentsCommandWithClientEventID("acknowledge_feedback", "comments triage", withRuntimeArgs([]string{"comments", "triage", thread, "--actor", actor, "--triage-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "commentTriageFileInput", "Post a non-terminal structured acknowledgement, clarification request, or blocked status.", "<client-event-id>"),
+			suggestedCommentsCommandWithClientEventID("handoff_after_blocked_or_needs_info", "comments release", withRuntimeArgs([]string{"comments", "release", thread, "--actor", actor, "--triage-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "commentTriageFileInput", "Post a structured blocked or needs-info handoff comment, then release the live claim for another attempt.", "<client-event-id>"),
+			suggestedCommentsCommandWithClientEventID("complete_after_verification", "comments done", withRuntimeArgs([]string{"comments", "done", thread, "--actor", actor, "--result-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "commentResultFileInput", "Resolve the thread with structured verification after the fix is complete.", "<client-event-id>"),
+			suggestedCommentsCommandWithClientEventID("archive_after_decision", "comments dismiss", withRuntimeArgs([]string{"comments", "dismiss", thread, "--actor", actor, "--result-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "commentResultFileInput", "Archive the thread with a structured explanation when the feedback is intentionally not fixed.", "<client-event-id>"),
 		},
 		"eventSchemas": map[string]any{
 			"commentOpenWorklistEvent":  commentSchemaCommandArgs("commentOpenWorklistEvent"),
