@@ -52,6 +52,113 @@ type reviewRoutingSummary struct {
 	SuggestedCommands []commentSuggestedCommand `json:"suggestedCommands,omitempty"`
 }
 
+type reviewCommandError struct {
+	cause   error
+	payload reviewErrorEnvelope
+}
+
+type reviewErrorEnvelope struct {
+	Error reviewErrorOutput `json:"error"`
+}
+
+type reviewErrorOutput struct {
+	SchemaVersion     int                       `json:"schemaVersion"`
+	Code              string                    `json:"code"`
+	Message           string                    `json:"message"`
+	Command           string                    `json:"command"`
+	Args              []string                  `json:"args,omitempty"`
+	Recoverable       bool                      `json:"recoverable"`
+	SuggestedCommands []commentSuggestedCommand `json:"suggestedCommands,omitempty"`
+}
+
+func (err *reviewCommandError) Error() string {
+	return err.cause.Error()
+}
+
+func (err *reviewCommandError) Unwrap() error {
+	return err.cause
+}
+
+func (err *reviewCommandError) CLIPayload() any {
+	return err.payload
+}
+
+func newReviewCommandError(args []string, cause error) error {
+	commandName := ""
+	command := "review"
+	if len(args) > 0 {
+		commandName = args[0]
+		command = "review " + commandName
+	}
+	code := reviewErrorCode(commandName, cause)
+	return &reviewCommandError{
+		cause: cause,
+		payload: reviewErrorEnvelope{
+			Error: reviewErrorOutput{
+				SchemaVersion:     reviewCLISchemaVersion,
+				Code:              code,
+				Message:           cause.Error(),
+				Command:           command,
+				Args:              append([]string{"review"}, args...),
+				Recoverable:       reviewErrorRecoverable(code),
+				SuggestedCommands: suggestedCommandsForReviewError(args, code),
+			},
+		},
+	}
+}
+
+func reviewWantsJSON(args []string) bool {
+	return commentsWantsJSON(args)
+}
+
+func reviewErrorCode(command string, err error) string {
+	message := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(message, "connection refused") ||
+		strings.Contains(message, "connect:") ||
+		strings.Contains(message, "no such host") ||
+		strings.Contains(message, "context deadline exceeded"):
+		return "server_unreachable"
+	case strings.Contains(message, "graphql error"):
+		return "upstream_graphql_error"
+	case strings.Contains(message, "requires") ||
+		strings.Contains(message, "unexpected argument") ||
+		strings.Contains(message, "unknown review command") ||
+		strings.Contains(message, "invalid --url"):
+		return "invalid_arguments"
+	default:
+		if command == "" {
+			return "invalid_arguments"
+		}
+		return "review_command_failed"
+	}
+}
+
+func reviewErrorRecoverable(code string) bool {
+	switch code {
+	case "server_unreachable", "upstream_graphql_error", "review_command_failed":
+		return true
+	default:
+		return false
+	}
+}
+
+func suggestedCommandsForReviewError(args []string, code string) []commentSuggestedCommand {
+	serverURL := commentsSuggestedServerURL(args)
+	switch code {
+	case "server_unreachable", "upstream_graphql_error", "review_command_failed":
+		return []commentSuggestedCommand{
+			suggestedCommentsCommand("retry_review_queue", "review queue", withURLArg([]string{"review", "queue", "--json"}, serverURL), "", "After starting Vivi or correcting --url/VIVI_URL, retry the Git working-tree review queue."),
+		}
+	case "invalid_arguments":
+		return []commentSuggestedCommand{
+			suggestedCommentsCommand("inspect_review_help", "review --help", []string{"review", "--help"}, "", "Inspect the Git working-tree review CLI usage before retrying."),
+		}
+	default:
+		return nil
+	}
+}
+
 func runReviewCommand(ctx context.Context, args []string, stdout io.Writer) error {
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
 		fmt.Fprintln(stdout, reviewHelpText())

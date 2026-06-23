@@ -89,6 +89,38 @@ func TestReviewHelpTextSurfacesAgentQuickPath(t *testing.T) {
 	}
 }
 
+func TestReviewJSONErrorEnvelopeForAgentCLI(t *testing.T) {
+	err := run([]string{"review", "diff", "--json"})
+	if err == nil {
+		t.Fatal("expected review diff without a path to fail")
+	}
+	payload, ok := cliErrorPayload(err)
+	if !ok {
+		t.Fatalf("expected structured review CLI error, got %T %v", err, err)
+	}
+	envelope, ok := payload.(reviewErrorEnvelope)
+	if !ok {
+		t.Fatalf("unexpected review error payload type %T", payload)
+	}
+	if envelope.Error.SchemaVersion != reviewCLISchemaVersion || envelope.Error.Code != "invalid_arguments" || envelope.Error.Command != "review diff" || envelope.Error.Recoverable {
+		t.Fatalf("unexpected review error envelope: %#v", envelope)
+	}
+	if !strings.Contains(envelope.Error.Message, "requires exactly one path") || !containsString(envelope.Error.Args, "review") || !containsString(envelope.Error.Args, "--json") {
+		t.Fatalf("incomplete review error envelope: %#v", envelope)
+	}
+	if len(envelope.Error.SuggestedCommands) != 1 || envelope.Error.SuggestedCommands[0].Command != "review --help" {
+		t.Fatalf("review error suggestions = %#v", envelope.Error.SuggestedCommands)
+	}
+
+	plain := run([]string{"review", "diff", "--json=false"})
+	if plain == nil {
+		t.Fatal("expected plain review error")
+	}
+	if _, ok := cliErrorPayload(plain); ok {
+		t.Fatalf("did not expect structured review payload when --json=false: %T", plain)
+	}
+}
+
 func runReviewCLIForTest(t *testing.T, args ...string) *bytes.Buffer {
 	t.Helper()
 	var output bytes.Buffer

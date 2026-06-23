@@ -207,6 +207,9 @@ repositories. Use `review bases --json` to list recent allowed diff bases, and
 `review diff <path> --base HEAD --json` to fetch one `TextDiff` payload for a
 changed file. Use the `comments` commands when the agent needs human feedback
 threads, ownership, or terminal replies.
+When a `review` command fails with JSON enabled, it returns a structured
+`error` envelope with a stable `code`, original argv, recoverability, and
+suggested retry/help commands.
 
 `next` is the shortest read-only coding-agent intake command. It queries the current
 open worklist, records the same actor-aware read receipts as other read

@@ -43,7 +43,11 @@ func run(args []string) error {
 		return err
 	}
 	if len(args) > 0 && args[0] == "review" {
-		return runReviewCommand(context.Background(), args[1:], os.Stdout)
+		err := runReviewCommand(context.Background(), args[1:], os.Stdout)
+		if err != nil && reviewWantsJSON(args[1:]) {
+			return newReviewCommandError(args[1:], err)
+		}
+		return err
 	}
 	flags := flag.NewFlagSet("vivi", flag.ContinueOnError)
 	flags.SetOutput(os.Stdout)
