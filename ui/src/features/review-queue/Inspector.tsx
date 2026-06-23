@@ -75,6 +75,7 @@ interface Props {
 
 export function Inspector({
   file,
+  fileRemoved = false,
   reviewChanges,
   reviewItems,
   reviewLoading = false,
@@ -430,14 +431,6 @@ export function Inspector({
           )}
         </p>
         <div className="active-file-actions" aria-label="Active file actions">
-          <button
-            className="secondary-action inline-action"
-            disabled={!file}
-            onClick={() => onRevealInTree()}
-            type="button"
-          >
-            Show in Explorer
-          </button>
           <button
             aria-label={commentsPanelAction.description}
             className="review-focus-action comments-panel-action"
