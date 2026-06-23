@@ -254,7 +254,7 @@ it("creates a comment from the UI anchor model and renders it after retrieval", 
 
   expect(html).toContain("Comments");
   expect(html).toContain("1 open thread");
-  expect(html).toContain("1 message in this file");
+  expect(html).toContain("1 total message in this file");
   expect(html).toContain("markdown rendered");
   expect(html).toContain("L3");
   expect(html).toContain('class="active-comment-thread open"');

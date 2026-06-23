@@ -1734,7 +1734,7 @@ it("summarizes active-file review focus without mixing drafts into open threads"
   expect(html).toContain("<strong>1</strong> drafts");
   expect(html).toContain("<strong>1</strong> history");
   expect(html).toContain("<strong>1 open thread</strong>");
-  expect(html).toContain("3 messages in this file");
+  expect(html).toContain("3 total messages in this file");
   expect(html).toContain('class="active-comment-thread open active"');
   expect(html).toContain('class="active-comment-thread resolved"');
   expect(html).toContain('aria-current="true"');
@@ -1751,7 +1751,7 @@ it("summarizes active-file review focus without mixing drafts into open threads"
   expect(html).toContain(
     '<div class="active-file-actions" aria-label="Active file actions">',
   );
-  expect(html).toContain("Open 3 messages in Comments panel");
+  expect(html).toContain("Open 3 total messages in Comments panel");
   expect(html).toContain('class="review-focus-action comments-panel-action"');
   expect(html).toContain('data-testid="review-open-comments-panel"');
   expect(html).toContain('data-testid="review-comment-thread"');
@@ -3283,7 +3283,7 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
     queueHtml.indexOf('data-review-path="docs/agent-handoff.md"'),
   ).toBeLessThan(queueHtml.indexOf('data-review-path="src/app.ts"'));
   expect(html).toContain("2 open threads");
-  expect(html).toContain("3 messages");
+  expect(html).toContain("3 total messages");
   expect(html).toContain('class="review-stop-summary"');
   expect(html).toContain("Current stop");
   expect(html).toContain("Next stop");
@@ -3298,7 +3298,7 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
     'aria-describedby="review-queue-interaction-help review-queue-keyboard-help review-queue-item-1-description"',
   );
   expect(html).toContain(
-    "unseen review work, 2 open threads, 3 messages, Current stop diff · L7: Agent reply needs a human decision before this file is clear.",
+    "unseen review work, 2 open threads, 3 total messages, Current stop diff · L7: Agent reply needs a human decision before this file is clear.",
   );
   expect(html).toContain(
     "<strong>1/2</strong> files seen · 1 unseen · 2 open threads",
@@ -3428,12 +3428,12 @@ it("keeps resolved-only Review Queue files out of next-stop guidance", () => {
     />,
   );
 
-  expect(html).toContain("No open threads · 1 message");
+  expect(html).toContain("No open threads · 1 total message");
   expect(html).toContain("Resolved after the DSCP paths were checked.");
   expect(html).not.toContain('class="review-stop-summary"');
   expect(html).not.toContain("Current stop");
   expect(html).not.toContain("Next stop");
-  expect(html).toContain("seen, 1 message, from HEAD diff");
+  expect(html).toContain("seen, 1 total message, from HEAD diff");
 });
 
 it("opens Review Queue rows as preview on click and stable tabs on double click", () => {

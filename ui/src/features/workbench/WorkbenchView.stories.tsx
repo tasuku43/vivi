@@ -598,7 +598,7 @@ export const InspectorOpensScopedCommentHistory: Story = {
 
     await userEvent.click(
       within(inspector).getByRole("button", {
-        name: "Open 1 message in Comments panel",
+        name: "Open 1 total message in Comments panel",
       }),
     );
 

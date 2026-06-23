@@ -352,7 +352,7 @@ export function Inspector({
                             ? `${item.threadCounts.open} open ${item.threadCounts.open === 1 ? "thread" : "threads"}`
                             : "No open threads"}
                           {item.commentCount
-                            ? ` · ${item.commentCount} ${item.commentCount === 1 ? "message" : "messages"}`
+                            ? ` · ${totalMessageCountLabel(item.commentCount)}`
                             : ""}
                         </small>
                       ) : null}
@@ -498,8 +498,7 @@ export function Inspector({
               {activeThreadCounts.open === 1 ? "thread" : "threads"}
             </strong>
             <span>
-              {comments.length} {comments.length === 1 ? "message" : "messages"}{" "}
-              in this file
+              {totalMessageCountLabel(comments.length)} in this file
             </span>
             {draftComments.length ? (
               <span className="draft-comment-summary">
@@ -900,9 +899,7 @@ function reviewQueueItemDescription(
     item.threadCounts.open
       ? `${item.threadCounts.open} open ${item.threadCounts.open === 1 ? "thread" : "threads"}`
       : "",
-    item.commentCount
-      ? `${item.commentCount} ${item.commentCount === 1 ? "message" : "messages"}`
-      : "",
+    item.commentCount ? totalMessageCountLabel(item.commentCount) : "",
     reviewStop
       ? `${reviewQueueStopTitle(active)} ${reviewStop.label}: ${reviewStop.preview}`
       : "",
@@ -1002,10 +999,14 @@ function commentsPanelActionState({
     };
   }
   return {
-    description: `Open ${messageCount} ${messageCount === 1 ? "message" : "messages"} in Comments panel`,
+    description: `Open ${totalMessageCountLabel(messageCount)} in Comments panel`,
     disabled: false,
-    label: `Open ${messageCount} ${messageCount === 1 ? "message" : "messages"} in Comments panel`,
+    label: `Open ${totalMessageCountLabel(messageCount)} in Comments panel`,
   };
+}
+
+function totalMessageCountLabel(count: number): string {
+  return `${count} total ${count === 1 ? "message" : "messages"}`;
 }
 
 function activeOutlineHeadingFor(

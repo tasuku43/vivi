@@ -97,7 +97,7 @@ export const ReviewQueueItemWithOpenThreads: Story = {
       "review-open-comments-panel",
     );
     await expect(commentsPanelAction).toHaveTextContent(
-      "Open 2 messages in Comments panel",
+      "Open 2 total messages in Comments panel",
     );
     await expect(commentsPanelAction).toHaveClass("review-focus-action");
   },
