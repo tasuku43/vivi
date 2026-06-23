@@ -2356,27 +2356,6 @@ body.resizing-workbench-pane {
   color: var(--muted);
   font-size: 11px;
 }
-.code-comment-thread-ref {
-  min-width: 0;
-  border: 1px solid var(--soft-line);
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--panel) 78%, transparent);
-  color: var(--muted);
-  cursor: pointer;
-  font: inherit;
-  font-size: 10px;
-  line-height: 1.2;
-  overflow: hidden;
-  padding: 3px 6px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.code-comment-thread-ref:hover,
-.code-comment-thread-ref:focus-visible {
-  outline: none;
-  background: var(--soft-line);
-  color: var(--text);
-}
 .code-comment-thread-icon {
   position: relative;
   width: 13px;

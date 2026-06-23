@@ -35,15 +35,8 @@ export function CodeCommentThread({
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const threadRef = useRef<HTMLElement | null>(null);
   const threadStatus: CommentStatus = thread.status;
-  const firstPublishedComment = thread.comments.find(
-    (comment) => !isDraftThreadComment(comment),
-  );
-  const threadId = firstPublishedComment
-    ? (firstPublishedComment.threadId ?? firstPublishedComment.id)
-    : null;
   const lineLabel =
     thread.lineStart === thread.lineEnd
       ? `Line ${thread.lineEnd}`
@@ -104,21 +97,11 @@ export function CodeCommentThread({
   }
 
   function updateThread(status: CommentStatus) {
-    if (firstPublishedComment && threadStatus !== status) {
-      void onStatusChange?.(
-        firstPublishedComment.threadId ?? firstPublishedComment.id,
-        status,
-      );
-    }
-  }
-
-  async function copyThreadId() {
-    if (!threadId) return;
-    if (await copyTextToClipboard(threadId)) {
-      setCopyStatus("Copied");
-      window.setTimeout(() => setCopyStatus(null), 1600);
-    } else {
-      setCopyStatus("Copy failed");
+    const first = thread.comments.find(
+      (comment) => !isDraftThreadComment(comment),
+    );
+    if (first && threadStatus !== status) {
+      void onStatusChange?.(first.threadId ?? first.id, status);
     }
   }
 
@@ -144,17 +127,6 @@ export function CodeCommentThread({
             <span className={`comment-status ${threadStatus}`}>
               {statusLabel(threadStatus)}
             </span>
-          ) : null}
-          {threadId ? (
-            <button
-              type="button"
-              className="code-comment-thread-ref"
-              title={threadId}
-              aria-label={`Copy thread id ${threadId}`}
-              onClick={() => void copyThreadId()}
-            >
-              {copyStatus ?? `Thread ${shortThreadId(threadId)}`}
-            </button>
           ) : null}
         </div>
         <button
@@ -339,35 +311,4 @@ function formatCommentTime(value: string): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
-}
-
-function shortThreadId(threadId: string): string {
-  return threadId.length <= 12 ? threadId : `${threadId.slice(0, 8)}...`;
-}
-
-export async function copyTextToClipboard(value: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(value);
-    return true;
-  } catch {
-    return copyTextWithSelectionFallback(value);
-  }
-}
-
-function copyTextWithSelectionFallback(value: string): boolean {
-  const textarea = document.createElement("textarea");
-  textarea.value = value;
-  textarea.setAttribute("readonly", "");
-  textarea.style.position = "fixed";
-  textarea.style.left = "-9999px";
-  textarea.style.top = "0";
-  document.body.appendChild(textarea);
-  textarea.select();
-  try {
-    return document.execCommand("copy");
-  } catch {
-    return false;
-  } finally {
-    textarea.remove();
-  }
 }

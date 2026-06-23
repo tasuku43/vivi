@@ -81,28 +81,9 @@ export const Open: Story = {
   args: args("open"),
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    const writeText = fn(async () => {
-      throw new Error("Clipboard permission denied");
-    });
-    const execCommand = fn(() => true);
-    Object.defineProperty(window.navigator, "clipboard", {
-      configurable: true,
-      value: { writeText },
-    });
-    Object.defineProperty(document, "execCommand", {
-      configurable: true,
-      value: execCommand,
-    });
     await expect(
       canvas.getByRole("article", { name: "Comment thread for lines 9-12" }),
     ).toBeInTheDocument();
-    const copyThreadId = canvas.getByRole("button", {
-      name: "Copy thread id thread-workbench-open",
-    });
-    await userEvent.click(copyThreadId);
-    await expect(writeText).toHaveBeenCalledWith("thread-workbench-open");
-    await expect(execCommand).toHaveBeenCalledWith("copy");
-    await expect(canvas.getByText("Copied")).toBeVisible();
     await expect(canvas.getByLabelText("Reply to thread")).not.toHaveFocus();
     await userEvent.type(canvas.getByLabelText("Reply to thread"), "Looks good");
     await userEvent.click(canvas.getByRole("button", { name: "Add reply" }));
