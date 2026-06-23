@@ -6736,7 +6736,7 @@ func commentsHelpText() string {
 		"",
 		"Agent write rules:",
 		"  - Read stdinSchemaCommand before stdinRequired writes",
-		"  - Keep --receipt-log on startup, resident loop, and suggested write commands for restart recovery",
+		"  - When using restart recovery, keep the same --receipt-log on startup, resident loop, and suggested writes",
 		"  - Use --require-claim for triage, release, done, and dismiss in background loops",
 		"  - Reuse a stable --client-event-id only for retries of the same logical write",
 		"  - Run comments check <thread-id> --actor <actor> --full --json before writing when ownership may be stale",

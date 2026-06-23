@@ -106,8 +106,10 @@ same actor, URL, and receipt-log context where available.
 `vivi comments --help` is part of that agent contract: its first screen gives
 the recommended startup order (`protocol`, `schema all`, `doctor`, `mine`,
 `work`) and the write rules for claim-guarded triage, release, done, and
-dismiss commands, so adapters can orient from help text before relying on
-hard-coded command recipes.
+dismiss commands. When an adapter opts into restart-safe receipt recovery, the
+same screen tells it to keep the selected `--receipt-log` on startup, resident
+loops, and suggested writes. Adapters can orient from help text before relying
+on hard-coded command recipes.
 
 The v1 commands are:
 
