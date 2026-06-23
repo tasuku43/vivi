@@ -191,6 +191,38 @@ func TestHandlerSupportsExplicitThreadLifecycleMutations(t *testing.T) {
 	}
 }
 
+func TestHandlerCanReplyAndReleaseClaimWhenThreadSourceIsMissing(t *testing.T) {
+	root := t.TempDir()
+	dataDir := t.TempDir()
+	path := filepath.Join(root, "README.md")
+	if err := os.WriteFile(path, []byte("# Vivi\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fsys, _ := workspace.New(workspace.Options{Root: root})
+	reviewer, _ := gitreview.New(root, time.Second)
+	store, _ := comments.NewStore(dataDir)
+	handler := NewHandler(application.NewService(application.Options{Workspace: fsys, Git: reviewer, Comments: store}), func(*http.Request) bool { return true })
+	created := graphql(t, handler, map[string]any{"operationName": "CreateThread", "query": `mutation CreateThread($input: CommentInput!) { createThread(input: $input) { id status comments { id viewerKind anchor } } }`, "variables": map[string]any{"input": map[string]any{"path": "README.md", "body": "human request", "source": "human", "anchor": map[string]any{"surface": "source", "canonical": map[string]any{"path": "README.md", "lineStart": float64(1)}}}}})["createThread"].(map[string]any)
+	id := created["id"].(string)
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	claim := graphql(t, handler, map[string]any{"operationName": "ClaimThread", "query": `mutation ClaimThread($id: ID!) { claimThread(id: $id, input: { actor: { id: "codex-dogfood", kind: codex }, leaseSeconds: 600 }) { activity { type actor { id } } } }`, "variables": map[string]any{"id": id}})["claimThread"].(map[string]any)
+	claimActivity := claim["activity"].(map[string]any)
+	if claimActivity["type"] != "thread_claimed" {
+		t.Fatalf("claim = %#v", claim)
+	}
+	added := graphql(t, handler, map[string]any{"operationName": "AddComment", "query": `mutation AddComment($threadId: ID!) { addComment(threadId: $threadId, input: { body: "source is missing, releasing", source: codex, actor: { id: "codex-dogfood", kind: codex } }) { threadId path viewerKind anchor body } }`, "variables": map[string]any{"threadId": id}})["addComment"].(map[string]any)
+	if added["threadId"] != id || added["path"] != "README.md" || added["viewerKind"] != "markdown" {
+		t.Fatalf("added = %#v", added)
+	}
+	released := graphql(t, handler, map[string]any{"operationName": "ReleaseThreadClaim", "query": `mutation ReleaseThreadClaim($id: ID!) { releaseThreadClaim(id: $id, input: { actor: { id: "codex-dogfood", kind: codex } }) { activity { type actor { id } } thread { id status } } }`, "variables": map[string]any{"id": id}})["releaseThreadClaim"].(map[string]any)
+	releaseActivity := released["activity"].(map[string]any)
+	if releaseActivity["type"] != "thread_claim_released" {
+		t.Fatalf("released = %#v", released)
+	}
+}
+
 func TestHandlerRecordsActorAwareReadActivityWithoutChangingStatus(t *testing.T) {
 	root := t.TempDir()
 	dataDir := t.TempDir()

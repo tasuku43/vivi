@@ -146,10 +146,23 @@ func (s *CommentService) AddComment(threadID string, input map[string]any) (map[
 	input["path"] = thread.Path
 	input["anchor"] = thread.Anchor
 	input["status"] = "open"
-	return s.Create(input)
+	return s.comments.Create(input, threadAnchorFileHash(thread), threadViewerKind(thread))
 }
 func (s *CommentService) Export(filters comments.Filters) (string, error) {
 	return s.comments.ExportJSONL(filters)
+}
+
+func threadAnchorFileHash(thread CommentThread) string {
+	return stringValue(mapValue(mapValue(thread.Anchor)["canonical"])["fileHash"])
+}
+
+func threadViewerKind(thread CommentThread) string {
+	for _, comment := range thread.Comments {
+		if viewerKind := stringValue(comment["viewerKind"]); viewerKind != "" {
+			return viewerKind
+		}
+	}
+	return ""
 }
 
 func threadFromMap(item map[string]any) CommentThread {
