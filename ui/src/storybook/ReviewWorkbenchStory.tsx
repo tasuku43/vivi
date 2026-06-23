@@ -112,6 +112,19 @@ export function ReviewWorkbenchStory({
     useState(commentsPanelOpen);
   const [compactInspectorOpen, setCompactInspectorOpen] = useState(false);
 
+  function focusCompactReviewQueue() {
+    setCompactInspectorOpen(true);
+    window.setTimeout(() => {
+      const activeRow = '.review-queue .change-open[aria-current="true"]';
+      const firstRow = ".review-queue .change-open:not(:disabled)";
+      document
+        .querySelector<HTMLButtonElement>(
+          `${activeRow}:not(:disabled), ${firstRow}`,
+        )
+        ?.focus();
+    }, 0);
+  }
+
   useEffect(() => {
     setStoryActiveCommentId(activeCommentId);
   }, [activeCommentId]);
@@ -283,25 +296,38 @@ export function ReviewWorkbenchStory({
           </section>
         </main>
         {compactInspector ? (
-          <button
-            className="rail-toggle inspector-rail-toggle"
-            type="button"
-            aria-label={
-              compactInspectorOpen ? "Collapse inspector" : "Expand inspector"
-            }
-            title={
-              compactInspectorOpen ? "Collapse inspector" : "Expand inspector"
-            }
-            onClick={() => setCompactInspectorOpen((open) => !open)}
-          >
-            <span
-              className={
+          <>
+            <button
+              className="story-focus-review-queue"
+              type="button"
+              onClick={focusCompactReviewQueue}
+            >
+              Focus Review Queue
+            </button>
+            <button
+              className="rail-toggle inspector-rail-toggle"
+              type="button"
+              aria-label={
                 compactInspectorOpen
-                  ? "collapse-icon collapse-right"
-                  : "collapse-icon collapse-left"
+                  ? "Collapse inspector"
+                  : "Expand inspector"
               }
-            />
-          </button>
+              title={
+                compactInspectorOpen
+                  ? "Collapse inspector"
+                  : "Expand inspector"
+              }
+              onClick={() => setCompactInspectorOpen((open) => !open)}
+            >
+              <span
+                className={
+                  compactInspectorOpen
+                    ? "collapse-icon collapse-right"
+                    : "collapse-icon collapse-left"
+                }
+              />
+            </button>
+          </>
         ) : null}
         <Inspector
           file={state === "empty" ? null : file}

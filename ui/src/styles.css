@@ -5310,6 +5310,12 @@ kbd {
 .story-workbench-compact-inspector .inspector-rail-toggle {
   right: 8px;
 }
+.story-focus-review-queue {
+  position: absolute;
+  top: 8px;
+  right: 44px;
+  z-index: 7;
+}
 .story-workbench-compact-inspector
   .workbench:not(.inspector-hidden)
   .inspector-rail-toggle {

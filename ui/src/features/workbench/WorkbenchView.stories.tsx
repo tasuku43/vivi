@@ -82,6 +82,22 @@ export const CompactInspectorCanReopenReviewQueue: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    const focusReviewQueue = canvas.getByRole("button", {
+      name: "Focus Review Queue",
+    });
+
+    await userEvent.click(focusReviewQueue);
+    await expect(canvas.getByText("Review Queue")).toBeVisible();
+
+    const focusedReviewItem =
+      canvasElement.ownerDocument.activeElement as HTMLElement | null;
+
+    expect(focusedReviewItem?.classList.contains("change-open")).toBe(true);
+
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Collapse inspector" }),
+    );
+
     const expandInspector = canvas.getByRole("button", {
       name: "Expand inspector",
     });

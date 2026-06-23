@@ -1314,7 +1314,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }
 
   function focusReviewQueue() {
-    setInspectorVisible(true);
+    if (inspectorCollapsedByViewport) {
+      setCompactInspectorOpen(true);
+    } else {
+      setInspectorVisible(true);
+    }
     window.setTimeout(() => {
       const activeRow = '.review-queue .change-open[aria-current="true"]';
       const firstRow = ".review-queue .change-open:not(:disabled)";
