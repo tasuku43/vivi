@@ -311,7 +311,7 @@ export function CommandPalette({
                   <kbd>Type</kbd>
                 </div>
                 <div>
-                  <span>Quick open</span>
+                  <span>Command palette</span>
                   <kbd>Cmd/Ctrl K</kbd>
                 </div>
                 <div>
@@ -330,7 +330,7 @@ export function CommandPalette({
                   <kbd>Cmd/Ctrl Enter</kbd>
                 </div>
                 <div>
-                  <span>Quick open</span>
+                  <span>Command palette</span>
                   <kbd>Cmd/Ctrl K</kbd>
                 </div>
                 <div>

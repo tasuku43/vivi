@@ -72,10 +72,12 @@ export function Topbar({
         <button
           type="button"
           className="command-button command-button-primary"
+          aria-label="Open command palette"
           aria-keyshortcuts="Meta+K Control+K"
+          title="Open command palette"
           onClick={onQuickOpen}
         >
-          <span>Quick open</span>
+          <span>Command</span>
           <kbd>Cmd/Ctrl K</kbd>
         </button>
         <button

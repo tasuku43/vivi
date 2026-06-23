@@ -139,6 +139,8 @@ it("renders the topbar as brand, workspace identity, and distinct actions", () =
   expect(html).toContain("command-button-secondary");
   expect(html).toContain("Theme");
   expect(html).toContain("System");
+  expect(html).toContain('aria-label="Open command palette"');
+  expect(html).toContain("Command");
   expect(html).toContain("Cmd/Ctrl K");
   expect(html).toContain("Cmd/Ctrl Shift C");
   expect(html).toContain("Cmd/Ctrl Shift F");
@@ -425,6 +427,7 @@ it("keeps the default command palette search-oriented", () => {
   );
 
   expect(html).toContain("Quick open");
+  expect(html).toContain("Command palette");
   expect(html).toContain("Files");
   expect(html).toContain("Text");
   expect(html).toContain("README.md");

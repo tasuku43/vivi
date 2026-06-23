@@ -7,7 +7,7 @@ const shortcutGroups: readonly {
   {
     title: "Find",
     items: [
-      ["Quick open", "Cmd/Ctrl K"],
+      ["Command palette", "Cmd/Ctrl K"],
       ["Search text", "Cmd/Ctrl Shift F"],
       ["Next search match", "Cmd/Ctrl G"],
       ["Previous search match", "Cmd/Ctrl Shift G"],
