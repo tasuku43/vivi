@@ -272,6 +272,18 @@ export function CommentsPanel({
                   ? "Reopen current stop"
                   : "Reopen";
             const archiveLabel = active ? "Archive current stop" : "Archive";
+            const actionContext = `${thread.path}, ${thread.lineLabel}`;
+            const toggleStatusActionLabel =
+              thread.status === "open"
+                ? active
+                  ? "Resolve current stop"
+                  : `Resolve comment for ${actionContext}`
+                : active
+                  ? "Reopen current stop"
+                  : `Reopen comment for ${actionContext}`;
+            const archiveActionLabel = active
+              ? "Archive current stop"
+              : `Archive comment for ${actionContext}`;
             return (
               <div
                 className="global-comment-listitem"
@@ -410,6 +422,7 @@ export function CommentsPanel({
                     {thread.status === "open" ? (
                       <button
                         type="button"
+                        aria-label={toggleStatusActionLabel}
                         aria-keyshortcuts={
                           active
                             ? "Meta+Shift+Enter Control+Shift+Enter"
@@ -418,7 +431,7 @@ export function CommentsPanel({
                         title={
                           active
                             ? "Resolve current stop (Cmd/Ctrl Shift Enter)"
-                            : undefined
+                            : toggleStatusActionLabel
                         }
                         onClick={() =>
                           onStatusChange(thread.threadId, "resolved")
@@ -429,6 +442,7 @@ export function CommentsPanel({
                     ) : (
                       <button
                         type="button"
+                        aria-label={toggleStatusActionLabel}
                         aria-keyshortcuts={
                           active
                             ? "Meta+Shift+Enter Control+Shift+Enter"
@@ -437,7 +451,7 @@ export function CommentsPanel({
                         title={
                           active
                             ? "Reopen current stop (Cmd/Ctrl Shift Enter)"
-                            : undefined
+                            : toggleStatusActionLabel
                         }
                         onClick={() => onStatusChange(thread.threadId, "open")}
                       >
@@ -447,6 +461,7 @@ export function CommentsPanel({
                     {thread.status !== "archived" ? (
                       <button
                         type="button"
+                        aria-label={archiveActionLabel}
                         aria-keyshortcuts={
                           active
                             ? "Meta+Shift+Backspace Control+Shift+Backspace"
@@ -455,7 +470,7 @@ export function CommentsPanel({
                         title={
                           active
                             ? "Archive current stop (Cmd/Ctrl Shift Backspace)"
-                            : undefined
+                            : archiveActionLabel
                         }
                         onClick={() =>
                           onStatusChange(thread.threadId, "archived")

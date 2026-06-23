@@ -2637,16 +2637,41 @@ it("updates thread status from the workspace comments action rail", () => {
   });
 
   const resolveButton = findElement(panel, (element) => {
-    const props = element.props as { children?: ReactNode; type?: string };
+    const props = element.props as {
+      "aria-label"?: string;
+      children?: ReactNode;
+      title?: string;
+      type?: string;
+    };
     return props.type === "button" && flattenText(props.children) === "Resolve";
   });
   const archiveButton = findElement(panel, (element) => {
-    const props = element.props as { children?: ReactNode; type?: string };
+    const props = element.props as {
+      "aria-label"?: string;
+      children?: ReactNode;
+      title?: string;
+      type?: string;
+    };
     return props.type === "button" && flattenText(props.children) === "Archive";
   });
+  const resolveProps = resolveButton.props as {
+    "aria-label"?: string;
+    onClick: () => void;
+    title?: string;
+  };
+  const archiveProps = archiveButton.props as {
+    "aria-label"?: string;
+    onClick: () => void;
+    title?: string;
+  };
 
-  (resolveButton.props as { onClick: () => void }).onClick();
-  (archiveButton.props as { onClick: () => void }).onClick();
+  expect(resolveProps["aria-label"]).toBe("Resolve comment for src/app.ts, L2");
+  expect(resolveProps.title).toBe("Resolve comment for src/app.ts, L2");
+  expect(archiveProps["aria-label"]).toBe("Archive comment for src/app.ts, L2");
+  expect(archiveProps.title).toBe("Archive comment for src/app.ts, L2");
+
+  resolveProps.onClick();
+  archiveProps.onClick();
 
   expect(updates).toEqual([
     ["thread-1", "resolved"],
@@ -2678,6 +2703,8 @@ it("offers reopen from resolved workspace comment threads", () => {
 
   expect(html).toContain(">Reopen</button>");
   expect(html).toContain(">Archive</button>");
+  expect(html).toContain('aria-label="Reopen comment for src/app.ts, L2"');
+  expect(html).toContain('aria-label="Archive comment for src/app.ts, L2"');
   expect(html).not.toContain(">Resolve</button>");
 });
 

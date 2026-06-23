@@ -50,6 +50,11 @@ export const WorkspaceComments: Story = {
       within(filters).getByRole("button", { name: /open/i }),
     );
     await expect(args.onStatusFilterChange).toHaveBeenCalledWith("open");
+    await expect(
+      canvas.getByRole("button", {
+        name: "Resolve comment for ui/src/features/workbench/WorkbenchContainer.tsx, L9-L12",
+      }),
+    ).toBeInTheDocument();
   },
 };
 
