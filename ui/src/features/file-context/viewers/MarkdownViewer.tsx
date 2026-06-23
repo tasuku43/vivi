@@ -301,8 +301,10 @@ export function MarkdownViewer({
 
   return (
     <section className="document-viewer">
-      <div className="viewer-toolbar">
-        <strong>{file.path}</strong>
+      <div
+        className="viewer-toolbar viewer-toolbar-actions-only"
+        aria-label={`Markdown viewer controls for ${file.path}`}
+      >
         <div className="viewer-toolbar-actions">
           <div className="segmented-control" aria-label="Markdown view mode">
             <button

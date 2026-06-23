@@ -347,11 +347,9 @@ function TreeRow({
           ) : null}
         </span>
         <TreeBadges
-          comments={summary.comments}
           loading={loadingDirectoryPaths.has(node.path)}
           open={summary.openFiles > 0}
           openFiles={summary.openFiles}
-          openThreads={summary.openThreads}
           reviewFiles={summary.reviewFiles}
           unreadFiles={summary.unreadFiles}
         />
@@ -427,10 +425,8 @@ function TreeRow({
       </span>
       <TreeBadges
         changed={changed}
-        comments={commentCount}
         currentStop={currentStop}
         open={open}
-        openThreads={openThreadCount}
         reviewFiles={review ? 1 : 0}
         unreadFiles={unread ? 1 : 0}
       />
@@ -647,32 +643,26 @@ function workspaceTreeAriaLabel(
 
 function TreeBadges({
   changed = false,
-  comments = 0,
   currentStop = false,
   loading = false,
   open = false,
   openFiles = 0,
-  openThreads = 0,
   reviewFiles = 0,
   unreadFiles = 0,
 }: {
   changed?: boolean;
-  comments?: number;
   currentStop?: boolean;
   loading?: boolean;
   open?: boolean;
   openFiles?: number;
-  openThreads?: number;
   reviewFiles?: number;
   unreadFiles?: number;
 }) {
   if (
     !changed &&
-    !comments &&
     !currentStop &&
     !loading &&
     !open &&
-    !openThreads &&
     !reviewFiles &&
     !unreadFiles
   )
@@ -682,36 +672,45 @@ function TreeBadges({
       {unreadFiles ? (
         <>
           <span className="tree-unread-dot" aria-hidden="true" />
-          <span className="tree-badge attention">
-            attention{unreadFiles > 1 ? ` ${unreadFiles}` : ""}
+          <span
+            className="tree-badge attention"
+            title={countPhrase(unreadFiles, "attention item")}
+          >
+            {unreadFiles > 1 ? unreadFiles : "!"}
           </span>
         </>
       ) : null}
       {currentStop ? (
-        <span className="tree-badge current">current</span>
+        <span className="tree-badge current" title="Current review stop">
+          now
+        </span>
       ) : null}
       {open ? (
-        <span className="tree-badge open">
+        <span
+          className="tree-badge open"
+          title={countPhrase(openFiles || 1, "open tab")}
+        >
           open{openFiles > 1 ? ` ${openFiles}` : ""}
         </span>
       ) : null}
       {reviewFiles ? (
-        <span className="tree-badge review">
-          review{reviewFiles > 1 ? ` ${reviewFiles}` : ""}
+        <span
+          className="tree-badge review"
+          title={countPhrase(reviewFiles, "review file")}
+        >
+          rev{reviewFiles > 1 ? ` ${reviewFiles}` : ""}
         </span>
       ) : null}
-      {openThreads ? (
-        <span className="tree-badge thread">
-          {openThreads} {openThreads === 1 ? "thread" : "threads"}
+      {changed ? (
+        <span className="tree-badge changed" title="Changed">
+          mod
         </span>
       ) : null}
-      {comments && !openThreads ? (
-        <span className="tree-badge comment">
-          {comments} {comments === 1 ? "comment" : "comments"}
+      {loading ? (
+        <span className="tree-badge loading" title="Loading">
+          ...
         </span>
       ) : null}
-      {changed ? <span className="tree-badge changed">changed</span> : null}
-      {loading ? <span className="tree-badge loading">loading</span> : null}
     </span>
   );
 }

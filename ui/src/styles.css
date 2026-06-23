@@ -541,6 +541,7 @@ body.resizing-workbench-pane {
   align-items: center;
   gap: 7px;
   width: 100%;
+  box-sizing: border-box;
   border: 0;
   background: transparent;
   color: var(--muted);
@@ -594,6 +595,7 @@ body.resizing-workbench-pane {
   text-decoration: line-through;
 }
 .tree-main {
+  flex: 1 1 auto;
   display: inline-grid;
   min-width: 0;
   gap: 1px;
@@ -622,12 +624,16 @@ body.resizing-workbench-pane {
 }
 .tree-badges {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 4px;
   min-width: 0;
+  max-width: 42%;
   margin-left: auto;
+  overflow: hidden;
 }
 .tree-badge {
+  flex: 0 0 auto;
   color: var(--muted);
   font-size: 10px;
   font-weight: 700;
@@ -917,7 +923,7 @@ body.resizing-workbench-pane {
   gap: 6px;
 }
 .file-location-segment button,
-.file-location-reveal,
+.file-location-kind,
 .file-location-review-stop {
   border: 1px solid transparent;
   border-radius: 7px;
@@ -940,13 +946,24 @@ body.resizing-workbench-pane {
 }
 .file-location-segment button:hover,
 .file-location-segment button:focus-visible,
-.file-location-reveal:hover,
-.file-location-reveal:focus-visible,
 .file-location-review-stop:hover:not(:disabled),
 .file-location-review-stop:focus-visible {
   border-color: var(--line);
   outline: none;
   background: var(--accent-faint);
+  color: var(--accent);
+}
+.file-location-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-color: var(--soft-line);
+  background: color-mix(in srgb, var(--panel-2) 56%, transparent);
+  color: var(--muted);
+  cursor: default;
+  font-weight: 760;
+}
+.file-location-kind .file-icon {
   color: var(--accent);
 }
 .file-location-review-stop {
@@ -1194,6 +1211,10 @@ body.resizing-workbench-pane {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+}
+.viewer-toolbar-actions-only,
+.code-pro-header-actions-only {
+  justify-content: flex-end;
 }
 .text-search-nav {
   position: sticky;
@@ -1651,6 +1672,8 @@ body.resizing-workbench-pane {
 .markdown .vivi-rendered-comment-block {
   --rendered-comment-block-left: -12px;
   --rendered-comment-block-right: -12px;
+  --rendered-comment-block-top: 0px;
+  --rendered-comment-block-bottom: 0px;
   isolation: isolate;
   position: relative;
   border-radius: 8px;
@@ -1665,15 +1688,22 @@ body.resizing-workbench-pane {
   content: "";
   position: absolute;
   z-index: -1;
-  top: 0;
+  top: var(--rendered-comment-block-top);
   right: var(--rendered-comment-block-right);
-  bottom: 0;
+  bottom: var(--rendered-comment-block-bottom);
   left: var(--rendered-comment-block-left);
   border-radius: inherit;
   pointer-events: none;
   transition:
     background 140ms ease,
     box-shadow 140ms ease;
+}
+.markdown h1.vivi-rendered-comment-block {
+  --rendered-comment-block-top: -4px;
+  --rendered-comment-block-bottom: 14px;
+}
+.markdown h2.vivi-rendered-comment-block {
+  --rendered-comment-block-bottom: -6px;
 }
 .markdown .vivi-rendered-comment-block:not(tr):hover::before,
 .markdown tr.vivi-rendered-comment-block:hover {
@@ -4571,6 +4601,19 @@ kbd {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+.change-kind {
+  flex: 0 0 auto;
+  border: 1px solid var(--soft-line);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--panel-2) 72%, transparent);
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 860;
+  line-height: 1;
+  min-width: 24px;
+  padding: 3px 4px;
+  text-align: center;
 }
 .change-status {
   flex: 0 0 auto;

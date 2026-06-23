@@ -17,6 +17,7 @@ import {
   fileLocationSegments,
   fileLocationSummary,
 } from "../../../state/file-location.js";
+import { iconForPath } from "../../../state/file-icons.js";
 import type {
   CommentCreateHandler,
   CommentStatusChangeHandler,
@@ -498,15 +499,15 @@ export function FileLocationBar({
           );
         })}
       </nav>
-      <button
-        aria-label={`Reveal ${file.path} in the sidebar tree`}
-        type="button"
-        className="file-location-reveal"
-        onClick={() => onRevealInTree?.(file.path)}
-        title={`Reveal ${file.path} in the sidebar tree`}
+      <span
+        aria-label={`Current file kind, ${fileViewerKindLabel(file.viewerKind)}`}
+        className="file-location-kind"
       >
-        Show in tree
-      </button>
+        <span className="file-icon" aria-hidden="true">
+          {iconForPath(file.path, file.viewerKind)}
+        </span>
+        <span>{fileViewerKindLabel(file.viewerKind)}</span>
+      </span>
       <span className="file-location-summary">
         {fileLocationSummary(file.path)}
       </span>
@@ -676,6 +677,17 @@ function fileLocationBarLabel(path: string): string {
   return summary === path
     ? `Current file location, ${path}`
     : `Current file location, ${summary}, full path ${path}`;
+}
+
+function fileViewerKindLabel(viewerKind: FilePayload["viewerKind"]): string {
+  if (viewerKind === "markdown") return "Markdown";
+  if (viewerKind === "html") return "HTML";
+  if (viewerKind === "json") return "JSON";
+  if (viewerKind === "mermaid") return "Mermaid";
+  if (viewerKind === "image") return "Image";
+  if (viewerKind === "binary") return "Binary";
+  if (viewerKind === "text") return "Text";
+  return "Code";
 }
 
 function surfaceLabel(comment: ViviComment): string {

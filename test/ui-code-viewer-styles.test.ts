@@ -26,7 +26,19 @@ describe("rendered comment block ranges", () => {
       /\.vivi-rendered-comment-block:not\(tr\)::before \{[\s\S]*?left: var\(--rendered-comment-block-left\);/,
     );
     expect(styles).toMatch(
+      /\.vivi-rendered-comment-block:not\(tr\)::before \{[\s\S]*?top: var\(--rendered-comment-block-top\);[\s\S]*?bottom: var\(--rendered-comment-block-bottom\);/,
+    );
+    expect(styles).toMatch(
       /\.vivi-rendered-comment-block:not\(tr\):hover::before,[\s\S]*?background: var\(--soft-line\);/,
+    );
+  });
+
+  it("centers rendered comment surfaces around Markdown headings", () => {
+    expect(styles).toMatch(
+      /h1\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-top: -4px;[\s\S]*?--rendered-comment-block-bottom: 14px;/,
+    );
+    expect(styles).toMatch(
+      /h2\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-bottom: -6px;/,
     );
   });
 

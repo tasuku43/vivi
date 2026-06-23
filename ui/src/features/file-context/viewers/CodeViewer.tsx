@@ -17,7 +17,7 @@ import {
   type CommentCreateHandler,
   type CommentStatusChangeHandler,
 } from "../../../state/comments.js";
-import { iconForPath, languageForPath } from "../../../state/file-icons.js";
+import { languageForPath } from "../../../state/file-icons.js";
 import type { ResolvedTheme } from "../../../state/theme.js";
 import { SourceCommentSurface } from "../../comments/components/SourceCommentSurface.js";
 import { DiffViewer } from "./DiffViewer.js";
@@ -124,14 +124,10 @@ export function CodeViewer({
 
   return (
     <section className="code-pro" aria-label={`Code viewer for ${file.path}`}>
-      <div className="code-pro-header">
-        <div className="code-pro-title">
-          <span className="file-icon">
-            {iconForPath(file.path, file.viewerKind)}
-          </span>
-          <span>{file.path}</span>
-          <small>{language}</small>
-        </div>
+      <div
+        className="code-pro-header code-pro-header-actions-only"
+        aria-label={`Code viewer controls for ${file.path}`}
+      >
         <div className="code-pro-actions">
           {refreshedAt ? (
             <span className="refresh-pill">

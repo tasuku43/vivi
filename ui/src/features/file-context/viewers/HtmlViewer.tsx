@@ -266,7 +266,6 @@ export function HtmlViewer({
   return (
     <section className="html-viewer">
       <div className="viewer-toolbar">
-        <strong>{file.path}</strong>
         <span className="sandbox-status">
           sandboxed · scripts {allowHtmlScripts ? "on" : "off"}
         </span>

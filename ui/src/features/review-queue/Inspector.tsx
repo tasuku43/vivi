@@ -25,7 +25,7 @@ import {
   type DiffStat,
   type ReviewChangeItem,
 } from "../../state/git-review.js";
-import { iconForPath } from "../../state/file-icons.js";
+import { iconForPath, languageForPath } from "../../state/file-icons.js";
 import {
   isReviewQueueItemOpenable,
   pinActiveReviewQueueItem,
@@ -71,7 +71,6 @@ interface Props {
 
 export function Inspector({
   file,
-  fileRemoved = false,
   reviewChanges,
   reviewItems,
   reviewUnavailableReason = null,
@@ -96,7 +95,6 @@ export function Inspector({
   onOpenNextChanged,
   onOpenPreviousChanged,
   onOpenAllChanged,
-  onRevealInTree,
   onOutlineSelect,
   onOpenComments,
   onOpenComment,
@@ -106,10 +104,6 @@ export function Inspector({
     file && (file.viewerKind === "code" || file.viewerKind === "json")
       ? buildCodeMetadata(file, selectedCodeRange)
       : null;
-  const fileKindLabel = file ? viewerKindLabel(file.viewerKind) : "No file";
-  const activeChange = file
-    ? reviewChanges.find((change) => change.path === file.path)
-    : null;
   const activeThreads = summarizeActiveThreads(comments);
   const activeThreadCounts = countThreadsByStatus(activeThreads);
   const queueItems: ReviewQueueItem[] =
@@ -245,6 +239,10 @@ export function Inspector({
               const statusLabel = change
                 ? changeStatusLabel(change.status, change.kind)
                 : "comment";
+              const directoryLabel = change
+                ? reviewDirectoryLabel(change)
+                : directoryForPath(item.path);
+              const kindLabel = reviewQueueFileKindLabel(item.path);
               return (
                 <div
                   className="review-queue-item"
@@ -294,6 +292,7 @@ export function Inspector({
                     </span>
                     <span className="change-main">
                       <span className="change-heading">
+                        <span className="change-kind">{kindLabel}</span>
                         <span
                           className={`change-status ${change ? (change.kind ?? change.status) : "comment"}`}
                         >
@@ -306,7 +305,7 @@ export function Inspector({
                         title={change ? reviewPathLabel(change) : item.path}
                       >
                         <span className="change-path-text">
-                          {change ? reviewPathLabel(change) : item.path}
+                          {directoryLabel}
                         </span>
                         {change ? (
                           <span className="change-source">
@@ -372,26 +371,6 @@ export function Inspector({
             </span>
           </div>
         ) : null}
-
-        <p className="active-file-line">
-          {file ? (
-            <>
-              <span>{file.path}</span> · {fileKindLabel}
-              {fileRemoved ? " · removed from disk" : ""}
-              {activeChange ? " · in review queue" : ""}
-            </>
-          ) : (
-            "No file selected"
-          )}
-        </p>
-        <button
-          className="secondary-action inline-action"
-          disabled={!file}
-          onClick={() => onRevealInTree()}
-          type="button"
-        >
-          Show in Explorer
-        </button>
 
         {file ? (
           <div className="review-focus-card" aria-label="Active file review">
@@ -1085,19 +1064,31 @@ function reviewPathLabel(change: ReviewChangeItem): string {
   return change.path;
 }
 
+function reviewDirectoryLabel(change: ReviewChangeItem): string {
+  if (change.status === "renamed" && change.originalPath) {
+    return `${directoryForPath(change.originalPath)} -> ${directoryForPath(change.path)}`;
+  }
+  return directoryForPath(change.path);
+}
+
+function directoryForPath(path: string): string {
+  const parts = path.split("/").filter(Boolean);
+  if (parts.length <= 1) return ".";
+  return parts.slice(0, -1).join("/");
+}
+
+function reviewQueueFileKindLabel(path: string): string {
+  const language = languageForPath(path).toUpperCase();
+  if (language === "TYPESCRIPT") return "TS";
+  if (language === "JAVASCRIPT") return "JS";
+  if (language === "MARKDOWN") return "MD";
+  if (language === "MAKEFILE") return "MAKE";
+  if (language === "DOCKERFILE") return "DOCK";
+  return language;
+}
+
 function formatBytes(size: number): string {
   if (size < 1024) return `${size} B`;
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${(size / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function viewerKindLabel(viewerKind: FilePayload["viewerKind"]): string {
-  if (viewerKind === "markdown") return "Markdown";
-  if (viewerKind === "html") return "HTML";
-  if (viewerKind === "json") return "JSON";
-  if (viewerKind === "image") return "Image";
-  if (viewerKind === "code") return "Code";
-  if (viewerKind === "mermaid") return "Mermaid";
-  if (viewerKind === "unsupported") return "Unsupported";
-  return "Text";
 }
