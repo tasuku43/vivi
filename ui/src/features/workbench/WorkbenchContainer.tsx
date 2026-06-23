@@ -749,18 +749,13 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       ),
     [reviewItems],
   );
-  const openReviewThreadCount = useMemo(
-    () =>
-      reviewItems.reduce((total, item) => total + item.threadCounts.open, 0),
-    [reviewItems],
-  );
   const workspaceStatus = useMemo(
     () =>
       summarizeWorkspaceStatus({
         tree,
         openTabCount: openTabs.length,
         reviewFileCount: reviewItems.length,
-        openThreadCount: openReviewThreadCount,
+        openThreadCount: openThreadTargets.length,
         draftCount: draftComments.length,
         connectionStatus: workspaceConnectionStatus,
         activeFile: selectedPath
@@ -786,7 +781,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       diffEnabled,
       file,
       liveMetrics,
-      openReviewThreadCount,
+      openThreadTargets.length,
       openTabs.length,
       reviewItems.length,
       selectedPath,

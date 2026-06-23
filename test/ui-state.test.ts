@@ -1667,6 +1667,14 @@ it("builds review navigation targets without changing thread lifecycle state", (
       },
     },
     makeReviewComment("resolved-1", "docs/b.md", "resolved"),
+    {
+      ...makeReviewComment("missing-1", "README.md", "open"),
+      threadId: "thread-missing-source",
+      anchor: {
+        surface: "source" as const,
+        canonical: { path: "README.md", lineStart: 1 },
+      },
+    },
   ];
   const drafts = [
     {
@@ -1704,13 +1712,39 @@ it("builds review navigation targets without changing thread lifecycle state", (
   ];
 
   const openTargets = openThreadNavigationTargets(comments);
-  expect(openTargets).toHaveLength(1);
+  expect(openTargets).toHaveLength(2);
   expect(openTargets[0]).toMatchObject({
     threadId: "thread-a",
     commentId: "open-1",
     path: "docs/a.md",
     surface: "source",
   });
+  expect(openTargets[1]).toMatchObject({
+    threadId: "thread-missing-source",
+    commentId: "missing-1",
+    path: "README.md",
+    surface: "source",
+  });
+  expect(
+    summarizeWorkspaceStatus({
+      tree: null,
+      openTabCount: 0,
+      reviewFileCount: 13,
+      openThreadCount: openTargets.length,
+      draftCount: 0,
+      connectionStatus: "connected",
+      activeFile: null,
+      metrics: {
+        fsEventsReceived: 0,
+        gitRefreshes: 0,
+        diffRefreshes: 0,
+        lastGitRefreshMs: null,
+        lastDiffRefreshMs: null,
+        pendingGitRefresh: false,
+        pendingDiffPaths: 0,
+      },
+    }).review,
+  ).toBe("13 files to review · 2 threads open");
   expect(
     openThreadNavigationTargets(comments, { reviewBatchId: "batch-1" }),
   ).toHaveLength(1);
