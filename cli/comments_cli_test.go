@@ -2065,10 +2065,49 @@ func TestCommentsCLISchemaSurfacesStructuredStdinContracts(t *testing.T) {
 		t.Fatalf("all schema payload = %s", all.String())
 	}
 
+	inboxSummaryBuffer := runCommentsCLIForTest(t, "schema", "commentInboxOutput", "--summary", "--json")
+	if inboxSummaryBuffer.Len() >= 8_000 {
+		t.Fatalf("inbox schema summary should stay compact, got %d bytes", inboxSummaryBuffer.Len())
+	}
+	var inboxSummaryPayload commentSchemaSummaryOutput
+	decodeCLIJSON(t, inboxSummaryBuffer, &inboxSummaryPayload)
+	if inboxSummaryPayload.Name != "commentInboxOutput" || !inboxSummaryPayload.Summary || !containsString(inboxSummaryPayload.SchemaCommand, "--summary") || !containsString(inboxSummaryPayload.FullSchemaCommand, "commentInboxOutput") {
+		t.Fatalf("inbox schema summary metadata = %#v", inboxSummaryPayload)
+	}
+	summaryPaths := commentSchemaSummaryPaths(inboxSummaryPayload.Fields)
+	for _, path := range []string{
+		"summary.recommendedAction",
+		"summary.suggestedCommands",
+		"summary.suggestedCommands[].displayCommand",
+		"unclaimed.threads[].id",
+		"unclaimed.threads[].path",
+		"unclaimed.threads[].comments[].body",
+	} {
+		if !summaryPaths[path] {
+			t.Fatalf("inbox schema summary missing path %q in %#v", path, inboxSummaryPayload.Fields)
+		}
+	}
+
+	suggestedCommandSummary := runCommentsCLIForTest(t, "schema", "suggestedCommand", "--summary", "--json")
+	var suggestedCommandSummaryPayload commentSchemaSummaryOutput
+	decodeCLIJSON(t, suggestedCommandSummary, &suggestedCommandSummaryPayload)
+	suggestedCommandPaths := commentSchemaSummaryPaths(suggestedCommandSummaryPayload.Fields)
+	if !suggestedCommandPaths["displayCommand"] || !suggestedCommandPaths["args"] || !suggestedCommandPaths["stdinSchemaCommand"] {
+		t.Fatalf("suggested command summary paths = %#v", suggestedCommandSummaryPayload.Fields)
+	}
+
 	err := runCommentsCLIErrorForTest("schema", "missing", "--json")
 	if err == nil || !strings.Contains(err.Error(), "unknown comments schema") {
 		t.Fatalf("schema error = %v", err)
 	}
+}
+
+func commentSchemaSummaryPaths(fields []commentSchemaFieldSummary) map[string]bool {
+	paths := make(map[string]bool, len(fields))
+	for _, field := range fields {
+		paths[field.Path] = true
+	}
+	return paths
 }
 
 func TestCommentsCLIRequireClaimGuardsAgentWrites(t *testing.T) {

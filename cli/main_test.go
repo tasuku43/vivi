@@ -107,7 +107,7 @@ func TestCommentsHelpTextSurfacesWorkSession(t *testing.T) {
 		"Prefer done/dismiss --result-file - for terminal replies and release --triage-file - for blocked handoffs",
 		"vivi comments protocol --json",
 		"vivi comments protocol --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
-		"vivi comments schema <list|protocol|doctor|triage|result|claim|inbox|mine|batch|check|commentTriageOutput|commentReleaseOutput|commentResultOutput|suggestedCommand|writeReceipt|receiptVerification|receiptLedgerVerification|activityBatch|workClaimed|workIdle|openWorklist|error|all> --json",
+		"vivi comments schema <list|protocol|doctor|triage|result|claim|inbox|mine|batch|check|commentTriageOutput|commentReleaseOutput|commentResultOutput|suggestedCommand|writeReceipt|receiptVerification|receiptLedgerVerification|activityBatch|workClaimed|workIdle|openWorklist|error|all> [--summary] --json",
 		"vivi comments doctor --actor claude-code --json",
 		"vivi comments doctor --actor claude-code --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"vivi comments work --once --actor claude-code --full --json",

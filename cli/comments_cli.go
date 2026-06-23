@@ -65,6 +65,7 @@ type commentsCommandOptions struct {
 	ResumeCursor   string
 	LeaseDuration  time.Duration
 	RenewInterval  time.Duration
+	SchemaSummary  bool
 }
 
 type graphqlRequest struct {
@@ -892,7 +893,8 @@ func parseCommentsSchemaFlags(args []string) (commentsCommandOptions, []string, 
 	flags.SetOutput(io.Discard)
 	flags.StringVar(&options.URL, "url", "", "Vivi server URL")
 	flags.BoolVar(&options.JSON, "json", true, "write JSON output")
-	flagArgs, positional := splitCommentsFlagsAndPositionals(args)
+	flags.BoolVar(&options.SchemaSummary, "summary", false, "write compact schema field summary instead of full JSON Schema")
+	flagArgs, positional := splitCommentsFlagsAndPositionals(normalizeCommentsSchemaArgs(args))
 	if err := flags.Parse(flagArgs); err != nil {
 		return options, nil, err
 	}
@@ -903,6 +905,18 @@ func parseCommentsSchemaFlags(args []string) (commentsCommandOptions, []string, 
 		}
 	}
 	return options, append(positional, flags.Args()...), nil
+}
+
+func normalizeCommentsSchemaArgs(args []string) []string {
+	normalized := make([]string, 0, len(args))
+	for _, arg := range args {
+		if arg == "--summary" {
+			normalized = append(normalized, "--summary=true")
+			continue
+		}
+		normalized = append(normalized, arg)
+	}
+	return normalized
 }
 
 func parseCommentsProtocolFlags(args []string) (commentsCommandOptions, []string, error) {
@@ -1027,13 +1041,16 @@ func appendCommentWriteReceiptLog(path string, receipt commentWriteReceipt) erro
 	return file.Close()
 }
 
-func commentsSchema(stdout io.Writer, _ commentsCommandOptions, name string) error {
+func commentsSchema(stdout io.Writer, options commentsCommandOptions, name string) error {
 	if commentSchemaListName(name) {
 		return writeJSON(stdout, commentSchemaIndex())
 	}
 	schema, ok := commentSchemaByName(name)
 	if !ok {
 		return fmt.Errorf("unknown comments schema %q", name)
+	}
+	if options.SchemaSummary {
+		return writeJSON(stdout, commentSchemaSummary(schema))
 	}
 	return writeJSON(stdout, schema)
 }
@@ -1296,6 +1313,251 @@ func commentSchemaIndex() commentSchemaIndexOutput {
 		SchemaVersion: commentsStreamSchemaVersion,
 		Schemas:       entries,
 	}
+}
+
+func commentSchemaSummary(schema commentSchemaOutput) commentSchemaSummaryOutput {
+	allFields := flattenCommentSchemaFields(schema.Schema, "", nil, 0, 1000)
+	fields := compactCommentSchemaFields(allFields)
+	return commentSchemaSummaryOutput{
+		Name:              schema.Name,
+		Description:       schema.Description,
+		Summary:           true,
+		SchemaCommand:     commentSchemaSummaryCommandArgs(schema.Name),
+		FullSchemaCommand: commentSchemaCommandArgs(schema.Name),
+		AcceptedBy:        schema.AcceptedBy,
+		Required:          schemaRequiredFields(schema.Schema),
+		Fields:            fields,
+		Truncated:         len(fields) < len(allFields),
+	}
+}
+
+func compactCommentSchemaFields(fields []commentSchemaFieldSummary) []commentSchemaFieldSummary {
+	compact := make([]commentSchemaFieldSummary, 0, min(len(fields), 96))
+	seen := make(map[string]bool, len(fields))
+	for _, field := range fields {
+		if !commentSchemaSummaryKeepsPath(field.Path) || seen[field.Path] {
+			continue
+		}
+		compact = append(compact, field)
+		seen[field.Path] = true
+		if len(compact) >= 96 {
+			break
+		}
+	}
+	return compact
+}
+
+func commentSchemaSummaryKeepsPath(path string) bool {
+	if path == "" {
+		return false
+	}
+	if !strings.Contains(path, ".") {
+		return true
+	}
+	if strings.HasPrefix(path, "summary.") {
+		return commentSchemaPathDepth(path) <= 3 || strings.Contains(path, "suggestedCommands[]")
+	}
+	if strings.Contains(path, "suggestedCommands[]") {
+		return commentSchemaPathDepth(path) <= 4
+	}
+	if strings.Contains(path, ".threads[]") {
+		if !strings.HasPrefix(path, "unclaimed.threads[]") {
+			return false
+		}
+		switch {
+		case strings.HasSuffix(path, ".threads[].id"),
+			strings.HasSuffix(path, ".threads[].path"),
+			strings.HasSuffix(path, ".threads[].status"),
+			strings.HasSuffix(path, ".threads[].comments[].body"):
+			return true
+		default:
+			return false
+		}
+	}
+	return false
+}
+
+func commentSchemaPathDepth(path string) int {
+	if path == "" {
+		return 0
+	}
+	return strings.Count(path, ".") + 1
+}
+
+func commentSchemaSummaryCommandArgs(name string) []string {
+	return []string{"comments", "schema", name, "--summary", "--json"}
+}
+
+func flattenCommentSchemaFields(schema map[string]any, path string, parentRequired map[string]bool, depth int, maxFields int) []commentSchemaFieldSummary {
+	if len(schema) == 0 || depth > 6 || maxFields <= 0 {
+		return nil
+	}
+	schema = concreteCommentSchema(schema)
+	if schema == nil {
+		return nil
+	}
+	if properties, ok := schema["properties"].(map[string]any); ok {
+		required := requiredFieldSet(schemaRequiredFields(schema))
+		keys := make([]string, 0, len(properties))
+		for key := range properties {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		fields := make([]commentSchemaFieldSummary, 0, min(len(keys), maxFields))
+		for _, key := range keys {
+			child, ok := properties[key].(map[string]any)
+			if !ok {
+				continue
+			}
+			child = concreteCommentSchema(child)
+			if child == nil {
+				continue
+			}
+			childPath := key
+			if path != "" {
+				childPath = path + "." + key
+			}
+			field := commentSchemaFieldSummary{
+				Path:     childPath,
+				Type:     commentSchemaType(child),
+				Required: required[key] || parentRequired[key],
+				Enum:     commentSchemaStringValues(child, "enum"),
+			}
+			if constant, ok := child["const"]; ok {
+				field.Const = fmt.Sprint(constant)
+			}
+			fields = append(fields, field)
+			if len(fields) >= maxFields {
+				return fields
+			}
+			nestedPath := childPath
+			nestedSchema := child
+			if items, ok := child["items"].(map[string]any); ok {
+				nestedPath = childPath + "[]"
+				nestedSchema = items
+			}
+			nested := flattenCommentSchemaFields(nestedSchema, nestedPath, nil, depth+1, maxFields-len(fields))
+			fields = append(fields, nested...)
+			if len(fields) >= maxFields {
+				return fields
+			}
+		}
+		return fields
+	}
+	if items, ok := schema["items"].(map[string]any); ok {
+		return flattenCommentSchemaFields(items, path+"[]", parentRequired, depth+1, maxFields)
+	}
+	return nil
+}
+
+func concreteCommentSchema(schema map[string]any) map[string]any {
+	if schema == nil {
+		return nil
+	}
+	for _, key := range []string{"allOf", "anyOf", "oneOf"} {
+		options, ok := schema[key].([]map[string]any)
+		if !ok {
+			if rawOptions, rawOK := schema[key].([]any); rawOK {
+				for _, option := range rawOptions {
+					candidate, ok := option.(map[string]any)
+					if !ok || candidate["type"] == "null" {
+						continue
+					}
+					return concreteCommentSchema(candidate)
+				}
+			}
+			continue
+		}
+		for _, option := range options {
+			if option["type"] == "null" {
+				continue
+			}
+			return concreteCommentSchema(option)
+		}
+	}
+	return schema
+}
+
+func schemaRequiredFields(schema map[string]any) []string {
+	if schema == nil {
+		return nil
+	}
+	raw, ok := schema["required"]
+	if !ok {
+		return nil
+	}
+	switch values := raw.(type) {
+	case []string:
+		return append([]string(nil), values...)
+	case []any:
+		fields := make([]string, 0, len(values))
+		for _, value := range values {
+			if text, ok := value.(string); ok {
+				fields = append(fields, text)
+			}
+		}
+		return fields
+	default:
+		return nil
+	}
+}
+
+func requiredFieldSet(fields []string) map[string]bool {
+	set := make(map[string]bool, len(fields))
+	for _, field := range fields {
+		set[field] = true
+	}
+	return set
+}
+
+func commentSchemaType(schema map[string]any) string {
+	if schema == nil {
+		return "unknown"
+	}
+	if values, ok := schema["type"].([]string); ok {
+		return strings.Join(values, "|")
+	}
+	if rawValues, ok := schema["type"].([]any); ok {
+		types := make([]string, 0, len(rawValues))
+		for _, value := range rawValues {
+			if text, ok := value.(string); ok {
+				types = append(types, text)
+			}
+		}
+		return strings.Join(types, "|")
+	}
+	if text, ok := schema["type"].(string); ok {
+		return text
+	}
+	if _, ok := schema["properties"]; ok {
+		return "object"
+	}
+	if _, ok := schema["items"]; ok {
+		return "array"
+	}
+	if _, ok := schema["const"]; ok {
+		return "const"
+	}
+	if _, ok := schema["enum"]; ok {
+		return "enum"
+	}
+	return "unknown"
+}
+
+func commentSchemaStringValues(schema map[string]any, key string) []string {
+	raw, ok := schema[key]
+	if !ok {
+		return nil
+	}
+	values, ok := raw.([]any)
+	if !ok {
+		return nil
+	}
+	stringsOut := make([]string, 0, len(values))
+	for _, value := range values {
+		stringsOut = append(stringsOut, fmt.Sprint(value))
+	}
+	return stringsOut
 }
 
 func commentSchemaByName(name string) (commentSchemaOutput, bool) {
@@ -6783,7 +7045,7 @@ func commentsHelpText() string {
 		"Usage:",
 		"  vivi comments protocol --json",
 		"  vivi comments protocol --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
-		"  vivi comments schema <list|protocol|doctor|triage|result|claim|inbox|mine|batch|check|commentTriageOutput|commentReleaseOutput|commentResultOutput|suggestedCommand|writeReceipt|receiptVerification|receiptLedgerVerification|activityBatch|workClaimed|workIdle|openWorklist|error|all> --json",
+		"  vivi comments schema <list|protocol|doctor|triage|result|claim|inbox|mine|batch|check|commentTriageOutput|commentReleaseOutput|commentResultOutput|suggestedCommand|writeReceipt|receiptVerification|receiptLedgerVerification|activityBatch|workClaimed|workIdle|openWorklist|error|all> [--summary] --json",
 		"  vivi comments doctor --actor claude-code --json",
 		"  vivi comments doctor --actor claude-code --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"  vivi comments active --actor claude-code --json",
@@ -6996,6 +7258,26 @@ type commentSchemaOutput struct {
 	AcceptedBy  []commentSchemaCommand `json:"acceptedBy,omitempty"`
 	Example     map[string]any         `json:"example,omitempty"`
 	Schemas     []commentSchemaOutput  `json:"schemas,omitempty"`
+}
+
+type commentSchemaSummaryOutput struct {
+	Name              string                      `json:"name"`
+	Description       string                      `json:"description,omitempty"`
+	Summary           bool                        `json:"summary"`
+	SchemaCommand     []string                    `json:"schemaCommand"`
+	FullSchemaCommand []string                    `json:"fullSchemaCommand"`
+	AcceptedBy        []commentSchemaCommand      `json:"acceptedBy,omitempty"`
+	Required          []string                    `json:"required,omitempty"`
+	Fields            []commentSchemaFieldSummary `json:"fields"`
+	Truncated         bool                        `json:"truncated,omitempty"`
+}
+
+type commentSchemaFieldSummary struct {
+	Path     string   `json:"path"`
+	Type     string   `json:"type"`
+	Required bool     `json:"required,omitempty"`
+	Enum     []string `json:"enum,omitempty"`
+	Const    string   `json:"const,omitempty"`
 }
 
 type commentSchemaCommand struct {

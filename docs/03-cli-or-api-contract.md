@@ -730,6 +730,12 @@ accepted command flags, and a minimal example for adapter-facing contracts.
 Use `comments schema list --json` first when an agent only needs a compact
 index of available schema names, accepted commands, and exact per-schema fetch
 commands.
+Use `comments schema <name> --summary --json` when an agent needs the compact
+field map before deciding whether to fetch the full JSON Schema. Summary output
+includes the schema metadata, accepted commands, required top-level fields, the
+full-schema command, and selected JSON paths such as
+`summary.recommendedAction`, `summary.suggestedCommands[].displayCommand`, and
+`unclaimed.threads[].comments[].body`; it is intentionally not a validator.
 `commentProtocolManifest` validates the startup manifest itself, and
 `commentDoctorOutput` validates the online startup readiness check. For
 suggested stdin payloads, adapters can run the exact `stdinSchemaCommand` from the
@@ -793,6 +799,9 @@ startup caching and does not contact the Vivi server. `comments schema all
 schemas, stdin schemas, reusable component schemas, stream event schemas,
 receipt verification schemas, and error envelope schema in one large payload
 for adapters that intentionally cache the full offline contract.
+Prefer `comments schema all --json` only for deliberate offline cache
+refreshes; use `comments schema list --json` or `<name> --summary --json` for
+ordinary agent context.
 
 When `vivi comments ... --json` fails through the CLI entrypoint, it exits
 non-zero and writes a machine-readable error envelope instead of plain text:
