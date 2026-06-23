@@ -449,11 +449,8 @@ function SourceDiffLine({
           className={`code-line-comment-action${rowThread ? " has-thread" : ""}`}
           type="button"
           aria-expanded={threadOpen}
-          aria-label={
-            rowThread
-              ? `Open comment thread on line ${currentLine}`
-              : `Add comment on line ${currentLine}`
-          }
+          aria-label={lineCommentActionLabel(currentLine, rowThread)}
+          title={lineCommentActionLabel(currentLine, rowThread)}
           data-change-kind={line.kind === "add" ? "added" : "context"}
           data-comment-id={rowThread?.comments[0]?.id}
           data-comment-surface="diff"
@@ -485,6 +482,16 @@ function SourceDiffLine({
       <code dangerouslySetInnerHTML={{ __html: html }} />
     </div>
   );
+}
+
+function lineCommentActionLabel(
+  lineNumber: number,
+  thread?: CodeCommentThreadModel,
+): string {
+  if (!thread) return `Add comment on line ${lineNumber}`;
+  const count = thread.comments.length;
+  const messageLabel = count === 1 ? "message" : "messages";
+  return `Open comment thread on line ${lineNumber} with ${count} ${messageLabel}; open to reply`;
 }
 
 function RenderedDiff({

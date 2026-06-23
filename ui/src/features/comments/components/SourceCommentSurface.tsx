@@ -399,11 +399,8 @@ export function SourceCommentSurface({
                 className={`code-line-comment-action${rowThread ? " has-thread" : ""}`}
                 type="button"
                 aria-expanded={threadOpen}
-                aria-label={
-                  rowThread
-                    ? `Open comment thread on line ${lineNumber}`
-                    : `Add comment on line ${lineNumber}`
-                }
+                aria-label={lineCommentActionLabel(lineNumber, rowThread)}
+                title={lineCommentActionLabel(lineNumber, rowThread)}
                 data-comment-id={rowThread?.comments[0]?.id}
                 data-comment-surface="source"
                 data-line={lineNumber}
@@ -464,6 +461,16 @@ export function SourceCommentSurface({
       })}
     </div>
   );
+}
+
+function lineCommentActionLabel(
+  lineNumber: number,
+  thread?: CodeCommentThreadModel,
+): string {
+  if (!thread) return `Add comment on line ${lineNumber}`;
+  const count = thread.comments.length;
+  const messageLabel = count === 1 ? "message" : "messages";
+  return `Open comment thread on line ${lineNumber} with ${count} ${messageLabel}; open to reply`;
 }
 
 interface DOMRectLike {

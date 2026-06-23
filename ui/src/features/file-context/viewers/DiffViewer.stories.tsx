@@ -55,9 +55,9 @@ export const DiffCommentOnAddedLine: Story = {
       24,
     );
     await expect(
-      canvas.getAllByRole("button", {
-        name: /Open comment thread on line/,
-      })[0],
+      canvas.getByRole("button", {
+        name: "Open comment thread on line 10 with 1 message; open to reply",
+      }),
     ).toBeInTheDocument();
   },
 };

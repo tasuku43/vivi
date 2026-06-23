@@ -867,7 +867,12 @@ it("renders code line comments as an inline thread with replies", () => {
   expect(html).toContain(`data-comment-id="${codeLineComment.id}"`);
   expect(html).toContain(`data-comment-id="${codeLineReply.id}"`);
   expect(html).toContain('class="code-line-comment-action"');
-  expect(html).toContain('aria-label="Open comment thread on line 2"');
+  expect(html).toContain(
+    'aria-label="Open comment thread on line 2 with 2 messages; open to reply"',
+  );
+  expect(html).toContain(
+    'title="Open comment thread on line 2 with 2 messages; open to reply"',
+  );
   expect(html).toContain('aria-label="Add comment on line 1"');
   expect(html).toContain('aria-label="Comment thread for line 2"');
   expect(html).toContain('class="code-thread-comment open active"');
@@ -921,7 +926,9 @@ it("can keep the current stop highlighted without expanding the source thread", 
 
   expect(html).toContain('class="code-line has-comment active-comment"');
   expect(html).toContain(`data-comment-id="${codeLineComment.id}"`);
-  expect(html).toContain('aria-label="Open comment thread on line 2"');
+  expect(html).toContain(
+    'aria-label="Open comment thread on line 2 with 2 messages; open to reply"',
+  );
   expect(html).not.toContain("code-comment-thread-row");
   expect(html).not.toContain("Comment thread for line 2");
   expect(html).not.toContain("Current stop");
@@ -1065,7 +1072,9 @@ it("uses the inline source thread experience for Markdown source mode", () => {
   expect(html).toContain("source-comment-surface markdown-source");
   expect(html).toContain('aria-label="Markdown viewer controls for README.md"');
   expect(html).not.toContain("<strong>README.md</strong>");
-  expect(html).toContain('aria-label="Open comment thread on line 3"');
+  expect(html).toContain(
+    'aria-label="Open comment thread on line 3 with 1 message; open to reply"',
+  );
   expect(html).toContain('aria-label="Comment thread for line 3"');
   expect(html).toContain("Check this return");
   expect(html).not.toContain('aria-label="New comment"');
@@ -1148,7 +1157,9 @@ it("projects a rendered Markdown comment onto its canonical source line", () => 
     <MarkdownViewer file={markdownFile} mode="source" comments={[comment]} />,
   );
 
-  expect(html).toContain('aria-label="Open comment thread on line 3"');
+  expect(html).toContain(
+    'aria-label="Open comment thread on line 3 with 1 message; open to reply"',
+  );
   expect(html).toContain('class="code-line has-comment"');
 });
 
