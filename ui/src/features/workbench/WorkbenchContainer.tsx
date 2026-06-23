@@ -380,6 +380,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     const startedAt = performance.now();
     gitReviewLastAttemptMs.current = Date.now();
     setGitReviewLoading(true);
+    setLiveMetrics((metrics) => ({
+      ...metrics,
+      pendingGitRefresh: true,
+    }));
     try {
       const nextGitReview = await client.getReviewQueue();
       gitReviewRef.current = nextGitReview;
@@ -773,6 +777,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         tree,
         openTabCount: openTabs.length,
         reviewFileCount: reviewItems.length,
+        reviewLoading: gitReviewLoading || gitReview === null,
         openThreadCount: openThreadTargets.length,
         draftCount: draftComments.length,
         connectionStatus: workspaceConnectionStatus,
@@ -799,6 +804,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       draftComments.length,
       diffEnabled,
       file,
+      gitReview,
+      gitReviewLoading,
       liveMetrics,
       openThreadTargets.length,
       openTabs.length,

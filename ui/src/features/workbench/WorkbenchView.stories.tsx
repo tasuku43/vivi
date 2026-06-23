@@ -403,6 +403,13 @@ export const LoadingState: Story = {
   args: {
     state: "loading",
     file: sampleFiles.code,
+    reviewItems: [],
+    reviewLoading: true,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Loading review files")).toBeInTheDocument();
+    await expect(canvas.queryByText("0 review files")).not.toBeInTheDocument();
   },
 };
 

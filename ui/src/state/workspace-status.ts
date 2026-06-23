@@ -25,6 +25,7 @@ export interface WorkspaceStatusInput {
   tree: TreeSnapshot | null;
   openTabCount: number;
   reviewFileCount: number;
+  reviewLoading?: boolean;
   openThreadCount: number;
   draftCount: number;
   connectionStatus: WorkspaceConnectionStatus;
@@ -45,6 +46,7 @@ export function summarizeWorkspaceStatus({
   tree,
   openTabCount,
   reviewFileCount,
+  reviewLoading = false,
   openThreadCount,
   draftCount,
   connectionStatus,
@@ -59,8 +61,12 @@ export function summarizeWorkspaceStatus({
       : `Watching ${watchedFiles} ${watchedFiles === 1 ? "file" : "files"}`,
     `${openTabCount} ${openTabCount === 1 ? "tab" : "tabs"} open`,
   ].join(" · ");
+  const reviewFileLabel =
+    (reviewLoading || metrics.pendingGitRefresh) && reviewFileCount === 0
+      ? "Loading review files"
+      : `${reviewFileCount} ${reviewFileCount === 1 ? "file" : "files"} to review`;
   const review = [
-    `${reviewFileCount} ${reviewFileCount === 1 ? "file" : "files"} to review`,
+    reviewFileLabel,
     `${openThreadCount} ${openThreadCount === 1 ? "thread" : "threads"} open`,
     draftCount ? `${draftCount} draft${draftCount === 1 ? "" : "s"}` : null,
   ]

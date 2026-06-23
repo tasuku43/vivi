@@ -618,6 +618,43 @@ it("summarizes workspace status as a human-facing bottom bar", () => {
   expect(summary.detail).toBe("1 review refresh · last review 18ms");
 });
 
+it("keeps the review status in a loading state before changed files arrive", () => {
+  const summary = summarizeWorkspaceStatus({
+    tree: {
+      root: "/workspace",
+      version: 1,
+      nodes: [],
+      stats: {
+        durationMs: 7,
+        scannedDirectories: 3,
+        scannedFiles: 42,
+        returnedNodes: 12,
+      },
+    },
+    openTabCount: 1,
+    reviewFileCount: 0,
+    reviewLoading: true,
+    openThreadCount: 2,
+    draftCount: 0,
+    connectionStatus: "connected",
+    activeFile: null,
+    metrics: {
+      fsEventsReceived: 0,
+      gitRefreshes: 0,
+      diffRefreshes: 0,
+      lastGitRefreshMs: null,
+      lastDiffRefreshMs: null,
+      pendingGitRefresh: false,
+      pendingDiffPaths: 0,
+    },
+  });
+
+  expect(summary.review).toBe("Loading review files · 2 threads open");
+  expect(summary.review).not.toContain("0 files to review");
+  expect(summary.server).toBe("Live · waiting for file changes");
+  expect(summary.serverTone).toBe("live");
+});
+
 it("builds a compact file location model for the central viewer", () => {
   expect(fileLocationSegments("docs/brief/intro.md")).toEqual([
     { label: "docs", path: "docs", kind: "directory" },

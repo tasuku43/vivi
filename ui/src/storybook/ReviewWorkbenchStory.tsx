@@ -259,6 +259,10 @@ export function ReviewWorkbenchStory({
         : storyState === "error"
           ? "review adapter error"
           : "watching";
+  const reviewStatusLabel =
+    reviewLoading && reviewItems.length === 0
+      ? "Loading review files"
+      : `${reviewItems.length} review ${reviewItems.length === 1 ? "file" : "files"}`;
   const explorerFilterSummary = {
     active: treeChangedOnly,
     reviewLoading,
@@ -502,7 +506,7 @@ export function ReviewWorkbenchStory({
           {nodes.length} root entries · {activeTabs.length} open tabs
         </span>
         <span className="statusbar-group">
-          {reviewItems.length} review files · {comments.length} comments ·{" "}
+          {reviewStatusLabel} · {comments.length} comments ·{" "}
           {draftComments.length} drafts
         </span>
         <span className="statusbar-group">
