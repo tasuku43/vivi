@@ -45,6 +45,9 @@ func TestReviewCLIQueueAndDiffGuideAgentReview(t *testing.T) {
 	if !queuePayload.Summary.RequiresAttention || queuePayload.Summary.RecommendedAction != "review_changed_files" || queuePayload.Summary.ChangedFileCount != 1 || !containsString(queuePayload.Summary.AttentionReasons, "changed_files_available") {
 		t.Fatalf("review queue summary = %#v", queuePayload.Summary)
 	}
+	if queuePayload.Summary.ReviewURL != server.URL+"?diff=1&path=README.md" {
+		t.Fatalf("review queue review URL = %q", queuePayload.Summary.ReviewURL)
+	}
 	if len(queuePayload.Summary.SuggestedCommands) != 2 || queuePayload.Summary.SuggestedCommands[0].Command != "review diff" || !containsString(queuePayload.Summary.SuggestedCommands[0].Args, "README.md") || !containsString(queuePayload.Summary.SuggestedCommands[0].Args, server.URL) {
 		t.Fatalf("review queue suggestions = %#v", queuePayload.Summary.SuggestedCommands)
 	}
@@ -57,6 +60,7 @@ func TestReviewCLIQueueAndDiffGuideAgentReview(t *testing.T) {
 	for _, text := range []string{
 		"Review queue: 1 changed file",
 		"Recommended action: review_changed_files",
+		"Open in GUI: " + server.URL + "?diff=1&path=README.md",
 		"Changed files:",
 		"1. modified README.md",
 		"Suggested next commands:",
@@ -199,7 +203,7 @@ func TestReviewHelpTextSurfacesAgentQuickPath(t *testing.T) {
 		"Without --json, review queue prints a short human summary.",
 		"JSON shape:",
 		"queue: { schemaVersion, available, count, changes[], diffBases, summary }",
-		"queue.summary: { recommendedAction, changedFileCount, suggestedCommands[] }",
+		"queue.summary: { recommendedAction, changedFileCount, reviewUrl, suggestedCommands[] }",
 		"--actor <id>",
 	} {
 		if !strings.Contains(help, text) {

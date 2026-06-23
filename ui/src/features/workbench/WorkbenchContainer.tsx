@@ -119,6 +119,10 @@ import {
   type TextSearchNavigationSession,
 } from "../../state/search-navigation.js";
 import {
+  parseWorkbenchDeepLink,
+  type WorkbenchDeepLink,
+} from "../../state/workbench-deep-link.js";
+import {
   addCommentActivities,
   addCommentActivity,
   commentActivityRefreshTarget,
@@ -332,6 +336,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const pendingDiffRefreshPaths = useRef(new Set<string>());
   const diffRequestVersions = useRef<Record<string, number>>({});
   const activeFilePaths = useRef<Set<string>>(new Set());
+  const initialDeepLink = useRef<WorkbenchDeepLink | null>(
+    typeof window === "undefined"
+      ? null
+      : parseWorkbenchDeepLink(window.location.search),
+  );
   const diffEnabledRef = useRef(diffEnabled);
   const commentsRef = useRef<ViviComment[]>([]);
   const liveFileRefreshTimers = useRef<Record<string, number>>({});
@@ -1701,7 +1710,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       null,
     );
 
-    if (restored) {
+    if (restored && !initialDeepLink.current) {
       if (shouldPromptForWorkspaceSessionRestore(restored)) {
         setPendingRestoreSession(restored);
       } else {
@@ -1712,6 +1721,18 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
 
     setWorkspaceSessionReady(true);
   }, [config, tree, workspaceSessionReady]);
+
+  useEffect(() => {
+    if (!workspaceSessionReady || pendingRestoreSession) return;
+    const deepLink = initialDeepLink.current;
+    if (!deepLink) return;
+    initialDeepLink.current = null;
+    const paneId = layout.activePaneId;
+    const open = deepLink.diff
+      ? openHeadDiff(deepLink.path, paneId)
+      : loadFile(deepLink.path, paneId, "preview");
+    void open.catch((err) => setError(String(err)));
+  }, [workspaceSessionReady, pendingRestoreSession, client]);
 
   useEffect(() => {
     if (!config || !workspaceSessionReady || pendingRestoreSession) return;

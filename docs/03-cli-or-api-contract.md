@@ -217,8 +217,9 @@ that need changed-file context before or alongside human GUI feedback.
 ordered for the same review workflow as the GUI: files with open comment
 threads first, then changed files with recent comment history, then the Git
 change order. It also returns available diff bases and
-`summary.suggestedCommands` for both the first `review diff` command and an
-executable resident
+`summary.reviewUrl`, a browser deep link that opens the first queued file in
+HEAD diff mode, plus `summary.suggestedCommands` for both the first
+`review diff` command and an executable resident
 `comments work --actor <actor> --wait --loop --idle-events --full --json`
 feedback loop. Without `--actor`, the queue points agents at
 `comments doctor --json` so the next payload can return the `configure_actor`
@@ -244,12 +245,18 @@ Minimal `review queue --json` shape:
   "summary": {
     "recommendedAction": "review_changed_files",
     "changedFileCount": 1,
+    "reviewUrl": "http://127.0.0.1:4317/?diff=1&path=README.md",
     "suggestedCommands": [
       { "intent": "inspect_first_changed_file_diff", "command": "review diff", "args": [] }
     ]
   }
 }
 ```
+
+The browser workspace accepts `?path=<relative-path>` to open a file as a
+temporary preview tab. Adding `&diff=1` opens that file in HEAD diff mode when
+the viewer supports diffs. The server still refuses paths outside the selected
+root when the UI resolves the deep link.
 
 `next` is the shortest read-only coding-agent intake command. It queries the current
 open worklist, records the same actor-aware read receipts as other read

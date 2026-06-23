@@ -51,6 +51,7 @@ type reviewRoutingSummary struct {
 	AttentionReasons  []string                  `json:"attentionReasons"`
 	RecommendedAction string                    `json:"recommendedAction"`
 	ChangedFileCount  int                       `json:"changedFileCount"`
+	ReviewURL         string                    `json:"reviewUrl,omitempty"`
 	SuggestedCommands []commentSuggestedCommand `json:"suggestedCommands,omitempty"`
 }
 
@@ -363,6 +364,9 @@ func writeReviewQueueText(stdout io.Writer, output reviewQueueCLIOutput) {
 		base := output.DiffBases.Options[0]
 		fmt.Fprintf(stdout, "Default diff base: %s (%s)\n", base.Label, base.Ref)
 	}
+	if output.Summary.ReviewURL != "" {
+		fmt.Fprintf(stdout, "Open in GUI: %s\n", output.Summary.ReviewURL)
+	}
 	if output.Count > 0 {
 		fmt.Fprintln(stdout, "")
 		fmt.Fprintln(stdout, "Changed files:")
@@ -519,11 +523,25 @@ func summarizeReviewQueue(queue reviewQueueOutput, bases reviewDiffBaseSummaryOu
 		base = bases.Options[0].Ref
 	}
 	firstPath := queue.Changes[0].Path
+	summary.ReviewURL = reviewQueueGUIURL(serverURL, firstPath)
 	summary.SuggestedCommands = []commentSuggestedCommand{
 		suggestedCommentsCommand("inspect_first_changed_file_diff", "review diff", withURLArg([]string{"review", "diff", firstPath, "--base", base, "--json"}, serverURL), "", "Inspect the first changed file diff before deciding whether to comment or continue."),
 		reviewQueueCommentsWorkSuggestion(actorID, serverURL, "Keep a resident GUI feedback loop running while reviewing changed files."),
 	}
 	return summary
+}
+
+func reviewQueueGUIURL(serverURL string, path string) string {
+	parsed, err := url.Parse(strings.TrimSpace(serverURL))
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return ""
+	}
+	query := parsed.Query()
+	query.Set("path", path)
+	query.Set("diff", "1")
+	parsed.RawQuery = query.Encode()
+	parsed.Fragment = ""
+	return parsed.String()
 }
 
 type reviewQueuePathCommentStats struct {
@@ -632,7 +650,7 @@ func reviewHelpText() string {
 		"",
 		"JSON shape:",
 		"  queue: { schemaVersion, available, count, changes[], diffBases, summary }",
-		"  queue.summary: { recommendedAction, changedFileCount, suggestedCommands[] }",
+		"  queue.summary: { recommendedAction, changedFileCount, reviewUrl, suggestedCommands[] }",
 		"  bases: { schemaVersion, diffBases }",
 		"  diff: { schemaVersion, diff }",
 		"",
