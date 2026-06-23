@@ -8,6 +8,7 @@ vivi [root] --port 4317
 vivi [root] --host 127.0.0.1
 vivi [root] --open
 vivi [root] --port 0 --ready-json
+vivi [root] --port 0 --ready-json --actor codex
 vivi [root] --include md,html,ts,tsx,json
 vivi [root] --max-file-size 1048576
 vivi [root] --allow-html-scripts
@@ -83,7 +84,10 @@ Default rich preview limit: `1048576` bytes. Use `--max-file-size <bytes>` to ch
 Pass `--ready-json` when a launcher or coding agent needs a stable startup
 handoff. After the local server is listening, Vivi emits one JSON object on
 stdout with `event: "vivi_server_ready"`, the selected root, the resolved server
-URL, and `suggestedCommands` that already include the resolved `--url`.
+URL, and `suggestedCommands` that already include the resolved `--url`. Add
+`--actor <id>` to include the agent actor in those startup suggestions, so the
+first `comments doctor` call can proceed directly to actor-owned work-loop
+commands instead of returning the `configure_actor` branch.
 
 ### Agent comments CLI
 

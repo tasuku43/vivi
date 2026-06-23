@@ -60,6 +60,7 @@ func run(args []string) error {
 	noHTMLScripts := flags.Bool("no-html-scripts", false, "keep HTML preview scripts disabled")
 	gitTimeout := flags.Duration("git-review-timeout", 2*time.Second, "Git review timeout")
 	logLevel := flags.String("log-level", "info", "log level")
+	actor := flags.String("actor", "", "agent actor id to include in ready JSON suggested commands")
 	readyJSON := flags.Bool("ready-json", false, "print a JSON server-ready event after startup")
 	showVersion := flags.Bool("version", false, "print version")
 	flags.Usage = func() { fmt.Fprintln(flags.Output(), helpText()) }
@@ -122,7 +123,7 @@ func run(args []string) error {
 		return err
 	}
 	if *readyJSON {
-		if err := writeJSON(os.Stdout, newServerReadyPayload(workspaceFS.Config().Root, httpServer.URL())); err != nil {
+		if err := writeJSON(os.Stdout, newServerReadyPayload(workspaceFS.Config().Root, httpServer.URL(), *actor)); err != nil {
 			return err
 		}
 	} else {
@@ -199,6 +200,7 @@ func helpText() string {
 		"  --no-html-scripts          Keep HTML preview scripts disabled",
 		"  --git-review-timeout <d>   Git review timeout such as 2s or 500ms",
 		"  --log-level <level>        Log level (default: info)",
+		"  --actor <actor>            Agent actor id for --ready-json suggested commands",
 		"  --ready-json               Print a JSON server-ready event after startup",
 		"  --version                  Print version",
 		"  --help                     Show this help",
@@ -210,27 +212,37 @@ type serverReadyPayload struct {
 	Event             string                    `json:"event"`
 	Root              string                    `json:"root"`
 	URL               string                    `json:"url"`
+	Actor             string                    `json:"actor,omitempty"`
 	SuggestedCommands []commentSuggestedCommand `json:"suggestedCommands"`
 }
 
-func newServerReadyPayload(root string, serverURL string) serverReadyPayload {
+func newServerReadyPayload(root string, serverURL string, actor string) serverReadyPayload {
+	reviewArgs := []string{"review", "queue", "--url", serverURL}
+	doctorArgs := []string{"comments", "doctor", "--url", serverURL}
+	if actor = strings.TrimSpace(actor); actor != "" {
+		reviewArgs = append(reviewArgs, "--actor", actor)
+		doctorArgs = append(doctorArgs, "--actor", actor)
+	}
+	reviewArgs = append(reviewArgs, "--json")
+	doctorArgs = append(doctorArgs, "--json")
 	return serverReadyPayload{
 		SchemaVersion: 1,
 		Event:         "vivi_server_ready",
 		Root:          root,
 		URL:           serverURL,
+		Actor:         actor,
 		SuggestedCommands: []commentSuggestedCommand{
 			suggestedCommentsCommand(
 				"inspect_review_queue",
 				"review queue",
-				[]string{"review", "queue", "--url", serverURL, "--json"},
+				reviewArgs,
 				"",
 				"Inspect the changed-file review queue using the resolved Vivi server URL.",
 			),
 			suggestedCommentsCommand(
 				"check_comments_readiness",
 				"comments doctor",
-				[]string{"comments", "doctor", "--url", serverURL, "--json"},
+				doctorArgs,
 				"",
 				"Check comment protocol readiness before starting an actor-owned feedback loop.",
 			),
@@ -266,7 +278,7 @@ func flagRequiresValue(arg string) bool {
 		name = before
 	}
 	switch name {
-	case "host", "port", "include", "max-file-size", "git-review-timeout", "log-level":
+	case "host", "port", "include", "max-file-size", "git-review-timeout", "log-level", "actor":
 		return true
 	default:
 		return false

@@ -25,9 +25,9 @@ func TestHelpTextSurfacesAgentCommentsLoop(t *testing.T) {
 }
 
 func TestServerReadyPayloadIncludesResolvedURLAndAgentCommands(t *testing.T) {
-	payload := newServerReadyPayload("/work/linux", "http://127.0.0.1:59432")
+	payload := newServerReadyPayload("/work/linux", "http://127.0.0.1:59432", "")
 
-	if payload.SchemaVersion != 1 || payload.Event != "vivi_server_ready" || payload.Root != "/work/linux" || payload.URL != "http://127.0.0.1:59432" {
+	if payload.SchemaVersion != 1 || payload.Event != "vivi_server_ready" || payload.Root != "/work/linux" || payload.URL != "http://127.0.0.1:59432" || payload.Actor != "" {
 		t.Fatalf("unexpected ready payload metadata: %#v", payload)
 	}
 	if len(payload.SuggestedCommands) != 2 {
@@ -52,6 +52,22 @@ func TestServerReadyPayloadIncludesResolvedURLAndAgentCommands(t *testing.T) {
 	}
 	if decoded.Event != payload.Event || decoded.URL != payload.URL {
 		t.Fatalf("decoded ready payload lost metadata: %#v", decoded)
+	}
+}
+
+func TestServerReadyPayloadCanCarryAgentActor(t *testing.T) {
+	payload := newServerReadyPayload("/work/linux", "http://127.0.0.1:59432", " codex ")
+
+	if payload.Actor != "codex" {
+		t.Fatalf("ready payload actor = %q", payload.Actor)
+	}
+	if len(payload.SuggestedCommands) != 2 {
+		t.Fatalf("expected two suggested commands, got %#v", payload.SuggestedCommands)
+	}
+	for _, command := range payload.SuggestedCommands {
+		if !containsString(command.Args, "--actor") || !containsString(command.Args, "codex") || !containsString(command.Args, "--url") || !containsString(command.Args, "http://127.0.0.1:59432") {
+			t.Fatalf("actor-ready suggestion missing resolved actor or url: %#v", command)
+		}
 	}
 }
 
