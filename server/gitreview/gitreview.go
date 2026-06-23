@@ -199,11 +199,10 @@ func (reviewer *Reviewer) ReadDiff(ctx context.Context, relativePath, baseRef st
 	if selected.Status == "added" && base.Ref == "HEAD" {
 		return reviewer.addedDiff(relativePath, base)
 	}
-	output, reason, ok := reviewer.gitWorkspaceDiff(ctx, base.Ref)
+	output, reason, ok := reviewer.gitPathDiff(ctx, base.Ref, relativePath)
 	if !ok {
 		return unavailableDiff(relativePath, reason)
 	}
-	output = diffForPath(output, relativePath)
 	if strings.TrimSpace(output) == "" {
 		return unavailableDiff(relativePath, "No text diff is available for this file.")
 	}
@@ -392,12 +391,22 @@ func (reviewer *Reviewer) gitRevParseTopLevel(ctx context.Context) (string, stri
 	return reviewer.runGit(ctx, command)
 }
 
-func (reviewer *Reviewer) gitWorkspaceDiff(ctx context.Context, baseRef string) (string, string, bool) {
+func (reviewer *Reviewer) gitPathDiff(ctx context.Context, baseRef string, relativePath string) (string, string, bool) {
 	ref := strings.TrimSpace(baseRef)
 	if ref == "" {
 		ref = "HEAD"
 	}
-	command := exec.Command("git", "diff", "--unified=1000000", ref, "--", ".")
+	gitRoot, prefix, reason, ok := reviewer.workspace(ctx)
+	if !ok {
+		return "", reason, false
+	}
+	_ = gitRoot
+	args := []string{"diff"}
+	if prefix != "" {
+		args = append(args, "--relative="+prefix)
+	}
+	args = append(args, "--unified=1000000", ref, "--", relativePath)
+	command := exec.Command("git", args...)
 	return reviewer.runGit(ctx, command)
 }
 
@@ -534,45 +543,6 @@ func gitPathToWorkspace(pathname, prefix string) (string, bool) {
 	}
 	result := strings.TrimPrefix(normalized, needle)
 	return result, result != ""
-}
-
-func diffForPath(diff, relativePath string) string {
-	lines := strings.Split(diff, "\n")
-	blocks := []string{}
-	current := []string{}
-	for _, line := range lines {
-		if strings.HasPrefix(line, "diff --git ") {
-			if len(current) > 0 {
-				blocks = append(blocks, strings.Join(current, "\n"))
-			}
-			current = []string{line}
-			continue
-		}
-		if len(current) > 0 {
-			current = append(current, line)
-		}
-	}
-	if len(current) > 0 {
-		blocks = append(blocks, strings.Join(current, "\n"))
-	}
-	for _, block := range blocks {
-		oldPath, newPath, ok := diffHeaderPaths(block)
-		if ok && (oldPath == relativePath || newPath == relativePath) {
-			return strings.TrimRight(block, "\n")
-		}
-	}
-	return ""
-}
-
-func diffHeaderPaths(block string) (string, string, bool) {
-	firstLine, _, _ := strings.Cut(block, "\n")
-	fields := strings.Fields(firstLine)
-	if len(fields) < 4 || fields[0] != "diff" || fields[1] != "--git" {
-		return "", "", false
-	}
-	oldPath := strings.TrimPrefix(fields[2], "a/")
-	newPath := strings.TrimPrefix(fields[3], "b/")
-	return oldPath, newPath, oldPath != "" && newPath != ""
 }
 
 func normalizeRelativePath(input string) (string, error) {
