@@ -65,6 +65,28 @@ export const OpenOnly: Story = {
   },
 };
 
+export const CurrentThreadActions: Story = {
+  tags: ["interaction"],
+  args: {
+    activeCommentId: "comment-workbench-open-1",
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const resolveButtons = canvas.getAllByRole("button", {
+      name: "Resolve current thread",
+    });
+    await expect(resolveButtons).toHaveLength(2);
+    await expect(
+      canvas.getAllByRole("button", { name: "Archive current thread" }),
+    ).toHaveLength(2);
+    await userEvent.click(resolveButtons[0]!);
+    await expect(args.onStatusChange).toHaveBeenCalledWith(
+      "thread-workbench-open",
+      "resolved",
+    );
+  },
+};
+
 export const ResolvedAndArchivedHistory: Story = {
   tags: ["interaction"],
   args: {

@@ -50,12 +50,12 @@ export function CodeCommentThread({
   const toggleStatusLabel =
     threadStatus === "open"
       ? hasActiveComment
-        ? "Resolve current stop"
+        ? "Resolve current thread"
         : "Resolve thread"
       : hasActiveComment
-        ? "Reopen current stop"
+        ? "Reopen current thread"
         : "Reopen thread";
-  const archiveLabel = hasActiveComment ? "Archive current stop" : "Archive";
+  const archiveLabel = hasActiveComment ? "Archive current thread" : "Archive";
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {

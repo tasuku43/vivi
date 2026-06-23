@@ -205,7 +205,7 @@ export function CommentsPanel({
                 <button
                   type="button"
                   aria-keyshortcuts="Meta+Shift+Enter Control+Shift+Enter"
-                  title={`${currentStop.thread.status === "open" ? "Resolve" : "Reopen"} current stop (Cmd/Ctrl Shift Enter)`}
+                  title={`${currentStop.thread.status === "open" ? "Resolve" : "Reopen"} current thread (Cmd/Ctrl Shift Enter)`}
                   onClick={() =>
                     onStatusChange(
                       currentStop.thread.threadId,
@@ -214,19 +214,19 @@ export function CommentsPanel({
                   }
                 >
                   {currentStop.thread.status === "open"
-                    ? "Resolve current stop"
-                    : "Reopen current stop"}
+                    ? "Resolve current thread"
+                    : "Reopen current thread"}
                 </button>
                 {currentStop.thread.status !== "archived" ? (
                   <button
                     type="button"
                     aria-keyshortcuts="Meta+Shift+Backspace Control+Shift+Backspace"
-                    title="Archive current stop (Cmd/Ctrl Shift Backspace)"
+                    title="Archive current thread (Cmd/Ctrl Shift Backspace)"
                     onClick={() =>
                       onStatusChange(currentStop.thread.threadId, "archived")
                     }
                   >
-                    Archive current stop
+                    Archive current thread
                   </button>
                 ) : null}
               </>
@@ -266,23 +266,23 @@ export function CommentsPanel({
             const toggleStatusLabel =
               thread.status === "open"
                 ? active
-                  ? "Resolve current stop"
+                  ? "Resolve current thread"
                   : "Resolve"
                 : active
-                  ? "Reopen current stop"
+                  ? "Reopen current thread"
                   : "Reopen";
-            const archiveLabel = active ? "Archive current stop" : "Archive";
+            const archiveLabel = active ? "Archive current thread" : "Archive";
             const actionContext = `${thread.path}, ${thread.lineLabel}`;
             const toggleStatusActionLabel =
               thread.status === "open"
                 ? active
-                  ? "Resolve current stop"
+                  ? "Resolve current thread"
                   : `Resolve comment for ${actionContext}`
                 : active
-                  ? "Reopen current stop"
+                  ? "Reopen current thread"
                   : `Reopen comment for ${actionContext}`;
             const archiveActionLabel = active
-              ? "Archive current stop"
+              ? "Archive current thread"
               : `Archive comment for ${actionContext}`;
             return (
               <div
@@ -430,7 +430,7 @@ export function CommentsPanel({
                         }
                         title={
                           active
-                            ? "Resolve current stop (Cmd/Ctrl Shift Enter)"
+                            ? "Resolve current thread (Cmd/Ctrl Shift Enter)"
                             : toggleStatusActionLabel
                         }
                         onClick={() =>
@@ -450,7 +450,7 @@ export function CommentsPanel({
                         }
                         title={
                           active
-                            ? "Reopen current stop (Cmd/Ctrl Shift Enter)"
+                            ? "Reopen current thread (Cmd/Ctrl Shift Enter)"
                             : toggleStatusActionLabel
                         }
                         onClick={() => onStatusChange(thread.threadId, "open")}
@@ -469,7 +469,7 @@ export function CommentsPanel({
                         }
                         title={
                           active
-                            ? "Archive current stop (Cmd/Ctrl Shift Backspace)"
+                            ? "Archive current thread (Cmd/Ctrl Shift Backspace)"
                             : archiveActionLabel
                         }
                         onClick={() =>
@@ -654,7 +654,7 @@ function currentStopActionLabel({
   comment: ViviComment;
 }): string {
   return [
-    "Return to current stop",
+    "Return to current thread",
     thread.path,
     thread.locationLabel,
     commentLineLabel(comment),

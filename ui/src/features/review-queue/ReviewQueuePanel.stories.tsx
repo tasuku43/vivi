@@ -205,6 +205,23 @@ export const ActiveFileSourceChangedAnchor: Story = {
   },
 };
 
+export const ActiveThreadActions: Story = {
+  tags: ["interaction"],
+  args: {
+    activeCommentId: "comment-workbench-open-1",
+    onCommentStatusChange: noop,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("button", { name: "Resolve current thread" }),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", { name: "Archive current thread" }),
+    ).toBeInTheDocument();
+  },
+};
+
 export const ActiveThreadSourceMissingAnchor: Story = {
   args: {
     file: null,

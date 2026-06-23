@@ -28,7 +28,7 @@ export function reviewCommandActions({
   if (activeComment) {
     actions.push({
       id: "return-current-stop",
-      label: "Return to current stop",
+      label: "Return to current thread",
       detail: `${activeComment.path} · ${commentLineLabel(activeComment)}`,
       shortcut: `${shortcutPrefix} I`,
     });
@@ -36,15 +36,15 @@ export function reviewCommandActions({
       id: "toggle-current-thread-status",
       label:
         activeComment.status === "open"
-          ? "Resolve current stop"
-          : "Reopen current stop",
+          ? "Resolve current thread"
+          : "Reopen current thread",
       detail: `${activeComment.path} · ${commentLineLabel(activeComment)}`,
       shortcut: `${shortcutPrefix} Shift Enter`,
     });
     if (activeComment.status !== "archived") {
       actions.push({
         id: "archive-current-thread",
-        label: "Archive current stop",
+        label: "Archive current thread",
         detail: `${activeComment.path} · ${commentLineLabel(activeComment)}`,
         shortcut: `${shortcutPrefix} Shift Backspace`,
       });

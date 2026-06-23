@@ -437,11 +437,11 @@ it("renders the shortcut guide as one bundled reference", () => {
   );
   expect(html).toContain("Cmd/Ctrl E");
   expect(html).toContain("Cmd/Ctrl I");
-  expect(html).toContain("Return to current stop");
+  expect(html).toContain("Return to current thread");
   expect(html).toContain("Cmd/Ctrl Shift Enter");
-  expect(html).toContain("Resolve / reopen current stop");
+  expect(html).toContain("Resolve / reopen current thread");
   expect(html).toContain("Cmd/Ctrl Shift Backspace");
-  expect(html).toContain("Archive current stop");
+  expect(html).toContain("Archive current thread");
   expect(html).not.toContain("Focus current inline thread");
   expect(html).toContain("Cmd/Ctrl B");
   expect(html).toContain("Cmd/Ctrl Shift \\");
@@ -686,7 +686,7 @@ it("renders command palette actions for review navigation", () => {
       actions={[
         {
           id: "return-current-stop",
-          label: "Return to current stop",
+          label: "Return to current thread",
           detail: "src/app.ts · L2",
           shortcut: "Cmd/Ctrl I",
         },
@@ -716,7 +716,7 @@ it("renders command palette actions for review navigation", () => {
   );
 
   expect(html).toContain("Actions");
-  expect(html).toContain("Return to current stop");
+  expect(html).toContain("Return to current thread");
   expect(html).toContain("src/app.ts · L2");
   expect(html).toContain("Cmd/Ctrl I");
   expect(html).toContain("Next open thread");
@@ -884,8 +884,8 @@ it("renders code line comments as an inline thread with replies", () => {
   expect(html).toContain('aria-label="Add reply"');
   expect(html).toContain('aria-describedby="comment-reply-hint-src-app-ts-2-2"');
   expect(html).toContain('aria-keyshortcuts="Meta+Enter Control+Enter"');
-  expect(html).toContain("Resolve current stop");
-  expect(html).toContain("Archive current stop");
+  expect(html).toContain("Resolve current thread");
+  expect(html).toContain("Archive current thread");
   expect(html).toContain(
     'aria-keyshortcuts="Meta+Shift+Enter Control+Shift+Enter"',
   );
@@ -893,10 +893,10 @@ it("renders code line comments as an inline thread with replies", () => {
     'aria-keyshortcuts="Meta+Shift+Backspace Control+Shift+Backspace"',
   );
   expect(html).toContain(
-    'title="Resolve current stop (Cmd/Ctrl Shift Enter)"',
+    'title="Resolve current thread (Cmd/Ctrl Shift Enter)"',
   );
   expect(html).toContain(
-    'title="Archive current stop (Cmd/Ctrl Shift Backspace)"',
+    'title="Archive current thread (Cmd/Ctrl Shift Backspace)"',
   );
   expect(html).toContain("<kbd>Cmd/Ctrl Enter</kbd> to send");
   expect(html).toContain("Esc closes");
@@ -1752,9 +1752,9 @@ it("summarizes active-file review focus without mixing drafts into open threads"
     'aria-label="Thread actions for src/app.ts, L2"',
   );
   expect(html).toContain('class="active-comment-thread-actions"');
-  expect(html).toContain(">Resolve current stop</button>");
+  expect(html).toContain(">Resolve current thread</button>");
   expect(html).toContain(">Reopen</button>");
-  expect(html).toContain(">Archive current stop</button>");
+  expect(html).toContain(">Archive current thread</button>");
   expect(html).toContain(
     'aria-keyshortcuts="Meta+Shift+Enter Control+Shift+Enter"',
   );
@@ -1762,10 +1762,10 @@ it("summarizes active-file review focus without mixing drafts into open threads"
     'aria-keyshortcuts="Meta+Shift+Backspace Control+Shift+Backspace"',
   );
   expect(html).toContain(
-    'title="Resolve current stop (Cmd/Ctrl Shift Enter)"',
+    'title="Resolve current thread (Cmd/Ctrl Shift Enter)"',
   );
   expect(html).toContain(
-    'title="Archive current stop (Cmd/Ctrl Shift Backspace)"',
+    'title="Archive current thread (Cmd/Ctrl Shift Backspace)"',
   );
   expect(html).not.toContain("2 open comments");
   expect(html).toContain("Drafts stay private until published");
@@ -2324,7 +2324,7 @@ it("renders comment activity in workspace comments rows", () => {
   expect(html).toContain("Source L2 · L2 · source");
   expect(html).toContain("Visible below");
   expect(html).toContain(
-    'aria-label="Return to current stop, src/app.ts, Source L2, L2"',
+    'aria-label="Return to current thread, src/app.ts, Source L2, L2"',
   );
   expect(html).toContain(">Return</button>");
   expect(html).toContain(
@@ -2375,8 +2375,8 @@ it("renders comment activity in workspace comments rows", () => {
   expect(html).toContain(
     'aria-label="Thread actions for src/app.ts, L2"',
   );
-  expect(html).toContain(">Resolve current stop</button>");
-  expect(html).toContain(">Archive current stop</button>");
+  expect(html).toContain(">Resolve current thread</button>");
+  expect(html).toContain(">Archive current thread</button>");
   expect(html).toContain(
     'aria-keyshortcuts="Meta+Shift+Enter Control+Shift+Enter"',
   );
@@ -2384,10 +2384,10 @@ it("renders comment activity in workspace comments rows", () => {
     'aria-keyshortcuts="Meta+Shift+Backspace Control+Shift+Backspace"',
   );
   expect(html).toContain(
-    'title="Resolve current stop (Cmd/Ctrl Shift Enter)"',
+    'title="Resolve current thread (Cmd/Ctrl Shift Enter)"',
   );
   expect(html).toContain(
-    'title="Archive current stop (Cmd/Ctrl Shift Backspace)"',
+    'title="Archive current thread (Cmd/Ctrl Shift Backspace)"',
   );
   expect(html).toContain("Open");
 });
@@ -2631,7 +2631,7 @@ it("returns to the exact active comment from the workspace comment current stop"
     };
     return (
       props["aria-label"] ===
-        "Return to current stop, src/app.ts, Source L2, L2" &&
+        "Return to current thread, src/app.ts, Source L2, L2" &&
       flattenText(props.children) === "Return"
     );
   });
@@ -2648,8 +2648,8 @@ it("returns to the exact active comment from the workspace comment current stop"
     };
     return (
       props.type === "button" &&
-      flattenText(props.children) === "Resolve current stop" &&
-      props.title === "Resolve current stop (Cmd/Ctrl Shift Enter)"
+      flattenText(props.children) === "Resolve current thread" &&
+      props.title === "Resolve current thread (Cmd/Ctrl Shift Enter)"
     );
   });
   const archiveButton = findElement(panel, (element) => {
@@ -2660,8 +2660,8 @@ it("returns to the exact active comment from the workspace comment current stop"
     };
     return (
       props.type === "button" &&
-      flattenText(props.children) === "Archive current stop" &&
-      props.title === "Archive current stop (Cmd/Ctrl Shift Backspace)"
+      flattenText(props.children) === "Archive current thread" &&
+      props.title === "Archive current thread (Cmd/Ctrl Shift Backspace)"
     );
   });
 
@@ -3928,7 +3928,7 @@ it("renders diff comments as source-style inline threads after the selected new-
   expect(html).toContain("code-comment-thread-row");
   expect(html).toContain("Lines 20-21");
   expect(html).toContain("Review the new two-line block");
-  expect(html).toContain("Resolve current stop");
+  expect(html).toContain("Resolve current thread");
   expect(html).not.toContain("Add comment on line 10");
   expect(html.indexOf("new line two")).toBeLessThan(
     html.indexOf("code-comment-thread-row"),

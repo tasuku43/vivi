@@ -100,6 +100,29 @@ export const Open: Story = {
 export const Resolved: Story = { args: args("resolved") };
 export const Archived: Story = { args: args("archived") };
 
+export const CurrentThreadActions: Story = {
+  tags: ["interaction"],
+  args: {
+    ...args("resolved"),
+    activeCommentId: "comment-workbench-open-1",
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const reopen = canvas.getByRole("button", {
+      name: "Reopen current thread",
+    });
+    await expect(reopen).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", { name: "Archive current thread" }),
+    ).toBeInTheDocument();
+    await userEvent.click(reopen);
+    await expect(args.onStatusChange).toHaveBeenCalledWith(
+      "thread-workbench-open",
+      "open",
+    );
+  },
+};
+
 export const NewLineComment: Story = {
   tags: ["interaction"],
   args: {

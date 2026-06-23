@@ -130,6 +130,14 @@ export const Tabs: Story = {
 
 export const ShortcutHelpOverlay: Story = {
   render: () => <ShortcutHelp open onClose={() => undefined} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Return to current thread")).toBeVisible();
+    await expect(
+      canvas.getByText("Resolve / reopen current thread"),
+    ).toBeVisible();
+    await expect(canvas.getByText("Archive current thread")).toBeVisible();
+  },
 };
 
 export const Statusbar: Story = {

@@ -1884,19 +1884,19 @@ it("builds contextual review command palette actions", () => {
   ).toMatchObject([
     {
       id: "return-current-stop",
-      label: "Return to current stop",
+      label: "Return to current thread",
       detail: "docs/a.md · L4",
       shortcut: "Cmd/Ctrl I",
     },
     {
       id: "toggle-current-thread-status",
-      label: "Resolve current stop",
+      label: "Resolve current thread",
       detail: "docs/a.md · L4",
       shortcut: "Cmd/Ctrl Shift Enter",
     },
     {
       id: "archive-current-thread",
-      label: "Archive current stop",
+      label: "Archive current thread",
       detail: "docs/a.md · L4",
       shortcut: "Cmd/Ctrl Shift Backspace",
     },
@@ -1959,9 +1959,9 @@ it("builds contextual review command palette actions", () => {
       unreadReviewCount: 0,
     }).map((action) => action.label),
   ).toEqual([
-    "Return to current stop",
-    "Reopen current stop",
-    "Archive current stop",
+    "Return to current thread",
+    "Reopen current thread",
+    "Archive current thread",
   ]);
   expect(
     reviewCommandActions({
@@ -1973,7 +1973,7 @@ it("builds contextual review command palette actions", () => {
       reviewItemCount: 0,
       unreadReviewCount: 0,
     }).map((action) => action.label),
-  ).toEqual(["Return to current stop", "Reopen current stop"]);
+  ).toEqual(["Return to current thread", "Reopen current thread"]);
 });
 
 it("derives active comment lifecycle updates for review shortcuts", () => {

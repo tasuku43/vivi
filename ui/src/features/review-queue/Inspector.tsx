@@ -557,13 +557,13 @@ export function Inspector({
                   const toggleStatusLabel =
                     thread.status === "open"
                       ? active
-                        ? "Resolve current stop"
+                        ? "Resolve current thread"
                         : "Resolve"
                       : active
-                        ? "Reopen current stop"
+                        ? "Reopen current thread"
                         : "Reopen";
                   const archiveLabel = active
-                    ? "Archive current stop"
+                    ? "Archive current thread"
                     : "Archive";
                   const rowLabel = [
                     `${statusLabel(thread.status)} thread in ${thread.path}`,
@@ -639,7 +639,7 @@ export function Inspector({
                               }
                               title={
                                 active
-                                  ? "Resolve current stop (Cmd/Ctrl Shift Enter)"
+                                  ? "Resolve current thread (Cmd/Ctrl Shift Enter)"
                                   : undefined
                               }
                               onClick={() =>
@@ -658,7 +658,7 @@ export function Inspector({
                               }
                               title={
                                 active
-                                  ? "Reopen current stop (Cmd/Ctrl Shift Enter)"
+                                  ? "Reopen current thread (Cmd/Ctrl Shift Enter)"
                                   : undefined
                               }
                               onClick={() =>
@@ -678,7 +678,7 @@ export function Inspector({
                               }
                               title={
                                 active
-                                  ? "Archive current stop (Cmd/Ctrl Shift Backspace)"
+                                  ? "Archive current thread (Cmd/Ctrl Shift Backspace)"
                                   : undefined
                               }
                               onClick={() =>
