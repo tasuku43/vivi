@@ -50,6 +50,7 @@ interface Props {
   reviewComments?: ViviComment[];
   draftComments?: DraftReviewComment[];
   commentsLoading?: boolean;
+  knownMissingCommentPaths?: ReadonlySet<string>;
   threadActivities?: Record<string, CommentActivitySummary>;
   activeCommentId?: string | null;
   selectedCodeRange: LineRange | null;
@@ -84,6 +85,7 @@ export function Inspector({
   reviewComments = comments,
   draftComments = [],
   commentsLoading = false,
+  knownMissingCommentPaths = emptyMissingCommentPaths,
   threadActivities = {},
   activeCommentId = null,
   selectedCodeRange,
@@ -488,9 +490,25 @@ export function Inspector({
                     primaryComment;
                   const latestActivity = activity?.inline[0];
                   const locationLabel = commentLocationLabel(primaryComment);
+                  const sourceMissing = knownMissingCommentPaths.has(
+                    thread.path,
+                  );
                   const sourceChanged = thread.comments.some((comment) =>
                     commentAnchorSourceChanged(comment, file),
                   );
+                  const sourceState = sourceMissing
+                    ? {
+                        label: "Source missing",
+                        aria:
+                          "This comment points to a path that is not present in the current workspace tree",
+                      }
+                    : sourceChanged
+                      ? {
+                          label: "Source changed",
+                          aria:
+                            "Current file content differs from this comment anchor",
+                        }
+                      : null;
                   const latestPreview = truncateCommentPreview(
                     latestComment.body,
                     96,
@@ -540,12 +558,12 @@ export function Inspector({
                               Current thread
                             </span>
                           ) : null}
-                          {sourceChanged ? (
+                          {sourceState ? (
                             <span
                               className="comment-anchor-warning"
-                              aria-label="Current file content differs from this comment anchor"
+                              aria-label={sourceState.aria}
                             >
-                              Source changed
+                              {sourceState.label}
                             </span>
                           ) : null}
                         </span>
@@ -849,6 +867,8 @@ function reviewQueueItemDescription(
 function reviewQueueStopTitle(active: boolean): string {
   return active ? "Current stop" : "Next stop";
 }
+
+const emptyMissingCommentPaths = new Set<string>();
 
 interface ReviewQueueStop {
   label: string;

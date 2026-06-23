@@ -3291,6 +3291,46 @@ it("marks active file comment threads when the file changed since the anchor", (
   );
 });
 
+it("marks active comment threads when the source path is missing", () => {
+  const missingComment: ViviComment = {
+    ...codeLineComment,
+    path: "README.md",
+    anchor: {
+      ...codeLineComment.anchor,
+      canonical: {
+        ...codeLineComment.anchor.canonical,
+        path: "README.md",
+      },
+    },
+  };
+  const html = renderToStaticMarkup(
+    <Inspector
+      file={null}
+      reviewChanges={[]}
+      reviewItems={[]}
+      reviewDiffStats={{}}
+      loadingReviewDiffs={{}}
+      unreadReviewPaths={new Set()}
+      comments={[missingComment]}
+      knownMissingCommentPaths={new Set(["README.md"])}
+      selectedCodeRange={null}
+      activePath={null}
+      activePaneId="main"
+      onOpenEventPath={() => undefined}
+      onConfirmEventPath={() => undefined}
+      onOpenNextChanged={() => undefined}
+      onOpenPreviousChanged={() => undefined}
+      onOpenAllChanged={() => undefined}
+      onRevealInTree={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Source missing");
+  expect(html).toContain(
+    'aria-label="This comment points to a path that is not present in the current workspace tree"',
+  );
+});
+
 it("keeps resolved-only Review Queue files out of next-stop guidance", () => {
   const resolvedComment: ViviComment = {
     ...codeLineComment,

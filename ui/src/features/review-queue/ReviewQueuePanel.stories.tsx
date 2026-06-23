@@ -137,6 +137,15 @@ export const ActiveFileSourceChangedAnchor: Story = {
   },
 };
 
+export const ActiveThreadSourceMissingAnchor: Story = {
+  args: {
+    file: null,
+    activePath: null,
+    comments: [staleThreadOnlyComment],
+    knownMissingCommentPaths: new Set(["missing-review.md"]),
+  },
+};
+
 export const PublishedOpenThreads: Story = {
   args: {
     file: sampleFiles.markdown,

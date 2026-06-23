@@ -2219,6 +2219,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               reviewComments={comments}
               draftComments={activeFileDraftComments}
               commentsLoading={commentsLoading}
+              knownMissingCommentPaths={knownMissingCommentPathSet}
               threadActivities={commentActivitySummaries}
               activeCommentId={activeCommentId}
               onOpenComments={() => {
