@@ -250,11 +250,33 @@ it("clarifies when fewer comments are in the review queue", () => {
   expect(html).toContain("Comments");
   expect(html).toContain('class="comment-count-badge">3</span>');
   expect(html).toContain(
-    'aria-label="Open Comments inbox, 3 open threads, 1 in review queue"',
+    'aria-label="Open Comments inbox, 3 open threads, 1 open review thread"',
   );
   expect(html).toContain(
-    'title="Open Comments inbox: 3 open threads, 1 in review queue (Cmd/Ctrl+Shift+C)"',
+    'title="Open Comments inbox: 3 open threads, 1 open review thread (Cmd/Ctrl+Shift+C)"',
   );
+});
+
+it("does not make zero review-thread comments sound like an empty Review Queue", () => {
+  const html = renderToStaticMarkup(
+    <Topbar
+      root="/Users/tasuku/work/vivi"
+      themePreference="dark"
+      openCommentThreadCount={2}
+      reviewOpenCommentThreadCount={0}
+      commentAttentionCount={0}
+      onThemeCycle={() => undefined}
+      onQuickOpen={() => undefined}
+      onSearchText={() => undefined}
+      onOpenComments={() => undefined}
+      onOpenShortcuts={() => undefined}
+    />,
+  );
+
+  expect(html).toContain(
+    'aria-label="Open Comments inbox, 2 open threads, no open review threads"',
+  );
+  expect(html).not.toContain("0 in review queue");
 });
 
 it("renders workspace status as a readable local-review instrument", () => {

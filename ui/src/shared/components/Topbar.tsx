@@ -148,7 +148,7 @@ function commentsButtonState({
     reviewOpenThreadCount !== undefined &&
     reviewOpenThreadCount >= 0 &&
     reviewOpenThreadCount !== openThreadCount
-      ? `, ${reviewOpenThreadCount} in review queue`
+      ? `, ${openReviewThreadSummary(reviewOpenThreadCount)}`
       : "";
   return {
     ariaLabel: `Open Comments inbox, ${summary}${reviewSummary}`,
@@ -156,6 +156,11 @@ function commentsButtonState({
     label: "Comments",
     title: `Open Comments inbox: ${summary}${reviewSummary} (Cmd/Ctrl+Shift+C)`,
   };
+}
+
+function openReviewThreadSummary(count: number): string {
+  if (count === 0) return "no open review threads";
+  return `${count} open review ${count === 1 ? "thread" : "threads"}`;
 }
 
 export function workspaceDisplayName(root: string | null): string {
