@@ -92,11 +92,11 @@ Vivi's job is narrower and more durable: make human review legible to agents, wh
 
 Vivi should avoid competing as a generic diff viewer.
 
-Tools like difit are strong local diff review tools for the AI era. They make code diffs readable and can turn comments into AI-ready prompts. Vivi can learn from that, but Vivi should not define itself primarily as a better diff viewer.
+Diff review tools are valuable because they make code changes easier to inspect, especially in AI-assisted development. Vivi can learn from that category, but it should not define itself primarily around code diffs. Its center is broader: reviewing local artifacts as human-readable work, then turning that review context into agent-readable feedback.
 
 Vivi should also avoid competing as an agent workbench.
 
-Tools like Vibe Kanban focus on orchestrating agents, tasks, branches, terminals, previews, and Pull Requests. Vivi can integrate with agent workflows, but its center should remain the review adapter between the human and the agent.
+Agent workbenches are valuable because they help coordinate tasks, branches, terminals, previews, and Pull Requests. Vivi can integrate with those workflows, but it should not try to orchestrate the agent's entire working environment. Its center should remain the review adapter between the human and the agent.
 
 Vivi's distinct position is local artifact review with an agent-readable feedback loop:
 
