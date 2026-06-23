@@ -407,7 +407,7 @@ func pluralize(word string, count int) string {
 
 func formatViviCommand(args []string) string {
 	parts := make([]string, 0, len(args)+1)
-	parts = append(parts, "vivi")
+	parts = append(parts, shellQuoteCLIArg(viviExecutable))
 	for _, arg := range args {
 		parts = append(parts, shellQuoteCLIArg(arg))
 	}

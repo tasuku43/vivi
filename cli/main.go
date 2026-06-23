@@ -22,8 +22,10 @@ import (
 )
 
 var version = "0.0.0"
+var viviExecutable = "vivi"
 
 func main() {
+	viviExecutable = invokedViviExecutable(os.Args)
 	if err := run(os.Args[1:]); err != nil {
 		if payload, ok := cliErrorPayload(err); ok {
 			_ = writeJSON(os.Stdout, payload)
@@ -32,6 +34,13 @@ func main() {
 		}
 		os.Exit(1)
 	}
+}
+
+func invokedViviExecutable(args []string) string {
+	if len(args) == 0 || strings.TrimSpace(args[0]) == "" {
+		return "vivi"
+	}
+	return args[0]
 }
 
 func run(args []string) error {

@@ -108,6 +108,40 @@ func TestReviewCLIQueueAndDiffGuideAgentReview(t *testing.T) {
 	}
 }
 
+func TestReviewCLIHumanSuggestionsUseInvokedExecutable(t *testing.T) {
+	originalExecutable := viviExecutable
+	t.Cleanup(func() {
+		viviExecutable = originalExecutable
+	})
+	viviExecutable = "./vivi"
+
+	server := newCommentsCLITestServerWithSetup(t, func(root string) {
+		runGitForCLITest(t, root, "init")
+		runGitForCLITest(t, root, "config", "user.email", "vivi@example.test")
+		runGitForCLITest(t, root, "config", "user.name", "Vivi Test")
+		runGitForCLITest(t, root, "add", "README.md")
+		runGitForCLITest(t, root, "commit", "-m", "initial")
+		if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# Vivi\n\nHello changed\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	})
+	defer server.Close()
+
+	humanQueue := runReviewCLIForTest(t, "queue", "--url", server.URL, "--actor", "codex:test")
+	humanText := humanQueue.String()
+	for _, text := range []string{
+		"./vivi review diff README.md --base HEAD --url " + server.URL + " --json",
+		"./vivi comments work --actor codex:test --wait --loop --idle-events --full --url " + server.URL,
+	} {
+		if !strings.Contains(humanText, text) {
+			t.Fatalf("human review queue output did not include invoked executable command %q\n%s", text, humanText)
+		}
+	}
+	if strings.Contains(humanText, "  - inspect_first_changed_file_diff: vivi review diff") {
+		t.Fatalf("human review queue output used PATH command instead of invoked executable:\n%s", humanText)
+	}
+}
+
 func TestReviewCLIQueueOrdersCommentedChangesLikeReviewWorkflow(t *testing.T) {
 	server := newCommentsCLITestServerWithSetup(t, func(root string) {
 		runGitForCLITest(t, root, "init")
