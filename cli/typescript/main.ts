@@ -3,7 +3,10 @@ import path from "node:path";
 import { ViewerService } from "../../server/typescript/application/viewer-service.js";
 import { openBrowser } from "../../server/typescript/infrastructure/browser-open.js";
 import { GitChangeReview } from "../../server/typescript/infrastructure/git-change-review.js";
-import { NodeCommentStore } from "../../server/typescript/infrastructure/node-comment-store.js";
+import {
+  NodeCommentStore,
+  workspaceViviDataDir,
+} from "../../server/typescript/infrastructure/node-comment-store.js";
 import { NodeFileSystem } from "../../server/typescript/infrastructure/node-file-system.js";
 import { NodeWatcher } from "../../server/typescript/infrastructure/node-watcher.js";
 import { startHttpServer } from "../../server/typescript/http/http-server.js";
@@ -86,7 +89,9 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   });
   const watcher = new NodeWatcher({ rootDir });
   const changeReview = new GitChangeReview({ rootDir });
-  const commentStore = new NodeCommentStore();
+  const commentStore = new NodeCommentStore({
+    dataDir: workspaceViviDataDir(rootDir),
+  });
   const service = new ViewerService({
     fileSystem,
     watcher,

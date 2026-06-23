@@ -1,5 +1,5 @@
-import { existsSync } from "node:fs";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { existsSync, realpathSync } from "node:fs";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -346,6 +346,33 @@ export function defaultViviDataDir(): string {
   if (process.env.XDG_DATA_HOME)
     return path.join(process.env.XDG_DATA_HOME, "vivi");
   return path.join(homedir(), ".local", "share", "vivi");
+}
+
+export function workspaceViviDataDir(rootDir: string): string {
+  let canonicalRoot = path.resolve(rootDir);
+  try {
+    canonicalRoot = realpathSync(canonicalRoot);
+  } catch {
+    // Fall back to the resolved path for tests or roots that disappeared.
+  }
+  const digest = createHash("sha256")
+    .update(canonicalRoot)
+    .digest("hex")
+    .slice(0, 16);
+  return path.join(
+    defaultViviDataDir(),
+    "workspaces",
+    `${safeWorkspaceDataDirName(path.basename(canonicalRoot))}-${digest}`,
+  );
+}
+
+function safeWorkspaceDataDirName(name: string): string {
+  const safe = name
+    .trim()
+    .replace(/[^A-Za-z0-9._-]+/g, "-")
+    .replace(/^[.-]+|[.-]+$/g, "")
+    .slice(0, 48);
+  return safe || "workspace";
 }
 
 function isMissingFileError(error: unknown): boolean {

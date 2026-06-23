@@ -70,9 +70,12 @@ projection, and export format are documented in
 [`22-comment-thread-lifecycle.md`](22-comment-thread-lifecycle.md).
 
 Comments are stored outside the viewed workspace so read-only mounts remain
-compatible. The first storage adapter writes JSONL to the Vivi data directory:
-`$VIVI_DATA_DIR/comments.jsonl` when set, then `$XDG_DATA_HOME/vivi/comments.jsonl`,
-then the platform user data fallback.
+compatible. The first storage adapter writes JSONL under a workspace-scoped
+subdirectory of the Vivi data directory:
+`$VIVI_DATA_DIR/workspaces/<workspace-fingerprint>/comments.jsonl` when set,
+then `$XDG_DATA_HOME/vivi/workspaces/<workspace-fingerprint>/comments.jsonl`,
+then the platform user data fallback. The fingerprint is derived from the
+canonical workspace root so comments from one project do not appear in another.
 Unpublished draft review comments live in the same data directory as
 `comment-drafts.jsonl`; they are not projected into public comment threads until
 publish.

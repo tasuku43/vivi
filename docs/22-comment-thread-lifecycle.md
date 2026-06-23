@@ -74,15 +74,18 @@ user publishes the batch.
 
 ## Storage
 
-Vivi keeps `$VIVI_DATA_DIR/comments.jsonl` as the message store. Its historical
-one-message-per-line shape is unchanged. New messages add `threadId`, `source`,
-optional `author`, and optional `reviewBatchId`; old rows remain valid.
+Vivi keeps `comments.jsonl` under a workspace-scoped data directory such as
+`$VIVI_DATA_DIR/workspaces/<workspace-fingerprint>/comments.jsonl`. The
+fingerprint is derived from the canonical workspace root so unrelated projects
+do not share comment inboxes. The historical one-message-per-line shape is
+unchanged. New messages add `threadId`, `source`, optional `author`, and
+optional `reviewBatchId`; old rows remain valid.
 
 Unpublished review drafts are stored separately in
-`$VIVI_DATA_DIR/comment-drafts.jsonl`. Keeping drafts out of `comments.jsonl`
-and the thread event log makes recovery, discard, and publish behavior explicit:
-delete removes the draft row, while publish creates public comments and clears
-the corresponding drafts.
+`comment-drafts.jsonl` in that same workspace-scoped data directory. Keeping
+drafts out of `comments.jsonl` and the thread event log makes recovery, discard,
+and publish behavior explicit: delete removes the draft row, while publish
+creates public comments and clears the corresponding drafts.
 
 Thread metadata is projected from messages and an append-only
 `comment-threads.jsonl` event log:

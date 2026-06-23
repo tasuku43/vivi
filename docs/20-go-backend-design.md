@@ -129,7 +129,8 @@ Implementation notes:
 
 File contents are not stored in browser `localStorage`. Browser storage is only
 for UI state such as theme, open tabs, recent files, layout, and diff focus.
-Comment metadata is stored outside the viewed workspace by default.
+Comment metadata is stored outside the viewed workspace by default and scoped by
+canonical workspace root before it is served to the UI or agent CLI.
 
 ## HTTP Headers
 

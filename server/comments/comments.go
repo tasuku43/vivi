@@ -3,6 +3,7 @@ package comments
 import (
 	"bufio"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -39,6 +40,26 @@ func NewStore(dataDir string) (*Store, error) {
 		dataDir = defaultDataDir()
 	}
 	return &Store{path: filepath.Join(dataDir, "comments.jsonl"), threadPath: filepath.Join(dataDir, "comment-threads.jsonl"), draftPath: filepath.Join(dataDir, "comment-drafts.jsonl")}, nil
+}
+
+func WorkspaceDataDir(root string) string {
+	canonicalRoot := strings.TrimSpace(root)
+	if canonicalRoot == "" {
+		return defaultDataDir()
+	}
+	if absolute, err := filepath.Abs(canonicalRoot); err == nil {
+		canonicalRoot = absolute
+	}
+	if realRoot, err := filepath.EvalSymlinks(canonicalRoot); err == nil {
+		canonicalRoot = realRoot
+	}
+	canonicalRoot = filepath.Clean(canonicalRoot)
+	sum := sha256.Sum256([]byte(canonicalRoot))
+	return filepath.Join(
+		defaultDataDir(),
+		"workspaces",
+		safeWorkspaceDataDirName(filepath.Base(canonicalRoot))+"-"+hex.EncodeToString(sum[:8]),
+	)
 }
 
 func (store *Store) List(filters Filters) ([]map[string]any, error) {
@@ -1200,4 +1221,36 @@ func defaultDataDir() string {
 		return filepath.Join(os.TempDir(), "vivi")
 	}
 	return filepath.Join(home, ".local", "share", "vivi")
+}
+
+func safeWorkspaceDataDirName(name string) string {
+	name = strings.TrimSpace(name)
+	var builder strings.Builder
+	builder.Grow(len(name))
+	lastDash := false
+	for _, char := range name {
+		isSafe := (char >= 'a' && char <= 'z') ||
+			(char >= 'A' && char <= 'Z') ||
+			(char >= '0' && char <= '9') ||
+			char == '.' ||
+			char == '_' ||
+			char == '-'
+		if isSafe {
+			builder.WriteRune(char)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			builder.WriteByte('-')
+			lastDash = true
+		}
+	}
+	safe := strings.Trim(builder.String(), ".-")
+	if safe == "" {
+		return "workspace"
+	}
+	if len(safe) > 48 {
+		return safe[:48]
+	}
+	return safe
 }

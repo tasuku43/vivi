@@ -105,7 +105,7 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
-	commentStore, err := comments.NewStore("")
+	commentStore, err := comments.NewStore(comments.WorkspaceDataDir(workspaceFS.Config().Root))
 	if err != nil {
 		return err
 	}

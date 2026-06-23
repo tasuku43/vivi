@@ -104,7 +104,8 @@ service, task manager, agent runner, or LLM product.
 
 Vivi reads files under the workspace you choose. It does not intentionally write
 to that workspace. Local comments, when enabled, are Vivi metadata stored
-outside the viewed workspace by default.
+outside the viewed workspace by default, scoped by the canonical workspace root
+so feedback from one project does not appear in another.
 
 ## Security Model
 

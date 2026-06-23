@@ -103,6 +103,43 @@ func TestStoreCreatesThreadMetadataWithoutChangingCommentsJSONLShape(t *testing.
 	}
 }
 
+func TestWorkspaceDataDirScopesCommentsByCanonicalWorkspaceRoot(t *testing.T) {
+	dataDir := t.TempDir()
+	t.Setenv("VIVI_DATA_DIR", dataDir)
+
+	parentA := t.TempDir()
+	parentB := t.TempDir()
+	rootA := filepath.Join(parentA, "project")
+	rootB := filepath.Join(parentB, "project")
+	if err := os.Mkdir(rootA, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(rootB, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	linkA := filepath.Join(parentA, "project-link")
+	if err := os.Symlink(rootA, linkA); err != nil {
+		t.Fatal(err)
+	}
+
+	scopedA := WorkspaceDataDir(rootA)
+	scopedB := WorkspaceDataDir(rootB)
+	scopedLinkA := WorkspaceDataDir(linkA)
+
+	if scopedA == filepath.Join(dataDir, "comments.jsonl") || filepath.Dir(scopedA) == dataDir {
+		t.Fatalf("workspace data dir was not nested under scoped workspaces: %s", scopedA)
+	}
+	if !strings.HasPrefix(scopedA, filepath.Join(dataDir, "workspaces")+string(os.PathSeparator)) {
+		t.Fatalf("workspace data dir escaped base data dir: %s", scopedA)
+	}
+	if scopedA == scopedB {
+		t.Fatalf("different workspace roots with the same basename shared comment data dir: %s", scopedA)
+	}
+	if scopedA != scopedLinkA {
+		t.Fatalf("symlink to the same workspace used a different comment data dir: %s != %s", scopedA, scopedLinkA)
+	}
+}
+
 func TestStoreAppendsIdempotentReadActivityWithoutChangingThreadStatus(t *testing.T) {
 	store, err := NewStore(t.TempDir())
 	if err != nil {
