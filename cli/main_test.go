@@ -12,6 +12,7 @@ import (
 func TestHelpTextSurfacesAgentCommentsLoop(t *testing.T) {
 	help := helpText()
 	for _, command := range []string{
+		"vivi review <queue|bases|diff> [options]",
 		"vivi comments <protocol|schema|doctor|inbox|batch|mine|claim|work|renew|hold|watch|follow|check> [options]",
 		"vivi comments <active|next|list|show|context|reply|done|dismiss|resolve|archive|reopen> [options]",
 	} {

@@ -46,6 +46,9 @@ vivi comments schema commentActivityBatchEvent --json
 vivi comments schema commentWorkClaimedEvent --json
 vivi comments schema commentWorkIdleEvent --json
 vivi comments schema commentOpenWorklistEvent --json
+vivi review queue --json
+vivi review bases --json
+vivi review diff README.md --base HEAD --json
 vivi comments watch --actor claude-code --full --json
 vivi comments watch --actor claude-code --json
 vivi comments follow <thread-id> --no-initial --json
@@ -194,6 +197,16 @@ Pass `--review-batch <id>` to `active`, `list`, `next`, `claim`, or `watch` to l
 the worklist to threads created by one published GUI review batch. The filter
 is applied by the server query, so actor-attributed read receipts are recorded
 only for the matching batch threads.
+
+`vivi review` is the read-only Git working-tree review CLI for coding agents
+that need changed-file context before or alongside human GUI feedback.
+`review queue --json` returns the cheap changed-file list plus available diff
+bases and a `summary.suggestedCommands` entry for the first `review diff`
+command. It does not claim comment threads and does not load every diff in large
+repositories. Use `review bases --json` to list recent allowed diff bases, and
+`review diff <path> --base HEAD --json` to fetch one `TextDiff` payload for a
+changed file. Use the `comments` commands when the agent needs human feedback
+threads, ownership, or terminal replies.
 
 `next` is the shortest read-only coding-agent intake command. It queries the current
 open worklist, records the same actor-aware read receipts as other read
