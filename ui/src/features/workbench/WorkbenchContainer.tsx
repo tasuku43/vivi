@@ -1213,6 +1213,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       activeComment,
       activeCommentId,
       attentionThreadCount: attentionCommentThreadCount,
+      preferAttention: true,
     });
     setPaletteOpen(false);
     setShortcutHelpOpen(false);
@@ -1415,6 +1416,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       activeComment,
       activeCommentId,
       attentionThreadCount: attentionCommentThreadCount,
+      preferAttention: true,
     });
     setPaletteOpen(false);
     setShortcutHelpOpen(false);

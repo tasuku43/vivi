@@ -179,13 +179,23 @@ export function commentInboxOpenState({
   activeComment,
   activeCommentId,
   attentionThreadCount,
+  preferAttention = false,
   query,
 }: {
   activeComment?: ViviComment | null;
   activeCommentId: string | null;
   attentionThreadCount: number;
+  preferAttention?: boolean;
   query?: string;
 }): CommentInboxOpenState {
+  if (preferAttention && attentionThreadCount > 0) {
+    return {
+      activeCommentId: null,
+      query: "",
+      status: "attention",
+    };
+  }
+
   if (activeComment) {
     return {
       activeCommentId: activeComment.id,

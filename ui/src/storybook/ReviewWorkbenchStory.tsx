@@ -269,11 +269,12 @@ export function ReviewWorkbenchStory({
     reviewPathCount: reviewItems.length,
   };
 
-  function openStoryCommentsPanel(query?: string) {
+  function openStoryCommentsPanel(query?: string, preferAttention = false) {
     const entry = commentInboxOpenState({
       activeComment: storyActiveComment,
       activeCommentId: storyActiveCommentId,
       attentionThreadCount: storyAttentionThreadCount,
+      preferAttention,
       query,
     });
     setStoryCommandPaletteOpen(false);
@@ -303,10 +304,11 @@ export function ReviewWorkbenchStory({
             (thread) => thread.status === "open",
           ).length
         }
+        commentAttentionCount={storyAttentionThreadCount}
         onThemeCycle={noop}
         onQuickOpen={() => setStoryCommandPaletteOpen(true)}
         onSearchText={() => setStoryCommandPaletteOpen(true)}
-        onOpenComments={() => openStoryCommentsPanel()}
+        onOpenComments={() => openStoryCommentsPanel(undefined, true)}
         onOpenShortcuts={() => setStoryShortcutHelpOpen(true)}
       />
       <div

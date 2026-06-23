@@ -118,6 +118,13 @@ export const WorkspaceWithFileTreeAndSelectedFile: Story = {
       canvas.getByRole("tab", { name: /WorkbenchContainer.tsx/ }),
     ).toBeInTheDocument();
     await expect(canvas.getByText("Review Queue")).toBeInTheDocument();
+    const attentionButton = canvas.getByRole("button", {
+      name: /Open Attention inbox/,
+    });
+    await userEvent.click(attentionButton);
+    await expect(
+      canvas.getByRole("button", { name: /Show .* attention thread/ }),
+    ).toHaveAttribute("aria-pressed", "true");
   },
 };
 

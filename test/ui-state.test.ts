@@ -2246,7 +2246,20 @@ it("loads comment activity targets from authoritative thread state", () => {
     commentInboxOpenState({
       activeComment: openThread,
       activeCommentId: "comment-2",
+      attentionThreadCount: 1,
+      preferAttention: true,
+    }),
+  ).toEqual({
+    activeCommentId: null,
+    query: "",
+    status: "attention",
+  });
+  expect(
+    commentInboxOpenState({
+      activeComment: openThread,
+      activeCommentId: "comment-2",
       attentionThreadCount: 0,
+      preferAttention: true,
       query: "custom query",
     }),
   ).toEqual({
