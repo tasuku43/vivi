@@ -226,6 +226,27 @@ export const GitReviewUnavailable: Story = {
   },
 };
 
+export const GitReviewTrackedOnlyWarning: Story = {
+  args: {
+    reviewUnavailableReason:
+      "Git untracked scan timed out; showing tracked changes only.",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Review Queue")).toBeInTheDocument();
+    await expect(
+      canvas.getByText(
+        "Git review warning: Git untracked scan timed out; showing tracked changes only.",
+      ),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", {
+        name: `modified ${sampleFiles.code.path}, current review file`,
+      }),
+    ).toBeInTheDocument();
+  },
+};
+
 export const LoadingGitReview: Story = {
   args: {
     reviewChanges: [],

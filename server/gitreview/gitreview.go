@@ -123,7 +123,7 @@ func (reviewer *Reviewer) ReadChanges(ctx context.Context) (summary Summary) {
 	sort.Slice(workspaceChanges, func(i, j int) bool {
 		return workspaceChanges[i].Path < workspaceChanges[j].Path
 	})
-	summary = Summary{Available: true, Changes: workspaceChanges}
+	summary = Summary{Available: true, Reason: reason, Changes: workspaceChanges}
 	return summary
 }
 
@@ -370,7 +370,16 @@ func (reviewer *Reviewer) symlinkInsideRoot(absolute string) (bool, bool) {
 
 func (reviewer *Reviewer) gitStatus(ctx context.Context) (string, string, bool) {
 	command := exec.Command("git", "status", "--porcelain=v1", "--untracked-files=all", "-z", "--", ".")
-	return reviewer.runGit(ctx, command)
+	output, reason, ok := reviewer.runGit(ctx, command)
+	if ok || reason != timeoutReason {
+		return output, reason, ok
+	}
+	fallback := exec.Command("git", "status", "--porcelain=v1", "--untracked-files=no", "-z", "--", ".")
+	output, reason, ok = reviewer.runGit(ctx, fallback)
+	if !ok {
+		return output, reason, ok
+	}
+	return output, partialTimeoutReason, true
 }
 
 func (reviewer *Reviewer) gitLog(ctx context.Context) (string, string, bool) {
@@ -650,3 +659,4 @@ func unavailableDiff(pathname, reason string) TextDiff {
 }
 
 const timeoutReason = "Git command timed out while reading this workspace."
+const partialTimeoutReason = "Git untracked scan timed out; showing tracked changes only."
