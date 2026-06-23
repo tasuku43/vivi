@@ -2228,6 +2228,17 @@ it("loads comment activity targets from authoritative thread state", () => {
     status: "attention",
   });
   expect(
+    commentInboxOpenState({
+      activeCommentId: null,
+      attentionThreadCount: 0,
+      query: "docs/a.md",
+    }),
+  ).toEqual({
+    activeCommentId: null,
+    query: "docs/a.md",
+    status: "all",
+  });
+  expect(
     commentActivityThreadTargets({
       comments,
       selectedPath: null,

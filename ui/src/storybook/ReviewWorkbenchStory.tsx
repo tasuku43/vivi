@@ -22,6 +22,10 @@ import { WorkbenchPendingFileMessage } from "../features/workbench/WorkbenchPend
 import { extractMarkdownOutline } from "../state/outline.js";
 import { draftReviewCommentAsViviComment } from "../state/comments.js";
 import {
+  commentInboxOpenState,
+  countAttentionCommentThreads,
+} from "../state/review-navigation.js";
+import {
   explorerFilterLabel,
   explorerFilterText,
 } from "../state/tree-filter.js";
@@ -133,6 +137,10 @@ export function ReviewWorkbenchStory({
     useState(activeCommentId);
   const [storyCommentsPanelOpen, setStoryCommentsPanelOpen] =
     useState(commentsPanelOpen);
+  const [storyCommentsPanelQuery, setStoryCommentsPanelQuery] =
+    useState(commentsPanelQuery);
+  const [storyCommentsPanelStatus, setStoryCommentsPanelStatus] =
+    useState(commentsPanelStatus);
   const [storyCommandPaletteOpen, setStoryCommandPaletteOpen] =
     useState(commandPaletteOpen);
   const [storyShortcutHelpOpen, setStoryShortcutHelpOpen] =
@@ -177,6 +185,14 @@ export function ReviewWorkbenchStory({
   }, [commentsPanelOpen]);
 
   useEffect(() => {
+    setStoryCommentsPanelQuery(commentsPanelQuery);
+  }, [commentsPanelQuery]);
+
+  useEffect(() => {
+    setStoryCommentsPanelStatus(commentsPanelStatus);
+  }, [commentsPanelStatus]);
+
+  useEffect(() => {
     setStoryCommandPaletteOpen(commandPaletteOpen);
   }, [commandPaletteOpen]);
 
@@ -198,6 +214,12 @@ export function ReviewWorkbenchStory({
   }
 
   const selectedPath = storyFile?.path ?? pendingFilePath ?? null;
+  const storyActiveComment =
+    comments.find((comment) => comment.id === storyActiveCommentId) ?? null;
+  const storyAttentionThreadCount = countAttentionCommentThreads(
+    comments,
+    unreadReviewPaths,
+  );
   const activeTabs =
     tabs ??
     (storyFile
@@ -243,6 +265,21 @@ export function ReviewWorkbenchStory({
     reviewPathCount: reviewItems.length,
   };
 
+  function openStoryCommentsPanel(query?: string) {
+    const entry = commentInboxOpenState({
+      activeComment: storyActiveComment,
+      activeCommentId: storyActiveCommentId,
+      attentionThreadCount: storyAttentionThreadCount,
+      query,
+    });
+    setStoryCommandPaletteOpen(false);
+    setStoryShortcutHelpOpen(false);
+    setStoryActiveCommentId(entry.activeCommentId);
+    setStoryCommentsPanelQuery(entry.query);
+    setStoryCommentsPanelStatus(entry.status);
+    setStoryCommentsPanelOpen(true);
+  }
+
   return (
     <div
       className={[
@@ -265,7 +302,7 @@ export function ReviewWorkbenchStory({
         onThemeCycle={noop}
         onQuickOpen={() => setStoryCommandPaletteOpen(true)}
         onSearchText={() => setStoryCommandPaletteOpen(true)}
-        onOpenComments={() => setStoryCommentsPanelOpen(true)}
+        onOpenComments={() => openStoryCommentsPanel()}
         onOpenShortcuts={() => setStoryShortcutHelpOpen(true)}
       />
       <div
@@ -456,7 +493,7 @@ export function ReviewWorkbenchStory({
           onOpenPreviousChanged={noop}
           onOpenAllChanged={noop}
           onRevealInTree={noop}
-          onOpenComments={noop}
+          onOpenComments={() => openStoryCommentsPanel(storyFile?.path ?? "")}
         />
       </div>
       <footer className="statusbar">
@@ -528,11 +565,11 @@ export function ReviewWorkbenchStory({
       <CommentsPanel
         open={storyCommentsPanelOpen}
         comments={comments}
-        query={commentsPanelQuery}
-        statusFilter={commentsPanelStatus}
+        query={storyCommentsPanelQuery}
+        statusFilter={storyCommentsPanelStatus}
         threadActivities={threadActivities}
-        onQueryChange={noop}
-        onStatusFilterChange={noop}
+        onQueryChange={setStoryCommentsPanelQuery}
+        onStatusFilterChange={setStoryCommentsPanelStatus}
         onClose={() => setStoryCommentsPanelOpen(false)}
         onOpenComment={(comment) => {
           setStoryActiveCommentId(comment.id);

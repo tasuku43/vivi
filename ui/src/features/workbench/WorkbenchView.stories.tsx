@@ -57,6 +57,29 @@ const alternateWorkbenchLineComment: ViviComment = {
   updatedAt: "2026-06-20T09:20:00.000Z",
 };
 
+const resolvedWorkbenchHistoryComment: ViviComment = {
+  id: "comment-workbench-resolved-history",
+  threadId: "thread-workbench-resolved-history",
+  path: sampleFiles.code.path,
+  viewerKind: "text",
+  anchor: {
+    surface: "source",
+    canonical: {
+      path: sampleFiles.code.path,
+      lineStart: 12,
+      lineEnd: 12,
+      quote: "const [commentsPanelStatus, setCommentsPanelStatus] =",
+      fileHash: "sha256:workbench-story-resolved-history",
+    },
+  },
+  body: "Resolved history should remain visible when this file's messages are opened from the inspector.",
+  source: "human",
+  status: "resolved",
+  createdAt: "2026-06-20T09:18:00.000Z",
+  updatedAt: "2026-06-20T09:19:00.000Z",
+  resolvedAt: "2026-06-20T09:19:00.000Z",
+};
+
 const missingReadmeFile: FilePayload = {
   path: "README.md",
   viewerKind: "markdown",
@@ -547,6 +570,42 @@ export const CommentsPanelOpensInlineThread: Story = {
     await expect(
       canvas.getByRole("textbox", { name: "Quick open query" }),
     ).toHaveFocus();
+  },
+};
+
+export const InspectorOpensScopedCommentHistory: Story = {
+  tags: ["interaction"],
+  parameters: {
+    a11y: { test: "todo" },
+  },
+  args: {
+    file: sampleFiles.code,
+    comments: [resolvedWorkbenchHistoryComment],
+    activeCommentId: null,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const inspector = canvas.getByRole("complementary", {
+      name: "Review inspector",
+    });
+
+    await userEvent.click(
+      within(inspector).getByRole("button", {
+        name: "Open 1 message in Comments panel",
+      }),
+    );
+
+    const commentsPanel = canvas.getByRole("complementary", {
+      name: "Comments",
+    });
+    await expect(
+      within(commentsPanel).getByRole("button", { name: "Show all 1 thread" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect(
+      within(commentsPanel).getByText(
+        "Resolved history should remain visible when this file's messages are opened from the inspector.",
+      ),
+    ).toBeVisible();
   },
 };
 

@@ -195,10 +195,12 @@ export function commentInboxOpenState({
   }
 
   const entry = commentInboxEntryState(attentionThreadCount);
+  const scopedQuery = query?.trim();
   return {
     ...entry,
     activeCommentId,
     query: query ?? entry.query,
+    status: scopedQuery ? "all" : entry.status,
   };
 }
 
