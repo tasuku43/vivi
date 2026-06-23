@@ -120,6 +120,8 @@ func TestCommentsHelpTextSurfacesWorkSession(t *testing.T) {
 		"vivi comments schema commentOpenWorklistEvent --json",
 		"vivi comments work --loop --actor claude-code --idle-events --full --json",
 		"--interval <duration>      Watch, follow, hold, or work polling interval",
+		"--activity-limit <count>   Limit emitted activity history to the most recent count",
+		"--comment-limit <count>    Limit emitted thread comments to the most recent count",
 		"--renew-interval <dur>     Work lease renewal interval",
 		"--idle-events              Emit comment_work_idle heartbeat events",
 		"--loop                     Keep comments work running",

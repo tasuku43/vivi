@@ -23,6 +23,7 @@ vivi comments claim <thread-id> --actor codex --lease 10m --json
 vivi comments claim --wait --actor codex --full --json
 vivi comments work --wait --actor codex --full --json
 vivi comments work --loop --actor codex --idle-events --full --json
+vivi comments work --loop --actor codex --idle-events --full --activity-limit 20 --comment-limit 10 --json
 vivi comments renew <thread-id> --actor codex --lease 10m --json
 vivi comments hold <thread-id> --actor codex --interval 2m --lease 10m --json
 vivi comments inbox --actor codex --full --json
@@ -247,6 +248,14 @@ the number of other open threads left after that selection. `next` does not
 claim an exclusive lease, mark work in progress, or change thread status; an
 agent should use `claim` when multiple background agents may be watching the
 same GUI feedback queue.
+
+For long-lived threads, add `--activity-limit <count>` and
+`--comment-limit <count>` to `comments work`, `watch`, `inbox`, `mine`, `batch`,
+`next`, or `claim` when using `--full` or `--with-activities`. Summary counts
+still describe the complete thread state, but emitted `activities` and rich
+`thread.comments` histories are trimmed to the most recent entries so resident
+agent logs stay readable. Vivi's startup and doctor suggested commands include
+`--activity-limit 20 --comment-limit 10` by default.
 
 `claim` is the preferred intake command for background coding agents that will
 act on GUI feedback. With no thread id, it reads the current open worklist

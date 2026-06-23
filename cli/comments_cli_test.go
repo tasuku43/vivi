@@ -753,6 +753,45 @@ func TestCommentsCLIInboxClassifiesOpenAgentWork(t *testing.T) {
 	}
 }
 
+func TestCommentsCLIInboxCanLimitEmittedThreadHistory(t *testing.T) {
+	server := newCommentsCLITestServer(t)
+	defer server.Close()
+	threadID := createCommentThreadForCLIWithBody(t, server.URL, "README.md", "Initial feedback")
+	for _, body := range []string{"Second note", "Third note"} {
+		graphqlForCLI(t, server.URL, map[string]any{
+			"operationName": "AddComment",
+			"query":         `mutation AddComment($threadId: ID!, $input: AddCommentInput!) { addComment(threadId: $threadId, input: $input) { id } }`,
+			"variables": map[string]any{
+				"threadId": threadID,
+				"input": map[string]any{
+					"body":  body,
+					"actor": map[string]any{"id": "human:tasuku", "kind": "human", "displayName": "Tasuku"},
+				},
+			},
+		})
+	}
+
+	inbox := runCommentsCLIForTest(t, "inbox", "--url", server.URL, "--actor", "codex:history-limit", "--with-activities", "--comment-limit", "2", "--json")
+	var inboxPayload struct {
+		Unclaimed commentInboxGroupOutput `json:"unclaimed"`
+	}
+	decodeCLIJSON(t, inbox, &inboxPayload)
+	if inboxPayload.Unclaimed.Count != 1 || len(inboxPayload.Unclaimed.Threads) != 1 || inboxPayload.Unclaimed.Threads[0].ID != threadID {
+		t.Fatalf("unclaimed group = %#v", inboxPayload.Unclaimed)
+	}
+	threadComments := inboxPayload.Unclaimed.Threads[0].Comments
+	if len(threadComments) != 2 || threadComments[0].Body != "Second note" || threadComments[1].Body != "Third note" {
+		t.Fatalf("limited group thread comments = %#v", threadComments)
+	}
+	if len(inboxPayload.Unclaimed.Items) != 1 {
+		t.Fatalf("unclaimed items = %#v", inboxPayload.Unclaimed.Items)
+	}
+	itemComments := inboxPayload.Unclaimed.Items[0].Thread.Comments
+	if len(itemComments) != 2 || itemComments[0].Body != "Second note" || itemComments[1].Body != "Third note" {
+		t.Fatalf("limited item thread comments = %#v", itemComments)
+	}
+}
+
 func TestCommentsCLIDoneRepliesResolvesAndReusesCompletionReply(t *testing.T) {
 	server := newCommentsCLITestServer(t)
 	defer server.Close()
@@ -2682,6 +2721,45 @@ func TestCommentsCLIWorkClaimsAndFollowsThreadActivity(t *testing.T) {
 	}
 	if len(followed.Summary.SuggestedCommands) != 4 || followed.Summary.SuggestedCommands[0].Intent != "acknowledge_follow_up" || !containsString(followed.Summary.SuggestedCommands[0].Args, threadID) || !containsString(followed.Summary.SuggestedCommands[0].Args, "codex:work-1") || !containsString(followed.Summary.SuggestedCommands[0].Args, server.URL) || followed.Summary.SuggestedCommands[1].Command != "comments release" || !containsString(followed.Summary.SuggestedCommands[1].Args, server.URL) || followed.Summary.SuggestedCommands[3].Command != "comments dismiss" || !containsString(followed.Summary.SuggestedCommands[3].Args, server.URL) {
 		t.Fatalf("followed work suggested commands = %#v", followed.Summary.SuggestedCommands)
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("work returned error: %v", err)
+	}
+}
+
+func TestCommentsCLIWorkCanLimitEmittedHistory(t *testing.T) {
+	server := newCommentsCLITestServer(t)
+	defer server.Close()
+	threadID := createCommentThreadForCLIWithBody(t, server.URL, "README.md", "Initial feedback")
+	for _, body := range []string{"Second note", "Third note"} {
+		graphqlForCLI(t, server.URL, map[string]any{
+			"operationName": "AddComment",
+			"query":         `mutation AddComment($threadId: ID!, $input: AddCommentInput!) { addComment(threadId: $threadId, input: $input) { id } }`,
+			"variables": map[string]any{
+				"threadId": threadID,
+				"input": map[string]any{
+					"body":  body,
+					"actor": map[string]any{"id": "human:tasuku", "kind": "human", "displayName": "Tasuku"},
+				},
+			},
+		})
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	events, done := startCommentsWorkForTest(t, ctx, "work", threadID, "--url", server.URL, "--actor", "codex:history-limit", "--actor-kind", "codex", "--client-event-id", "work-history-limit-1", "--full", "--activity-limit", "1", "--comment-limit", "2", "--max-events", "1", "--json")
+	claimed := receiveWorkEvent(t, events)
+	if claimed.Type != "comment_work_claimed" {
+		t.Fatalf("claimed work event = %#v", claimed)
+	}
+	if len(claimed.Activities) != 1 || claimed.Activities[0].Type != "thread_claimed" || claimed.Activities[0].ClientEventID != "work-history-limit-1" {
+		t.Fatalf("limited activities = %#v", claimed.Activities)
+	}
+	if len(claimed.Thread.Comments) != 2 {
+		t.Fatalf("limited thread comments = %#v", claimed.Thread.Comments)
+	}
+	if claimed.Thread.Comments[0].Body != "Second note" || claimed.Thread.Comments[1].Body != "Third note" {
+		t.Fatalf("limited comments kept wrong tail = %#v", claimed.Thread.Comments)
 	}
 	if err := <-done; err != nil {
 		t.Fatalf("work returned error: %v", err)

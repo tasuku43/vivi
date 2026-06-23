@@ -22,6 +22,8 @@ import (
 const (
 	defaultCommentsURL          = "http://127.0.0.1:4317"
 	commentsStreamSchemaVersion = 1
+	defaultAgentActivityLimit   = "20"
+	defaultAgentCommentLimit    = "10"
 )
 
 type commentsCommandOptions struct {
@@ -48,6 +50,8 @@ type commentsCommandOptions struct {
 	WithContext    bool
 	WithDiff       bool
 	WithActivities bool
+	ActivityLimit  int
+	CommentLimit   int
 	RequireClaim   bool
 	WaitForWork    bool
 	DiffBase       string
@@ -742,6 +746,8 @@ func parseCommentsFlags(command string, args []string) (commentsCommandOptions, 
 	flags.BoolVar(&options.WithContext, "with-context", false, "include source context with next, context, or watch")
 	flags.BoolVar(&options.WithDiff, "with-diff", false, "include current Git diff with next, context, or watch")
 	flags.BoolVar(&options.WithActivities, "with-activities", false, "include thread activity history with next, context, or watch")
+	flags.IntVar(&options.ActivityLimit, "activity-limit", 0, "limit emitted activity history to the most recent count")
+	flags.IntVar(&options.CommentLimit, "comment-limit", 0, "limit emitted thread comments to the most recent count")
 	flags.BoolVar(&options.RequireClaim, "require-claim", false, "require the current actor to hold the live thread claim before writing")
 	flags.BoolVar(&options.WaitForWork, "wait", false, "wait until claimable comment work is available")
 	flags.StringVar(&options.DiffBase, "diff-base", "", "Git diff base ref")
@@ -822,6 +828,12 @@ func parseCommentsFlags(command string, args []string) (commentsCommandOptions, 
 			return options, nil, fmt.Errorf("read --body-file: %w", err)
 		}
 		options.Body = string(body)
+	}
+	if options.ActivityLimit < 0 {
+		return options, nil, errors.New("--activity-limit must be greater than or equal to 0")
+	}
+	if options.CommentLimit < 0 {
+		return options, nil, errors.New("--comment-limit must be greater than or equal to 0")
 	}
 	if options.Full {
 		options.WithContext = true
@@ -3150,7 +3162,7 @@ func commentsFlagRequiresValue(arg string) bool {
 		name = before
 	}
 	switch name {
-	case "url", "path", "status", "review-batch", "actor", "actor-kind", "actor-name", "client-event-id", "body", "body-file", "triage-file", "result-file", "receipt-file", "receipt-log", "decision", "summary", "next-action", "diff-base", "context-lines", "interval", "cursor", "max-events", "lease", "renew-interval":
+	case "url", "path", "status", "review-batch", "actor", "actor-kind", "actor-name", "client-event-id", "body", "body-file", "triage-file", "result-file", "receipt-file", "receipt-log", "decision", "summary", "next-action", "diff-base", "context-lines", "interval", "cursor", "max-events", "activity-limit", "comment-limit", "lease", "renew-interval":
 		return true
 	default:
 		return false
@@ -3189,7 +3201,8 @@ func commentsList(ctx context.Context, stdout io.Writer, options commentsCommand
 	if err != nil {
 		return err
 	}
-	payload := map[string]any{"threads": threads, "count": len(threads)}
+	outputThreads := limitCommentThreadsHistory(threads, options.CommentLimit)
+	payload := map[string]any{"threads": outputThreads, "count": len(threads)}
 	if commentsNeedsWorkItem(options) {
 		items, err := commentWorkItemsForThreads(ctx, withoutReadHeaders(options), threads)
 		if err != nil {
@@ -3228,8 +3241,13 @@ func commentsNext(ctx context.Context, stdout io.Writer, options commentsCommand
 	if selectedIndex >= 0 {
 		remaining = len(ordered) - selectedIndex - 1
 	}
+	var outputThread *commentThreadOutput
+	if thread != nil {
+		limited := limitCommentThreadHistory(*thread, options.CommentLimit)
+		outputThread = &limited
+	}
 	payload := map[string]any{
-		"thread":    thread,
+		"thread":    outputThread,
 		"cursor":    cursor,
 		"count":     len(ordered),
 		"remaining": remaining,
@@ -3395,8 +3413,8 @@ func commentWorkIdleSummary(payload map[string]any, actorID string, serverURL st
 		RecommendedAction: "wait_for_claim_release",
 		OpenThreadCount:   count,
 		SuggestedCommands: []commentSuggestedCommand{
-			suggestedCommentsCommand("inspect_agent_inbox", "comments inbox", withRuntimeArgs([]string{"comments", "inbox", "--actor", actorID, "--full", "--json"}, serverURL, receiptLog), "", "Inspect open threads currently routed to this actor, unclaimed work, and live claims held by others."),
-			suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs([]string{"comments", "watch", "--actor", actorID, "--full", "--cursor", cursor, "--json"}, serverURL, receiptLog), "", "Watch for a new unclaimed thread or a claim release before trying to claim again."),
+			suggestedCommentsCommand("inspect_agent_inbox", "comments inbox", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "inbox", "--actor", actorID, "--full", "--json"}), serverURL, receiptLog), "", "Inspect open threads currently routed to this actor, unclaimed work, and live claims held by others."),
+			suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "watch", "--actor", actorID, "--full", "--cursor", cursor, "--json"}), serverURL, receiptLog), "", "Watch for a new unclaimed thread or a claim release before trying to claim again."),
 		},
 	}
 }
@@ -3747,7 +3765,7 @@ func suggestedCommandsForOpenWorklist(actorID string, cursor string, serverURL s
 	}
 	clientEventID := commentSuggestedClientEventID("watch", cursor, "claim")
 	return []commentSuggestedCommand{
-		suggestedCommentsCommandWithClientEventID("claim_next_open_thread", "comments work", withRuntimeArgs([]string{"comments", "work", "--actor", actorID, "--full", "--json"}, serverURL, receiptLog), "", "Claim the next open thread and receive a self-describing work event.", clientEventID),
+		suggestedCommentsCommandWithClientEventID("claim_next_open_thread", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "work", "--actor", actorID, "--full", "--json"}), serverURL, receiptLog), "", "Claim the next open thread and receive a self-describing work event.", clientEventID),
 	}
 }
 
@@ -4183,6 +4201,8 @@ func commentClaimPayload(ctx context.Context, options commentsCommandOptions, th
 	}
 	if selected != nil && claim != nil {
 		payload["summary"] = summarizeClaimedWork(*selected, *claim, options.ActorID, options.URL, options.ReceiptLog, selectedItem != nil && sourceContextUnavailable(*selectedItem))
+		outputThread := limitCommentThreadHistory(*selected, options.CommentLimit)
+		payload["thread"] = &outputThread
 	}
 	if selected == nil {
 		routing, err := commentOpenRouting(ctx, withoutReadHeaders(options), ordered, options.ActorID)
@@ -4214,10 +4234,11 @@ func commentsMine(ctx context.Context, stdout io.Writer, options commentsCommand
 		mine = append(mine, thread)
 		claims = append(claims, *claim)
 	}
-	group := commentInboxGroupOutput{Threads: mine, Claims: claims, Count: len(mine)}
+	outputMine := limitCommentThreadsHistory(mine, options.CommentLimit)
+	group := commentInboxGroupOutput{Threads: outputMine, Claims: claims, Count: len(mine)}
 	payload := map[string]any{
 		"actor":   actorInput(options),
-		"threads": mine,
+		"threads": outputMine,
 		"claims":  claims,
 		"count":   len(mine),
 		"cursor":  cursor,
@@ -4255,15 +4276,16 @@ func commentsInbox(ctx context.Context, stdout io.Writer, options commentsComman
 			return err
 		}
 	}
+	outputRouting := limitCommentOpenRoutingHistory(routing, options.CommentLimit)
 	payload := map[string]any{
 		"actor":             actorInput(options),
 		"cursor":            cursor,
 		"count":             len(ordered),
 		"summary":           summarizeOpenRouting(routing, options.ActorID, cursor, "inbox", options.URL, options.ReceiptLog),
-		"mine":              routing.Mine,
-		"unclaimed":         routing.Unclaimed,
-		"claimedByOthers":   routing.ClaimedByOthers,
-		"sourceUnavailable": routing.SourceUnavailable,
+		"mine":              outputRouting.Mine,
+		"unclaimed":         outputRouting.Unclaimed,
+		"claimedByOthers":   outputRouting.ClaimedByOthers,
+		"sourceUnavailable": outputRouting.SourceUnavailable,
 	}
 	return writeJSON(stdout, payload)
 }
@@ -4301,12 +4323,12 @@ func summarizeOpenRouting(routing commentOpenRoutingOutput, actorID string, curs
 		summary.AttentionReasons = []string{"open_threads_claimed_by_others"}
 		summary.RecommendedAction = "wait_for_claim_release"
 		summary.SuggestedCommands = []commentSuggestedCommand{
-			suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs([]string{"comments", "watch", "--actor", actorID, "--full", "--cursor", cursor, "--json"}, serverURL, receiptLog), "", "Watch for a new unclaimed thread or a claim release before trying to claim again."),
+			suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "watch", "--actor", actorID, "--full", "--cursor", cursor, "--json"}), serverURL, receiptLog), "", "Watch for a new unclaimed thread or a claim release before trying to claim again."),
 		}
 		return summary
 	}
 	summary.SuggestedCommands = []commentSuggestedCommand{
-		suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs([]string{"comments", "work", "--actor", actorID, "--wait", "--loop", "--idle-events", "--full", "--json"}, serverURL, receiptLog), "", "Wait for the next GUI feedback item and claim it as owned work."),
+		suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "work", "--actor", actorID, "--wait", "--loop", "--idle-events", "--full", "--json"}), serverURL, receiptLog), "", "Wait for the next GUI feedback item and claim it as owned work."),
 	}
 	return summary
 }
@@ -4377,6 +4399,8 @@ func commentsBatch(ctx context.Context, stdout io.Writer, options commentsComman
 			return err
 		}
 	}
+	outputThreads := limitCommentThreadsHistory(ordered, options.CommentLimit)
+	outputRouting := limitCommentOpenRoutingHistory(routing, options.CommentLimit)
 	payload := map[string]any{
 		"reviewBatchId": strings.TrimSpace(options.ReviewBatchID),
 		"actor":         actorInput(options),
@@ -4389,14 +4413,14 @@ func commentsBatch(ctx context.Context, stdout io.Writer, options commentsComman
 			"archived": statusCounts["archived"],
 			"complete": statusCounts["open"] == 0,
 		},
-		"threads": ordered,
+		"threads": outputThreads,
 		"open": map[string]any{
 			"count":             len(openThreads),
 			"summary":           summarizeOpenRouting(routing, options.ActorID, cursor, "batch", options.URL, options.ReceiptLog),
-			"mine":              routing.Mine,
-			"unclaimed":         routing.Unclaimed,
-			"claimedByOthers":   routing.ClaimedByOthers,
-			"sourceUnavailable": routing.SourceUnavailable,
+			"mine":              outputRouting.Mine,
+			"unclaimed":         outputRouting.Unclaimed,
+			"claimedByOthers":   outputRouting.ClaimedByOthers,
+			"sourceUnavailable": outputRouting.SourceUnavailable,
 		},
 	}
 	if commentsNeedsWorkItem(options) {
@@ -4512,7 +4536,8 @@ func commentsRelease(ctx context.Context, stdout io.Writer, options commentsComm
 	if err != nil {
 		return err
 	}
-	payload := map[string]any{"thread": thread, "release": activity}
+	outputThread := limitCommentThreadHistory(thread, options.CommentLimit)
+	payload := map[string]any{"thread": outputThread, "release": activity}
 	if triage != nil {
 		payload["triage"] = triage
 	}
@@ -4533,7 +4558,7 @@ func commentsRelease(ctx context.Context, stdout io.Writer, options commentsComm
 		if err != nil {
 			return err
 		}
-		payload["activities"] = activities
+		payload["activities"] = limitCommentActivities(activities, options.ActivityLimit)
 	}
 	return writeJSON(stdout, payload)
 }
@@ -4543,7 +4568,8 @@ func commentsRenew(ctx context.Context, stdout io.Writer, options commentsComman
 	if err != nil {
 		return err
 	}
-	payload := map[string]any{"thread": thread, "renewal": activity}
+	outputThread := limitCommentThreadHistory(thread, options.CommentLimit)
+	payload := map[string]any{"thread": outputThread, "renewal": activity}
 	if options.WithContext {
 		payload["file"] = nil
 		payload["source"] = nil
@@ -4660,7 +4686,7 @@ func commentWorkItemsForThreads(ctx context.Context, options commentsCommandOpti
 }
 
 func commentWorkItemForThread(ctx context.Context, options commentsCommandOptions, thread commentThreadOutput) (commentWorkItemOutput, error) {
-	item := commentWorkItemOutput{Thread: thread}
+	item := commentWorkItemOutput{Thread: limitCommentThreadHistory(thread, options.CommentLimit)}
 	if options.WithContext {
 		contextPayload, err := contextPayloadForThread(ctx, options, thread)
 		if err != nil {
@@ -4686,9 +4712,48 @@ func commentWorkItemForThread(ctx context.Context, options commentsCommandOption
 		if err != nil {
 			return commentWorkItemOutput{}, err
 		}
-		item.Activities = activities
+		item.Activities = limitCommentActivities(activities, options.ActivityLimit)
 	}
 	return item, nil
+}
+
+func limitCommentThreadHistory(thread commentThreadOutput, limit int) commentThreadOutput {
+	if limit <= 0 || len(thread.Comments) <= limit {
+		return thread
+	}
+	thread.Comments = append([]commentOutput(nil), thread.Comments[len(thread.Comments)-limit:]...)
+	return thread
+}
+
+func limitCommentThreadsHistory(threads []commentThreadOutput, limit int) []commentThreadOutput {
+	if limit <= 0 {
+		return threads
+	}
+	limited := make([]commentThreadOutput, 0, len(threads))
+	for _, thread := range threads {
+		limited = append(limited, limitCommentThreadHistory(thread, limit))
+	}
+	return limited
+}
+
+func limitCommentInboxGroupHistory(group commentInboxGroupOutput, limit int) commentInboxGroupOutput {
+	group.Threads = limitCommentThreadsHistory(group.Threads, limit)
+	return group
+}
+
+func limitCommentOpenRoutingHistory(routing commentOpenRoutingOutput, limit int) commentOpenRoutingOutput {
+	routing.Mine = limitCommentInboxGroupHistory(routing.Mine, limit)
+	routing.Unclaimed = limitCommentInboxGroupHistory(routing.Unclaimed, limit)
+	routing.ClaimedByOthers = limitCommentInboxGroupHistory(routing.ClaimedByOthers, limit)
+	routing.SourceUnavailable = limitCommentInboxGroupHistory(routing.SourceUnavailable, limit)
+	return routing
+}
+
+func limitCommentActivities(activities []commentActivityOutput, limit int) []commentActivityOutput {
+	if limit <= 0 || len(activities) <= limit {
+		return activities
+	}
+	return append([]commentActivityOutput(nil), activities[len(activities)-limit:]...)
 }
 
 func sourceContextUnavailable(item commentWorkItemOutput) bool {
@@ -4775,14 +4840,18 @@ func commentsDoctorSuggestedCommands(options commentsCommandOptions, openThreadC
 		clientSeed = commentSuggestedClientEventID("doctor", "startup", actorID)
 	}
 	suggestions := []commentSuggestedCommand{
-		suggestedCommentsCommand("recover_owned_live_claims", "comments mine", withURLArg([]string{"comments", "mine", "--actor", actorID, "--full", "--json"}, options.URL), "", "After an adapter restart, inspect live claims already owned by this actor before claiming new GUI feedback."),
-		suggestedCommentsCommandWithClientEventID("start_resident_work_loop", "comments work", withRuntimeArgs([]string{"comments", "work", "--actor", actorID, "--wait", "--loop", "--idle-events", "--full", "--json"}, options.URL, options.ReceiptLog), "", "Enter the preferred resident agent loop for GUI feedback.", clientSeed+":work"),
-		suggestedCommentsCommand("snapshot_agent_inbox", "comments inbox", withRuntimeArgs([]string{"comments", "inbox", "--actor", actorID, "--full", "--json"}, options.URL, options.ReceiptLog), "", "Read owned, unclaimed, and other-claimed feedback without creating read receipts."),
+		suggestedCommentsCommand("recover_owned_live_claims", "comments mine", withURLArg(withAgentHistoryLimitArgs([]string{"comments", "mine", "--actor", actorID, "--full", "--json"}), options.URL), "", "After an adapter restart, inspect live claims already owned by this actor before claiming new GUI feedback."),
+		suggestedCommentsCommandWithClientEventID("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "work", "--actor", actorID, "--wait", "--loop", "--idle-events", "--full", "--json"}), options.URL, options.ReceiptLog), "", "Enter the preferred resident agent loop for GUI feedback.", clientSeed+":work"),
+		suggestedCommentsCommand("snapshot_agent_inbox", "comments inbox", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "inbox", "--actor", actorID, "--full", "--json"}), options.URL, options.ReceiptLog), "", "Read owned, unclaimed, and other-claimed feedback without creating read receipts."),
 	}
 	if openThreadCount == 0 {
-		suggestions = append(suggestions, suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs([]string{"comments", "watch", "--actor", actorID, "--full", "--json"}, options.URL, options.ReceiptLog), "", "Wait for GUI feedback without claiming work immediately."))
+		suggestions = append(suggestions, suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "watch", "--actor", actorID, "--full", "--json"}), options.URL, options.ReceiptLog), "", "Wait for GUI feedback without claiming work immediately."))
 	}
 	return suggestions
+}
+
+func withAgentHistoryLimitArgs(args []string) []string {
+	return append(args, "--activity-limit", defaultAgentActivityLimit, "--comment-limit", defaultAgentCommentLimit)
 }
 
 func fetchCommentThreads(ctx context.Context, options commentsCommandOptions, status string) ([]commentThreadOutput, string, error) {
@@ -4920,7 +4989,7 @@ func commentsWatch(ctx context.Context, stdout io.Writer, options commentsComman
 					EmittedAt:          time.Now().UTC().Format(time.RFC3339Nano),
 					Count:              len(threads),
 					Summary:            summarizeOpenWorklist(threads, options.ActorID, cursor, options.URL, options.ReceiptLog),
-					Threads:            threads,
+					Threads:            limitCommentThreadsHistory(threads, options.CommentLimit),
 				}
 				if commentsNeedsWorkItem(options) {
 					items, err := commentWorkItemsForThreads(ctx, withoutReadHeaders(options), threads)
@@ -5245,8 +5314,9 @@ func commentsCheck(ctx context.Context, stdout io.Writer, options commentsComman
 	}
 	claim := activeClaim(activities, time.Now().UTC())
 	write := commentWritePreflight(thread, claim, options)
+	outputThread := limitCommentThreadHistory(thread, options.CommentLimit)
 	payload := map[string]any{
-		"thread":    thread,
+		"thread":    outputThread,
 		"liveClaim": claim,
 		"write":     write,
 	}
@@ -5555,7 +5625,7 @@ func commentsContext(ctx context.Context, stdout io.Writer, options commentsComm
 		return err
 	}
 	payload := map[string]any{
-		"thread": thread,
+		"thread": limitCommentThreadHistory(thread, options.CommentLimit),
 		"file":   contextPayload.File,
 		"source": contextPayload.Source,
 	}
@@ -5567,7 +5637,7 @@ func commentsContext(ctx context.Context, stdout io.Writer, options commentsComm
 		if err != nil {
 			return err
 		}
-		payload["activities"] = activities
+		payload["activities"] = limitCommentActivities(activities, options.ActivityLimit)
 	}
 	return writeJSON(stdout, payload)
 }
@@ -6563,6 +6633,8 @@ func commentsHelpText() string {
 		"  --with-context             Include source context with rich agent commands",
 		"  --with-diff                Include current Git diff with rich agent commands",
 		"  --with-activities          Include thread activity history with rich agent commands",
+		"  --activity-limit <count>   Limit emitted activity history to the most recent count",
+		"  --comment-limit <count>    Limit emitted thread comments to the most recent count",
 		"  --require-claim            Require this actor to hold the live claim before writing",
 		"  --wait                     Wait until claimable comment work is available",
 		"  --diff-base <ref>          Diff base ref (default: HEAD)",

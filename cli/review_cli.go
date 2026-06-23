@@ -411,7 +411,7 @@ func reviewQueueCommentsWorkSuggestion(actorID string, serverURL string, descrip
 	if actorID == "" {
 		return suggestedCommentsCommand("choose_agent_actor", "comments doctor", withURLArg([]string{"comments", "doctor", "--json"}, serverURL), "", "Run startup readiness without an actor to get the configure_actor branch before starting a resident GUI feedback loop.")
 	}
-	return suggestedCommentsCommandWithClientEventID("wait_for_gui_feedback", "comments work", withURLArg([]string{"comments", "work", "--actor", actorID, "--wait", "--loop", "--idle-events", "--full", "--json"}, serverURL), "", description, "review-queue:"+actorID+":work")
+	return suggestedCommentsCommandWithClientEventID("wait_for_gui_feedback", "comments work", withURLArg(withAgentHistoryLimitArgs([]string{"comments", "work", "--actor", actorID, "--wait", "--loop", "--idle-events", "--full", "--json"}), serverURL), "", description, "review-queue:"+actorID+":work")
 }
 
 func reviewHelpText() string {
