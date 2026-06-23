@@ -1621,6 +1621,7 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
   expect(html).toContain("Double-click to keep it open as a tab.");
   expect(html).toContain('data-review-index="0"');
   expect(html).toContain('data-review-path="src/app.ts"');
+  expect(html).toContain('data-testid="review-queue-item"');
   expect(html).toContain(
     'aria-label="modified src/app.ts, current review file"',
   );
@@ -1738,6 +1739,10 @@ it("summarizes active-file review focus without mixing drafts into open threads"
   expect(html).toContain("source");
   expect(html).toContain("L2");
   expect(html).toContain("Open 3 messages in Comments panel");
+  expect(html).toContain('data-testid="review-open-comment-history"');
+  expect(html).toContain('data-testid="review-open-comments-panel"');
+  expect(html).toContain('data-testid="review-comment-thread"');
+  expect(html).toContain('data-comment-thread-id="thread-1"');
   expect(html).toContain("Open active threads");
   expect(html).toContain('class="review-focus-action"');
   expect(html).toContain(
@@ -3322,6 +3327,8 @@ it("opens Review Queue rows as preview on click and stable tabs on double click"
     "aria-describedby": string;
     "aria-keyshortcuts": string;
     "aria-label": string;
+    "data-review-path": string;
+    "data-testid": string;
   };
 
   props.onClick();
@@ -3337,6 +3344,8 @@ it("opens Review Queue rows as preview on click and stable tabs on double click"
   expect(props["aria-label"]).toBe(
     "modified src/app.ts, current review file",
   );
+  expect(props["data-review-path"]).toBe("src/app.ts");
+  expect(props["data-testid"]).toBe("review-queue-item");
   expect(calls).toEqual(["preview:src/app.ts", "normal:src/app.ts"]);
 });
 

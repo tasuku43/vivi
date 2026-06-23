@@ -278,6 +278,7 @@ export function Inspector({
                     })}
                     data-review-index={index}
                     data-review-path={item.path}
+                    data-testid="review-queue-item"
                     onClick={() => onOpenEventPath(item.path)}
                     onDoubleClick={() => onConfirmEventPath(item.path)}
                     onKeyDown={(event) => {
@@ -439,6 +440,7 @@ export function Inspector({
             {comments.length && onOpenComments ? (
               <button
                 className="review-focus-action"
+                data-testid="review-open-comment-history"
                 type="button"
                 onClick={onOpenComments}
               >
@@ -482,6 +484,7 @@ export function Inspector({
             ) : null}
             <button
               aria-label={commentsPanelAction.description}
+              data-testid="review-open-comments-panel"
               disabled={commentsPanelAction.disabled}
               title={commentsPanelAction.description}
               type="button"
@@ -554,6 +557,8 @@ export function Inspector({
                         type="button"
                         aria-current={active ? "true" : undefined}
                         aria-label={rowLabel}
+                        data-comment-thread-id={thread.id}
+                        data-testid="review-comment-thread"
                         onClick={() => onOpenComment?.(primaryComment)}
                       >
                         <span className="active-comment-thread-head">
