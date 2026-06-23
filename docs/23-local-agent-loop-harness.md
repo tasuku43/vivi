@@ -182,8 +182,8 @@ startup protocol surface before entering a resident loop.
 For online startup readiness, adapters can run
 `comments doctor --actor <actor> --json` before the harness stages begin; it
 checks server reachability and open-work count without mutating thread
-activity and suggests `comments mine --full --json` before the resident work
-loop so a restarted agent can recover owned live claims. `comments mine` is
+activity and suggests compact `comments mine --json` before the resident work
+loop so a restarted agent can recover owned live claim routing. `comments mine` is
 described by `commentMineOutput` and returns `summary.suggestedCommands` for
 renewing the recovered claim, following the thread, and running a guarded
 check before writing. `comments schema commentDoctorOutput --json` describes

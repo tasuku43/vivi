@@ -1369,13 +1369,13 @@ func TestCommentsCLIProtocolSurfacesAgentStartupManifest(t *testing.T) {
 	if len(payload.Startup) != 3 || payload.Startup[1].Intent != "cache_runtime_schemas" || !containsString(payload.Startup[1].Args, "list") || payload.Startup[2].Intent != "check_server_readiness" || payload.Startup[2].Command != "comments doctor" || !containsString(payload.Startup[2].Args, "--client-event-id") {
 		t.Fatalf("protocol startup = %#v", payload.Startup)
 	}
-	if len(payload.Recovery) != 1 || payload.Recovery[0].Intent != "recover_owned_live_claims" || payload.Recovery[0].Command != "comments mine" || !containsString(payload.Recovery[0].Args, "--full") {
+	if len(payload.Recovery) != 1 || payload.Recovery[0].Intent != "recover_owned_live_claims" || payload.Recovery[0].Command != "comments mine" || containsString(payload.Recovery[0].Args, "--full") {
 		t.Fatalf("protocol recovery = %#v", payload.Recovery)
 	}
 	if payload.PreferredLoop.Intent != "resident_owned_work_loop" || payload.PreferredLoop.Command != "comments work" || !containsString(payload.PreferredLoop.Args, "--client-event-id") || !containsString(payload.PreferredLoop.Args, "<client-event-id>") || !containsString(payload.PreferredLoop.Args, "--wait") || !containsString(payload.PreferredLoop.Args, "--loop") || !containsString(payload.PreferredLoop.Args, "--idle-events") || !containsString(payload.PreferredLoop.Events, "commentWorkClaimedEvent") {
 		t.Fatalf("preferred loop = %#v", payload.PreferredLoop)
 	}
-	if len(payload.IntakeAlternatives) != 2 || payload.IntakeAlternatives[0].Intent != "passive_open_worklist" || !containsString(payload.IntakeAlternatives[0].Events, "commentOpenWorklistEvent") {
+	if len(payload.IntakeAlternatives) != 2 || payload.IntakeAlternatives[0].Intent != "passive_open_worklist" || containsString(payload.IntakeAlternatives[0].Args, "--full") || !containsString(payload.IntakeAlternatives[0].Events, "commentOpenWorklistEvent") {
 		t.Fatalf("intake alternatives = %#v", payload.IntakeAlternatives)
 	}
 	if len(payload.ThreadCompanions) != 2 || payload.ThreadCompanions[1].Intent != "preflight_guarded_write" || !containsString(payload.ThreadCompanions[1].Args, "check") {
@@ -1575,7 +1575,7 @@ func TestCommentsCLIDoctorSurfacesAgentReadiness(t *testing.T) {
 		t.Fatalf("doctor guidance = %#v %#v", payload.RecommendedAction, payload.SuggestedCommands)
 	}
 	mine := payload.SuggestedCommands[0]
-	if mine.Intent != "recover_owned_live_claims" || mine.Command != "comments mine" || !containsString(mine.Args, "codex:doctor") || !containsString(mine.Args, "--full") || !containsString(mine.Args, server.URL) {
+	if mine.Intent != "recover_owned_live_claims" || mine.Command != "comments mine" || !containsString(mine.Args, "codex:doctor") || containsString(mine.Args, "--full") || !containsString(mine.Args, server.URL) {
 		t.Fatalf("doctor recovery suggestion = %#v", mine)
 	}
 	work := payload.SuggestedCommands[1]
@@ -1583,7 +1583,7 @@ func TestCommentsCLIDoctorSurfacesAgentReadiness(t *testing.T) {
 		t.Fatalf("doctor resident work suggestion = %#v", work)
 	}
 	inbox := payload.SuggestedCommands[2]
-	if inbox.Intent != "snapshot_agent_inbox" || inbox.Command != "comments inbox" || !containsString(inbox.Args, "codex:doctor") || !containsString(inbox.Args, server.URL) {
+	if inbox.Intent != "snapshot_agent_inbox" || inbox.Command != "comments inbox" || !containsString(inbox.Args, "codex:doctor") || containsString(inbox.Args, "--full") || !containsString(inbox.Args, server.URL) {
 		t.Fatalf("doctor inbox suggestion = %#v", inbox)
 	}
 

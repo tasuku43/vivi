@@ -159,15 +159,15 @@ vivi comments work --wait --actor codex --client-event-id work-open-1 --full --j
 vivi comments work --loop --actor codex --client-event-id work-loop-1 --idle-events --full --json
 vivi comments renew <thread-id> --actor codex --client-event-id renew-open-1 --lease 10m --json
 vivi comments hold <thread-id> --actor codex --client-event-id hold-open-1 --interval 2m --lease 10m --json
-vivi comments inbox --actor codex --full --json
+vivi comments inbox --actor codex --json
 vivi comments batch review-batch-... --actor codex --full --json
-vivi comments mine --actor codex --full --json
+vivi comments mine --actor codex --json
 vivi comments release <thread-id> --actor codex --client-event-id release-open-1 --json
 vivi comments release <thread-id> --actor codex --body-file /tmp/vivi-handoff.md --client-event-id release-open-1 --json
 vivi comments release <thread-id> --actor codex --triage-file - --require-claim --client-event-id release-open-1 --json
 vivi comments done <thread-id> --actor codex --body-file /tmp/vivi-reply.md --require-claim --json
 vivi comments protocol --json
-vivi comments watch --actor claude-code --full --json
+vivi comments watch --actor claude-code --json
 vivi comments follow <thread-id> --no-initial --json
 vivi comments show <thread-id> --json
 vivi comments check <thread-id> --actor codex --json
@@ -267,8 +267,8 @@ and structured write recipes that can propagate or append receipts.
 After that offline discovery, `comments doctor --actor <actor> --json` is the
 online readiness check: it reads the open worklist count and cursor without
 recording read receipts or claims, and returns the first safe startup
-suggestions for a resident agent, including `comments mine --full --json` for
-recovering owned live claims before claiming new work. Its output is described by
+suggestions for a resident agent, including compact `comments mine --json` for
+recovering owned live claim routing before claiming new work. Its output is described by
 `comments schema commentDoctorOutput --json`, which is also exposed through the
 manifest's `startupSchemas`. When the adapter supplies
 `--receipt-log <path>`, doctor also includes `receiptLedger`; failed ledger

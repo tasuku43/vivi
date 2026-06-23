@@ -1058,7 +1058,7 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 		"receiptLedger":         commentProtocolReceiptLedger(receiptLog),
 		"principles": []string{
 			"Prefer suggestedCommands emitted by runtime events over hard-coded command recipes.",
-			"Recover owned live claims with comments mine --full before claiming new GUI feedback after an adapter restart.",
+			"Recover owned live claims with compact comments mine before claiming new GUI feedback after an adapter restart.",
 			"Use comments work --wait --loop --idle-events as the resident owned-work intake for background agents.",
 			"Run comments check immediately before guarded writes when ownership may be stale.",
 			"Use structured stdin schemas for triage and terminal results.",
@@ -1088,8 +1088,8 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 			{
 				"intent":  "recover_owned_live_claims",
 				"command": "comments mine",
-				"args":    withURLArg([]string{"comments", "mine", "--actor", actor, "--full", "--json"}, serverURL),
-				"reason":  "After an adapter restart, inspect live claims already owned by this actor before claiming new GUI feedback.",
+				"args":    withURLArg([]string{"comments", "mine", "--actor", actor, "--json"}, serverURL),
+				"reason":  "After an adapter restart, inspect live claim routing before claiming new GUI feedback; fetch context for the selected thread on demand.",
 			},
 		},
 		"preferredLoop": map[string]any{
@@ -1103,7 +1103,7 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 			{
 				"intent":  "passive_open_worklist",
 				"command": "comments watch",
-				"args":    withRuntimeArgs([]string{"comments", "watch", "--actor", actor, "--client-event-id", "<client-event-id>", "--full", "--json"}, serverURL, receiptLog),
+				"args":    withRuntimeArgs([]string{"comments", "watch", "--actor", actor, "--client-event-id", "<client-event-id>", "--json"}, serverURL, receiptLog),
 				"events":  []string{"commentOpenWorklistEvent"},
 				"reason":  "Observe GUI-published open threads without claiming them; follow the event's claim_next_open_thread suggestion to take ownership.",
 			},
@@ -3531,8 +3531,8 @@ func commentWorkIdleSummary(payload map[string]any, actorID string, actorKind st
 		RecommendedAction: "wait_for_claim_release",
 		OpenThreadCount:   count,
 		SuggestedCommands: []commentSuggestedCommand{
-			suggestedCommentsCommand("inspect_agent_inbox", "comments inbox", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "inbox"}, actorID, actorKind, "--full", "--json")), serverURL, receiptLog), "", "Inspect open threads currently routed to this actor, unclaimed work, and live claims held by others."),
-			suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "watch"}, actorID, actorKind, "--full", "--cursor", cursor, "--json")), serverURL, receiptLog), "", "Watch for a new unclaimed thread or a claim release before trying to claim again."),
+			suggestedCommentsCommand("inspect_agent_inbox", "comments inbox", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "inbox"}, actorID, actorKind, "--json")), serverURL, receiptLog), "", "Inspect compact open-thread routing before deciding whether to fetch thread context."),
+			suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "watch"}, actorID, actorKind, "--cursor", cursor, "--json")), serverURL, receiptLog), "", "Watch compact routing events for a new unclaimed thread or a claim release before trying to claim again."),
 		},
 	}
 }
@@ -3878,7 +3878,7 @@ func summarizeOpenWorklist(threads []commentThreadOutput, actorID string, actorK
 func suggestedCommandsForOpenWorklist(actorID string, actorKind string, cursor string, serverURL string, receiptLog string) []commentSuggestedCommand {
 	if actorID == "" {
 		return []commentSuggestedCommand{
-			suggestedCommentsCommand("inspect_open_worklist", "comments list", withURLArg([]string{"comments", "list", "--status", "open", "--full", "--json"}, serverURL), "", "Inspect open threads before choosing an actor-specific claim command."),
+			suggestedCommentsCommand("inspect_open_worklist", "comments list", withURLArg([]string{"comments", "list", "--status", "open", "--json"}, serverURL), "", "Inspect compact open-thread routing before choosing an actor-specific claim command."),
 		}
 	}
 	clientEventID := commentSuggestedClientEventID("watch", cursor, "claim")
@@ -4495,7 +4495,7 @@ func summarizeOpenRouting(routing commentOpenRoutingOutput, actorID string, acto
 		summary.AttentionReasons = []string{"open_threads_claimed_by_others"}
 		summary.RecommendedAction = "wait_for_claim_release"
 		summary.SuggestedCommands = []commentSuggestedCommand{
-			suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "watch"}, actorID, actorKind, "--full", "--cursor", cursor, "--json")), serverURL, receiptLog), "", "Watch for a new unclaimed thread or a claim release before trying to claim again."),
+			suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "watch"}, actorID, actorKind, "--cursor", cursor, "--json")), serverURL, receiptLog), "", "Watch compact routing events for a new unclaimed thread or a claim release before trying to claim again."),
 		}
 		return summary
 	}
@@ -5012,12 +5012,12 @@ func commentsDoctorSuggestedCommands(options commentsCommandOptions, openThreadC
 		clientSeed = commentSuggestedClientEventID("doctor", "startup", actorID)
 	}
 	suggestions := []commentSuggestedCommand{
-		suggestedCommentsCommand("recover_owned_live_claims", "comments mine", withURLArg(withAgentHistoryLimitArgs([]string{"comments", "mine", "--actor", actorID, "--full", "--json"}), options.URL), "", "After an adapter restart, inspect live claims already owned by this actor before claiming new GUI feedback."),
+		suggestedCommentsCommand("recover_owned_live_claims", "comments mine", withURLArg(withAgentHistoryLimitArgs([]string{"comments", "mine", "--actor", actorID, "--json"}), options.URL), "", "After an adapter restart, inspect live claim routing before claiming new GUI feedback; fetch context for the selected thread on demand."),
 		suggestedCommentsCommandWithClientEventID("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "work", "--actor", actorID, "--wait", "--loop", "--idle-events", "--full", "--json"}), options.URL, options.ReceiptLog), "", "Enter the preferred resident agent loop for GUI feedback.", clientSeed+":work"),
-		suggestedCommentsCommand("snapshot_agent_inbox", "comments inbox", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "inbox", "--actor", actorID, "--full", "--json"}), options.URL, options.ReceiptLog), "", "Read owned, unclaimed, and other-claimed feedback without creating read receipts."),
+		suggestedCommentsCommand("snapshot_agent_inbox", "comments inbox", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "inbox", "--actor", actorID, "--json"}), options.URL, options.ReceiptLog), "", "Read compact owned, unclaimed, and other-claimed routing without creating read receipts."),
 	}
 	if openThreadCount == 0 {
-		suggestions = append(suggestions, suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "watch", "--actor", actorID, "--full", "--json"}), options.URL, options.ReceiptLog), "", "Wait for GUI feedback without claiming work immediately."))
+		suggestions = append(suggestions, suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "watch", "--actor", actorID, "--json"}), options.URL, options.ReceiptLog), "", "Wait for compact GUI feedback routing without claiming work immediately."))
 	}
 	return suggestions
 }
@@ -6765,7 +6765,7 @@ func commentsHelpText() string {
 		"  1. Discover the contract and receipt ledger: vivi comments protocol --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"  2. Cache the schema index offline: vivi comments schema list --json",
 		"  3. Check startup state: vivi comments doctor --actor <actor> --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
-		"  4. Resume owned work first: vivi comments mine --actor <actor> --full --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
+		"  4. Resume owned work first: vivi comments mine --actor <actor> --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"  5. Run the resident loop: vivi comments work --actor <actor> --wait --loop --idle-events --full --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"  6. Execute suggestedCommands from protocol, doctor, work, follow, check, and errors before inventing argv",
 		"",
@@ -6798,16 +6798,16 @@ func commentsHelpText() string {
 		"  vivi comments work --loop --actor claude-code --idle-events --full --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"  vivi comments renew <thread-id> --actor claude-code --lease 10m --json",
 		"  vivi comments hold <thread-id> --actor claude-code --interval 2m --lease 10m --json",
-		"  vivi comments inbox --actor claude-code --full --json",
+		"  vivi comments inbox --actor claude-code --json",
 		"  vivi comments batch review-batch-... --actor claude-code --full --json",
-		"  vivi comments mine --actor claude-code --full --json",
+		"  vivi comments mine --actor claude-code --json",
 		"  vivi comments release <thread-id> --actor claude-code --json",
 		"  vivi comments release <thread-id> --body-file /tmp/vivi-handoff.md --actor claude-code --json",
 		"  vivi comments release <thread-id> --triage-file - --actor claude-code --require-claim --json",
-		"  vivi comments watch --actor claude-code --full --json",
+		"  vivi comments watch --actor claude-code --json",
 		"  vivi comments watch --actor claude-code --json",
 		"  vivi comments follow <thread-id> --no-initial --json",
-		"  vivi comments list --status open --full --json",
+		"  vivi comments list --status open --json",
 		"  vivi comments show <thread-id> --json",
 		"  vivi comments check <thread-id> --actor claude-code --json",
 		"  vivi comments verify-receipt --receipt-file /tmp/vivi-receipt.json --json",

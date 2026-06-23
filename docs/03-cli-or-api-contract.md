@@ -26,9 +26,9 @@ vivi comments work --loop --actor codex --idle-events --full --json
 vivi comments work --loop --actor codex --idle-events --full --activity-limit 20 --comment-limit 10 --json
 vivi comments renew <thread-id> --actor codex --lease 10m --json
 vivi comments hold <thread-id> --actor codex --interval 2m --lease 10m --json
-vivi comments inbox --actor codex --full --json
+vivi comments inbox --actor codex --json
 vivi comments batch review-batch-... --actor codex --full --json
-vivi comments mine --actor codex --full --json
+vivi comments mine --actor codex --json
 vivi comments release <thread-id> --actor codex --json
 vivi comments release <thread-id> --actor codex --body-file /tmp/vivi-handoff.md --json
 vivi comments release <thread-id> --actor codex --triage-file /tmp/vivi-triage.json --require-claim --json
@@ -52,7 +52,6 @@ vivi comments schema commentOpenWorklistEvent --json
 vivi review queue --actor codex --json
 vivi review bases --json
 vivi review diff README.md --base HEAD --json
-vivi comments watch --actor claude-code --full --json
 vivi comments watch --actor claude-code --json
 vivi comments follow <thread-id> --no-initial --json
 vivi comments context <thread-id> --full --context-lines 6 --json
@@ -127,9 +126,9 @@ vivi comments work --wait --actor codex --client-event-id work-open-1 --full --j
 vivi comments work --loop --actor codex --client-event-id work-loop-1 --idle-events --full --json
 vivi comments renew <thread-id> --actor codex --client-event-id renew-open-1 --lease 10m --json
 vivi comments hold <thread-id> --actor codex --client-event-id hold-open-1 --interval 2m --lease 10m --json
-vivi comments inbox --actor codex --full --json
+vivi comments inbox --actor codex --json
 vivi comments batch review-batch-... --actor codex --full --json
-vivi comments mine --actor codex --full --json
+vivi comments mine --actor codex --json
 vivi comments release <thread-id> --actor codex --client-event-id release-open-1 --json
 vivi comments release <thread-id> --actor codex --body-file /tmp/vivi-handoff.md --client-event-id release-open-1 --json
 vivi comments release <thread-id> --actor codex --triage-file - --require-claim --client-event-id release-open-1 --json
@@ -142,10 +141,10 @@ vivi comments schema list --json
 vivi comments schema list --url http://127.0.0.1:4317 --json
 vivi comments schema all --json
 vivi comments doctor --actor codex --client-event-id doctor-start-1 --json
-vivi comments watch --actor claude-code --full --json
+vivi comments watch --actor claude-code --json
 vivi comments watch --actor claude-code --json
 vivi comments follow <thread-id> --no-initial --json
-vivi comments list --status open --full --json
+vivi comments list --status open --json
 vivi comments list --status resolved --json
 vivi comments show <thread-id> --json
 vivi comments check <thread-id> --actor codex --json
@@ -662,7 +661,7 @@ intentionally have no suggested write command.
 Use `comments protocol --receipt-log <path> --json` at durable adapter startup
 to discover the preferred resident loop (`comments work --wait --loop
 --idle-events --actor <actor> --full --receipt-log <path> --json`),
-restart recovery commands (`comments mine --actor <actor> --full --receipt-log
+restart recovery commands (`comments mine --actor <actor> --receipt-log
 <path> --json`),
 passive intake alternatives, single-thread companion commands, structured write
 recipes, schema lookup commands, and the JSON error policy. The protocol
@@ -688,9 +687,9 @@ After caching the server-independent protocol and schemas, use
 readiness check for the selected Vivi server. It reads the open worklist cursor
 and count without recording read receipts, claims, or comments, then returns
 `recommendedAction` and startup `suggestedCommands` such as
-`comments mine --full --json`,
+`comments mine --json`,
 `comments work --wait --loop --idle-events --full --json` or
-`comments inbox --full --json`.
+`comments inbox --json`.
 When startup was called with `--receipt-log <path>`, those suggestions include
 the same receipt ledger flag.
 This gives a resident adapter a safe first server touch and an explicit
@@ -1279,10 +1278,12 @@ renews the lease, and follows human updates on the claimed thread. Add
 state before the next GUI feedback arrives.
 Use `batch <review-batch-id> --full` when the agent is responding to one
 published GUI review batch and needs progress plus routing in one payload.
-Use `mine --full` after an agent restart to recover the same live claims before
-claiming more work. `mine` includes a `summary` with `recommendedAction` and
-`suggestedCommands`; when owned work exists the suggested path is renew the
-claim, follow the thread, then run a guarded `check` before writing.
+Use `mine --json` after an agent restart to recover compact live-claim routing
+before claiming more work; add `--full` only when the recovery snapshot itself
+needs source, diff, and activity payloads. `mine` includes a `summary` with
+`recommendedAction` and `suggestedCommands`; when owned work exists the
+suggested path is renew the claim, follow the thread, then run a guarded
+`check` before writing.
 Use `renew <thread-id>` as a heartbeat while triage, edits, or verification are
 still in flight.
 Use `hold <thread-id>` while running long edits or checks so the GUI keeps
@@ -1290,8 +1291,9 @@ showing a live owner and `--require-claim` terminal writes do not fail after
 the lease expires.
 Use `check <thread-id>` right before a guarded write when the agent wants a
 JSON preflight instead of discovering stale ownership from a terminal error.
-Use `inbox --full` when an agent needs one snapshot of owned, unclaimed, and
-other-claimed feedback before deciding its next command.
+Use `inbox --json` for a compact snapshot of owned, unclaimed, and
+other-claimed routing before deciding its next command; add `--full` only when
+the snapshot itself needs source, diff, and activity payloads.
 Use `release <thread-id> --triage-file <path|-> --require-claim` to explain a
 blocked or needs-info handoff with structured JSON and release the claim
 without resolving or archiving it. Use `release <thread-id> --body-file <path>`

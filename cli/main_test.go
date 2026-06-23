@@ -95,7 +95,7 @@ func TestCommentsHelpTextSurfacesWorkSession(t *testing.T) {
 		"1. Discover the contract and receipt ledger: vivi comments protocol --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"2. Cache the schema index offline: vivi comments schema list --json",
 		"3. Check startup state: vivi comments doctor --actor <actor> --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
-		"4. Resume owned work first: vivi comments mine --actor <actor> --full --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
+		"4. Resume owned work first: vivi comments mine --actor <actor> --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"5. Run the resident loop: vivi comments work --actor <actor> --wait --loop --idle-events --full --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"6. Execute suggestedCommands from protocol, doctor, work, follow, check, and errors before inventing argv",
 		"Agent write rules:",
