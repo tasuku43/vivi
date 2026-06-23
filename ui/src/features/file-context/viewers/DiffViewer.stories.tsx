@@ -44,6 +44,10 @@ export const DiffCommentOnAddedLine: Story = {
         name: `Diff from HEAD for ${sampleFiles.code.path}`,
       }),
     ).toBeInTheDocument();
+    const lineAction = canvasElement.querySelector<HTMLButtonElement>(
+      `[data-testid="line-comment-action"][data-comment-surface="diff"][data-path="${sampleFiles.code.path}"]`,
+    );
+    expect(lineAction).toBeInTheDocument();
     await expect(
       canvas.getAllByRole("button", {
         name: /Open comment thread on line/,

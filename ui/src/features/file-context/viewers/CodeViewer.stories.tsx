@@ -90,9 +90,11 @@ export const NarrowInlineCommentDraft: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Add comment on line 6" }),
+    const lineAction = canvasElement.querySelector<HTMLButtonElement>(
+      `[data-testid="line-comment-action"][data-comment-surface="source"][data-line="6"][data-path="${sampleFiles.code.path}"]`,
     );
+    expect(lineAction).toBeInTheDocument();
+    await userEvent.click(lineAction!);
     await expect(canvas.getByLabelText("New line comment")).toBeVisible();
 
     const viewerPane = canvasElement.querySelector<HTMLElement>(".viewer-pane");
@@ -122,9 +124,11 @@ export const SavedInlineDraftRemainsVisible: Story = {
   render: (args) => <SavedInlineDraftHarness {...args} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Add comment on line 6" }),
+    const lineAction = canvasElement.querySelector<HTMLButtonElement>(
+      `[data-testid="line-comment-action"][data-comment-surface="source"][data-line="6"][data-path="${sampleFiles.code.path}"]`,
     );
+    expect(lineAction).toBeInTheDocument();
+    await userEvent.click(lineAction!);
     await userEvent.type(
       canvas.getByLabelText("New line comment"),
       "Persist this draft in place.",

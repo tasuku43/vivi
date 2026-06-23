@@ -405,6 +405,10 @@ export function SourceCommentSurface({
                     : `Add comment on line ${lineNumber}`
                 }
                 data-comment-id={rowThread?.comments[0]?.id}
+                data-comment-surface="source"
+                data-line={lineNumber}
+                data-path={file.path}
+                data-testid="line-comment-action"
                 onClick={(event) => {
                   event.stopPropagation();
                   if (threadOpen) {

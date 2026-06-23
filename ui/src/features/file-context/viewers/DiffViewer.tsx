@@ -358,6 +358,7 @@ function SourceDiff({
             key={`${line.kind}-${index}-${"oldLine" in line ? (line.oldLine ?? "") : ""}-${"newLine" in line ? (line.newLine ?? "") : ""}-${line.text}`}
           >
             <SourceDiffLine
+              path={diff.path}
               line={line}
               html={highlightedLines?.[index] ?? escapeHtml(line.text || " ")}
               comments={diffComments}
@@ -401,6 +402,7 @@ function hunkIdForLines(
 }
 
 function SourceDiffLine({
+  path,
   line,
   html,
   comments,
@@ -411,6 +413,7 @@ function SourceDiffLine({
   onOpenThread,
   onStartLineComment,
 }: {
+  path: string;
   line: SourceDiffRow;
   html: string;
   comments: ViviComment[];
@@ -451,7 +454,12 @@ function SourceDiffLine({
               ? `Open comment thread on line ${currentLine}`
               : `Add comment on line ${currentLine}`
           }
+          data-change-kind={line.kind === "add" ? "added" : "context"}
           data-comment-id={rowThread?.comments[0]?.id}
+          data-comment-surface="diff"
+          data-line={currentLine}
+          data-path={path}
+          data-testid="line-comment-action"
           onClick={(event) => {
             event.stopPropagation();
             if (rowThread) onOpenThread?.(rowThread);
