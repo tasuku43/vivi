@@ -57,7 +57,7 @@ func TestReviewCLIQueueAndDiffGuideAgentReview(t *testing.T) {
 		Summary reviewRoutingSummary `json:"summary"`
 	}
 	decodeReviewCLIJSON(t, queueWithoutActor, &queueWithoutActorPayload)
-	if len(queueWithoutActorPayload.Summary.SuggestedCommands) != 2 || queueWithoutActorPayload.Summary.SuggestedCommands[1].Command != "comments doctor" || queueWithoutActorPayload.Summary.SuggestedCommands[1].Intent != "choose_agent_actor" || !containsString(queueWithoutActorPayload.Summary.SuggestedCommands[1].Args, "<actor-id>") {
+	if len(queueWithoutActorPayload.Summary.SuggestedCommands) != 2 || queueWithoutActorPayload.Summary.SuggestedCommands[1].Command != "comments doctor" || queueWithoutActorPayload.Summary.SuggestedCommands[1].Intent != "choose_agent_actor" || containsString(queueWithoutActorPayload.Summary.SuggestedCommands[1].Args, "<actor-id>") || containsString(queueWithoutActorPayload.Summary.SuggestedCommands[1].Args, "--actor") || !containsString(queueWithoutActorPayload.Summary.SuggestedCommands[1].Args, server.URL) {
 		t.Fatalf("review queue suggestions without actor = %#v", queueWithoutActorPayload.Summary.SuggestedCommands)
 	}
 

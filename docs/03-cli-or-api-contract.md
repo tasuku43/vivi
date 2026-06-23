@@ -207,8 +207,9 @@ available diff bases and `summary.suggestedCommands` for both the first
 `review diff` command and an executable resident
 `comments work --actor <actor> --wait --loop --idle-events --full --json`
 feedback loop. Without `--actor`, the queue points agents at
-`comments doctor --actor <actor-id> --json` instead of emitting a `comments work`
-recipe that cannot run. It does not claim comment threads and does not load
+`comments doctor --json` so the next payload can return the `configure_actor`
+branch, instead of emitting a `comments work` recipe that cannot run. It does
+not claim comment threads and does not load
 every diff in large repositories. Use `review bases --json` to list recent
 allowed diff bases, and `review diff <path> --base HEAD --json` to fetch one
 `TextDiff` payload for a changed file. Use the `comments` commands when the
