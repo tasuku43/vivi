@@ -110,6 +110,32 @@ export const AgentActivityVisible: Story = {
   },
 };
 
+export const ScopedFileSearch: Story = {
+  tags: ["interaction"],
+  args: {
+    query: sampleFiles.code.path,
+    statusFilter: "all",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByLabelText("Search comments")).toHaveValue(
+      sampleFiles.code.path,
+    );
+    await expect(canvas.getByRole("button", { name: "Show all 3 threads" }))
+      .toHaveTextContent("All 3");
+    await expect(canvas.getByRole("button", { name: "Show 3 open threads" }))
+      .toHaveTextContent("Open 3");
+    await expect(
+      canvas.getByRole("button", { name: "Show 0 resolved threads" }),
+    ).toHaveTextContent("Resolved");
+    await expect(
+      canvas.getByRole("list", {
+        name: "Comment threads, 3 threads · 4 messages",
+      }),
+    ).toBeInTheDocument();
+  },
+};
+
 export const SourceChangedAnchor: Story = {
   args: {
     comments: [

@@ -2922,6 +2922,82 @@ it("shows path matches while searching the review inbox", () => {
   expect(html).toContain('matched path, src/app.ts"');
 });
 
+it("scopes comments inbox filter counts to the current search", () => {
+  const otherOpenComment: ViviComment = {
+    ...codeLineComment,
+    id: "comment-other-open",
+    threadId: "thread-other-open",
+    path: "docs/guide.md",
+    anchor: {
+      ...codeLineComment.anchor,
+      canonical: {
+        ...codeLineComment.anchor.canonical,
+        path: "docs/guide.md",
+      },
+    },
+    body: "Open feedback in another file.",
+  };
+  const otherResolvedComment: ViviComment = {
+    ...otherOpenComment,
+    id: "comment-other-resolved",
+    threadId: "thread-other-resolved",
+    status: "resolved",
+    body: "Resolved feedback in another file.",
+  };
+  const html = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={[
+        { ...codeLineComment, threadId: "thread-1" },
+        otherOpenComment,
+        otherResolvedComment,
+      ]}
+      query="src/app"
+      statusFilter="all"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("2 open · 1 resolved · 0 archived");
+  expect(html).toContain("All 1");
+  expect(html).toContain("Open 1");
+  expect(html).toContain('aria-label="Show all 1 thread"');
+  expect(html).toContain('aria-label="Show 1 open thread"');
+  expect(html).toContain('aria-label="Show 0 resolved threads"');
+  expect(html).toContain("1 thread · 1 message");
+  expect(html).toContain("src/app.ts");
+  expect(html).not.toContain("docs/guide.md");
+});
+
+it("keeps searched status empty states distinct from no search matches", () => {
+  const resolvedComment: ViviComment = {
+    ...codeLineComment,
+    threadId: "thread-resolved",
+    status: "resolved",
+  };
+  const html = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={[resolvedComment]}
+      query="src/app"
+      statusFilter="open"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("No matching open threads");
+  expect(html).toContain("Try another status filter or broaden your search.");
+  expect(html).not.toContain("No threads match this search");
+  expect(html).toContain("All 1");
+  expect(html).toContain("Resolved 1");
+});
+
 it("keeps late comment search matches visible in the review inbox snippet", () => {
   const lateMatchComment = {
     ...codeLineComment,

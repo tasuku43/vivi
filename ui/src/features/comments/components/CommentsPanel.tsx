@@ -49,26 +49,17 @@ export function CommentsPanel({
 }) {
   if (!open) return null;
   const allThreads = groupCommentsByThread(comments, unreadReviewPaths);
-  const stats = summarizeCommentThreads(allThreads);
-  const visibleThreads = allThreads
+  const allStats = summarizeCommentThreads(allThreads);
+  const matchingThreads = allThreads.filter((thread) =>
+    commentThreadMatchesQuery(thread, query),
+  );
+  const matchingStats = summarizeCommentThreads(matchingThreads);
+  const visibleThreads = matchingThreads
     .filter((thread) => {
       if (statusFilter === "attention") return thread.needsAttention;
       if (statusFilter !== "all" && thread.status !== statusFilter)
         return false;
-      const haystack = [
-        thread.path,
-        thread.locationLabel,
-        thread.lineLabel,
-        thread.surfaceLabel,
-        thread.anchorDetailLabel ?? "",
-        ...thread.comments.flatMap((comment) => [
-          comment.body,
-          comment.anchor.canonical.quote ?? "",
-        ]),
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(query.trim().toLowerCase());
+      return true;
     })
     .sort(compareCommentThreads);
   const currentStop = currentCommentStop(allThreads, activeCommentId);
@@ -82,7 +73,11 @@ export function CommentsPanel({
   const visibleAttentionThreads = visibleThreads.filter(
     (thread) => thread.needsAttention,
   ).length;
-  const emptyState = commentInboxEmptyState(statusFilter, query, stats);
+  const emptyState = commentInboxEmptyState(
+    statusFilter,
+    query,
+    matchingStats,
+  );
   const visibleResultLabel = visibleThreads.length
     ? commentResultSummaryLabel(
         visibleThreads.length,
@@ -100,10 +95,11 @@ export function CommentsPanel({
           <p className="global-comments-eyebrow">Review Inbox</p>
           <h2>Comments</h2>
           <p>
-            {stats.open} open · {stats.resolved} resolved · {stats.archived}{" "}
+            {allStats.open} open · {allStats.resolved} resolved ·{" "}
+            {allStats.archived}{" "}
             archived
-            {stats.needsAttention
-              ? ` · ${countNoun(stats.needsAttention, "attention thread")}`
+            {allStats.needsAttention
+              ? ` · ${countNoun(allStats.needsAttention, "attention thread")}`
               : ""}
           </p>
         </div>
@@ -150,13 +146,13 @@ export function CommentsPanel({
               <button
                 className={statusFilter === status ? "active" : ""}
                 type="button"
-                aria-label={commentFilterAriaLabel(status, stats)}
+                aria-label={commentFilterAriaLabel(status, matchingStats)}
                 aria-pressed={statusFilter === status}
                 key={status}
                 onClick={() => onStatusFilterChange(status)}
-                title={commentFilterAriaLabel(status, stats)}
+                title={commentFilterAriaLabel(status, matchingStats)}
               >
-                {commentFilterLabel(status, stats)}
+                {commentFilterLabel(status, matchingStats)}
               </button>
             ),
           )}
@@ -689,6 +685,28 @@ function countLabel(label: string, count: number): string {
   return count ? `${label} ${count}` : label;
 }
 
+function commentThreadMatchesQuery(
+  thread: CommentThreadSummary,
+  query: string,
+): boolean {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return true;
+  const haystack = [
+    thread.path,
+    thread.locationLabel,
+    thread.lineLabel,
+    thread.surfaceLabel,
+    thread.anchorDetailLabel ?? "",
+    ...thread.comments.flatMap((comment) => [
+      comment.body,
+      comment.anchor.canonical.quote ?? "",
+    ]),
+  ]
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(normalizedQuery);
+}
+
 function commentResultSummaryLabel(
   threadCount: number,
   messageCount: number,
@@ -714,7 +732,8 @@ function commentInboxEmptyState(
   query: string,
   stats: CommentInboxStats,
 ): { title: string; detail: string } {
-  if (query.trim()) {
+  const searching = query.trim().length > 0;
+  if (searching && stats.all === 0) {
     return {
       title: "No threads match this search",
       detail: "Try a path, quoted text, or a phrase from the comment body.",
@@ -723,31 +742,45 @@ function commentInboxEmptyState(
 
   if (statusFilter === "attention") {
     return {
-      title: "No threads need attention",
-      detail: "Open threads with unseen activity will appear here.",
+      title: searching
+        ? "No matching threads need attention"
+        : "No threads need attention",
+      detail: searching
+        ? "Try another status filter or broaden your search."
+        : "Open threads with unseen activity will appear here.",
     };
   }
 
   if (statusFilter === "open") {
     return {
-      title: "No open threads",
-      detail: stats.resolved || stats.archived
-        ? "Resolved and archived threads remain available in the history filters."
-        : "New review comments will appear here after they are published.",
+      title: searching ? "No matching open threads" : "No open threads",
+      detail: searching
+        ? "Try another status filter or broaden your search."
+        : stats.resolved || stats.archived
+          ? "Resolved and archived threads remain available in the history filters."
+          : "New review comments will appear here after they are published.",
     };
   }
 
   if (statusFilter === "resolved") {
     return {
-      title: "No resolved threads",
-      detail: "Resolved feedback will stay here without returning to the review queue.",
+      title: searching
+        ? "No matching resolved threads"
+        : "No resolved threads",
+      detail: searching
+        ? "Try another status filter or broaden your search."
+        : "Resolved feedback will stay here without returning to the review queue.",
     };
   }
 
   if (statusFilter === "archived") {
     return {
-      title: "No archived threads",
-      detail: "Archived feedback will stay here as quiet history.",
+      title: searching
+        ? "No matching archived threads"
+        : "No archived threads",
+      detail: searching
+        ? "Try another status filter or broaden your search."
+        : "Archived feedback will stay here as quiet history.",
     };
   }
 
