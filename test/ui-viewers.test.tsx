@@ -2022,6 +2022,8 @@ it("autofocuses new inline comments without focusing existing reply threads", ()
   );
 
   expect(html).toContain('aria-label="New line comment"');
+  expect(html).toContain('aria-label="Save private draft comment"');
+  expect(html).toContain("<kbd>Cmd/Ctrl Enter</kbd> to save private draft");
   expect(html).toContain("autofocus");
 });
 

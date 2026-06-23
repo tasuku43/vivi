@@ -153,6 +153,10 @@ export const NewLineComment: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("New draft")).toBeVisible();
     await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
+    await expect(
+      canvas.getByRole("button", { name: "Save private draft comment" }),
+    ).toBeDisabled();
+    await expect(canvas.getByText("to save private draft")).toBeVisible();
   },
 };
 

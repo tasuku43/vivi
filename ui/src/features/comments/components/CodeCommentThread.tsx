@@ -42,7 +42,12 @@ export function CodeCommentThread({
       ? `Line ${thread.lineEnd}`
       : `Lines ${thread.lineStart}-${thread.lineEnd}`;
   const replyHintId = commentReplyHintId(thread.key);
-  const submitLabel = thread.comments.length ? "Add reply" : "Save draft comment";
+  const submitLabel = thread.comments.length
+    ? "Add reply"
+    : "Save private draft comment";
+  const submitHint = thread.comments.length
+    ? "to send"
+    : "to save private draft";
   const hasActiveComment = Boolean(
     activeCommentId &&
       thread.comments.some((comment) => comment.id === activeCommentId),
@@ -228,7 +233,7 @@ export function CodeCommentThread({
           }}
         />
         <p className="code-comment-thread-hint" id={replyHintId}>
-          <kbd>Cmd/Ctrl Enter</kbd> to send <span>Esc closes</span>
+          <kbd>Cmd/Ctrl Enter</kbd> {submitHint} <span>Esc closes</span>
         </p>
         <div className="code-comment-thread-footer">
           <div>

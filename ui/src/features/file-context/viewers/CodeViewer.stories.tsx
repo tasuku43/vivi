@@ -117,7 +117,7 @@ export const NarrowInlineCommentDraft: Story = {
     const thread =
       canvasElement.querySelector<HTMLElement>(".code-comment-thread");
     const saveButton = canvas.getByRole("button", {
-      name: "Save draft comment",
+      name: "Save private draft comment",
     });
     if (!viewerPane || !thread) throw new Error("missing inline comment story");
 
@@ -150,7 +150,7 @@ export const SavedInlineDraftRemainsVisible: Story = {
       "Persist this draft in place.",
     );
     await userEvent.click(
-      canvas.getByRole("button", { name: "Save draft comment" }),
+      canvas.getByRole("button", { name: "Save private draft comment" }),
     );
 
     await expect(canvas.getByText("Persist this draft in place.")).toBeVisible();
