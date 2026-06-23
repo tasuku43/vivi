@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import type { TextDiff } from "../domain/change-review.js";
-import type { DraftReviewComment, ViviComment } from "../domain/comments.js";
+import {
+  buildCommentThreads,
+  type DraftReviewComment,
+  type ViviComment,
+} from "../domain/comments.js";
 import type { FilePayload, FsNode } from "../domain/fs-node.js";
 import { CommandPalette } from "../features/command-palette/CommandPalette.js";
 import { CommentsPanel } from "../features/comments/components/CommentsPanel.js";
@@ -153,8 +157,10 @@ export function ReviewWorkbenchStory({
       <Topbar
         root={state === "empty" ? null : storyRoot}
         themePreference="system"
-        openCommentCount={
-          comments.filter((comment) => comment.status === "open").length
+        openCommentThreadCount={
+          buildCommentThreads(comments).filter(
+            (thread) => thread.status === "open",
+          ).length
         }
         onThemeCycle={noop}
         onQuickOpen={noop}

@@ -154,7 +154,7 @@ it("prioritizes attention-needed comments in the topbar entry point", () => {
     <Topbar
       root="/Users/tasuku/work/vivi"
       themePreference="dark"
-      openCommentCount={6}
+      openCommentThreadCount={6}
       commentAttentionCount={2}
       onThemeCycle={() => undefined}
       onQuickOpen={() => undefined}
@@ -180,7 +180,7 @@ it("keeps the comments topbar entry explicit when nothing needs attention", () =
     <Topbar
       root="/Users/tasuku/work/vivi"
       themePreference="dark"
-      openCommentCount={1}
+      openCommentThreadCount={1}
       commentAttentionCount={0}
       onThemeCycle={() => undefined}
       onQuickOpen={() => undefined}
@@ -192,11 +192,9 @@ it("keeps the comments topbar entry explicit when nothing needs attention", () =
 
   expect(html).toContain("Comments");
   expect(html).toContain('class="comment-count-badge">1</span>');
+  expect(html).toContain('aria-label="Open Comments inbox, 1 open thread"');
   expect(html).toContain(
-    'aria-label="Open Comments inbox, 1 open comment"',
-  );
-  expect(html).toContain(
-    'title="Open Comments inbox: 1 open comment (Cmd/Ctrl+Shift+C)"',
+    'title="Open Comments inbox: 1 open thread (Cmd/Ctrl+Shift+C)"',
   );
 });
 

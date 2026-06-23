@@ -29,7 +29,7 @@ export const TopbarStory: Story = {
     <Topbar
       root={storyRoot}
       themePreference="system"
-      openCommentCount={6}
+      openCommentThreadCount={6}
       onThemeCycle={() => undefined}
       onQuickOpen={() => undefined}
       onSearchText={() => undefined}

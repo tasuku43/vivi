@@ -620,9 +620,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         (file?.viewerKind === "markdown" && activeViewerMode === "source")) &&
         visibleActiveComment.anchor.canonical.lineStart)),
   );
-  const openCommentCount = comments.filter(
-    (comment) => comment.status === "open",
-  ).length;
   const activeFileRemoved = Boolean(activeTab?.removed);
   const effectiveSidebarWidth = compactSidebarWidth(
     sidebarWidth,
@@ -1990,7 +1987,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         }
         onQuickOpen={() => openPalette("file")}
         onSearchText={() => openPalette("text")}
-        openCommentCount={openCommentCount}
+        openCommentThreadCount={openThreadTargets.length}
         commentAttentionCount={attentionCommentThreadCount}
         onOpenComments={() => {
           const entry = commentInboxOpenState({

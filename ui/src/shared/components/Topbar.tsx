@@ -9,7 +9,7 @@ interface TopbarProps {
   onThemeCycle: () => void;
   onQuickOpen: () => void;
   onSearchText: () => void;
-  openCommentCount?: number;
+  openCommentThreadCount?: number;
   commentAttentionCount?: number;
   onOpenComments?: () => void;
   onOpenShortcuts: () => void;
@@ -21,7 +21,7 @@ export function Topbar({
   onThemeCycle,
   onQuickOpen,
   onSearchText,
-  openCommentCount = 0,
+  openCommentThreadCount = 0,
   commentAttentionCount = 0,
   onOpenComments,
   onOpenShortcuts,
@@ -31,7 +31,7 @@ export function Topbar({
   const themeLabel = themePreferenceLabel(themePreference);
   const commentsButton = commentsButtonState({
     attentionCount: commentAttentionCount,
-    openCount: openCommentCount,
+    openThreadCount: openCommentThreadCount,
   });
 
   return (
@@ -106,10 +106,10 @@ export function Topbar({
 
 function commentsButtonState({
   attentionCount,
-  openCount,
+  openThreadCount,
 }: {
   attentionCount: number;
-  openCount: number;
+  openThreadCount: number;
 }): {
   ariaLabel: string;
   count: number;
@@ -127,13 +127,13 @@ function commentsButtonState({
     };
   }
 
-  const noun = openCount === 1 ? "comment" : "comments";
-  const summary = openCount
-    ? `${openCount} open ${noun}`
-    : "no open comments";
+  const noun = openThreadCount === 1 ? "thread" : "threads";
+  const summary = openThreadCount
+    ? `${openThreadCount} open ${noun}`
+    : "no open threads";
   return {
     ariaLabel: `Open Comments inbox, ${summary}`,
-    count: openCount,
+    count: openThreadCount,
     label: "Comments",
     title: `Open Comments inbox: ${summary} (Cmd/Ctrl+Shift+C)`,
   };
