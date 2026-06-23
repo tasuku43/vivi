@@ -152,6 +152,8 @@ it("renders the topbar as brand, workspace identity, and distinct actions", () =
   expect(html).toContain('aria-keyshortcuts="Meta+Shift+C Control+Shift+C"');
   expect(html).toContain('aria-keyshortcuts="Meta+Shift+F Control+Shift+F"');
   expect(html).toContain('aria-label="Keyboard shortcuts"');
+  expect(html).toContain('aria-label="Search workspace text"');
+  expect(html).toContain("Search workspace text (Cmd/Ctrl+Shift+F)");
   expect(html).toContain("Keyboard shortcuts (Cmd/Ctrl+/)");
 });
 

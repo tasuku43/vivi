@@ -117,7 +117,9 @@ export function Topbar({
         <button
           type="button"
           className="command-button command-button-secondary"
+          aria-label="Search workspace text"
           aria-keyshortcuts="Meta+Shift+F Control+Shift+F"
+          title="Search workspace text (Cmd/Ctrl+Shift+F)"
           data-topbar-action="search"
           onPointerDown={(event) =>
             runTopbarOverlayPointerAction(event, onSearchText)
