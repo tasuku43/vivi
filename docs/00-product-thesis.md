@@ -88,7 +88,7 @@ The strongest version of Vivi stays local-first and review-focused:
 
 Vivi's job is narrower and more durable: make human review legible to agents, while making agent-written local work easy for humans to inspect.
 
-## Positioning against adjacent tools
+## Product positioning
 
 Vivi should avoid competing as a generic diff viewer.
 
