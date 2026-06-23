@@ -75,7 +75,7 @@ export const ReviewQueueItemWithOpenThreads: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const row = canvas.getByRole("button", {
-      name: `modified ${sampleFiles.code.path}, current review file`,
+      name: `Review queue item, modified ${sampleFiles.code.path}, current review file`,
     });
     await userEvent.click(row);
     await expect(row).toHaveAttribute(

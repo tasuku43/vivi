@@ -868,6 +868,7 @@ function reviewQueueItemAriaLabel(
   },
 ): string {
   return [
+    "Review queue item",
     `${statusLabel} ${item.path}`,
     active ? "current review file" : "",
   ]
