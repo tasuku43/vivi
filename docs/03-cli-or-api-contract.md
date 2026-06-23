@@ -636,8 +636,10 @@ that logical write. The reusable recipe object is available as
 `comments schema commentSuggestedCommand --json` and is also exposed through
 the startup protocol's `componentSchemas.commentSuggestedCommand`. Agent write
 and runtime-routing suggestions carry the resolved `--url` when the emitting
-command targeted a non-default Vivi server, so adapters can execute suggested
-argv as-is without accidentally returning to `http://127.0.0.1:4317`.
+command targeted a non-default Vivi server, and preserve `--actor-kind` when
+the emitting command supplied one, so adapters can execute suggested argv
+as-is without accidentally returning to `http://127.0.0.1:4317` or losing
+actor-relative classification.
 Agent write
 commands return a `receipt` object described by
 `comments schema commentWriteReceipt --json`; the receipt links the command,
@@ -809,9 +811,10 @@ recoverability guidance. Branch on `error.suggestedCommands` first when it is
 present; the policy is the fallback decision table for stale claims, other
 owners, stale thread ids, server reachability, argument bugs, and retryable
 upstream failures. Recovery `suggestedCommands` preserve an explicit `--url`
-or `VIVI_URL`-resolved server where available, and carry `--receipt-log` into
-commands such as `doctor`, `check`, `follow`, and `inbox` that may emit the
-next write-oriented suggestions.
+or `VIVI_URL`-resolved server where available, keep the failed command's
+`--actor-kind` alongside `--actor`, and carry `--receipt-log` into commands
+such as `doctor`, `check`, `follow`, and `inbox` that may emit the next
+write-oriented suggestions.
 `comments schema list --json` returns the compact schema index for adapter
 startup caching and does not contact the Vivi server. `comments schema all
 --json` still returns the protocol manifest, doctor readiness, snapshot output
@@ -830,22 +833,22 @@ non-zero and writes a machine-readable error envelope instead of plain text:
   "error": {
     "schemaVersion": 1,
     "code": "no_live_claim",
-    "message": "comment thread \"...\" has no live claim for actor \"codex\"; renew or claim it before writing",
+    "message": "comment thread \"...\" has no live claim for actor \"codex:worker\"; renew or claim it before writing",
     "command": "comments done",
-    "args": ["comments", "done", "...", "--actor", "codex", "--require-claim", "--url", "http://127.0.0.1:4317", "--json"],
+    "args": ["comments", "done", "...", "--actor", "codex:worker", "--actor-kind", "codex", "--require-claim", "--url", "http://127.0.0.1:4317", "--json"],
     "recoverable": true,
     "suggestedCommands": [
       {
         "intent": "claim_thread_before_retrying",
         "command": "comments claim",
-        "args": ["comments", "claim", "...", "--actor", "codex", "--full", "--client-event-id", "error:...:claim", "--url", "http://127.0.0.1:4317", "--json"],
+        "args": ["comments", "claim", "...", "--actor", "codex:worker", "--actor-kind", "codex", "--full", "--client-event-id", "error:...:claim", "--url", "http://127.0.0.1:4317", "--json"],
         "clientEventId": "error:...:claim",
         "reason": "Claim this thread before retrying the failed guarded write."
       },
       {
         "intent": "check_thread_before_retrying",
         "command": "comments check",
-        "args": ["comments", "check", "...", "--actor", "codex", "--full", "--url", "http://127.0.0.1:4317", "--json"],
+        "args": ["comments", "check", "...", "--actor", "codex:worker", "--actor-kind", "codex", "--full", "--url", "http://127.0.0.1:4317", "--json"],
         "reason": "Inspect live claim ownership and use write.suggestedCommands for the next safe write."
       }
     ],

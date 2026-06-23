@@ -199,6 +199,7 @@ func commentsErrorRecoverable(code string) bool {
 
 func suggestedCommandsForCommentsError(command string, args []string, code string) []commentSuggestedCommand {
 	actorID := commentsArgValue(args, "--actor")
+	actorKind := commentsArgValue(args, "--actor-kind")
 	serverURL := commentsSuggestedServerURL(args)
 	receiptLog := commentsArgValue(args, "--receipt-log")
 	if code == "invalid_arguments" {
@@ -214,7 +215,7 @@ func suggestedCommandsForCommentsError(command string, args []string, code strin
 	if code == "server_unreachable" {
 		doctorArgs := []string{"comments", "doctor"}
 		if actorID != "" {
-			doctorArgs = append(doctorArgs, "--actor", actorID)
+			doctorArgs = actorCommand(doctorArgs, actorID, actorKind)
 		}
 		if clientEventID := commentsArgValue(args, "--client-event-id"); clientEventID != "" {
 			doctorArgs = append(doctorArgs, "--client-event-id", clientEventID)
@@ -238,17 +239,21 @@ func suggestedCommandsForCommentsError(command string, args []string, code strin
 			}
 		}
 		return []commentSuggestedCommand{
-			suggestedCommentsCommandWithClientEventID("claim_thread_before_retrying", "comments claim", withURLArg([]string{"comments", "claim", threadID, "--actor", actorID, "--full", "--json"}, serverURL), "", "Claim this thread before retrying the failed guarded write.", commentSuggestedClientEventID("error", threadID, "claim")),
-			suggestedCommentsCommand("check_thread_before_retrying", "comments check", withRuntimeArgs([]string{"comments", "check", threadID, "--actor", actorID, "--full", "--json"}, serverURL, receiptLog), "", "Inspect live claim ownership and use write.suggestedCommands for the next safe write."),
+			suggestedCommentsCommandWithClientEventID("claim_thread_before_retrying", "comments claim", withURLArg(actorCommand([]string{"comments", "claim", threadID}, actorID, actorKind, "--full", "--json"), serverURL), "", "Claim this thread before retrying the failed guarded write.", commentSuggestedClientEventID("error", threadID, "claim")),
+			suggestedCommentsCommand("check_thread_before_retrying", "comments check", withRuntimeArgs(actorCommand([]string{"comments", "check", threadID}, actorID, actorKind, "--full", "--json"), serverURL, receiptLog), "", "Inspect live claim ownership and use write.suggestedCommands for the next safe write."),
 		}
 	case "claimed_by_other_actor":
 		showArgs := []string{"comments", "show", threadID, "--json"}
 		if actorID != "" {
-			showArgs = []string{"comments", "show", threadID, "--actor", actorID, "--json"}
+			showArgs = actorCommand([]string{"comments", "show", threadID}, actorID, actorKind, "--json")
+		}
+		followArgs := []string{"comments", "follow", threadID, "--no-initial", "--json"}
+		if actorID != "" {
+			followArgs = actorCommand([]string{"comments", "follow", threadID}, actorID, actorKind, "--no-initial", "--json")
 		}
 		return []commentSuggestedCommand{
 			suggestedCommentsCommand("inspect_thread", "comments show", withURLArg(showArgs, serverURL), "", "Inspect the current claim owner and latest thread state."),
-			suggestedCommentsCommand("follow_until_released", "comments follow", withRuntimeArgs([]string{"comments", "follow", threadID, "--no-initial", "--json"}, serverURL, receiptLog), "", "Watch for release, terminal status, or new human feedback before retrying."),
+			suggestedCommentsCommand("follow_until_released", "comments follow", withRuntimeArgs(followArgs, serverURL, receiptLog), "", "Watch for release, terminal status, or new human feedback before retrying."),
 		}
 	case "not_found":
 		if actorID == "" {
@@ -257,7 +262,7 @@ func suggestedCommandsForCommentsError(command string, args []string, code strin
 			}
 		}
 		return []commentSuggestedCommand{
-			suggestedCommentsCommand("inspect_open_work", "comments inbox", withRuntimeArgs([]string{"comments", "inbox", "--actor", actorID, "--json"}, serverURL, receiptLog), "", "Inspect the current open work queues before retrying with a fresh thread id."),
+			suggestedCommentsCommand("inspect_open_work", "comments inbox", withRuntimeArgs(actorCommand([]string{"comments", "inbox"}, actorID, actorKind, "--json"), serverURL, receiptLog), "", "Inspect the current open work queues before retrying with a fresh thread id."),
 		}
 	default:
 		return nil
@@ -4257,7 +4262,7 @@ func suggestedCommandsForActivityBatchWithLiveClaim(summary commentActivityBatch
 				suggestedCommentsCommand("inspect_source_unavailable_thread", "comments show", withURLArg([]string{"comments", "show", threadID, "--json"}, serverURL), "", "Inspect the thread conversation because the referenced source path is unavailable in this workspace."),
 			}
 		}
-		if suggestions := guardedWriteSuggestionsForActivityBatch(threadID, actorID, serverURL, receiptLog, liveClaim, knowsLiveClaim); suggestions != nil {
+		if suggestions := guardedWriteSuggestionsForActivityBatchWithActorKind(threadID, actorID, actorKind, serverURL, receiptLog, liveClaim, knowsLiveClaim); suggestions != nil {
 			return suggestions
 		}
 		return []commentSuggestedCommand{
@@ -4271,7 +4276,7 @@ func suggestedCommandsForActivityBatchWithLiveClaim(summary commentActivityBatch
 				suggestedCommentsCommand("inspect_thread", "comments show", withURLArg([]string{"comments", "show", threadID, "--json"}, serverURL), "", "Inspect the claimed thread before replying."),
 			}
 		}
-		if suggestions := guardedWriteSuggestionsForActivityBatch(threadID, actorID, serverURL, receiptLog, liveClaim, knowsLiveClaim); suggestions != nil {
+		if suggestions := guardedWriteSuggestionsForActivityBatchWithActorKind(threadID, actorID, actorKind, serverURL, receiptLog, liveClaim, knowsLiveClaim); suggestions != nil {
 			return suggestions
 		}
 		return []commentSuggestedCommand{
@@ -4286,7 +4291,7 @@ func suggestedCommandsForActivityBatchWithLiveClaim(summary commentActivityBatch
 				suggestedCommentsCommand("inspect_thread", "comments show", withURLArg([]string{"comments", "show", threadID, "--json"}, serverURL), "", "Inspect the latest thread before replying."),
 			}
 		}
-		if suggestions := guardedWriteSuggestionsForActivityBatch(threadID, actorID, serverURL, receiptLog, liveClaim, knowsLiveClaim); suggestions != nil {
+		if suggestions := guardedWriteSuggestionsForActivityBatchWithActorKind(threadID, actorID, actorKind, serverURL, receiptLog, liveClaim, knowsLiveClaim); suggestions != nil {
 			return suggestions
 		}
 		return []commentSuggestedCommand{
@@ -4316,16 +4321,16 @@ func suggestedCommandsForActivityBatchWithLiveClaim(summary commentActivityBatch
 	}
 }
 
-func guardedWriteSuggestionsForActivityBatch(threadID string, actorID string, serverURL string, receiptLog string, liveClaim *commentActivityOutput, knowsLiveClaim bool) []commentSuggestedCommand {
+func guardedWriteSuggestionsForActivityBatchWithActorKind(threadID string, actorID string, actorKind string, serverURL string, receiptLog string, liveClaim *commentActivityOutput, knowsLiveClaim bool) []commentSuggestedCommand {
 	if !knowsLiveClaim || strings.TrimSpace(actorID) == "" {
 		return nil
 	}
 	thread := commentThreadOutput{ID: threadID, Status: "open"}
 	if liveClaim == nil {
-		return suggestedCommandsForWritePreflight("no_live_claim", thread, nil, actorID, serverURL, receiptLog)
+		return suggestedCommandsForWritePreflight("no_live_claim", thread, nil, actorID, actorKind, serverURL, receiptLog)
 	}
 	if liveClaim.Actor.ID != strings.TrimSpace(actorID) {
-		return suggestedCommandsForWritePreflight("claimed_by_other_actor", thread, liveClaim, actorID, serverURL, receiptLog)
+		return suggestedCommandsForWritePreflight("claimed_by_other_actor", thread, liveClaim, actorID, actorKind, serverURL, receiptLog)
 	}
 	return nil
 }
@@ -6033,6 +6038,7 @@ func receiptEffectMatchesActivity(expected commentWriteReceiptEffect, actual com
 
 func commentWritePreflight(thread commentThreadOutput, claim *commentActivityOutput, options commentsCommandOptions) map[string]any {
 	actorID := strings.TrimSpace(options.ActorID)
+	actorKind := strings.TrimSpace(options.ActorKind)
 	result := map[string]any{
 		"actor":    actorInput(options),
 		"canWrite": false,
@@ -6041,30 +6047,30 @@ func commentWritePreflight(thread commentThreadOutput, claim *commentActivityOut
 	if thread.Status != "open" {
 		result["reason"] = "thread_not_open"
 		result["status"] = thread.Status
-		addCommentWritePreflightGuidance(result, thread, claim, actorID, options.URL, options.ReceiptLog)
+		addCommentWritePreflightGuidance(result, thread, claim, actorID, actorKind, options.URL, options.ReceiptLog)
 		return result
 	}
 	if claim == nil {
-		addCommentWritePreflightGuidance(result, thread, claim, actorID, options.URL, options.ReceiptLog)
+		addCommentWritePreflightGuidance(result, thread, claim, actorID, actorKind, options.URL, options.ReceiptLog)
 		return result
 	}
 	if claim.Actor.ID != actorID {
 		result["reason"] = "claimed_by_other_actor"
 		result["claimedBy"] = claim.Actor
-		addCommentWritePreflightGuidance(result, thread, claim, actorID, options.URL, options.ReceiptLog)
+		addCommentWritePreflightGuidance(result, thread, claim, actorID, actorKind, options.URL, options.ReceiptLog)
 		return result
 	}
 	result["canWrite"] = true
 	result["reason"] = "owned_live_claim"
 	result["leaseExpiresAt"] = claim.LeaseExpiresAt
-	addCommentWritePreflightGuidance(result, thread, claim, actorID, options.URL, options.ReceiptLog)
+	addCommentWritePreflightGuidance(result, thread, claim, actorID, actorKind, options.URL, options.ReceiptLog)
 	return result
 }
 
-func addCommentWritePreflightGuidance(result map[string]any, thread commentThreadOutput, claim *commentActivityOutput, actorID string, serverURL string, receiptLog string) {
+func addCommentWritePreflightGuidance(result map[string]any, thread commentThreadOutput, claim *commentActivityOutput, actorID string, actorKind string, serverURL string, receiptLog string) {
 	reason, _ := result["reason"].(string)
 	result["recommendedAction"] = commentWritePreflightRecommendedAction(reason)
-	result["suggestedCommands"] = suggestedCommandsForWritePreflight(reason, thread, claim, actorID, serverURL, receiptLog)
+	result["suggestedCommands"] = suggestedCommandsForWritePreflight(reason, thread, claim, actorID, actorKind, serverURL, receiptLog)
 }
 
 func commentWritePreflightRecommendedAction(reason string) string {
@@ -6082,7 +6088,7 @@ func commentWritePreflightRecommendedAction(reason string) string {
 	}
 }
 
-func suggestedCommandsForWritePreflight(reason string, thread commentThreadOutput, claim *commentActivityOutput, actorID string, serverURL string, receiptLog string) []commentSuggestedCommand {
+func suggestedCommandsForWritePreflight(reason string, thread commentThreadOutput, claim *commentActivityOutput, actorID string, actorKind string, serverURL string, receiptLog string) []commentSuggestedCommand {
 	threadID := strings.TrimSpace(thread.ID)
 	if threadID == "" {
 		return nil
@@ -6104,12 +6110,12 @@ func suggestedCommandsForWritePreflight(reason string, thread commentThreadOutpu
 			}
 		}
 		return []commentSuggestedCommand{
-			suggestedCommentsCommandWithClientEventID("renew_current_claim", "comments renew", withURLArg([]string{"comments", "renew", threadID, "--actor", actorID, "--json"}, serverURL), "", "Extend the current claim before a longer edit or verification pass.", renewClientEventID),
-			suggestedCommentsCommandWithClientEventID("reply_with_claim", "comments reply", withRuntimeArgs([]string{"comments", "reply", threadID, "--actor", actorID, "--body-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "", "Post a guarded non-terminal reply while this actor owns the live claim.", suggestedWriteClientEventID("check", threadID, "reply", claimSeed)),
-			suggestedCommentsCommandWithClientEventID("acknowledge_or_request_clarification", "comments triage", withRuntimeArgs([]string{"comments", "triage", threadID, "--actor", actorID, "--triage-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "commentTriageFileInput", "Post a structured acknowledgement, clarification request, or blocked status while keeping the thread open.", suggestedWriteClientEventID("check", threadID, "triage", claimSeed)),
-			suggestedCommentsCommandWithClientEventID("handoff_after_blocked_or_needs_info", "comments release", withRuntimeArgs([]string{"comments", "release", threadID, "--actor", actorID, "--triage-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "commentTriageFileInput", "Post a structured blocked or needs-info handoff comment, then release the live claim for another attempt.", suggestedWriteClientEventID("check", threadID, "release", claimSeed)),
-			suggestedCommentsCommandWithClientEventID("complete_after_verification", "comments done", withRuntimeArgs([]string{"comments", "done", threadID, "--actor", actorID, "--result-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "commentResultFileInput", "Resolve the thread with structured verification after the fix is complete.", suggestedWriteClientEventID("check", threadID, "done", claimSeed)),
-			suggestedCommentsCommandWithClientEventID("archive_after_decision", "comments dismiss", withRuntimeArgs([]string{"comments", "dismiss", threadID, "--actor", actorID, "--result-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "commentResultFileInput", "Archive the thread with a structured explanation when the feedback is intentionally not fixed.", suggestedWriteClientEventID("check", threadID, "dismiss", claimSeed)),
+			suggestedCommentsCommandWithClientEventID("renew_current_claim", "comments renew", withURLArg(actorCommand([]string{"comments", "renew", threadID}, actorID, actorKind, "--json"), serverURL), "", "Extend the current claim before a longer edit or verification pass.", renewClientEventID),
+			suggestedCommentsCommandWithClientEventID("reply_with_claim", "comments reply", withRuntimeArgs(actorCommand([]string{"comments", "reply", threadID}, actorID, actorKind, "--body-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "", "Post a guarded non-terminal reply while this actor owns the live claim.", suggestedWriteClientEventID("check", threadID, "reply", claimSeed)),
+			suggestedCommentsCommandWithClientEventID("acknowledge_or_request_clarification", "comments triage", withRuntimeArgs(actorCommand([]string{"comments", "triage", threadID}, actorID, actorKind, "--triage-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentTriageFileInput", "Post a structured acknowledgement, clarification request, or blocked status while keeping the thread open.", suggestedWriteClientEventID("check", threadID, "triage", claimSeed)),
+			suggestedCommentsCommandWithClientEventID("handoff_after_blocked_or_needs_info", "comments release", withRuntimeArgs(actorCommand([]string{"comments", "release", threadID}, actorID, actorKind, "--triage-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentTriageFileInput", "Post a structured blocked or needs-info handoff comment, then release the live claim for another attempt.", suggestedWriteClientEventID("check", threadID, "release", claimSeed)),
+			suggestedCommentsCommandWithClientEventID("complete_after_verification", "comments done", withRuntimeArgs(actorCommand([]string{"comments", "done", threadID}, actorID, actorKind, "--result-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentResultFileInput", "Resolve the thread with structured verification after the fix is complete.", suggestedWriteClientEventID("check", threadID, "done", claimSeed)),
+			suggestedCommentsCommandWithClientEventID("archive_after_decision", "comments dismiss", withRuntimeArgs(actorCommand([]string{"comments", "dismiss", threadID}, actorID, actorKind, "--result-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentResultFileInput", "Archive the thread with a structured explanation when the feedback is intentionally not fixed.", suggestedWriteClientEventID("check", threadID, "dismiss", claimSeed)),
 		}
 	case "no_live_claim":
 		if actorID == "" {
@@ -6118,16 +6124,20 @@ func suggestedCommandsForWritePreflight(reason string, thread commentThreadOutpu
 			}
 		}
 		return []commentSuggestedCommand{
-			suggestedCommentsCommandWithClientEventID("claim_thread_before_writing", "comments claim", withURLArg([]string{"comments", "claim", threadID, "--actor", actorID, "--full", "--json"}, serverURL), "", "Claim this open thread and receive source, diff, and activity context before writing.", commentSuggestedClientEventID("check", threadID, "claim")),
+			suggestedCommentsCommandWithClientEventID("claim_thread_before_writing", "comments claim", withURLArg(actorCommand([]string{"comments", "claim", threadID}, actorID, actorKind, "--full", "--json"), serverURL), "", "Claim this open thread and receive source, diff, and activity context before writing.", commentSuggestedClientEventID("check", threadID, "claim")),
 		}
 	case "claimed_by_other_actor":
 		args := []string{"comments", "show", threadID, "--json"}
 		if actorID != "" {
-			args = []string{"comments", "show", threadID, "--actor", actorID, "--json"}
+			args = actorCommand([]string{"comments", "show", threadID}, actorID, actorKind, "--json")
+		}
+		followArgs := []string{"comments", "follow", threadID, "--no-initial", "--json"}
+		if actorID != "" {
+			followArgs = actorCommand([]string{"comments", "follow", threadID}, actorID, actorKind, "--no-initial", "--json")
 		}
 		return []commentSuggestedCommand{
 			suggestedCommentsCommand("inspect_thread", "comments show", withURLArg(args, serverURL), "", "Inspect the current owner and thread state before deciding whether to wait or coordinate."),
-			suggestedCommentsCommand("follow_until_released", "comments follow", withURLArg([]string{"comments", "follow", threadID, "--no-initial", "--json"}, serverURL), "", "Watch this thread for release, status, or human follow-up before retrying work."),
+			suggestedCommentsCommand("follow_until_released", "comments follow", withRuntimeArgs(followArgs, serverURL, receiptLog), "", "Watch this thread for release, status, or human follow-up before retrying work."),
 		}
 	case "thread_not_open":
 		args := []string{"comments", "show", threadID, "--json"}
@@ -6135,7 +6145,7 @@ func suggestedCommandsForWritePreflight(reason string, thread commentThreadOutpu
 			suggestedCommentsCommand("inspect_terminal_thread", "comments show", withURLArg(args, serverURL), "", "Inspect the terminal thread before reopening or leaving it closed."),
 		}
 		if actorID != "" {
-			suggestions = append(suggestions, suggestedCommentsCommandWithClientEventID("reopen_before_writing", "comments reopen", withURLArg([]string{"comments", "reopen", threadID, "--actor", actorID, "--json"}, serverURL), "", "Reopen the thread before posting a new guarded reply or result.", commentSuggestedClientEventID("check", threadID, "reopen", thread.Status)))
+			suggestions = append(suggestions, suggestedCommentsCommandWithClientEventID("reopen_before_writing", "comments reopen", withURLArg(actorCommand([]string{"comments", "reopen", threadID}, actorID, actorKind, "--json"), serverURL), "", "Reopen the thread before posting a new guarded reply or result.", commentSuggestedClientEventID("check", threadID, "reopen", thread.Status)))
 		}
 		return suggestions
 	default:

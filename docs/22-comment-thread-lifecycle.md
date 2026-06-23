@@ -529,16 +529,17 @@ and failed counts. `comments doctor --receipt-log <path> --json` runs that same
 ledger check as part of online startup readiness and treats a missing ledger
 file as an empty OK ledger. Commands that emit agent write suggestions, such as
 `doctor`, `watch`, `work`, `follow`, `check`, `inbox`, and `batch`, propagate
-their resolved `--url` into suggested argv and propagate `--receipt-log <path>`
-into suggested write argv, so adapters can execute those recipes without
-reattaching server or ledger flags by hand.
+their resolved `--url` into suggested argv, preserve `--actor-kind` alongside
+`--actor`, and propagate `--receipt-log <path>` into suggested write argv, so
+adapters can execute those recipes without reattaching server, actor, or ledger
+flags by hand.
 If a guarded write fails under `--json`, the CLI returns an `error` envelope
 with a stable `code` such as `no_live_claim` or `claimed_by_other_actor` and
 recovery `suggestedCommands`, so a resident adapter can claim, check, follow,
 or inspect without scraping a human-readable stderr string. Those recovery
 suggestions preserve the failed command's explicit or environment-resolved
-server URL, and propagate `--receipt-log` into follow-up commands that can
-produce the next write suggestions.
+server URL, preserve actor kind, and propagate `--receipt-log` into follow-up
+commands that can produce the next write suggestions.
 
 `comments dismiss` is the equivalent shortcut for intentional non-fixes. It
 posts the supplied explanation and archives the thread in one CLI call,

@@ -2221,7 +2221,7 @@ func TestCommentsCLIRequireClaimGuardsAgentWrites(t *testing.T) {
 	if envelope.Error.Code != "no_live_claim" || !envelope.Error.Recoverable || envelope.Error.Command != "comments done" {
 		t.Fatalf("no-claim error envelope = %#v", envelope)
 	}
-	if len(envelope.Error.SuggestedCommands) != 2 || envelope.Error.SuggestedCommands[0].Intent != "claim_thread_before_retrying" || envelope.Error.SuggestedCommands[0].ClientEventID == "" || !containsString(envelope.Error.SuggestedCommands[0].Args, envelope.Error.SuggestedCommands[0].ClientEventID) || !containsString(envelope.Error.SuggestedCommands[0].Args, server.URL) || envelope.Error.SuggestedCommands[1].Intent != "check_thread_before_retrying" || !containsString(envelope.Error.SuggestedCommands[1].Args, server.URL) || !containsString(envelope.Error.SuggestedCommands[1].Args, receiptLog) {
+	if len(envelope.Error.SuggestedCommands) != 2 || envelope.Error.SuggestedCommands[0].Intent != "claim_thread_before_retrying" || envelope.Error.SuggestedCommands[0].ClientEventID == "" || !containsString(envelope.Error.SuggestedCommands[0].Args, envelope.Error.SuggestedCommands[0].ClientEventID) || !containsString(envelope.Error.SuggestedCommands[0].Args, server.URL) || !containsString(envelope.Error.SuggestedCommands[0].Args, "--actor-kind") || !containsString(envelope.Error.SuggestedCommands[0].Args, "codex") || envelope.Error.SuggestedCommands[1].Intent != "check_thread_before_retrying" || !containsString(envelope.Error.SuggestedCommands[1].Args, server.URL) || !containsString(envelope.Error.SuggestedCommands[1].Args, receiptLog) || !containsString(envelope.Error.SuggestedCommands[1].Args, "--actor-kind") || !containsString(envelope.Error.SuggestedCommands[1].Args, "codex") {
 		t.Fatalf("no-claim error suggestions = %#v", envelope.Error.SuggestedCommands)
 	}
 
@@ -2243,7 +2243,7 @@ func TestCommentsCLIRequireClaimGuardsAgentWrites(t *testing.T) {
 	if envelope.Error.Code != "claimed_by_other_actor" || !envelope.Error.Recoverable || len(envelope.Error.SuggestedCommands) != 2 {
 		t.Fatalf("claimed-by-other error envelope = %#v", envelope)
 	}
-	if envelope.Error.SuggestedCommands[0].Intent != "inspect_thread" || !containsString(envelope.Error.SuggestedCommands[0].Args, server.URL) || envelope.Error.SuggestedCommands[1].Intent != "follow_until_released" || !containsString(envelope.Error.SuggestedCommands[1].Args, server.URL) || !containsString(envelope.Error.SuggestedCommands[1].Args, receiptLog) {
+	if envelope.Error.SuggestedCommands[0].Intent != "inspect_thread" || !containsString(envelope.Error.SuggestedCommands[0].Args, server.URL) || !containsString(envelope.Error.SuggestedCommands[0].Args, "--actor-kind") || !containsString(envelope.Error.SuggestedCommands[0].Args, "codex") || envelope.Error.SuggestedCommands[1].Intent != "follow_until_released" || !containsString(envelope.Error.SuggestedCommands[1].Args, server.URL) || !containsString(envelope.Error.SuggestedCommands[1].Args, receiptLog) || !containsString(envelope.Error.SuggestedCommands[1].Args, "--actor") || !containsString(envelope.Error.SuggestedCommands[1].Args, "codex:guard") || !containsString(envelope.Error.SuggestedCommands[1].Args, "--actor-kind") || !containsString(envelope.Error.SuggestedCommands[1].Args, "codex") {
 		t.Fatalf("claimed-by-other error suggestions = %#v", envelope.Error.SuggestedCommands)
 	}
 	err = runCommentsCLIErrorForTest("reply", threadID, "--url", server.URL, "--actor", "codex:guard", "--actor-kind", "codex", "--body", "Reply from stale agent", "--require-claim", "--json")
@@ -2280,8 +2280,9 @@ func TestCommentsCLICheckReportsWritePreflight(t *testing.T) {
 	server := newCommentsCLITestServer(t)
 	defer server.Close()
 	threadID := createCommentThreadForCLIWithBody(t, server.URL, "README.md", "Preflight this feedback")
+	receiptLog := filepath.Join(t.TempDir(), "agent-receipts.jsonl")
 
-	check := runCommentsCLIForTest(t, "check", threadID, "--url", server.URL, "--actor", "codex:check", "--actor-kind", "codex", "--with-activities", "--json")
+	check := runCommentsCLIForTest(t, "check", threadID, "--url", server.URL, "--actor", "codex:check", "--actor-kind", "codex", "--receipt-log", receiptLog, "--with-activities", "--json")
 	var payload struct {
 		Thread     commentThreadOutput     `json:"thread"`
 		LiveClaim  *commentActivityOutput  `json:"liveClaim"`
@@ -2297,7 +2298,7 @@ func TestCommentsCLICheckReportsWritePreflight(t *testing.T) {
 	}
 	noClaimSuggestions := payload.Write["suggestedCommands"].([]any)
 	noClaimSuggestion := noClaimSuggestions[0].(map[string]any)
-	if len(noClaimSuggestions) != 1 || noClaimSuggestion["intent"] != "claim_thread_before_writing" || noClaimSuggestion["command"] != "comments claim" || noClaimSuggestion["clientEventId"] == "" || !containsAnyString(noClaimSuggestion["args"].([]any), "--client-event-id") || !containsAnyString(noClaimSuggestion["args"].([]any), noClaimSuggestion["clientEventId"].(string)) || !containsAnyString(noClaimSuggestion["args"].([]any), "--full") || !containsAnyString(noClaimSuggestion["args"].([]any), server.URL) {
+	if len(noClaimSuggestions) != 1 || noClaimSuggestion["intent"] != "claim_thread_before_writing" || noClaimSuggestion["command"] != "comments claim" || noClaimSuggestion["clientEventId"] == "" || !containsAnyString(noClaimSuggestion["args"].([]any), "--client-event-id") || !containsAnyString(noClaimSuggestion["args"].([]any), noClaimSuggestion["clientEventId"].(string)) || !containsAnyString(noClaimSuggestion["args"].([]any), "--full") || !containsAnyString(noClaimSuggestion["args"].([]any), server.URL) || !containsAnyString(noClaimSuggestion["args"].([]any), "--actor-kind") || !containsAnyString(noClaimSuggestion["args"].([]any), "codex") {
 		t.Fatalf("check without claim suggestions = %#v", noClaimSuggestions)
 	}
 	if containsActivity(payload.Activities, "thread_read", "") {
@@ -2305,20 +2306,22 @@ func TestCommentsCLICheckReportsWritePreflight(t *testing.T) {
 	}
 
 	runCommentsCLIForTest(t, "claim", threadID, "--url", server.URL, "--actor", "claude-code:check-other", "--actor-kind", "claude_code", "--client-event-id", "check-other-claim", "--lease", "30s", "--json")
-	checkOther := runCommentsCLIForTest(t, "check", threadID, "--url", server.URL, "--actor", "codex:check", "--actor-kind", "codex", "--json")
+	checkOther := runCommentsCLIForTest(t, "check", threadID, "--url", server.URL, "--actor", "codex:check", "--actor-kind", "codex", "--receipt-log", receiptLog, "--json")
 	decodeCLIJSON(t, checkOther, &payload)
 	claimedBy := payload.Write["claimedBy"].(map[string]any)
 	if payload.LiveClaim == nil || payload.LiveClaim.ClientEventID != "check-other-claim" || payload.Write["canWrite"] != false || payload.Write["reason"] != "claimed_by_other_actor" || claimedBy["id"] != "claude-code:check-other" {
 		t.Fatalf("check claimed by other = %s", checkOther.String())
 	}
 	otherClaimSuggestions := payload.Write["suggestedCommands"].([]any)
-	if payload.Write["recommendedAction"] != "inspect_or_wait" || len(otherClaimSuggestions) != 2 || otherClaimSuggestions[0].(map[string]any)["intent"] != "inspect_thread" || otherClaimSuggestions[1].(map[string]any)["intent"] != "follow_until_released" || !containsAnyString(otherClaimSuggestions[0].(map[string]any)["args"].([]any), server.URL) || !containsAnyString(otherClaimSuggestions[1].(map[string]any)["args"].([]any), server.URL) {
+	otherShowSuggestion := otherClaimSuggestions[0].(map[string]any)
+	otherFollowSuggestion := otherClaimSuggestions[1].(map[string]any)
+	if payload.Write["recommendedAction"] != "inspect_or_wait" || len(otherClaimSuggestions) != 2 || otherShowSuggestion["intent"] != "inspect_thread" || otherFollowSuggestion["intent"] != "follow_until_released" || !containsAnyString(otherShowSuggestion["args"].([]any), server.URL) || !containsAnyString(otherShowSuggestion["args"].([]any), "--actor-kind") || !containsAnyString(otherShowSuggestion["args"].([]any), "codex") || !containsAnyString(otherFollowSuggestion["args"].([]any), server.URL) || !containsAnyString(otherFollowSuggestion["args"].([]any), receiptLog) || !containsAnyString(otherFollowSuggestion["args"].([]any), "--actor") || !containsAnyString(otherFollowSuggestion["args"].([]any), "codex:check") || !containsAnyString(otherFollowSuggestion["args"].([]any), "--actor-kind") || !containsAnyString(otherFollowSuggestion["args"].([]any), "codex") {
 		t.Fatalf("check claimed by other suggestions = %#v", payload.Write)
 	}
 
 	runCommentsCLIForTest(t, "release", threadID, "--url", server.URL, "--actor", "claude-code:check-other", "--actor-kind", "claude_code", "--client-event-id", "check-other-release", "--json")
 	runCommentsCLIForTest(t, "claim", threadID, "--url", server.URL, "--actor", "codex:check", "--actor-kind", "codex", "--client-event-id", "check-own-claim", "--lease", "30s", "--json")
-	checkOwn := runCommentsCLIForTest(t, "check", threadID, "--url", server.URL, "--actor", "codex:check", "--actor-kind", "codex", "--with-context", "--json")
+	checkOwn := runCommentsCLIForTest(t, "check", threadID, "--url", server.URL, "--actor", "codex:check", "--actor-kind", "codex", "--receipt-log", receiptLog, "--with-context", "--json")
 	decodeCLIJSON(t, checkOwn, &payload)
 	if payload.LiveClaim == nil || payload.LiveClaim.ClientEventID != "check-own-claim" || payload.Write["canWrite"] != true || payload.Write["reason"] != "owned_live_claim" || payload.Write["leaseExpiresAt"] == "" {
 		t.Fatalf("check own claim = %s", checkOwn.String())
@@ -2330,7 +2333,7 @@ func TestCommentsCLICheckReportsWritePreflight(t *testing.T) {
 	releaseSuggestion := ownClaimSuggestions[3].(map[string]any)
 	doneSuggestion := ownClaimSuggestions[4].(map[string]any)
 	dismissSuggestion := ownClaimSuggestions[5].(map[string]any)
-	if payload.Write["recommendedAction"] != "write_guarded_reply" || len(ownClaimSuggestions) != 6 || renewSuggestion["intent"] != "renew_current_claim" || renewSuggestion["clientEventId"] == "" || !containsAnyString(renewSuggestion["args"].([]any), "--client-event-id") || !containsAnyString(renewSuggestion["args"].([]any), renewSuggestion["clientEventId"].(string)) || !containsAnyString(renewSuggestion["args"].([]any), server.URL) || replySuggestion["clientEventId"] == "" || !containsAnyString(replySuggestion["args"].([]any), replySuggestion["clientEventId"].(string)) || !containsAnyString(replySuggestion["args"].([]any), server.URL) || triageSuggestion["stdinSchema"] != "commentTriageFileInput" || triageSuggestion["clientEventId"] == "" || !containsAnyString(triageSuggestion["args"].([]any), triageSuggestion["clientEventId"].(string)) || !containsAnyString(triageSuggestion["args"].([]any), server.URL) || releaseSuggestion["command"] != "comments release" || releaseSuggestion["stdinSchema"] != "commentTriageFileInput" || releaseSuggestion["clientEventId"] == "" || !containsAnyString(releaseSuggestion["args"].([]any), releaseSuggestion["clientEventId"].(string)) || !containsAnyString(releaseSuggestion["args"].([]any), server.URL) || doneSuggestion["command"] != "comments done" || doneSuggestion["clientEventId"] == "" || !containsAnyString(doneSuggestion["args"].([]any), doneSuggestion["clientEventId"].(string)) || !containsAnyString(doneSuggestion["args"].([]any), server.URL) || dismissSuggestion["command"] != "comments dismiss" || dismissSuggestion["clientEventId"] == "" || !containsAnyString(dismissSuggestion["args"].([]any), dismissSuggestion["clientEventId"].(string)) || !containsAnyString(dismissSuggestion["args"].([]any), server.URL) {
+	if payload.Write["recommendedAction"] != "write_guarded_reply" || len(ownClaimSuggestions) != 6 || renewSuggestion["intent"] != "renew_current_claim" || renewSuggestion["clientEventId"] == "" || !containsAnyString(renewSuggestion["args"].([]any), "--client-event-id") || !containsAnyString(renewSuggestion["args"].([]any), renewSuggestion["clientEventId"].(string)) || !containsAnyString(renewSuggestion["args"].([]any), server.URL) || !containsAnyString(renewSuggestion["args"].([]any), "--actor-kind") || !containsAnyString(renewSuggestion["args"].([]any), "codex") || replySuggestion["clientEventId"] == "" || !containsAnyString(replySuggestion["args"].([]any), replySuggestion["clientEventId"].(string)) || !containsAnyString(replySuggestion["args"].([]any), server.URL) || !containsAnyString(replySuggestion["args"].([]any), receiptLog) || !containsAnyString(replySuggestion["args"].([]any), "--actor-kind") || !containsAnyString(replySuggestion["args"].([]any), "codex") || triageSuggestion["stdinSchema"] != "commentTriageFileInput" || triageSuggestion["clientEventId"] == "" || !containsAnyString(triageSuggestion["args"].([]any), triageSuggestion["clientEventId"].(string)) || !containsAnyString(triageSuggestion["args"].([]any), server.URL) || !containsAnyString(triageSuggestion["args"].([]any), receiptLog) || !containsAnyString(triageSuggestion["args"].([]any), "--actor-kind") || !containsAnyString(triageSuggestion["args"].([]any), "codex") || releaseSuggestion["command"] != "comments release" || releaseSuggestion["stdinSchema"] != "commentTriageFileInput" || releaseSuggestion["clientEventId"] == "" || !containsAnyString(releaseSuggestion["args"].([]any), releaseSuggestion["clientEventId"].(string)) || !containsAnyString(releaseSuggestion["args"].([]any), server.URL) || !containsAnyString(releaseSuggestion["args"].([]any), receiptLog) || doneSuggestion["command"] != "comments done" || doneSuggestion["clientEventId"] == "" || !containsAnyString(doneSuggestion["args"].([]any), doneSuggestion["clientEventId"].(string)) || !containsAnyString(doneSuggestion["args"].([]any), server.URL) || !containsAnyString(doneSuggestion["args"].([]any), receiptLog) || dismissSuggestion["command"] != "comments dismiss" || dismissSuggestion["clientEventId"] == "" || !containsAnyString(dismissSuggestion["args"].([]any), dismissSuggestion["clientEventId"].(string)) || !containsAnyString(dismissSuggestion["args"].([]any), server.URL) || !containsAnyString(dismissSuggestion["args"].([]any), receiptLog) {
 		t.Fatalf("check own claim suggestions = %#v", payload.Write)
 	}
 	if triageSuggestion["stdinExample"].(map[string]any)["decision"] != "accepted" || !strings.Contains(triageSuggestion["stdinExample"].(map[string]any)["summary"].(string), "understand") {
@@ -2338,14 +2341,14 @@ func TestCommentsCLICheckReportsWritePreflight(t *testing.T) {
 	}
 
 	runCommentsCLIForTest(t, "resolve", threadID, "--url", server.URL, "--actor", "codex:check", "--actor-kind", "codex", "--json")
-	checkResolved := runCommentsCLIForTest(t, "check", threadID, "--url", server.URL, "--actor", "codex:check", "--actor-kind", "codex", "--json")
+	checkResolved := runCommentsCLIForTest(t, "check", threadID, "--url", server.URL, "--actor", "codex:check", "--actor-kind", "codex", "--receipt-log", receiptLog, "--json")
 	decodeCLIJSON(t, checkResolved, &payload)
 	if payload.Write["canWrite"] != false || payload.Write["reason"] != "thread_not_open" || payload.Write["status"] != "resolved" {
 		t.Fatalf("check terminal thread = %s", checkResolved.String())
 	}
 	terminalSuggestions := payload.Write["suggestedCommands"].([]any)
 	reopenSuggestion := terminalSuggestions[1].(map[string]any)
-	if payload.Write["recommendedAction"] != "reopen_before_writing" || len(terminalSuggestions) != 2 || !containsAnyString(terminalSuggestions[0].(map[string]any)["args"].([]any), server.URL) || reopenSuggestion["intent"] != "reopen_before_writing" || reopenSuggestion["clientEventId"] == "" || !containsAnyString(reopenSuggestion["args"].([]any), reopenSuggestion["clientEventId"].(string)) || !containsAnyString(reopenSuggestion["args"].([]any), server.URL) {
+	if payload.Write["recommendedAction"] != "reopen_before_writing" || len(terminalSuggestions) != 2 || !containsAnyString(terminalSuggestions[0].(map[string]any)["args"].([]any), server.URL) || reopenSuggestion["intent"] != "reopen_before_writing" || reopenSuggestion["clientEventId"] == "" || !containsAnyString(reopenSuggestion["args"].([]any), reopenSuggestion["clientEventId"].(string)) || !containsAnyString(reopenSuggestion["args"].([]any), server.URL) || !containsAnyString(reopenSuggestion["args"].([]any), "--actor-kind") || !containsAnyString(reopenSuggestion["args"].([]any), "codex") {
 		t.Fatalf("check terminal suggestions = %#v", payload.Write)
 	}
 }
@@ -2863,7 +2866,7 @@ func TestCommentsCLIFollowStreamsThreadActivity(t *testing.T) {
 	if !changed.Summary.RequiresAttention || changed.Summary.RecommendedAction != "reconsider_work" || !containsString(changed.Summary.AttentionReasons, "external_human_comment") {
 		t.Fatalf("changed follow attention summary = %#v", changed.Summary)
 	}
-	if len(changed.Summary.SuggestedCommands) != 1 || changed.Summary.SuggestedCommands[0].Intent != "claim_thread_before_writing" || changed.Summary.SuggestedCommands[0].Command != "comments claim" || !containsString(changed.Summary.SuggestedCommands[0].Args, threadID) || !containsString(changed.Summary.SuggestedCommands[0].Args, "codex:follow-test") || !containsString(changed.Summary.SuggestedCommands[0].Args, server.URL) || changed.Summary.SuggestedCommands[0].StdinRequired {
+	if len(changed.Summary.SuggestedCommands) != 1 || changed.Summary.SuggestedCommands[0].Intent != "claim_thread_before_writing" || changed.Summary.SuggestedCommands[0].Command != "comments claim" || !containsString(changed.Summary.SuggestedCommands[0].Args, threadID) || !containsString(changed.Summary.SuggestedCommands[0].Args, "codex:follow-test") || !containsString(changed.Summary.SuggestedCommands[0].Args, "--actor-kind") || !containsString(changed.Summary.SuggestedCommands[0].Args, "codex") || !containsString(changed.Summary.SuggestedCommands[0].Args, server.URL) || changed.Summary.SuggestedCommands[0].StdinRequired {
 		t.Fatalf("changed follow suggested commands = %#v", changed.Summary.SuggestedCommands)
 	}
 	if err := <-done; err != nil {
@@ -2875,6 +2878,7 @@ func TestCommentsCLIFollowSuggestsClaimAfterExpiredLease(t *testing.T) {
 	server := newCommentsCLITestServer(t)
 	defer server.Close()
 	threadID := createCommentThreadForCLIWithBody(t, server.URL, "README.md", "Feedback with a short lease")
+	receiptLog := filepath.Join(t.TempDir(), "agent-receipts.jsonl")
 
 	claimed := runCommentsCLIForTest(t, "claim", threadID, "--url", server.URL, "--actor", "codex:expired-follow", "--actor-kind", "codex", "--client-event-id", "expired-follow-claim", "--lease", "1s", "--json")
 	var claimPayload struct {
@@ -2888,7 +2892,7 @@ func TestCommentsCLIFollowSuggestsClaimAfterExpiredLease(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	events, done := startCommentsFollowForTest(t, ctx, "follow", threadID, "--url", server.URL, "--actor", "codex:expired-follow", "--actor-kind", "codex", "--cursor", claimPayload.Claim.ID, "--interval", "10ms", "--max-events", "1", "--json")
+	events, done := startCommentsFollowForTest(t, ctx, "follow", threadID, "--url", server.URL, "--actor", "codex:expired-follow", "--actor-kind", "codex", "--receipt-log", receiptLog, "--cursor", claimPayload.Claim.ID, "--interval", "10ms", "--max-events", "1", "--json")
 	graphqlForCLI(t, server.URL, map[string]any{
 		"operationName": "HumanFollowUp",
 		"query":         `mutation HumanFollowUp($threadId: ID!, $input: AddCommentInput!) { addComment(threadId: $threadId, input: $input) { id } }`,
@@ -2907,7 +2911,7 @@ func TestCommentsCLIFollowSuggestsClaimAfterExpiredLease(t *testing.T) {
 	if len(followed.Summary.SuggestedCommands) != 1 || followed.Summary.SuggestedCommands[0].Intent != "claim_thread_before_writing" || followed.Summary.SuggestedCommands[0].Command != "comments claim" {
 		t.Fatalf("expired follow should suggest reclaim before guarded writes = %#v", followed.Summary.SuggestedCommands)
 	}
-	if containsString(followed.Summary.SuggestedCommands[0].Args, "--require-claim") || followed.Summary.SuggestedCommands[0].StdinRequired {
+	if !containsString(followed.Summary.SuggestedCommands[0].Args, "--actor-kind") || !containsString(followed.Summary.SuggestedCommands[0].Args, "codex") || containsString(followed.Summary.SuggestedCommands[0].Args, "--require-claim") || followed.Summary.SuggestedCommands[0].StdinRequired {
 		t.Fatalf("expired follow reclaim suggestion should be read/write preflight friendly = %#v", followed.Summary.SuggestedCommands[0])
 	}
 	if err := <-done; err != nil {
