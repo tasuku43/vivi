@@ -1470,8 +1470,10 @@ func commentInboxOutputSchema() commentSchemaOutput {
 			"title":                "commentInboxOutput",
 			"type":                 "object",
 			"additionalProperties": true,
-			"required":             []string{"actor", "cursor", "count", "summary", "mine", "unclaimed", "claimedByOthers", "sourceUnavailable"},
+			"required":             []string{"schemaVersion", "schemaCommand", "actor", "cursor", "count", "summary", "mine", "unclaimed", "claimedByOthers", "sourceUnavailable"},
 			"properties": map[string]any{
+				"schemaVersion":     map[string]any{"type": "integer", "minimum": 1},
+				"schemaCommand":     arraySchema(map[string]any{"type": "string"}),
 				"actor":             commentActorSchema(),
 				"cursor":            map[string]any{"type": "string"},
 				"count":             map[string]any{"type": "integer", "minimum": 0},
@@ -1891,9 +1893,11 @@ func commentInboxOutputExample() map[string]any {
 	thread := commentSchemaExampleThread("comment-thread-1", "README.md", "open")
 	claim := commentSchemaExampleClaim("claim-1", "codex:agent")
 	return map[string]any{
-		"actor":  map[string]any{"id": "codex:agent", "kind": "codex"},
-		"cursor": "open:...",
-		"count":  2,
+		"schemaVersion": commentsStreamSchemaVersion,
+		"schemaCommand": commentSchemaCommandArgs("commentInboxOutput"),
+		"actor":         map[string]any{"id": "codex:agent", "kind": "codex"},
+		"cursor":        "open:...",
+		"count":         2,
 		"summary": map[string]any{
 			"requiresAttention":      true,
 			"attentionReasons":       []string{"owned_live_claims"},
@@ -4278,6 +4282,8 @@ func commentsInbox(ctx context.Context, stdout io.Writer, options commentsComman
 	}
 	outputRouting := limitCommentOpenRoutingHistory(routing, options.CommentLimit)
 	payload := map[string]any{
+		"schemaVersion":     commentsStreamSchemaVersion,
+		"schemaCommand":     commentSchemaCommandArgs("commentInboxOutput"),
 		"actor":             actorInput(options),
 		"cursor":            cursor,
 		"count":             len(ordered),

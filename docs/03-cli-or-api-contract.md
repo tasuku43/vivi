@@ -870,6 +870,8 @@ claim, and returns three groups:
 
 ```json
 {
+  "schemaVersion": 1,
+  "schemaCommand": ["comments", "schema", "commentInboxOutput", "--json"],
   "actor": { "id": "codex", "kind": "codex" },
   "cursor": "open:...",
   "count": 3,
@@ -887,7 +889,8 @@ claim, and returns three groups:
   },
   "mine": { "threads": [], "claims": [], "count": 1 },
   "unclaimed": { "threads": [], "count": 1 },
-  "claimedByOthers": { "threads": [], "claims": [], "count": 1 }
+  "claimedByOthers": { "threads": [], "claims": [], "count": 1 },
+  "sourceUnavailable": { "threads": [], "claims": [], "count": 0 }
 }
 ```
 
