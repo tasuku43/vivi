@@ -96,6 +96,10 @@ commands instead of returning the `configure_actor` branch.
 need to work through local comment threads. It talks to a running Vivi server
 through GraphQL and does not edit comment storage directly. The server URL is
 resolved from `--url`, then `VIVI_URL`, then `http://127.0.0.1:4317`.
+When that server is not reachable, the JSON error envelope includes structured
+`suggestedCommands` for loading the offline protocol, starting `vivi` for the
+current directory with `--ready-json`, and retrying `comments doctor` with the
+same actor, URL, and receipt-log context where available.
 `vivi comments --help` is part of that agent contract: its first screen gives
 the recommended startup order (`protocol`, `schema all`, `doctor`, `mine`,
 `work`) and the write rules for claim-guarded triage, release, done, and

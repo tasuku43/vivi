@@ -218,6 +218,7 @@ func suggestedCommandsForCommentsError(command string, args []string, code strin
 		doctorArgs = append(doctorArgs, "--json")
 		return []commentSuggestedCommand{
 			suggestedCommentsCommand("load_protocol_offline", "comments protocol", withReceiptLogArg([]string{"comments", "protocol", "--json"}, receiptLog), "", "Load the server-independent agent protocol while waiting for Vivi to start."),
+			suggestedCommentsCommand("start_vivi_server", "vivi", suggestedViviServerStartArgs(actorID, serverURL), "", "Start a local Vivi server for the current directory; replace the root argument if the review target is a different workspace."),
 			suggestedCommentsCommand("retry_server_readiness", "comments doctor", withRuntimeArgs(doctorArgs, serverURL, receiptLog), "", "After starting Vivi or correcting --url/VIVI_URL, retry the online readiness check."),
 		}
 	}
@@ -264,6 +265,39 @@ func commentsSuggestedServerURL(args []string) string {
 		return serverURL
 	}
 	return strings.TrimSpace(os.Getenv("VIVI_URL"))
+}
+
+func suggestedViviServerStartArgs(actorID string, serverURL string) []string {
+	root := "."
+	if cwd, err := os.Getwd(); err == nil && strings.TrimSpace(cwd) != "" {
+		root = cwd
+	}
+	host, port := suggestedViviServerBind(serverURL)
+	args := []string{"vivi", root, "--host", host, "--port", port, "--ready-json"}
+	if actorID = strings.TrimSpace(actorID); actorID != "" {
+		args = append(args, "--actor", actorID)
+	}
+	return args
+}
+
+func suggestedViviServerBind(serverURL string) (string, string) {
+	serverURL = strings.TrimSpace(serverURL)
+	if serverURL == "" {
+		serverURL = defaultCommentsURL
+	}
+	parsed, err := url.Parse(serverURL)
+	if err != nil {
+		return "127.0.0.1", "4317"
+	}
+	host := parsed.Hostname()
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	port := parsed.Port()
+	if port == "" {
+		port = "4317"
+	}
+	return host, port
 }
 
 func commentsPositionalURLArg(args []string) string {
@@ -1135,7 +1169,7 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 				{
 					"code":        "server_unreachable",
 					"recoverable": true,
-					"action":      "Start Vivi or correct --url/VIVI_URL, then rerun comments doctor before entering a resident loop.",
+					"action":      "Run the start_vivi_server suggestion or correct --url/VIVI_URL, then rerun comments doctor before entering a resident loop.",
 				},
 				{
 					"code":        "invalid_arguments",

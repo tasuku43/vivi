@@ -172,7 +172,9 @@ stdout transport rule and recoverability guidance for each stable error code.
 Recovery suggestions preserve the same server URL and receipt ledger context
 where available, so a fake or real adapter can recover from stale claims and
 other live owners without reconstructing command flags from outside the error
-payload.
+payload. When the server itself is not reachable, the error suggestions also
+include a `start_vivi_server` command that launches `vivi` for the current
+directory with `--ready-json`, followed by the matching `comments doctor` retry.
 That same manifest exposes `manifestSchemaCommand`, pointing at
 `comments schema commentProtocolManifest --json`, so adapters can validate the
 startup protocol surface before entering a resident loop.
