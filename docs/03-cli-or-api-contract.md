@@ -21,9 +21,9 @@ vivi comments next --actor codex --full --json
 vivi comments claim --actor codex --review-batch review-batch-... --full --json
 vivi comments claim <thread-id> --actor codex --lease 10m --json
 vivi comments claim --wait --actor codex --full --json
-vivi comments work --wait --actor codex --full --json
-vivi comments work --loop --actor codex --idle-events --full --json
-vivi comments work --loop --actor codex --idle-events --full --activity-limit 20 --comment-limit 10 --json
+vivi comments work --wait --actor codex --json
+vivi comments work --loop --actor codex --idle-events --json
+vivi comments work --loop --actor codex --idle-events --activity-limit 20 --comment-limit 10 --json
 vivi comments renew <thread-id> --actor codex --lease 10m --json
 vivi comments hold <thread-id> --actor codex --interval 2m --lease 10m --json
 vivi comments inbox --actor codex --json
@@ -122,8 +122,8 @@ vivi comments next --actor codex --full --diff-base HEAD --json
 vivi comments claim --actor codex --client-event-id claim-open-1 --review-batch review-batch-... --full --json
 vivi comments claim <thread-id> --actor codex --lease 10m --json
 vivi comments claim --wait --actor codex --client-event-id claim-wait-1 --full --json
-vivi comments work --wait --actor codex --client-event-id work-open-1 --full --json
-vivi comments work --loop --actor codex --client-event-id work-loop-1 --idle-events --full --json
+vivi comments work --wait --actor codex --client-event-id work-open-1 --json
+vivi comments work --loop --actor codex --client-event-id work-loop-1 --idle-events --json
 vivi comments renew <thread-id> --actor codex --client-event-id renew-open-1 --lease 10m --json
 vivi comments hold <thread-id> --actor codex --client-event-id hold-open-1 --interval 2m --lease 10m --json
 vivi comments inbox --actor codex --json
@@ -228,8 +228,8 @@ threads first, then changed files with recent comment history, then the Git
 change order. It also returns available diff bases and
 `summary.reviewUrl`, a browser deep link that opens the first queued file in
 HEAD diff mode, plus `summary.suggestedCommands` for both the first
-`review diff` command and an executable resident
-`comments work --actor <actor> --wait --loop --idle-events --full --json`
+`review diff` command and an executable compact resident
+`comments work --actor <actor> --wait --loop --idle-events --json`
 feedback loop. Without `--actor`, the queue points agents at
 `comments doctor --json` so the next payload can return the `configure_actor`
 branch, instead of emitting a `comments work` recipe that cannot run. It does
@@ -670,7 +670,7 @@ command. For
 intentionally have no suggested write command.
 Use `comments protocol --receipt-log <path> --json` at durable adapter startup
 to discover the preferred resident loop (`comments work --wait --loop
---idle-events --actor <actor> --full --receipt-log <path> --json`),
+--idle-events --actor <actor> --receipt-log <path> --json`),
 restart recovery commands (`comments mine --actor <actor> --receipt-log
 <path> --json`),
 passive intake alternatives, single-thread companion commands, structured write
@@ -698,7 +698,7 @@ readiness check for the selected Vivi server. It reads the open worklist cursor
 and count without recording read receipts, claims, or comments, then returns
 `recommendedAction` and startup `suggestedCommands` such as
 `comments mine --json`,
-`comments work --wait --loop --idle-events --full --json` or
+`comments work --wait --loop --idle-events --json` or
 `comments inbox --json`.
 When startup was called with `--receipt-log <path>`, those suggestions include
 the same receipt ledger flag.
@@ -1291,10 +1291,11 @@ source, diff, and activity payloads used by rich work items. The thread remains
 suggestions as the integrated `work` claimed event.
 Use `claim --wait --full` for a resident agent that should block until one
 claimable feedback item exists.
-Use `work --wait --full` when an adapter wants one stream that claims work,
-renews the lease, and follows human updates on the claimed thread. Add
-`--idle-events` for a supervisor-visible resident process that reports waiting
-state before the next GUI feedback arrives.
+Use `work --wait --loop --idle-events` when an adapter wants a compact resident
+stream that claims work, renews the lease, and follows human updates without
+embedding the full diff in every work event. Add `--full` only when the adapter
+needs rich source, diff, and activity payloads inline instead of fetching them
+on demand.
 Use `batch <review-batch-id> --full` when the agent is responding to one
 published GUI review batch and needs progress plus routing in one payload.
 Use `mine --json` after an agent restart to recover compact live-claim routing

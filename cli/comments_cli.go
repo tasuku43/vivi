@@ -1136,9 +1136,9 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 		"preferredLoop": map[string]any{
 			"intent":  "resident_owned_work_loop",
 			"command": "comments work",
-			"args":    withRuntimeArgs([]string{"comments", "work", "--actor", actor, "--client-event-id", "<client-event-id>", "--wait", "--loop", "--idle-events", "--full", "--json"}, serverURL, receiptLog),
+			"args":    withRuntimeArgs([]string{"comments", "work", "--actor", actor, "--client-event-id", "<client-event-id>", "--wait", "--loop", "--idle-events", "--json"}, serverURL, receiptLog),
 			"events":  []string{"commentWorkClaimedEvent", "commentActivityBatchEvent", "commentWorkIdleEvent"},
-			"reason":  "Claim GUI feedback as owned work, keep the lease alive while working, observe follow-up activity, and continue to the next thread after terminal status.",
+			"reason":  "Claim GUI feedback as owned work with compact events, keep the lease alive while working, observe follow-up activity, and continue to the next thread after terminal status.",
 		},
 		"intakeAlternatives": []map[string]any{
 			{
@@ -4822,7 +4822,7 @@ func summarizeOpenRouting(routing commentOpenRoutingOutput, actorID string, acto
 		return summary
 	}
 	summary.SuggestedCommands = []commentSuggestedCommand{
-		suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(withCommentPathArg(actorCommand([]string{"comments", "work"}, actorID, actorKind, "--wait", "--loop", "--idle-events", "--full", "--json"), pathFilter)), serverURL, receiptLog), "", "Wait for the next GUI feedback item and claim it as owned work."),
+		suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(withCommentPathArg(actorCommand([]string{"comments", "work"}, actorID, actorKind, "--wait", "--loop", "--idle-events", "--json"), pathFilter)), serverURL, receiptLog), "", "Wait for the next GUI feedback item with compact events and claim it as owned work."),
 	}
 	return summary
 }
@@ -5335,7 +5335,7 @@ func commentsDoctorSuggestedCommands(options commentsCommandOptions, openThreadC
 	}
 	suggestions := []commentSuggestedCommand{
 		suggestedCommentsCommand("recover_owned_live_claims", "comments mine", withURLArg(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "mine"}, actorID, options.ActorKind, "--json")), options.URL), "", "After an adapter restart, inspect live claim routing before claiming new GUI feedback; fetch context for the selected thread on demand."),
-		suggestedCommentsCommandWithClientEventID("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "work"}, actorID, options.ActorKind, "--wait", "--loop", "--idle-events", "--full", "--json")), options.URL, options.ReceiptLog), "", "Enter the preferred resident agent loop for GUI feedback.", clientSeed+":work"),
+		suggestedCommentsCommandWithClientEventID("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "work"}, actorID, options.ActorKind, "--wait", "--loop", "--idle-events", "--json")), options.URL, options.ReceiptLog), "", "Enter the preferred compact resident agent loop for GUI feedback; fetch rich context on demand.", clientSeed+":work"),
 		suggestedCommentsCommand("snapshot_agent_inbox", "comments inbox", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "inbox"}, actorID, options.ActorKind, "--json")), options.URL, options.ReceiptLog), "", "Read compact owned, unclaimed, and other-claimed routing without creating read receipts."),
 	}
 	if openThreadCount == 0 {
@@ -7088,7 +7088,7 @@ func commentsHelpText() string {
 		"  2. Cache the schema index offline: vivi comments schema list --json",
 		"  3. Check startup state: vivi comments doctor --actor <actor> --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"  4. Resume owned work first: vivi comments mine --actor <actor> --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
-		"  5. Run the resident loop: vivi comments work --actor <actor> --wait --loop --idle-events --full --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
+		"  5. Run the compact resident loop: vivi comments work --actor <actor> --wait --loop --idle-events --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"  6. Execute suggestedCommands from protocol, doctor, work, follow, check, and errors before inventing argv",
 		"",
 		"Agent write rules:",
@@ -7115,9 +7115,9 @@ func commentsHelpText() string {
 		"  vivi comments claim <thread-id> --actor claude-code --lease 10m --json",
 		"  vivi comments claim --wait --actor claude-code --full --json",
 		"  vivi comments work --once --actor claude-code --full --json",
-		"  vivi comments work --wait --actor claude-code --full --json",
-		"  vivi comments work --loop --actor claude-code --idle-events --full --json",
-		"  vivi comments work --loop --actor claude-code --idle-events --full --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
+		"  vivi comments work --wait --actor claude-code --json",
+		"  vivi comments work --loop --actor claude-code --idle-events --json",
+		"  vivi comments work --loop --actor claude-code --idle-events --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"  vivi comments renew <thread-id> --actor claude-code --lease 10m --json",
 		"  vivi comments hold <thread-id> --actor claude-code --interval 2m --lease 10m --json",
 		"  vivi comments inbox --actor claude-code --json",

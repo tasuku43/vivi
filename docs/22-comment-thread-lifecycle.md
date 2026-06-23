@@ -155,8 +155,8 @@ vivi comments next --actor codex --full --json
 vivi comments claim --actor codex --client-event-id claim-open-1 --review-batch review-batch-... --full --json
 vivi comments claim <thread-id> --actor codex --lease 10m --json
 vivi comments claim --wait --actor codex --client-event-id claim-wait-1 --full --json
-vivi comments work --wait --actor codex --client-event-id work-open-1 --full --json
-vivi comments work --loop --actor codex --client-event-id work-loop-1 --idle-events --full --json
+vivi comments work --wait --actor codex --client-event-id work-open-1 --json
+vivi comments work --loop --actor codex --client-event-id work-loop-1 --idle-events --json
 vivi comments renew <thread-id> --actor codex --client-event-id renew-open-1 --lease 10m --json
 vivi comments hold <thread-id> --actor codex --client-event-id hold-open-1 --interval 2m --lease 10m --json
 vivi comments inbox --actor codex --json
@@ -239,17 +239,19 @@ handle.
 
 `comments work` is the integrated intake stream for coding-agent adapters that
 want the CLI to do the session orchestration. It claims the next matching
-thread, emits a `comment_work_claimed` NDJSON event with the same rich payload
-as `claim --full`, then follows that thread from the claim activity cursor and
-emits later `comment_thread_activity_batch` events. It also renews the lease on
-`--renew-interval`, defaulting to `min(lease/2, 2m)`, so the GUI keeps showing
-an active owner while the agent edits. Use it when the agent should start from
-one stream instead of manually running `claim`, extracting the activity cursor,
-starting `follow`, and running `hold`. When the stream observes
+thread, emits a compact `comment_work_claimed` NDJSON event, then follows that
+thread from the claim activity cursor and emits later
+`comment_thread_activity_batch` events. Pass `--full` only when the adapter
+needs the same rich source, diff, and activity payload as `claim --full`
+inline. It also renews the lease on `--renew-interval`, defaulting to
+`min(lease/2, 2m)`, so the GUI keeps showing an active owner while the agent
+edits. Use it when the agent should start from one stream instead of manually
+running `claim`, extracting the activity cursor, starting `follow`, and running
+`hold`. When the stream observes
 `thread_status_changed` to `resolved` or `archived`, it emits that final
 activity batch and exits successfully.
 Adapters can discover that loop with `comments protocol --json`, which returns
-the preferred `work --wait --loop --idle-events --full` command, passive `watch`, companion
+the preferred `work --wait --loop --idle-events` command, passive `watch`, companion
 `follow`/`check` commands, restart recovery commands, structured write recipes,
 and schema lookup argv without contacting the Vivi server. Commands in that
 manifest use

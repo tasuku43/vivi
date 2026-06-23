@@ -1378,7 +1378,7 @@ func TestCommentsCLIProtocolSurfacesAgentStartupManifest(t *testing.T) {
 	if len(payload.Recovery) != 1 || payload.Recovery[0].Intent != "recover_owned_live_claims" || payload.Recovery[0].Command != "comments mine" || containsString(payload.Recovery[0].Args, "--full") {
 		t.Fatalf("protocol recovery = %#v", payload.Recovery)
 	}
-	if payload.PreferredLoop.Intent != "resident_owned_work_loop" || payload.PreferredLoop.Command != "comments work" || !containsString(payload.PreferredLoop.Args, "--client-event-id") || !containsString(payload.PreferredLoop.Args, "<client-event-id>") || !containsString(payload.PreferredLoop.Args, "--wait") || !containsString(payload.PreferredLoop.Args, "--loop") || !containsString(payload.PreferredLoop.Args, "--idle-events") || !containsString(payload.PreferredLoop.Events, "commentWorkClaimedEvent") {
+	if payload.PreferredLoop.Intent != "resident_owned_work_loop" || payload.PreferredLoop.Command != "comments work" || !containsString(payload.PreferredLoop.Args, "--client-event-id") || !containsString(payload.PreferredLoop.Args, "<client-event-id>") || !containsString(payload.PreferredLoop.Args, "--wait") || !containsString(payload.PreferredLoop.Args, "--loop") || !containsString(payload.PreferredLoop.Args, "--idle-events") || containsString(payload.PreferredLoop.Args, "--full") || !containsString(payload.PreferredLoop.Events, "commentWorkClaimedEvent") {
 		t.Fatalf("preferred loop = %#v", payload.PreferredLoop)
 	}
 	if len(payload.IntakeAlternatives) != 2 || payload.IntakeAlternatives[0].Intent != "passive_open_worklist" || containsString(payload.IntakeAlternatives[0].Args, "--full") || !containsString(payload.IntakeAlternatives[0].Events, "commentOpenWorklistEvent") {
@@ -1611,7 +1611,7 @@ func TestCommentsCLIDoctorSurfacesAgentReadiness(t *testing.T) {
 		t.Fatalf("doctor recovery suggestion = %#v", mine)
 	}
 	work := payload.SuggestedCommands[1]
-	if work.Intent != "start_resident_work_loop" || work.Command != "comments work" || work.ClientEventID != "doctor-start-1:work" || !containsString(work.Args, "--actor-kind") || !containsString(work.Args, "codex") || !containsString(work.Args, "--loop") || !containsString(work.Args, "--idle-events") || !containsString(work.Args, work.ClientEventID) || !containsString(work.Args, server.URL) {
+	if work.Intent != "start_resident_work_loop" || work.Command != "comments work" || work.ClientEventID != "doctor-start-1:work" || !containsString(work.Args, "--actor-kind") || !containsString(work.Args, "codex") || !containsString(work.Args, "--loop") || !containsString(work.Args, "--idle-events") || containsString(work.Args, "--full") || !containsString(work.Args, work.ClientEventID) || !containsString(work.Args, server.URL) {
 		t.Fatalf("doctor resident work suggestion = %#v", work)
 	}
 	inbox := payload.SuggestedCommands[2]
