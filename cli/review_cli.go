@@ -152,6 +152,12 @@ func suggestedCommandsForReviewError(args []string, code string) []commentSugges
 			suggestedCommentsCommand("retry_review_queue", "review queue", withURLArg([]string{"review", "queue", "--json"}, serverURL), "", "After starting Vivi or correcting --url/VIVI_URL, retry the Git working-tree review queue."),
 		}
 	case "invalid_arguments":
+		if positionalURL := reviewPositionalURLArg(args); positionalURL != "" {
+			return []commentSuggestedCommand{
+				suggestedCommentsCommand("retry_with_url_flag", reviewSuggestedCommandName(args), withURLArg(removeFirstArg(append([]string{"review"}, args...), positionalURL), strings.TrimRight(positionalURL, "/")), "", "Move the Vivi server URL into --url; positional URLs are treated as unexpected arguments."),
+				suggestedCommentsCommand("inspect_review_help", "review --help", []string{"review", "--help"}, "", "Inspect the Git working-tree review CLI usage before retrying."),
+			}
+		}
 		return []commentSuggestedCommand{
 			suggestedCommentsCommand("inspect_review_help", "review --help", []string{"review", "--help"}, "", "Inspect the Git working-tree review CLI usage before retrying."),
 		}
@@ -160,8 +166,28 @@ func suggestedCommandsForReviewError(args []string, code string) []commentSugges
 	}
 }
 
+func reviewPositionalURLArg(args []string) string {
+	if len(args) < 2 {
+		return ""
+	}
+	_, positional := splitReviewFlagsAndPositionals(args[1:])
+	for _, arg := range positional {
+		if looksLikeServerURL(arg) {
+			return arg
+		}
+	}
+	return ""
+}
+
+func reviewSuggestedCommandName(args []string) string {
+	if len(args) == 0 {
+		return "review"
+	}
+	return "review " + args[0]
+}
+
 func runReviewCommand(ctx context.Context, args []string, stdout io.Writer) error {
-	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
+	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" || hasHelpFlag(args[1:]) {
 		fmt.Fprintln(stdout, reviewHelpText())
 		return nil
 	}

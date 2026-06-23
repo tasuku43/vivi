@@ -143,6 +143,35 @@ func cliErrorPayload(err error) (any, bool) {
 	return nil, false
 }
 
+func hasHelpFlag(args []string) bool {
+	for _, arg := range args {
+		if arg == "--" {
+			return false
+		}
+		if arg == "--help" || arg == "-h" {
+			return true
+		}
+	}
+	return false
+}
+
+func looksLikeServerURL(arg string) bool {
+	return strings.HasPrefix(arg, "http://") || strings.HasPrefix(arg, "https://")
+}
+
+func removeFirstArg(args []string, target string) []string {
+	next := make([]string, 0, len(args))
+	removed := false
+	for _, arg := range args {
+		if !removed && arg == target {
+			removed = true
+			continue
+		}
+		next = append(next, arg)
+	}
+	return next
+}
+
 func helpText() string {
 	return strings.Join([]string{
 		"vivi - read-only visual workspace viewer",

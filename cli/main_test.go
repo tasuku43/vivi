@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -80,6 +81,24 @@ func TestCommentsHelpTextSurfacesWorkSession(t *testing.T) {
 	}
 }
 
+func TestNestedHelpFlagsPrintHumanHelp(t *testing.T) {
+	var commentsStdout bytes.Buffer
+	if err := runCommentsCommand(context.Background(), []string{"doctor", "--help"}, &commentsStdout); err != nil {
+		t.Fatalf("comments doctor --help failed: %v", err)
+	}
+	if text := commentsStdout.String(); !strings.Contains(text, "vivi comments - agent-oriented comment thread CLI") || strings.Contains(text, `"error"`) {
+		t.Fatalf("comments doctor --help printed unexpected output:\n%s", text)
+	}
+
+	var reviewStdout bytes.Buffer
+	if err := runReviewCommand(context.Background(), []string{"queue", "--help"}, &reviewStdout); err != nil {
+		t.Fatalf("review queue --help failed: %v", err)
+	}
+	if text := reviewStdout.String(); !strings.Contains(text, "vivi review - agent-oriented Git review CLI") || strings.Contains(text, `"error"`) {
+		t.Fatalf("review queue --help printed unexpected output:\n%s", text)
+	}
+}
+
 func TestCommentsJSONErrorEnvelopeForAgentCLI(t *testing.T) {
 	err := run([]string{"comments", "done", "thread-1", "--actor", "codex:error", "--json"})
 	if err == nil {
@@ -106,6 +125,34 @@ func TestCommentsJSONErrorEnvelopeForAgentCLI(t *testing.T) {
 	}
 	if _, ok := cliErrorPayload(plain); ok {
 		t.Fatalf("did not expect structured payload when --json=false: %T", plain)
+	}
+}
+
+func TestPositionalServerURLSuggestsURLFlag(t *testing.T) {
+	commentsErr := run([]string{"comments", "doctor", "--actor", "codex:url", "--json", "http://127.0.0.1:4318"})
+	if commentsErr == nil {
+		t.Fatal("expected comments doctor positional URL to fail")
+	}
+	commentsPayload, ok := cliErrorPayload(commentsErr)
+	if !ok {
+		t.Fatalf("expected structured comments error, got %T", commentsErr)
+	}
+	commentsEnvelope := commentsPayload.(commentsErrorEnvelope)
+	if len(commentsEnvelope.Error.SuggestedCommands) == 0 || commentsEnvelope.Error.SuggestedCommands[0].Intent != "retry_with_url_flag" || !containsString(commentsEnvelope.Error.SuggestedCommands[0].Args, "--url") || !containsString(commentsEnvelope.Error.SuggestedCommands[0].Args, "http://127.0.0.1:4318") {
+		t.Fatalf("comments positional URL suggestions = %#v", commentsEnvelope.Error.SuggestedCommands)
+	}
+
+	reviewErr := run([]string{"review", "queue", "--actor", "codex:url", "--json", "http://127.0.0.1:4318"})
+	if reviewErr == nil {
+		t.Fatal("expected review queue positional URL to fail")
+	}
+	reviewPayload, ok := cliErrorPayload(reviewErr)
+	if !ok {
+		t.Fatalf("expected structured review error, got %T", reviewErr)
+	}
+	reviewEnvelope := reviewPayload.(reviewErrorEnvelope)
+	if len(reviewEnvelope.Error.SuggestedCommands) == 0 || reviewEnvelope.Error.SuggestedCommands[0].Intent != "retry_with_url_flag" || !containsString(reviewEnvelope.Error.SuggestedCommands[0].Args, "--url") || !containsString(reviewEnvelope.Error.SuggestedCommands[0].Args, "http://127.0.0.1:4318") {
+		t.Fatalf("review positional URL suggestions = %#v", reviewEnvelope.Error.SuggestedCommands)
 	}
 }
 

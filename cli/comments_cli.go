@@ -196,6 +196,13 @@ func suggestedCommandsForCommentsError(command string, args []string, code strin
 	actorID := commentsArgValue(args, "--actor")
 	serverURL := commentsSuggestedServerURL(args)
 	receiptLog := commentsArgValue(args, "--receipt-log")
+	if code == "invalid_arguments" {
+		if positionalURL := commentsPositionalURLArg(args); positionalURL != "" {
+			return []commentSuggestedCommand{
+				suggestedCommentsCommand("retry_with_url_flag", "comments "+command, withURLArg(removeFirstArg(append([]string{"comments"}, args...), positionalURL), strings.TrimRight(positionalURL, "/")), "", "Move the Vivi server URL into --url; positional URLs are treated as unexpected arguments."),
+			}
+		}
+	}
 	if code == "server_unreachable" {
 		doctorArgs := []string{"comments", "doctor"}
 		if actorID != "" {
@@ -255,6 +262,19 @@ func commentsSuggestedServerURL(args []string) string {
 	return strings.TrimSpace(os.Getenv("VIVI_URL"))
 }
 
+func commentsPositionalURLArg(args []string) string {
+	if len(args) < 2 {
+		return ""
+	}
+	_, positional := splitCommentsFlagsAndPositionals(args[1:])
+	for _, arg := range positional {
+		if looksLikeServerURL(arg) {
+			return arg
+		}
+	}
+	return ""
+}
+
 func commentsArgValue(args []string, flagName string) string {
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
@@ -296,7 +316,7 @@ func firstCommentsPositionalArg(command string, args []string) string {
 }
 
 func runCommentsCommand(ctx context.Context, args []string, stdout io.Writer) error {
-	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
+	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" || hasHelpFlag(args[1:]) {
 		fmt.Fprintln(stdout, commentsHelpText())
 		return nil
 	}
