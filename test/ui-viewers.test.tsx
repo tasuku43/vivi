@@ -3129,7 +3129,8 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
 
   expect(html).toContain("Tasuku marked resolved");
   expect(html).toContain("agent-handoff.md");
-  expect(html).toContain("viewing 2/2");
+  expect(html).toContain("pinned from 2/2");
+  expect(html).not.toContain("viewing 2/2");
   expect(html).toContain('has-open-threads active');
   const queueHtml = html.slice(html.indexOf('class="review-queue"'));
   expect(

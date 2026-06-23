@@ -124,6 +124,13 @@ export function Inspector({
   const queuePosition = reviewQueuePosition(queueItems, activePath);
   const queueProgressValueText = reviewQueueProgressValueText(queueProgress);
   const displayQueueItems = pinActiveReviewQueueItem(queueItems, activePath);
+  const activeDisplayIndex = displayQueueItems.findIndex(
+    (item) => item.path === queuePosition.activePath,
+  );
+  const activePinned =
+    queuePosition.activeIndex >= 0 &&
+    activeDisplayIndex >= 0 &&
+    activeDisplayIndex !== queuePosition.activeIndex;
   const keyboardQueueIndexes = displayQueueItems.flatMap((item, index) =>
     isReviewQueueItemOpenable(item) ? [index] : [],
   );
@@ -198,7 +205,9 @@ export function Inspector({
                 ? ` · ${queueProgress.openThreads} open ${queueProgress.openThreads === 1 ? "thread" : "threads"}`
                 : ""}
               {queuePosition.activeIndex >= 0
-                ? ` · viewing ${queuePosition.activeIndex + 1}/${queuePosition.reviewableTotal}`
+                ? activePinned
+                  ? ` · pinned from ${queuePosition.activeIndex + 1}/${queuePosition.reviewableTotal}`
+                  : ` · viewing ${queuePosition.activeIndex + 1}/${queuePosition.reviewableTotal}`
                 : ""}
             </span>
             <span

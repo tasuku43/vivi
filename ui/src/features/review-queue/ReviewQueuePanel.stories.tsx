@@ -95,6 +95,21 @@ export const ReviewQueueItemWithLatestAgentActivity: Story = {
   },
 };
 
+export const ActiveReviewFilePinnedFromQueuePosition: Story = {
+  args: {
+    activePath: sampleReviewQueueItems[1]!.path,
+    reviewItems: sampleReviewQueueItems.slice(0, 2),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("pinned from 2/2")).toBeInTheDocument();
+    const activeRow = canvas.getByRole("button", {
+      name: `modified ${sampleReviewQueueItems[1]!.path}, current review file`,
+    });
+    await expect(activeRow).toHaveAttribute("aria-current", "true");
+  },
+};
+
 export const ResolvedThreadActivityIsHistory: Story = {
   args: {
     file: sampleFiles.queue,
