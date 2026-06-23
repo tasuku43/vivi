@@ -1,7 +1,7 @@
 import { Children, isValidElement } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { expect, it, vi } from "vitest";
+import { expect, it } from "vitest";
 import type { ViviComment } from "../ui/src/domain/comments.js";
 import type { FilePayload } from "../ui/src/domain/fs-node.js";
 import {
@@ -66,11 +66,7 @@ import {
   MermaidViewer,
 } from "../ui/src/features/file-context/viewers/MermaidViewer.js";
 import { TextViewer } from "../ui/src/features/file-context/viewers/TextViewer.js";
-import {
-  TextSearchNavigationBar,
-  topbarActionSelector,
-  topbarActionButtonFromEventTarget,
-} from "../ui/src/features/workbench/WorkbenchContainer.js";
+import { TextSearchNavigationBar } from "../ui/src/features/workbench/WorkbenchContainer.js";
 import type { CommentDraft } from "../ui/src/state/comments.js";
 import { summarizeThreadActivity } from "../ui/src/state/comment-activity.js";
 
@@ -157,7 +153,7 @@ it("renders the topbar as brand, workspace identity, and distinct actions", () =
   expect(html).toContain("Keyboard shortcuts (Cmd/Ctrl+/)");
 });
 
-it("opens topbar overlays during click before window dismissals run", () => {
+it("opens topbar overlays from native button clicks", () => {
   const actions: string[] = [];
   const topbar = Topbar({
     root: "/Users/tasuku/work/vivi",
@@ -168,203 +164,22 @@ it("opens topbar overlays during click before window dismissals run", () => {
     onOpenComments: () => actions.push("comments"),
     onOpenShortcuts: () => actions.push("shortcuts"),
   });
-  const command = findElement(topbar, (element) => {
-    const props = element.props as { "aria-label"?: string };
-    return props["aria-label"] === "Open command palette";
-  });
-  const props = command.props as {
-    onClick: (event: {
-      detail: number;
-      preventDefault: () => void;
-      stopPropagation: () => void;
-      nativeEvent: { stopImmediatePropagation: () => void };
-    }) => void;
-  };
 
-  let prevented = false;
-  let stopped = false;
-  let stoppedImmediate = false;
-
-  vi.useFakeTimers();
-  try {
-    props.onClick({
-      detail: 1,
-      preventDefault: () => {
-        prevented = true;
-      },
-      stopPropagation: () => {
-        stopped = true;
-      },
-      nativeEvent: {
-        stopImmediatePropagation: () => {
-          stoppedImmediate = true;
-        },
-      },
-    });
-
-    expect(prevented).toBe(true);
-    expect(stopped).toBe(true);
-    expect(stoppedImmediate).toBe(true);
-    expect(actions).toEqual([]);
-    vi.runOnlyPendingTimers();
-    expect(actions).toEqual(["quick-open"]);
-  } finally {
-    vi.useRealTimers();
-  }
-});
-
-it("opens topbar overlays on primary pointer down before window click handlers", () => {
-  const actions: string[] = [];
-  const topbar = Topbar({
-    root: "/Users/tasuku/work/vivi",
-    themePreference: "system",
-    onThemeCycle: () => actions.push("theme"),
-    onQuickOpen: () => actions.push("quick-open"),
-    onSearchText: () => actions.push("search"),
-    onOpenComments: () => actions.push("comments"),
-    onOpenShortcuts: () => actions.push("shortcuts"),
-  });
-  const command = findElement(topbar, (element) => {
-    const props = element.props as { "aria-label"?: string };
-    return props["aria-label"] === "Open command palette";
-  });
-  const props = command.props as {
-    onPointerDown: (event: {
-      button: number;
-      preventDefault: () => void;
-      stopPropagation: () => void;
-      nativeEvent: { stopImmediatePropagation: () => void };
-    }) => void;
-  };
-
-  let prevented = false;
-  let stopped = false;
-  let stoppedImmediate = false;
-
-  vi.useFakeTimers();
-  try {
-    props.onPointerDown({
-      button: 0,
-      preventDefault: () => {
-        prevented = true;
-      },
-      stopPropagation: () => {
-        stopped = true;
-      },
-      nativeEvent: {
-        stopImmediatePropagation: () => {
-          stoppedImmediate = true;
-        },
-      },
-    });
-
-    expect(prevented).toBe(true);
-    expect(stopped).toBe(true);
-    expect(stoppedImmediate).toBe(true);
-    expect(actions).toEqual([]);
-    vi.runOnlyPendingTimers();
-    expect(actions).toEqual(["quick-open"]);
-  } finally {
-    vi.useRealTimers();
-  }
-});
-
-it("keeps topbar keyboard activation on the same overlay path", () => {
-  const actions: string[] = [];
-  const topbar = Topbar({
-    root: "/Users/tasuku/work/vivi",
-    themePreference: "system",
-    onThemeCycle: () => actions.push("theme"),
-    onQuickOpen: () => actions.push("quick-open"),
-    onSearchText: () => actions.push("search"),
-    onOpenComments: () => actions.push("comments"),
-    onOpenShortcuts: () => actions.push("shortcuts"),
-  });
-  const command = findElement(topbar, (element) => {
-    const props = element.props as { "aria-label"?: string };
-    return props["aria-label"] === "Open command palette";
-  });
-  const props = command.props as {
-    onClick: (event: {
-      detail: number;
-      preventDefault: () => void;
-      stopPropagation: () => void;
-      nativeEvent: { stopImmediatePropagation: () => void };
-    }) => void;
-  };
-
-  vi.useFakeTimers();
-  try {
-    props.onClick({
-      detail: 0,
-      preventDefault: () => undefined,
-      stopPropagation: () => undefined,
-      nativeEvent: { stopImmediatePropagation: () => undefined },
-    });
-
-    expect(actions).toEqual([]);
-    vi.runOnlyPendingTimers();
-    expect(actions).toEqual(["quick-open"]);
-  } finally {
-    vi.useRealTimers();
-  }
-});
-
-it("marks overlay topbar buttons for native click fallback routing", () => {
-  const topbar = Topbar({
-    root: "/Users/tasuku/work/vivi",
-    themePreference: "system",
-    onThemeCycle: () => undefined,
-    onQuickOpen: () => undefined,
-    onSearchText: () => undefined,
-    onOpenComments: () => undefined,
-    onOpenShortcuts: () => undefined,
-  });
-  const actions = ["shortcuts", "quick-open", "comments", "search"];
-
-  for (const action of actions) {
+  const clickAction = (label: string) => {
     const button = findElement(topbar, (element) => {
-      const props = element.props as { "data-topbar-action"?: string };
-      return props["data-topbar-action"] === action;
+      const props = element.props as { "aria-label"?: string };
+      return props["aria-label"] === label;
     });
-    expect(button).toBeTruthy();
-  }
-});
+    const props = button.props as { onClick: () => void };
+    props.onClick();
+  };
 
-it("routes fallback topbar actions only from the real topbar", () => {
-  const originalElement = globalThis.Element;
-  class FakeElement {
-    constructor(private readonly match: unknown) {}
-    closest(selector: string) {
-      return selector === topbarActionSelector ? this.match : null;
-    }
-  }
-  const topbarButton = {};
-  const injectedButton = null;
+  clickAction("Keyboard shortcuts");
+  clickAction("Open command palette");
+  clickAction("Open Comments inbox, no open threads");
+  clickAction("Search workspace text");
 
-  Object.defineProperty(globalThis, "Element", {
-    configurable: true,
-    value: FakeElement,
-  });
-  try {
-    expect(
-      topbarActionButtonFromEventTarget(
-        new FakeElement(topbarButton) as unknown as EventTarget,
-      ),
-    ).toBe(topbarButton);
-    expect(
-      topbarActionButtonFromEventTarget(
-        new FakeElement(injectedButton) as unknown as EventTarget,
-      ),
-    ).toBeNull();
-  } finally {
-    Object.defineProperty(globalThis, "Element", {
-      configurable: true,
-      value: originalElement,
-    });
-  }
-  expect(topbarActionSelector).toBe(".topbar [data-topbar-action]");
-  expect(topbarActionButtonFromEventTarget(null)).toBeNull();
+  expect(actions).toEqual(["shortcuts", "quick-open", "comments", "search"]);
 });
 
 it("prioritizes attention-needed comments in the topbar entry point", () => {

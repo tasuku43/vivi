@@ -2015,33 +2015,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     return () => window.removeEventListener("mouseup", clearManualDrag);
   }, [manualDraggedTab]);
 
-  useEffect(() => {
-    const runTopbarFallbackAction = (event: MouseEvent) => {
-      const button = topbarActionButtonFromEventTarget(event.target);
-      if (!button) return;
-
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation();
-
-      window.setTimeout(() => {
-        const action = button.dataset.topbarAction;
-        if (action === "shortcuts") openShortcutHelp();
-        if (action === "quick-open") openPalette("file");
-        if (action === "comments") openCommentInbox();
-        if (action === "search") openPalette("text");
-      }, 0);
-    };
-
-    window.addEventListener("click", runTopbarFallbackAction, {
-      capture: true,
-    });
-    return () =>
-      window.removeEventListener("click", runTopbarFallbackAction, {
-        capture: true,
-      });
-  });
-
   return (
     <div className="app-shell">
       <Topbar
@@ -2814,16 +2787,6 @@ function readViewportWidth(): number {
   if (typeof window === "undefined") return 1280;
   return window.innerWidth;
 }
-
-export function topbarActionButtonFromEventTarget(
-  target: EventTarget | null,
-): HTMLElement | null {
-  if (typeof Element === "undefined") return null;
-  if (!(target instanceof Element)) return null;
-  return target.closest<HTMLElement>(topbarActionSelector);
-}
-
-export const topbarActionSelector = ".topbar [data-topbar-action]";
 
 function mergeComments(
   current: ViviComment[],

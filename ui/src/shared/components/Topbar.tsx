@@ -1,7 +1,3 @@
-import type {
-  MouseEvent as ReactMouseEvent,
-  PointerEvent as ReactPointerEvent,
-} from "react";
 import {
   themePreferenceLabel,
   type ThemePreference,
@@ -63,10 +59,7 @@ export function Topbar({
           aria-label="Keyboard shortcuts"
           title="Keyboard shortcuts (Cmd/Ctrl+/)"
           data-topbar-action="shortcuts"
-          onPointerDown={(event) =>
-            runTopbarOverlayPointerAction(event, onOpenShortcuts)
-          }
-          onClick={(event) => runTopbarOverlayAction(event, onOpenShortcuts)}
+          onClick={onOpenShortcuts}
         >
           ?
         </button>
@@ -87,10 +80,7 @@ export function Topbar({
           aria-keyshortcuts="Meta+K Control+K"
           title="Open command palette"
           data-topbar-action="quick-open"
-          onPointerDown={(event) =>
-            runTopbarOverlayPointerAction(event, onQuickOpen)
-          }
-          onClick={(event) => runTopbarOverlayAction(event, onQuickOpen)}
+          onClick={onQuickOpen}
         >
           <span>Command</span>
           <kbd>Cmd/Ctrl K</kbd>
@@ -102,13 +92,7 @@ export function Topbar({
           aria-keyshortcuts="Meta+Shift+C Control+Shift+C"
           title={commentsButton.title}
           data-topbar-action="comments"
-          onPointerDown={(event) => {
-            if (onOpenComments)
-              runTopbarOverlayPointerAction(event, onOpenComments);
-          }}
-          onClick={(event) => {
-            if (onOpenComments) runTopbarOverlayAction(event, onOpenComments);
-          }}
+          onClick={onOpenComments}
         >
           <span>{commentsButton.label}</span>
           <span className="comment-count-badge">{commentsButton.count}</span>
@@ -121,10 +105,7 @@ export function Topbar({
           aria-keyshortcuts="Meta+Shift+F Control+Shift+F"
           title="Search workspace text (Cmd/Ctrl+Shift+F)"
           data-topbar-action="search"
-          onPointerDown={(event) =>
-            runTopbarOverlayPointerAction(event, onSearchText)
-          }
-          onClick={(event) => runTopbarOverlayAction(event, onSearchText)}
+          onClick={onSearchText}
         >
           <span>Search</span>
           <kbd>Cmd/Ctrl Shift F</kbd>
@@ -132,33 +113,6 @@ export function Topbar({
       </div>
     </header>
   );
-}
-
-function runTopbarOverlayAction(
-  event: ReactMouseEvent<HTMLButtonElement>,
-  action: () => void,
-) {
-  globalThis.setTimeout(action, 0);
-  stopTopbarOverlayEvent(event);
-}
-
-function runTopbarOverlayPointerAction(
-  event: ReactPointerEvent<HTMLButtonElement>,
-  action: () => void,
-) {
-  if (event.button !== 0) return;
-  globalThis.setTimeout(action, 0);
-  stopTopbarOverlayEvent(event);
-}
-
-function stopTopbarOverlayEvent(
-  event:
-    | ReactMouseEvent<HTMLButtonElement>
-    | ReactPointerEvent<HTMLButtonElement>,
-) {
-  event.preventDefault();
-  event.stopPropagation();
-  event.nativeEvent.stopImmediatePropagation();
 }
 
 function commentsButtonState({
