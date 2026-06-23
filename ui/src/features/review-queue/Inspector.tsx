@@ -40,6 +40,7 @@ interface Props {
   fileRemoved?: boolean;
   reviewChanges: ReviewChangeItem[];
   reviewItems?: ReviewQueueItem[];
+  reviewLoading?: boolean;
   reviewUnavailableReason?: string | null;
   reviewDiffStats: Record<string, DiffStat | null>;
   loadingReviewDiffs: Record<string, boolean>;
@@ -73,6 +74,7 @@ export function Inspector({
   file,
   reviewChanges,
   reviewItems,
+  reviewLoading = false,
   reviewUnavailableReason = null,
   reviewDiffStats,
   loadingReviewDiffs,
@@ -357,12 +359,18 @@ export function Inspector({
             Git review warning: {reviewUnavailableReason}
           </p>
         ) : null}
+        {reviewLoading ? (
+          <p className="muted compact-empty" aria-live="polite">
+            Loading Git review; open comment threads may appear before changed
+            files.
+          </p>
+        ) : null}
         {!queueItems.length && reviewUnavailableReason ? (
           <p className="muted compact-empty">
             Git review unavailable: {reviewUnavailableReason}
           </p>
         ) : null}
-        {!queueItems.length && !reviewUnavailableReason ? (
+        {!queueItems.length && !reviewUnavailableReason && !reviewLoading ? (
           <div className="review-empty-state" aria-label="Review queue empty">
             <strong>Active queue clear</strong>
             <span>

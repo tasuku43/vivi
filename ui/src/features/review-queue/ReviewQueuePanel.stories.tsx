@@ -145,3 +145,23 @@ export const GitReviewUnavailable: Story = {
     unreadReviewPaths: new Set(),
   },
 };
+
+export const LoadingGitReview: Story = {
+  args: {
+    reviewChanges: [],
+    reviewItems: [],
+    reviewLoading: true,
+    unreadReviewPaths: new Set(),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByText(
+        "Loading Git review; open comment threads may appear before changed files.",
+      ),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.queryByText("Active queue clear"),
+    ).not.toBeInTheDocument();
+  },
+};

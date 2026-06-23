@@ -220,6 +220,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const [workspaceConnectionStatus, setWorkspaceConnectionStatus] =
     useState<WorkspaceConnectionStatus>("connecting");
   const [gitReview, setGitReview] = useState<GitChangeReviewState | null>(null);
+  const [gitReviewLoading, setGitReviewLoading] = useState(false);
   const gitReviewRef = useRef<GitChangeReviewState | null>(null);
   const initialGitReviewRequested = useRef(false);
   const [diffs, setDiffs] = useState<Record<string, TextDiff>>({});
@@ -359,15 +360,20 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   async function loadGitReview() {
     const startedAt = performance.now();
     gitReviewLastAttemptMs.current = Date.now();
-    const nextGitReview = await client.getReviewQueue();
-    gitReviewRef.current = nextGitReview;
-    setGitReview(nextGitReview);
-    setLiveMetrics((metrics) => ({
-      ...metrics,
-      gitRefreshes: metrics.gitRefreshes + 1,
-      lastGitRefreshMs: Math.round(performance.now() - startedAt),
-      pendingGitRefresh: false,
-    }));
+    setGitReviewLoading(true);
+    try {
+      const nextGitReview = await client.getReviewQueue();
+      gitReviewRef.current = nextGitReview;
+      setGitReview(nextGitReview);
+      setLiveMetrics((metrics) => ({
+        ...metrics,
+        gitRefreshes: metrics.gitRefreshes + 1,
+        lastGitRefreshMs: Math.round(performance.now() - startedAt),
+        pendingGitRefresh: false,
+      }));
+    } finally {
+      setGitReviewLoading(false);
+    }
   }
 
   async function loadHeadDiff(path: string) {
@@ -2114,6 +2120,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               fileRemoved={activeFileRemoved}
               reviewChanges={reviewChanges}
               reviewItems={reviewItems}
+              reviewLoading={gitReviewLoading && gitReview === null}
               reviewUnavailableReason={gitReview?.reason ?? null}
               reviewDiffStats={reviewDiffStats}
               loadingReviewDiffs={loadingDiffs}

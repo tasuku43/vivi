@@ -3146,6 +3146,33 @@ it("explains an empty Review Queue as active review work being clear", () => {
   expect(html).not.toContain("No files to review.");
 });
 
+it("keeps the Review Queue in a loading state while Git review is loading", () => {
+  const html = renderToStaticMarkup(
+    <Inspector
+      file={null}
+      reviewChanges={[]}
+      reviewLoading
+      reviewDiffStats={{}}
+      loadingReviewDiffs={{}}
+      unreadReviewPaths={new Set()}
+      selectedCodeRange={null}
+      activePaneId="main"
+      onOpenEventPath={() => undefined}
+      onConfirmEventPath={() => undefined}
+      onOpenNextChanged={() => undefined}
+      onOpenPreviousChanged={() => undefined}
+      onOpenAllChanged={() => undefined}
+      onRevealInTree={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Loading Git review");
+  expect(html).toContain(
+    "open comment threads may appear before changed files",
+  );
+  expect(html).not.toContain("Active queue clear");
+});
+
 it("shows partial Review Queue results as a warning", () => {
   const html = renderToStaticMarkup(
     <Inspector
