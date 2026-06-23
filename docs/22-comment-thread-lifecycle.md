@@ -337,7 +337,9 @@ activity list, for example ignoring an own lease-renewal or own triage batch
 while immediately reacting to an external human follow-up. `recommendedAction`
 provides the shortest branch: `reconsider_work`, `ignore_own_heartbeat`,
 `ignore_own_activity`, `inspect_external_activity`, `finish_current_work`, or
-`observe`.
+`observe`. Terminal `finish_current_work` batches also include a read-only
+`comments check <thread-id> --full --json` suggestion so an adapter can confirm
+the lifecycle state instead of stopping on an empty command list.
 
 Pass `--loop` when the adapter should stay attached to the GUI feedback queue
 after finishing one thread. The command keeps the same NDJSON stream open,

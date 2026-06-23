@@ -669,8 +669,12 @@ or intentionally archive with the suggested `comments dismiss --result-file -`
 command. For
 `inspect_external_activity`, the suggestion is
 `comments show <thread-id> --actor <actor> --json`. Actions such as
-`ignore_own_heartbeat`, `ignore_own_activity`, and `finish_current_work`
-intentionally have no suggested write command.
+`ignore_own_heartbeat` and `ignore_own_activity` intentionally have no
+suggested command. `finish_current_work` intentionally has no suggested write
+command, but it does suggest `comments check <thread-id> --full --json` so a
+resident agent can confirm the terminal state and branch on
+`write.suggestedCommands` if the thread needs reopening or another safe
+follow-up action.
 Use `comments protocol --receipt-log <path> --json` at durable adapter startup
 to discover the preferred resident loop (`comments work --wait --loop
 --idle-events --actor <actor> --receipt-log <path> --json`),

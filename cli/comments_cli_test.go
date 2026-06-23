@@ -1296,6 +1296,14 @@ func TestCommentActivityBatchSuggestedCommandsMapRecommendedActions(t *testing.T
 		t.Fatalf("inspect suggestion should not include stdin metadata = %#v", inspect[0])
 	}
 
+	terminal := suggestedCommandsForActivityBatch(commentActivityBatchSummary{RecommendedAction: "finish_current_work"}, "codex:suggest", "codex", "comment-thread-1", "activity-7", "http://127.0.0.1:4455", "/tmp/vivi-agent-receipts.jsonl")
+	if len(terminal) != 1 || terminal[0].Intent != "check_terminal_thread" || terminal[0].Command != "comments check" || !containsString(terminal[0].Args, "comment-thread-1") || !containsString(terminal[0].Args, "codex:suggest") || !containsString(terminal[0].Args, "--full") || !containsString(terminal[0].Args, "--url") || !containsString(terminal[0].Args, "http://127.0.0.1:4455") || !containsString(terminal[0].Args, "--receipt-log") || !containsString(terminal[0].Args, "/tmp/vivi-agent-receipts.jsonl") {
+		t.Fatalf("terminal suggestions = %#v", terminal)
+	}
+	if terminal[0].StdinSchema != "" || len(terminal[0].StdinSchemaCommand) != 0 || terminal[0].StdinExample != nil {
+		t.Fatalf("terminal suggestion should not include stdin metadata = %#v", terminal[0])
+	}
+
 	if ignored := suggestedCommandsForActivityBatch(commentActivityBatchSummary{RecommendedAction: "ignore_own_activity"}, "codex:suggest", "codex", "comment-thread-1", "activity-4", "", ""); len(ignored) != 0 {
 		t.Fatalf("ignore suggestions = %#v", ignored)
 	}
@@ -3141,8 +3149,8 @@ func TestCommentsCLIWorkStopsAfterTerminalStatus(t *testing.T) {
 	if terminal.Summary.RequiresAttention || terminal.Summary.RecommendedAction != "finish_current_work" || !containsString(terminal.Summary.AttentionReasons, "terminal_status") {
 		t.Fatalf("terminal work attention summary = %#v", terminal.Summary)
 	}
-	if len(terminal.Summary.SuggestedCommands) != 0 {
-		t.Fatalf("terminal work should not suggest commands = %#v", terminal.Summary.SuggestedCommands)
+	if len(terminal.Summary.SuggestedCommands) != 1 || terminal.Summary.SuggestedCommands[0].Intent != "check_terminal_thread" || terminal.Summary.SuggestedCommands[0].Command != "comments check" || !containsString(terminal.Summary.SuggestedCommands[0].Args, threadID) || !containsString(terminal.Summary.SuggestedCommands[0].Args, "codex:work-terminal") || !containsString(terminal.Summary.SuggestedCommands[0].Args, "--full") || !containsString(terminal.Summary.SuggestedCommands[0].Args, server.URL) {
+		t.Fatalf("terminal work suggested commands = %#v", terminal.Summary.SuggestedCommands)
 	}
 	if err := <-done; err != nil {
 		t.Fatalf("work returned error: %v", err)

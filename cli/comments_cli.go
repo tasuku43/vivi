@@ -4290,6 +4290,14 @@ func suggestedCommandsForActivityBatch(summary commentActivityBatchSummary, acto
 		return []commentSuggestedCommand{
 			suggestedCommentsCommand("inspect_thread", "comments show", withURLArg(args, serverURL), "", "Inspect the latest thread state before deciding whether to continue, release, or stop."),
 		}
+	case "finish_current_work":
+		args := []string{"comments", "check", threadID, "--full", "--json"}
+		if actorID != "" {
+			args = actorCommand([]string{"comments", "check", threadID}, actorID, actorKind, "--full", "--json")
+		}
+		return []commentSuggestedCommand{
+			suggestedCommentsCommand("check_terminal_thread", "comments check", withRuntimeArgs(args, serverURL, receiptLog), "", "Confirm the terminal thread state and branch on write.suggestedCommands before deciding whether to stop, reopen, or report completion."),
+		}
 	default:
 		return nil
 	}
