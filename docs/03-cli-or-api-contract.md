@@ -232,6 +232,25 @@ When a `review` command fails with JSON enabled, it returns a structured
 `error` envelope with a stable `code`, original argv, recoverability, and
 suggested retry/help commands.
 
+Minimal `review queue --json` shape:
+
+```json
+{
+  "schemaVersion": 1,
+  "available": true,
+  "count": 1,
+  "changes": [{ "path": "README.md", "status": "modified", "kind": "file" }],
+  "diffBases": { "available": true, "options": [{ "ref": "HEAD", "label": "HEAD" }] },
+  "summary": {
+    "recommendedAction": "review_changed_files",
+    "changedFileCount": 1,
+    "suggestedCommands": [
+      { "intent": "inspect_first_changed_file_diff", "command": "review diff", "args": [] }
+    ]
+  }
+}
+```
+
 `next` is the shortest read-only coding-agent intake command. It queries the current
 open worklist, records the same actor-aware read receipts as other read
 commands, orders threads by oldest `createdAt` with stable tie-breakers, and

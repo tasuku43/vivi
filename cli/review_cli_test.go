@@ -134,6 +134,9 @@ func TestReviewHelpTextSurfacesAgentQuickPath(t *testing.T) {
 		"vivi review bases --url",
 		"vivi review diff <path> --base HEAD",
 		"vivi comments work --actor <actor> --wait --loop --idle-events --full --json",
+		"JSON shape:",
+		"queue: { schemaVersion, available, count, changes[], diffBases, summary }",
+		"queue.summary: { recommendedAction, changedFileCount, suggestedCommands[] }",
 		"--actor <id>",
 	} {
 		if !strings.Contains(help, text) {
