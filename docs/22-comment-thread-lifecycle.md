@@ -276,6 +276,10 @@ manifest's `startupSchemas`. When the adapter supplies
 `--receipt-log <path>`, doctor also includes `receiptLedger`; failed ledger
 verification changes `recommendedAction` to `reconcile_receipt_ledger` before
 the agent enters the resident work loop.
+If the adapter calls doctor before choosing an actor, the `configure_actor`
+branch returns the protocol command plus a `comments doctor --actor <actor>
+--actor-kind codex --json` retry command that carries the same `--url` and
+`--receipt-log` flags.
 Snapshot, intake, and structured acknowledgement payloads are described by
 `commentClaimOutput`, `commentInboxOutput`, `commentMineOutput`,
 `commentBatchOutput`, `commentCheckOutput`, `commentTriageOutput`,

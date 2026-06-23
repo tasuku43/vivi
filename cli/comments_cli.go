@@ -5326,7 +5326,8 @@ func commentsDoctorSuggestedCommands(options commentsCommandOptions, openThreadC
 	actorID := strings.TrimSpace(options.ActorID)
 	if actorID == "" {
 		return []commentSuggestedCommand{
-			suggestedCommentsCommand("inspect_protocol", "comments protocol", []string{"comments", "protocol", "--json"}, "", "Load the agent protocol before choosing an actor id."),
+			suggestedCommentsCommand("inspect_protocol", "comments protocol", withRuntimeArgs([]string{"comments", "protocol", "--json"}, options.URL, options.ReceiptLog), "", "Load the agent protocol before choosing an actor id."),
+			suggestedCommentsCommand("configure_coding_agent_actor", "comments doctor", withRuntimeArgs([]string{"comments", "doctor", "--actor", "<actor>", "--actor-kind", "codex", "--json"}, options.URL, options.ReceiptLog), "", "Choose a stable coding-agent actor id, then rerun readiness against this same Vivi server."),
 		}
 	}
 	clientSeed := strings.TrimSpace(options.ClientEventID)

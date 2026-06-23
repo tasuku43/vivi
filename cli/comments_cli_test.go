@@ -1629,6 +1629,31 @@ func TestCommentsCLIDoctorSurfacesAgentReadiness(t *testing.T) {
 	}
 }
 
+func TestCommentsCLIDoctorGuidesActorConfiguration(t *testing.T) {
+	server := newCommentsCLITestServer(t)
+	defer server.Close()
+	createCommentThreadForCLI(t, server.URL)
+
+	receiptLog := filepath.Join(t.TempDir(), "agent-receipts.jsonl")
+	out := runCommentsCLIForTest(t, "doctor", "--url", server.URL, "--receipt-log", receiptLog, "--json")
+	var payload struct {
+		RecommendedAction string                    `json:"recommendedAction"`
+		SuggestedCommands []commentSuggestedCommand `json:"suggestedCommands"`
+	}
+	decodeCLIJSON(t, out, &payload)
+	if payload.RecommendedAction != "configure_actor" || len(payload.SuggestedCommands) != 2 {
+		t.Fatalf("doctor configure guidance = %#v", payload)
+	}
+	protocol := payload.SuggestedCommands[0]
+	if protocol.Intent != "inspect_protocol" || protocol.Command != "comments protocol" || !containsString(protocol.Args, server.URL) || !containsString(protocol.Args, receiptLog) {
+		t.Fatalf("doctor protocol suggestion = %#v", protocol)
+	}
+	configure := payload.SuggestedCommands[1]
+	if configure.Intent != "configure_coding_agent_actor" || configure.Command != "comments doctor" || !containsString(configure.Args, "--actor") || !containsString(configure.Args, "<actor>") || !containsString(configure.Args, "--actor-kind") || !containsString(configure.Args, "codex") || !containsString(configure.Args, server.URL) || !containsString(configure.Args, receiptLog) {
+		t.Fatalf("doctor actor configuration suggestion = %#v", configure)
+	}
+}
+
 func TestCommentsCLIDoctorPreservesActorKindInWaitSuggestion(t *testing.T) {
 	server := newCommentsCLITestServer(t)
 	defer server.Close()

@@ -232,8 +232,11 @@ HEAD diff mode, plus `summary.suggestedCommands` for both the first
 `comments work --actor <actor> --wait --loop --idle-events --json`
 feedback loop. Without `--actor`, the queue points agents at
 `comments doctor --json` so the next payload can return the `configure_actor`
-branch, instead of emitting a `comments work` recipe that cannot run. It does
-not claim comment threads and does not load
+branch, instead of emitting a `comments work` recipe that cannot run. That
+doctor branch includes both `comments protocol --json` and a
+`comments doctor --actor <actor> --actor-kind codex --json` retry recipe that
+keeps the selected `--url` and `--receipt-log` flags. It does not claim comment
+threads and does not load
 every diff in large repositories. Use `review bases --json` to list recent
 allowed diff bases, and `review diff <path> --base HEAD --json` to fetch one
 `TextDiff` payload for a changed file. Use the `comments` commands when the
@@ -700,6 +703,9 @@ and count without recording read receipts, claims, or comments, then returns
 `comments mine --json`,
 `comments work --wait --loop --idle-events --json` or
 `comments inbox --json`.
+If `--actor` is omitted, doctor returns `recommendedAction: "configure_actor"`
+with an actor-selection retry command that preserves the same server URL and
+receipt ledger path.
 When startup was called with `--receipt-log <path>`, those suggestions include
 the same receipt ledger flag.
 This gives a resident adapter a safe first server touch and an explicit
