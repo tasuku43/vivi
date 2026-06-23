@@ -76,14 +76,12 @@ export function FileViewer({
   diff,
   diffLoading,
   diffEnabled,
-  diffFocusChanges,
   defaultOutlineOpen,
   outline = [],
   refreshedAt,
   onCodeSelectionChange,
   onViewerModeChange,
   onDiffToggle,
-  onDiffFocusChange,
   onOutlineSelect,
   onCreateComment,
   comments = [],
@@ -108,14 +106,12 @@ export function FileViewer({
   diff?: TextDiff | null;
   diffLoading?: boolean;
   diffEnabled?: boolean;
-  diffFocusChanges?: boolean;
   defaultOutlineOpen?: boolean;
   outline?: OutlineHeading[];
   refreshedAt?: number;
   onCodeSelectionChange: (range: LineRange | null) => void;
   onViewerModeChange?: (mode: ViewerMode) => void;
   onDiffToggle?: () => void;
-  onDiffFocusChange?: (focusChanges: boolean) => void;
   onOutlineSelect?: (id: string) => void;
   onCreateComment?: CommentCreateHandler;
   comments?: ViviComment[];
@@ -188,9 +184,7 @@ export function FileViewer({
           diff={diff}
           diffLoading={diffLoading}
           diffEnabled={diffEnabled}
-          diffFocusChanges={diffFocusChanges}
           onDiffToggle={onDiffToggle}
-          onDiffFocusChange={onDiffFocusChange}
           onCreateComment={onCreateComment}
           comments={comments}
           activeCommentId={activeCommentId}
@@ -213,11 +207,9 @@ export function FileViewer({
             diff={diff}
             diffLoading={diffLoading}
             diffEnabled={diffEnabled}
-            diffFocusChanges={diffFocusChanges}
             theme={theme}
             onModeChange={onViewerModeChange}
             onDiffToggle={onDiffToggle}
-            onDiffFocusChange={onDiffFocusChange}
             onCreateComment={onCreateComment}
             comments={comments}
             activeCommentId={activeCommentId}
@@ -244,11 +236,9 @@ export function FileViewer({
             diff={diff}
             diffLoading={diffLoading}
             diffEnabled={diffEnabled}
-            diffFocusChanges={diffFocusChanges}
             theme={theme}
             onModeChange={onViewerModeChange}
             onDiffToggle={onDiffToggle}
-            onDiffFocusChange={onDiffFocusChange}
             onCreateComment={onCreateComment}
             comments={comments}
             activeCommentId={activeCommentId}
@@ -270,9 +260,7 @@ export function FileViewer({
             diff={diff}
             diffLoading={diffLoading}
             diffEnabled={diffEnabled}
-            diffFocusChanges={diffFocusChanges}
             onDiffToggle={onDiffToggle}
-            onDiffFocusChange={onDiffFocusChange}
             onCreateComment={onCreateComment}
             comments={comments}
             activeCommentId={activeCommentId}
@@ -291,9 +279,7 @@ export function FileViewer({
             diff={diff}
             diffLoading={diffLoading}
             diffEnabled={diffEnabled}
-            diffFocusChanges={diffFocusChanges}
             onDiffToggle={onDiffToggle}
-            onDiffFocusChange={onDiffFocusChange}
             onCreateComment={onCreateComment}
             comments={comments}
             activeCommentId={activeCommentId}
@@ -317,10 +303,8 @@ export function FileViewer({
             diff={diff}
             diffLoading={diffLoading}
             diffEnabled={diffEnabled}
-            diffFocusChanges={diffFocusChanges}
             onSelectionChange={onCodeSelectionChange}
             onDiffToggle={onDiffToggle}
-            onDiffFocusChange={onDiffFocusChange}
             onCreateComment={onCreateComment}
             comments={comments}
             activeCommentId={activeCommentId}
@@ -342,9 +326,7 @@ export function FileViewer({
           diff={diff}
           diffLoading={diffLoading}
           diffEnabled={diffEnabled}
-          diffFocusChanges={diffFocusChanges}
           onDiffToggle={onDiffToggle}
-          onDiffFocusChange={onDiffFocusChange}
           onCreateComment={onCreateComment}
           comments={comments}
           activeCommentId={activeCommentId}
@@ -362,9 +344,7 @@ export function FileViewer({
             diff={diff}
             diffLoading={diffLoading}
             diffEnabled={diffEnabled}
-            diffFocusChanges={diffFocusChanges}
             onDiffToggle={onDiffToggle}
-            onDiffFocusChange={onDiffFocusChange}
             onCreateComment={onCreateComment}
             comments={comments}
             activeCommentId={activeCommentId}
@@ -382,9 +362,7 @@ export function FileViewer({
           diff={diff}
           diffLoading={diffLoading}
           diffEnabled={diffEnabled}
-          diffFocusChanges={diffFocusChanges}
           onDiffToggle={onDiffToggle}
-          onDiffFocusChange={onDiffFocusChange}
           onCreateComment={onCreateComment}
           comments={comments}
           activeCommentId={activeCommentId}
@@ -404,9 +382,7 @@ export function FileViewer({
             diff={diff}
             diffLoading={diffLoading}
             diffEnabled={diffEnabled}
-            diffFocusChanges={diffFocusChanges}
             onDiffToggle={onDiffToggle}
-            onDiffFocusChange={onDiffFocusChange}
             onCreateComment={onCreateComment}
             comments={comments}
             activeCommentId={activeCommentId}
@@ -433,10 +409,8 @@ export function FileViewer({
             path={file.path}
             diff={diff ?? null}
             loading={diffLoading}
-            focusChanges={diffFocusChanges}
             renderKind="source"
             theme={theme}
-            onFocusChangesChange={onDiffFocusChange}
             onCreateComment={onCreateComment}
             file={file}
             comments={comments}

@@ -224,9 +224,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const [diffs, setDiffs] = useState<Record<string, TextDiff>>({});
   const [loadingDiffs, setLoadingDiffs] = useState<Record<string, boolean>>({});
   const [diffEnabled, setDiffEnabled] = useState(false);
-  const [diffFocusByPath, setDiffFocusByPath] = useState<
-    Record<string, boolean>
-  >({});
   const [comments, setComments] = useState<ViviComment[]>([]);
   const [draftComments, setDraftComments] = useState<DraftReviewComment[]>([]);
   const [draftPublishing, setDraftPublishing] = useState(false);
@@ -1595,7 +1592,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         sidebarWidth,
         inspectorWidth,
         diffEnabled,
-        diffFocusByPath,
       }),
     );
   }, [
@@ -1609,7 +1605,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     sidebarWidth,
     inspectorWidth,
     diffEnabled,
-    diffFocusByPath,
     pendingRestoreSession,
   ]);
 
@@ -2276,7 +2271,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       clampInspectorWidth(restored.inspectorWidth ?? inspectorWidth),
     );
     setDiffEnabled(restored.diffEnabled ?? false);
-    setDiffFocusByPath(restored.diffFocusByPath ?? {});
     void hydrateRestoredFiles(
       restored.layout.root,
       restored.diffEnabled ?? false,
@@ -2289,7 +2283,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     setLayout(initialEditorLayout);
     setRecentFiles([]);
     setDiffEnabled(false);
-    setDiffFocusByPath({});
     setRestoreNoticeTabCount(null);
   }
 
@@ -2438,11 +2431,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                 diffEnabled={
                   paneFile ? diffEnabled && supportsDiffMode(paneFile) : false
                 }
-                diffFocusChanges={
-                  paneFile?.path
-                    ? Boolean(diffFocusByPath[paneFile.path])
-                    : false
-                }
                 outline={outlineForFile(paneFile)}
                 refreshedAt={
                   paneFile?.path ? refreshedFiles[paneFile.path] : undefined
@@ -2486,13 +2474,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                 onDiffToggle={() => {
                   if (!paneFile?.path) return;
                   toggleHeadDiff(paneFile.path);
-                }}
-                onDiffFocusChange={(focusChanges) => {
-                  if (!paneFile?.path) return;
-                  setDiffFocusByPath((items) => ({
-                    ...items,
-                    [paneFile.path]: focusChanges,
-                  }));
                 }}
                 onRevealInTree={(path) => revealActiveFileInTree(path)}
                 onCloseRemoved={() => {

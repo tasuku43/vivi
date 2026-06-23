@@ -40,13 +40,21 @@ describe("rendered comment block ranges", () => {
     expect(styles).toMatch(
       /\.vivi-rendered-comment-block\.has-rendered-comment:not\(tr\)::before,[\s\S]*?\.vivi-rendered-comment-block\.drafting-rendered-comment:not\(tr\)::before,[\s\S]*?background: linear-gradient/,
     );
+    expect(styles).toMatch(
+      /\.vivi-rendered-comment-block\.has-rendered-comment:not\(tr\)::before,[\s\S]*?\.vivi-rendered-comment-block\.drafting-rendered-comment:not\(tr\)::before,[\s\S]*?box-shadow: inset 2px 0 0 var\(--comment-line\);/,
+    );
   });
 
   it("paints a bridge through vertical gaps for multi-block comments", () => {
     expect(styles).toContain("rendered-comment-range-join-after");
     expect(styles).toContain("--rendered-comment-join-after");
-    expect(styles).toMatch(
-      /\.vivi-rendered-comment-block\.rendered-comment-range-join-after[\s\S]*?::after \{[\s\S]*?top: 100%;[\s\S]*?height: var\(--rendered-comment-join-after, 0\);/,
+    const bridgeRule = styles.match(
+      /\.vivi-rendered-comment-block\.rendered-comment-range-join-after[\s\S]*?::after \{[\s\S]*?\n\}/,
     );
+    expect(bridgeRule?.[0]).toBeDefined();
+    expect(bridgeRule?.[0]).toContain(
+      "height: var(--rendered-comment-join-after, 0);",
+    );
+    expect(bridgeRule?.[0]).not.toContain("box-shadow");
   });
 });

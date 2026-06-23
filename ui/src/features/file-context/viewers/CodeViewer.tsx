@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { TextDiff } from "../../../domain/change-review.js";
 import type { ViviComment } from "../../../domain/comments.js";
@@ -33,10 +33,8 @@ export function CodeViewer({
   diff,
   diffLoading,
   diffEnabled,
-  diffFocusChanges,
   onSelectionChange,
   onDiffToggle,
-  onDiffFocusChange,
   onCreateComment,
   comments = [],
   activeCommentId,
@@ -56,10 +54,8 @@ export function CodeViewer({
   diff?: TextDiff | null;
   diffLoading?: boolean;
   diffEnabled?: boolean;
-  diffFocusChanges?: boolean;
   onSelectionChange: (range: LineRange | null) => void;
   onDiffToggle?: () => void;
-  onDiffFocusChange?: (focusChanges: boolean) => void;
   onCreateComment?: CommentCreateHandler;
   comments?: ViviComment[];
   activeCommentId?: string | null;
@@ -69,11 +65,25 @@ export function CodeViewer({
   onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities?: Record<string, CommentActivitySummary>;
 }) {
-  const [html, setHtml] = useState<string | null>(null);
+  const [highlightedHtml, setHighlightedHtml] = useState<{
+    content: string;
+    language: string;
+    theme: ResolvedTheme;
+    html: string;
+  } | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const language = languageForPath(file.path, file.viewerKind);
   const lines = splitCodeLines(file.content);
-  const highlightedLines = html ? extractHighlightedLines(html) : null;
+  const html =
+    highlightedHtml?.content === file.content &&
+    highlightedHtml.language === language &&
+    highlightedHtml.theme === theme
+      ? highlightedHtml.html
+      : null;
+  const highlightedLines = useMemo(
+    () => (html ? extractHighlightedLines(html) : null),
+    [html],
+  );
   const symbols = detectCodeSymbols(file.path, file.content);
   const selected = selectedRange
     ? normalizeLineRange(selectedRange.start, selectedRange.end, lines.length)
@@ -82,14 +92,20 @@ export function CodeViewer({
 
   useEffect(() => {
     let cancelled = false;
-    setHtml(null);
     import("../../../state/highlighter.js")
       .then(({ highlightCode }) => highlightCode(file.content, language, theme))
       .then((highlighted) => {
-        if (!cancelled) setHtml(highlighted);
+        if (!cancelled) {
+          setHighlightedHtml({
+            content: file.content,
+            language,
+            theme,
+            html: highlighted,
+          });
+        }
       })
       .catch(() => {
-        if (!cancelled) setHtml(null);
+        if (!cancelled) setHighlightedHtml(null);
       });
     return () => {
       cancelled = true;
@@ -190,9 +206,7 @@ export function CodeViewer({
           path={file.path}
           diff={diff ?? null}
           loading={diffLoading}
-          focusChanges={diffFocusChanges}
           renderKind="source"
-          onFocusChangesChange={onDiffFocusChange}
           file={file}
           onCreateComment={onCreateComment}
           comments={comments}

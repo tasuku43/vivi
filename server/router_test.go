@@ -141,4 +141,12 @@ func TestHTMLPreviewRuntimeUsesRenderedThreadContract(t *testing.T) {
 			t.Fatalf("preview runtime missing %q", want)
 		}
 	}
+	for _, unwanted := range []string{
+		`rendered-comment-range-join-after:not(tr)::after{content:"";position:absolute;z-index:1;left:var(--rendered-comment-block-left);right:var(--rendered-comment-block-right);top:100%;height:var(--rendered-comment-join-after,0);pointer-events:none;background:linear-gradient(90deg,var(--comment-tint-active),color-mix(in srgb,var(--comment-tint) 56%,transparent) 68%,transparent);box-shadow`,
+		`active-rendered-comment.rendered-comment-range-join-after:not(tr)::after{background:linear-gradient(90deg,color-mix(in srgb,var(--comment-tint-active) 86%,white),var(--comment-tint) 72%,transparent);box-shadow`,
+	} {
+		if strings.Contains(html, unwanted) {
+			t.Fatalf("preview runtime should not paint a left rail through comment gaps")
+		}
+	}
 }

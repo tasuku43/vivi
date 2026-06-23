@@ -22,7 +22,6 @@ const meta = {
     threadActivities: sampleThreadActivities,
     onModeChange: () => undefined,
     onDiffToggle: () => undefined,
-    onDiffFocusChange: () => undefined,
     onCreateComment: () => undefined,
     onOpenComment: () => undefined,
     onCloseComment: () => undefined,
@@ -75,7 +74,6 @@ export const RenderedHtmlDiffComment: Story = {
     mode: "preview",
     diffEnabled: true,
     diff: htmlDiff,
-    diffFocusChanges: true,
     activeCommentId: "comment-html-rendered",
   },
 };
@@ -105,8 +103,8 @@ function htmlCommentPreviewStoryDocument(path: string): string {
       .rendered-comment-range-start.has-rendered-comment, .rendered-comment-range-start.drafting-rendered-comment { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
       .rendered-comment-range-middle.has-rendered-comment, .rendered-comment-range-middle.drafting-rendered-comment { border-radius: 0; }
       .rendered-comment-range-end.has-rendered-comment, .rendered-comment-range-end.drafting-rendered-comment { border-top-left-radius: 0; border-top-right-radius: 0; }
-      .rendered-comment-range-join-after:not(tr)::after { content: ""; position: absolute; z-index: 1; left: var(--rendered-comment-block-left); right: var(--rendered-comment-block-right); top: 100%; height: var(--rendered-comment-join-after, 0); pointer-events: none; background: linear-gradient(90deg, var(--comment-tint-active), color-mix(in srgb, var(--comment-tint) 56%, transparent) 68%, transparent); box-shadow: inset 2px 0 0 var(--comment-line); }
-      .active-rendered-comment.rendered-comment-range-join-after:not(tr)::after { background: linear-gradient(90deg, color-mix(in srgb, var(--comment-tint-active) 86%, white), var(--comment-tint) 72%, transparent); box-shadow: inset 3px 0 0 var(--comment-text); }
+      .rendered-comment-range-join-after:not(tr)::after { content: ""; position: absolute; z-index: 1; left: var(--rendered-comment-block-left); right: var(--rendered-comment-block-right); top: 100%; height: var(--rendered-comment-join-after, 0); pointer-events: none; background: linear-gradient(90deg, var(--comment-tint-active), color-mix(in srgb, var(--comment-tint) 56%, transparent) 68%, transparent); }
+      .active-rendered-comment.rendered-comment-range-join-after:not(tr)::after { background: linear-gradient(90deg, color-mix(in srgb, var(--comment-tint-active) 86%, white), var(--comment-tint) 72%, transparent); }
       .rendered-comment-marker { position: absolute; right: 8px; top: 50%; width: 20px; height: 20px; border: 1px solid var(--comment-line); border-radius: 6px; background: var(--panel); color: var(--comment-text); transform: translateY(-50%); cursor: pointer; }
       .rendered-comment-marker-count { position: absolute; right: -5px; top: -6px; min-width: 13px; height: 13px; border: 1px solid var(--comment-line); border-radius: 999px; background: var(--palette); color: var(--comment-text); font-size: 8px; font-weight: 800; line-height: 13px; }
     </style>

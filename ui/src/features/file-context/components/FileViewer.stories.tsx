@@ -32,7 +32,6 @@ const meta = {
     onCodeSelectionChange: () => undefined,
     onViewerModeChange: () => undefined,
     onDiffToggle: () => undefined,
-    onDiffFocusChange: () => undefined,
     onCreateComment: () => undefined,
     onOpenComment: () => undefined,
     onCloseComment: () => undefined,

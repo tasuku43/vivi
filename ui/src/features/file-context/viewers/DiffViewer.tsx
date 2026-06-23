@@ -40,11 +40,9 @@ export function DiffViewer({
   path,
   diff,
   loading,
-  focusChanges: controlledFocusChanges,
   renderKind,
   theme = "dark",
   file,
-  onFocusChangesChange,
   onCreateComment,
   comments = [],
   activeCommentId,
@@ -56,11 +54,9 @@ export function DiffViewer({
   path: string;
   diff: TextDiff | null;
   loading?: boolean;
-  focusChanges?: boolean;
   renderKind: RenderKind;
   theme?: ResolvedTheme;
   file?: FilePayload;
-  onFocusChangesChange?: (focusChanges: boolean) => void;
   onCreateComment?: CommentCreateHandler;
   comments?: ViviComment[];
   activeCommentId?: string | null;
@@ -69,12 +65,6 @@ export function DiffViewer({
   onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities?: Record<string, CommentActivitySummary>;
 }) {
-  const [localFocusChanges, setLocalFocusChanges] = useState(false);
-  const focusChanges = controlledFocusChanges ?? localFocusChanges;
-  const setFocusChanges = (nextFocusChanges: boolean) => {
-    setLocalFocusChanges(nextFocusChanges);
-    onFocusChangesChange?.(nextFocusChanges);
-  };
   return (
     <section className="diff-viewer" aria-label={`Diff from HEAD for ${path}`}>
       <div className="diff-viewer-status">
@@ -82,23 +72,12 @@ export function DiffViewer({
           <span>Status</span>
           <strong>{loading ? "Loading diff..." : diffStatusLabel(diff)}</strong>
         </div>
-        {diff?.status === "available" ? (
-          <label className="diff-focus-toggle">
-            <input
-              checked={focusChanges}
-              type="checkbox"
-              onChange={(event) => setFocusChanges(event.currentTarget.checked)}
-            />
-            <span>Focus changes</span>
-          </label>
-        ) : null}
       </div>
       {diff?.reason ? <p className="muted">{diff.reason}</p> : null}
       {diff?.status === "available" ? (
         renderKind === "source" ? (
           <SourceDiff
             diff={diff}
-            focusChanges={focusChanges}
             theme={theme}
             file={file}
             onCreateComment={onCreateComment}
@@ -112,7 +91,6 @@ export function DiffViewer({
         ) : (
           <RenderedDiff
             diff={diff}
-            focusChanges={focusChanges}
             renderKind={renderKind}
             file={file}
             onCreateComment={onCreateComment}
@@ -128,7 +106,6 @@ export function DiffViewer({
 
 function SourceDiff({
   diff,
-  focusChanges,
   theme,
   file,
   onCreateComment,
@@ -140,7 +117,6 @@ function SourceDiff({
   threadActivities,
 }: {
   diff: TextDiff;
-  focusChanges: boolean;
   theme: ResolvedTheme;
   file?: FilePayload;
   onCreateComment?: CommentCreateHandler;
@@ -166,8 +142,8 @@ function SourceDiff({
     [diff.content],
   );
   const displayLines = useMemo(
-    () => (focusChanges ? buildFocusedSourceDiffRows(lines) : lines),
-    [focusChanges, lines],
+    () => buildFocusedSourceDiffRows(lines),
+    [lines],
   );
   const [highlightedLines, setHighlightedLines] = useState<string[] | null>(
     null,
@@ -505,7 +481,6 @@ function SourceDiffLine({
 
 function RenderedDiff({
   diff,
-  focusChanges,
   renderKind,
   file,
   onCreateComment,
@@ -514,7 +489,6 @@ function RenderedDiff({
   onOpenComment,
 }: {
   diff: TextDiff;
-  focusChanges: boolean;
   renderKind: Exclude<RenderKind, "source">;
   file?: FilePayload;
   onCreateComment?: CommentCreateHandler;
@@ -526,7 +500,7 @@ function RenderedDiff({
     parseUnifiedDiff(diff.content),
     renderKind,
   );
-  const displayRows = focusChanges ? buildFocusedRenderedDiffRows(rows) : rows;
+  const displayRows = buildFocusedRenderedDiffRows(rows);
   if (!rows.some((line) => line.kind === "add" || line.kind === "remove")) {
     return <p className="muted">No rendered changes are available.</p>;
   }

@@ -1735,7 +1735,6 @@ body.resizing-workbench-pane {
     color-mix(in srgb, var(--comment-tint) 56%, transparent) 68%,
     transparent
   );
-  box-shadow: inset 2px 0 0 var(--comment-line);
 }
 .markdown .vivi-rendered-comment-block.active-rendered-comment {
   background: transparent;
@@ -1763,7 +1762,6 @@ body.resizing-workbench-pane {
     var(--comment-tint) 72%,
     transparent
   );
-  box-shadow: inset 3px 0 0 var(--comment-text);
 }
 .rendered-comment-marker {
   position: absolute;
@@ -4952,21 +4950,6 @@ kbd {
   color: var(--text);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.diff-focus-toggle {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 7px;
-  color: var(--text);
-  cursor: pointer;
-  user-select: none;
-}
-.diff-focus-toggle input {
-  width: 14px;
-  height: 14px;
-  margin: 0;
-  accent-color: var(--accent);
 }
 .diff-inline-row.gap {
   min-height: 32px;

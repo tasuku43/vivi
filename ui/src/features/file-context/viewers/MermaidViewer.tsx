@@ -34,9 +34,7 @@ export function MermaidViewer({
   diff,
   diffLoading,
   diffEnabled,
-  diffFocusChanges,
   onDiffToggle,
-  onDiffFocusChange,
   onCreateComment,
   comments = [],
   activeCommentId,
@@ -47,9 +45,7 @@ export function MermaidViewer({
   diff?: TextDiff | null;
   diffLoading?: boolean;
   diffEnabled?: boolean;
-  diffFocusChanges?: boolean;
   onDiffToggle?: () => void;
-  onDiffFocusChange?: (focusChanges: boolean) => void;
   onCreateComment?: CommentCreateHandler;
   comments?: ViviComment[];
   activeCommentId?: string | null;
@@ -119,10 +115,8 @@ export function MermaidViewer({
           path={file.path}
           diff={diff ?? null}
           loading={diffLoading}
-          focusChanges={diffFocusChanges}
           renderKind="source"
           theme={theme}
-          onFocusChangesChange={onDiffFocusChange}
           file={file}
           onCreateComment={onCreateComment}
           comments={comments}

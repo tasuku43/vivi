@@ -39,11 +39,9 @@ export function HtmlViewer({
   diff,
   diffLoading,
   diffEnabled,
-  diffFocusChanges,
   theme = "dark",
   onModeChange,
   onDiffToggle,
-  onDiffFocusChange,
   onCreateComment,
   comments = [],
   activeCommentId,
@@ -62,11 +60,9 @@ export function HtmlViewer({
   diff?: TextDiff | null;
   diffLoading?: boolean;
   diffEnabled?: boolean;
-  diffFocusChanges?: boolean;
   theme?: ResolvedTheme;
   onModeChange?: (mode: ViewerMode) => void;
   onDiffToggle?: () => void;
-  onDiffFocusChange?: (focusChanges: boolean) => void;
   onCreateComment?: CommentCreateHandler;
   comments?: ViviComment[];
   activeCommentId?: string | null;
@@ -307,10 +303,8 @@ export function HtmlViewer({
           path={file.path}
           diff={diff ?? null}
           loading={diffLoading}
-          focusChanges={diffFocusChanges}
           renderKind={mode === "source" ? "source" : "html"}
           theme={theme}
-          onFocusChangesChange={onDiffFocusChange}
           onCreateComment={onCreateComment}
           file={file}
           comments={comments}

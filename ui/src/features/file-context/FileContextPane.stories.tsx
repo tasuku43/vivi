@@ -26,7 +26,6 @@ const meta = {
     onCodeSelectionChange: () => undefined,
     onViewerModeChange: () => undefined,
     onDiffToggle: () => undefined,
-    onDiffFocusChange: () => undefined,
     onCreateComment: () => undefined,
     onOpenComment: () => undefined,
     onCloseComment: () => undefined,
@@ -50,7 +49,6 @@ export const CodeDiff: Story = {
   args: {
     diffEnabled: true,
     diff: sampleDiff,
-    diffFocusChanges: true,
   },
 };
 

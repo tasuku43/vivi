@@ -2363,11 +2363,13 @@ it("can reduce a large restored session to only the active tab", () => {
   ]);
 });
 
-it("persists focused diff settings by file path in workspace sessions", () => {
+it("drops legacy focused diff settings from workspace sessions", () => {
   const now = 250_000;
-  const stored = buildWorkspaceSession(
-    "/workspace",
-    {
+  const stored = parseWorkspaceSession(
+    JSON.stringify({
+      version: 1,
+      root: "/workspace",
+      updatedAt: now,
       openTabs: [
         { path: "README.md", viewerKind: "markdown", paneId: "main" },
         { path: "src/app.ts", viewerKind: "code", paneId: "main" },
@@ -2380,8 +2382,7 @@ it("persists focused diff settings by file path in workspace sessions", () => {
         "src/app.ts": false,
         "missing.md": true,
       },
-    },
-    now,
+    }),
   );
   const restored = restoreWorkspaceSession(
     stored,
@@ -2390,12 +2391,8 @@ it("persists focused diff settings by file path in workspace sessions", () => {
     now,
   );
 
-  expect(stored.diffFocusByPath).toEqual({
-    "README.md": true,
-    "src/app.ts": false,
-    "missing.md": true,
-  });
-  expect(restored?.diffFocusByPath).toEqual({ "README.md": true });
+  expect(stored).not.toHaveProperty("diffFocusByPath");
+  expect(restored).not.toHaveProperty("diffFocusByPath");
 });
 
 it("persists diff mode as workspace state rather than per-file state", () => {
@@ -2506,7 +2503,7 @@ it("restores older workspace sessions with inspector visible by default", () => 
   expect(parseWorkspaceSession(raw)?.inspectorVisible).toBe(true);
   expect(parseWorkspaceSession(raw)?.sidebarVisible).toBe(true);
   expect(parseWorkspaceSession(raw)?.diffEnabled).toBe(false);
-  expect(parseWorkspaceSession(raw)?.diffFocusByPath).toEqual({});
+  expect(parseWorkspaceSession(raw)).not.toHaveProperty("diffFocusByPath");
 });
 
 it("builds search palette items only from file and text search results", () => {

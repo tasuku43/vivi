@@ -12,7 +12,10 @@ import {
   codeCommentThreadKey,
   codeCommentThreads,
   commentsForLine,
+  flushDeferredSourceHighlightState,
+  hasTextSelectionInElement,
   lineRangeForQuote,
+  nextDeferredSourceHighlightState,
   rectLikeFromElement,
   scheduleSelectionCommentUpdate,
   selectedLineRangeInElement,
@@ -66,6 +69,10 @@ export function SourceCommentSurface({
   } | null>(null);
   const [openThreadKey, setOpenThreadKey] = useState<string | null>(null);
   const [lineDragging, setLineDragging] = useState(false);
+  const [highlightState, setHighlightState] = useState(() => ({
+    visible: highlightedLines ?? null,
+    pending: highlightedLines ?? null,
+  }));
   const linesRef = useRef<HTMLDivElement | null>(null);
   const lineDragRef = useRef<{
     start: number;
@@ -88,6 +95,16 @@ export function SourceCommentSurface({
     openThreadKey ??
     (expandActiveCommentThread ? activeThread?.key : null) ??
     null;
+
+  useEffect(() => {
+    setHighlightState((state) =>
+      nextDeferredSourceHighlightState(
+        state,
+        highlightedLines,
+        hasTextSelectionInElement(linesRef.current),
+      ),
+    );
+  }, [highlightedLines]);
 
   useEffect(() => {
     setAnchorLine(null);
@@ -182,13 +199,24 @@ export function SourceCommentSurface({
 
   function updateSelectionComment() {
     const selection = selectionCommentTargetInElement(linesRef.current);
-    if (!selection) return;
+    if (!selection) {
+      flushDeferredHighlights();
+      return;
+    }
     const range =
       selectedLineRangeInElement(linesRef.current) ??
       lineRangeForQuote(file.content, selection.text);
-    if (!range) return;
+    if (!range) {
+      flushDeferredHighlights();
+      return;
+    }
     startRangeComment(range, selection.text);
     window.getSelection()?.removeAllRanges();
+    flushDeferredHighlights();
+  }
+
+  function flushDeferredHighlights() {
+    setHighlightState(flushDeferredSourceHighlightState);
   }
 
   function startLineComment(lineNumber: number) {
@@ -278,7 +306,7 @@ export function SourceCommentSurface({
         const searchFocusLine = focusLineNumber === lineNumber;
         const selectionStart = selected?.start === lineNumber;
         const selectionEnd = selected?.end === lineNumber;
-        const highlighted = highlightedLines?.[index];
+        const highlighted = highlightState.visible?.[index];
         const lineComments = commentsForLine(comments, lineNumber);
         const firstComment = lineComments[0];
         const containingThread = firstComment
