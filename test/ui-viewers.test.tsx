@@ -1150,7 +1150,8 @@ it("renders a central file location bar that can reveal path segments", () => {
   expect(html).toContain("docs");
   expect(html).toContain("brief");
   expect(html).toContain("intro.md");
-  expect(html).toContain("Show in tree");
+  expect(html).toContain("Current file kind, Markdown");
+  expect(html).not.toContain("Show in tree");
 
   const directoryButton = findElement(locationBar, (element) => {
     const props = element.props as { type?: string; children?: ReactNode };
@@ -1158,14 +1159,13 @@ it("renders a central file location bar that can reveal path segments", () => {
   });
   (directoryButton.props as { onClick: () => void }).onClick();
 
-  const revealButton = findElement(locationBar, (element) => {
+  const fileButton = findElement(locationBar, (element) => {
     const props = element.props as { className?: string; children?: ReactNode };
     return (
-      props.className === "file-location-reveal" &&
-      flattenText(props.children) === "Show in tree"
+      props.className === "file" && flattenText(props.children) === "intro.md"
     );
   });
-  (revealButton.props as { onClick: () => void }).onClick();
+  (fileButton.props as { onClick: () => void }).onClick();
 
   expect(calls).toEqual(["docs/brief", "docs/brief/intro.md"]);
 });
@@ -2924,7 +2924,7 @@ it("opens Review Queue rows as preview on click and stable tabs on double click"
     const props = element.props as { className?: string; children?: ReactNode };
     return (
       props.className?.split(" ").includes("change-open") &&
-      flattenText(props.children).includes("src/app.ts")
+      flattenText(props.children).includes("app.ts")
     );
   });
   const props = button.props as {
@@ -2952,36 +2952,26 @@ it("opens Review Queue rows as preview on click and stable tabs on double click"
   expect(calls).toEqual(["preview:src/app.ts", "normal:src/app.ts"]);
 });
 
-it("reveals the active file in the tree through an explicit inspector action", () => {
-  const calls: string[] = [];
-  const inspector = Inspector({
-    file: codeFile,
-    reviewChanges: [],
-    reviewDiffStats: {},
-    loadingReviewDiffs: {},
-    unreadReviewPaths: new Set(),
-    selectedCodeRange: null,
-    activePaneId: "main",
-    onOpenEventPath: () => undefined,
-    onConfirmEventPath: () => undefined,
-    onOpenNextChanged: () => undefined,
-    onOpenPreviousChanged: () => undefined,
-    onOpenAllChanged: () => undefined,
-    onRevealInTree: () => calls.push("reveal"),
-  });
+it("omits explicit inspector reveal when Review Queue already navigates files", () => {
+  const html = renderToStaticMarkup(
+    <Inspector
+      file={codeFile}
+      reviewChanges={[]}
+      reviewDiffStats={{}}
+      loadingReviewDiffs={{}}
+      unreadReviewPaths={new Set()}
+      selectedCodeRange={null}
+      activePaneId="main"
+      onOpenEventPath={() => undefined}
+      onConfirmEventPath={() => undefined}
+      onOpenNextChanged={() => undefined}
+      onOpenPreviousChanged={() => undefined}
+      onOpenAllChanged={() => undefined}
+      onRevealInTree={() => undefined}
+    />,
+  );
 
-  const button = findElement(inspector, (element) => {
-    const props = element.props as { className?: string; children?: ReactNode };
-    return (
-      props.className === "secondary-action inline-action" &&
-      flattenText(props.children).includes("Show in Explorer")
-    );
-  });
-  const props = button.props as { onClick: () => void };
-
-  props.onClick();
-
-  expect(calls).toEqual(["reveal"]);
+  expect(html).not.toContain("Show in Explorer");
 });
 
 it("keeps Markdown and HTML outline available from the file viewer", () => {
