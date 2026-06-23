@@ -1206,6 +1206,10 @@ body.resizing-workbench-pane {
   justify-content: flex-end;
   gap: 8px;
 }
+.viewer-toolbar-actions-only,
+.code-pro-header-actions-only {
+  justify-content: flex-end;
+}
 .text-search-nav {
   position: sticky;
   top: 0;

@@ -633,6 +633,8 @@ it("renders code with stable line numbers and selected ranges", () => {
   );
 
   expect(html).toContain('aria-label="Code viewer for src/app.ts"');
+  expect(html).toContain('aria-label="Code viewer controls for src/app.ts"');
+  expect(html).not.toContain('class="code-pro-title"');
   expect(html).toContain('class="code-line selected selection-start"');
   expect(html).toContain('class="code-line selected selection-end"');
   expect(html).toContain('aria-label="Select line 1"');
@@ -936,6 +938,8 @@ it("uses the inline source thread experience for Markdown source mode", () => {
   );
 
   expect(html).toContain("source-comment-surface markdown-source");
+  expect(html).toContain('aria-label="Markdown viewer controls for README.md"');
+  expect(html).not.toContain("<strong>README.md</strong>");
   expect(html).toContain('aria-label="Open comment thread on line 3"');
   expect(html).toContain('aria-label="Comment thread for line 3"');
   expect(html).toContain("Check this return");
@@ -1226,6 +1230,7 @@ it("keeps the HTML viewer sandboxed and exposes source mode controls", () => {
   );
 
   expect(html).toContain("sandboxed · scripts off");
+  expect(html).not.toContain("<strong>index.html</strong>");
   expect(html).toContain("Preview");
   expect(html).toContain("Source");
   expect(html).toContain('sandbox="allow-scripts"');
