@@ -211,6 +211,62 @@ it("opens topbar overlays during click before window dismissals run", () => {
   }
 });
 
+it("opens topbar overlays on primary pointer down before window click handlers", () => {
+  const actions: string[] = [];
+  const topbar = Topbar({
+    root: "/Users/tasuku/work/vivi",
+    themePreference: "system",
+    onThemeCycle: () => actions.push("theme"),
+    onQuickOpen: () => actions.push("quick-open"),
+    onSearchText: () => actions.push("search"),
+    onOpenComments: () => actions.push("comments"),
+    onOpenShortcuts: () => actions.push("shortcuts"),
+  });
+  const command = findElement(topbar, (element) => {
+    const props = element.props as { "aria-label"?: string };
+    return props["aria-label"] === "Open command palette";
+  });
+  const props = command.props as {
+    onPointerDown: (event: {
+      button: number;
+      preventDefault: () => void;
+      stopPropagation: () => void;
+      nativeEvent: { stopImmediatePropagation: () => void };
+    }) => void;
+  };
+
+  let prevented = false;
+  let stopped = false;
+  let stoppedImmediate = false;
+
+  vi.useFakeTimers();
+  try {
+    props.onPointerDown({
+      button: 0,
+      preventDefault: () => {
+        prevented = true;
+      },
+      stopPropagation: () => {
+        stopped = true;
+      },
+      nativeEvent: {
+        stopImmediatePropagation: () => {
+          stoppedImmediate = true;
+        },
+      },
+    });
+
+    expect(prevented).toBe(true);
+    expect(stopped).toBe(true);
+    expect(stoppedImmediate).toBe(true);
+    expect(actions).toEqual([]);
+    vi.runOnlyPendingTimers();
+    expect(actions).toEqual(["quick-open"]);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it("keeps topbar keyboard activation on the same overlay path", () => {
   const actions: string[] = [];
   const topbar = Topbar({

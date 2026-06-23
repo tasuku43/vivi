@@ -1,4 +1,7 @@
-import type { MouseEvent as ReactMouseEvent } from "react";
+import type {
+  MouseEvent as ReactMouseEvent,
+  PointerEvent as ReactPointerEvent,
+} from "react";
 import {
   themePreferenceLabel,
   type ThemePreference,
@@ -60,6 +63,9 @@ export function Topbar({
           aria-label="Keyboard shortcuts"
           title="Keyboard shortcuts (Cmd/Ctrl+/)"
           data-topbar-action="shortcuts"
+          onPointerDown={(event) =>
+            runTopbarOverlayPointerAction(event, onOpenShortcuts)
+          }
           onClick={(event) => runTopbarOverlayAction(event, onOpenShortcuts)}
         >
           ?
@@ -81,6 +87,9 @@ export function Topbar({
           aria-keyshortcuts="Meta+K Control+K"
           title="Open command palette"
           data-topbar-action="quick-open"
+          onPointerDown={(event) =>
+            runTopbarOverlayPointerAction(event, onQuickOpen)
+          }
           onClick={(event) => runTopbarOverlayAction(event, onQuickOpen)}
         >
           <span>Command</span>
@@ -93,6 +102,10 @@ export function Topbar({
           aria-keyshortcuts="Meta+Shift+C Control+Shift+C"
           title={commentsButton.title}
           data-topbar-action="comments"
+          onPointerDown={(event) => {
+            if (onOpenComments)
+              runTopbarOverlayPointerAction(event, onOpenComments);
+          }}
           onClick={(event) => {
             if (onOpenComments) runTopbarOverlayAction(event, onOpenComments);
           }}
@@ -106,6 +119,9 @@ export function Topbar({
           className="command-button command-button-secondary"
           aria-keyshortcuts="Meta+Shift+F Control+Shift+F"
           data-topbar-action="search"
+          onPointerDown={(event) =>
+            runTopbarOverlayPointerAction(event, onSearchText)
+          }
           onClick={(event) => runTopbarOverlayAction(event, onSearchText)}
         >
           <span>Search</span>
@@ -124,7 +140,20 @@ function runTopbarOverlayAction(
   stopTopbarOverlayEvent(event);
 }
 
-function stopTopbarOverlayEvent(event: ReactMouseEvent<HTMLButtonElement>) {
+function runTopbarOverlayPointerAction(
+  event: ReactPointerEvent<HTMLButtonElement>,
+  action: () => void,
+) {
+  if (event.button !== 0) return;
+  globalThis.setTimeout(action, 0);
+  stopTopbarOverlayEvent(event);
+}
+
+function stopTopbarOverlayEvent(
+  event:
+    | ReactMouseEvent<HTMLButtonElement>
+    | ReactPointerEvent<HTMLButtonElement>,
+) {
   event.preventDefault();
   event.stopPropagation();
   event.nativeEvent.stopImmediatePropagation();
