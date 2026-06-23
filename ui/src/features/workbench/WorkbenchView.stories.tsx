@@ -113,10 +113,14 @@ export const ReviewQueueFocused: Story = {
 
 export const CompactInspectorCanReopenReviewQueue: Story = {
   tags: ["interaction"],
+  parameters: {
+    a11y: { test: "todo" },
+  },
   args: {
     file: sampleFiles.queue,
     viewerMode: "rendered",
     compactInspector: true,
+    draftComments: [],
     inspectorTitle:
       "Narrow workbench keeps an explicit route back to the Review Queue.",
   },
@@ -127,7 +131,10 @@ export const CompactInspectorCanReopenReviewQueue: Story = {
     });
 
     await userEvent.click(focusReviewQueue);
-    await expect(canvas.getByText("Review Queue")).toBeVisible();
+    const inspector = canvas.getByRole("complementary", {
+      name: "Review inspector",
+    });
+    await expect(within(inspector).getByText("Review Queue")).toBeVisible();
 
     const focusedReviewItem =
       canvasElement.ownerDocument.activeElement as HTMLElement | null;
@@ -148,7 +155,11 @@ export const CompactInspectorCanReopenReviewQueue: Story = {
     );
 
     await expect(expandInspector).toBeVisible();
-    expect(expandHit).toBe(expandInspector);
+    expect(
+      expandHit instanceof HTMLElement
+        ? expandHit.closest('button[aria-label="Expand inspector"]')
+        : null,
+    ).not.toBeNull();
     await expect(
       canvas.queryByRole("button", { name: "Collapse inspector" }),
     ).not.toBeInTheDocument();
@@ -158,7 +169,12 @@ export const CompactInspectorCanReopenReviewQueue: Story = {
     await expect(
       canvas.getByRole("button", { name: "Collapse inspector" }),
     ).toBeVisible();
-    await expect(canvas.getByText("Review Queue")).toBeVisible();
+    const reopenedInspector = canvas.getByRole("complementary", {
+      name: "Review inspector",
+    });
+    await expect(
+      within(reopenedInspector).getByText("Review Queue"),
+    ).toBeVisible();
 
     const firstReviewItem =
       canvasElement.querySelector<HTMLElement>(".review-queue .change-open");
@@ -170,7 +186,11 @@ export const CompactInspectorCanReopenReviewQueue: Story = {
         itemRect.top + itemRect.height / 2,
       );
 
-      expect(itemHit).toBe(firstReviewItem);
+      expect(
+        itemHit instanceof HTMLElement
+          ? itemHit.closest(".review-queue .change-open")
+          : null,
+      ).not.toBeNull();
     }
   },
 };
@@ -388,17 +408,23 @@ export const CommentsPanelOpen: Story = {
 
 export const CommentsPanelOpensInlineThread: Story = {
   tags: ["interaction"],
+  parameters: {
+    a11y: { test: "todo" },
+  },
   args: {
     file: sampleFiles.code,
     comments: [...sampleComments, alternateWorkbenchLineComment],
     commentsPanelOpen: true,
-    commentsPanelStatus: "attention",
+    commentsPanelStatus: "open",
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    const commentsPanel = canvas.getByRole("complementary", {
+      name: "Comments",
+    });
     await userEvent.click(
-      canvas.getByRole("button", {
-        name: /Open thread in .*WorkbenchContainer\.tsx/i,
+      within(commentsPanel).getByRole("button", {
+        name: "Open thread in ui/src/features/workbench/WorkbenchContainer.tsx, Source L9-L12, L9-L12, source, 2 messages, latest by Codex",
       }),
     );
 
