@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { expect, fn, userEvent, within } from "storybook/test";
 import {
   commentsForPath,
   markdownDiff,
@@ -19,12 +20,12 @@ const meta = {
     theme: "light",
     comments: commentsForPath(sampleFiles.markdown.path),
     threadActivities: sampleThreadActivities,
-    onModeChange: () => undefined,
-    onDiffToggle: () => undefined,
-    onCreateComment: () => undefined,
-    onOpenComment: () => undefined,
-    onCloseComment: () => undefined,
-    onCommentStatusChange: () => undefined,
+    onModeChange: fn(),
+    onDiffToggle: fn(),
+    onCreateComment: fn(),
+    onOpenComment: fn(),
+    onCloseComment: fn(),
+    onCommentStatusChange: fn(),
   },
 } satisfies Meta<typeof MarkdownViewer>;
 
@@ -32,9 +33,22 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const RenderedMarkdownComment: Story = {
+  tags: ["interaction"],
   args: {
     mode: "rendered",
     activeCommentId: "comment-md-rendered",
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("heading", { name: "Review Surface" }),
+    ).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Source" }));
+    await expect(args.onModeChange).toHaveBeenCalledWith("source");
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Diff from HEAD" }),
+    );
+    await expect(args.onDiffToggle).toHaveBeenCalled();
   },
 };
 

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { expect, fn, userEvent, within } from "storybook/test";
 import { sampleFiles } from "../../storybook/fixtures/review-lab.js";
 import { CommandPalette } from "./CommandPalette.js";
 
@@ -47,18 +48,34 @@ const meta = {
     ],
     textLoading: false,
     actions: [],
-    onQueryChange: () => undefined,
-    onModeChange: () => undefined,
-    onClose: () => undefined,
-    onOpenPath: () => undefined,
-    onRunAction: () => undefined,
+    onQueryChange: fn(),
+    onModeChange: fn(),
+    onClose: fn(),
+    onOpenPath: fn(),
+    onRunAction: fn(),
   },
 } satisfies Meta<typeof CommandPalette>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const QuickOpen: Story = {};
+export const QuickOpen: Story = {
+  tags: ["interaction"],
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("dialog", { name: "Quick open" }),
+    ).toBeInTheDocument();
+    await userEvent.type(canvas.getByLabelText("Quick open query"), "-new");
+    await expect(args.onQueryChange).toHaveBeenCalled();
+    await userEvent.keyboard("{Enter}");
+    await expect(args.onOpenPath).toHaveBeenCalledWith(
+      sampleFiles.markdown.path,
+      true,
+      undefined,
+    );
+  },
+};
 
 export const TextSearch: Story = {
   args: {
@@ -68,6 +85,7 @@ export const TextSearch: Story = {
 };
 
 export const Actions: Story = {
+  tags: ["interaction"],
   args: {
     mode: "action",
     query: "review",
@@ -91,6 +109,14 @@ export const Actions: Story = {
         shortcut: "Cmd/Ctrl Enter",
       },
     ],
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("dialog", { name: "Run command" }),
+    ).toBeInTheDocument();
+    await userEvent.keyboard("{Enter}");
+    await expect(args.onRunAction).toHaveBeenCalledWith("next-open-thread");
   },
 };
 

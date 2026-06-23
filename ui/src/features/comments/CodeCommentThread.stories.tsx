@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { expect, fn, userEvent, within } from "storybook/test";
 import type { CommentStatus, ViviComment } from "../../domain/comments.js";
 import { draftReviewCommentAsViviComment } from "../../state/comments.js";
 import { summarizeThreadActivity } from "../../state/comment-activity.js";
@@ -46,7 +47,11 @@ const meta = {
   title: "Review/Comments/Inline Thread",
   component: CodeCommentThread,
   parameters: { layout: "centered", a11y: { test: "error" } },
-  args: { onClose: () => undefined },
+  args: {
+    onClose: fn(),
+    onCreateComment: fn(),
+    onStatusChange: fn(),
+  },
 } satisfies Meta<typeof CodeCommentThread>;
 
 export default meta;
@@ -71,7 +76,26 @@ function args(status: CommentStatus) {
   };
 }
 
-export const Open: Story = { args: args("open") };
+export const Open: Story = {
+  tags: ["interaction"],
+  args: args("open"),
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("article", { name: "Comment thread for lines 9-12" }),
+    ).toBeInTheDocument();
+    await userEvent.type(canvas.getByLabelText("Reply to thread"), "Looks good");
+    await userEvent.click(canvas.getByRole("button", { name: "Add reply" }));
+    await expect(args.onCreateComment).toHaveBeenCalled();
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Resolve thread" }),
+    );
+    await expect(args.onStatusChange).toHaveBeenCalledWith(
+      "thread-workbench-open",
+      "resolved",
+    );
+  },
+};
 export const Resolved: Story = { args: args("resolved") };
 export const Archived: Story = { args: args("archived") };
 

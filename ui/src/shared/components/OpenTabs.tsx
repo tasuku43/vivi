@@ -121,11 +121,18 @@ export function OpenTabs({
               ]
                 .filter(Boolean)
                 .join(" ")}
+              role="tab"
+              aria-selected={tab.path === activePath}
+              tabIndex={tab.path === activePath ? 0 : -1}
+              data-tab-path={tab.path}
+              aria-label={`${tab.path}${tab.isPreview ? " preview" : ""}${tab.changed ? " changed" : ""}${tab.removed ? " removed" : ""}`}
+              title={tab.path}
               draggable
               onMouseDown={(event) => {
                 if (event.button === 0)
                   onManualDragStart({ path: tab.path, paneId });
               }}
+              onClick={() => onActivate(tab.path)}
               onDragStart={(event) => {
                 writeDraggedTab(event.dataTransfer, { path: tab.path, paneId });
                 event.dataTransfer.effectAllowed = "move";
@@ -142,17 +149,7 @@ export function OpenTabs({
                   onDropTab(dragged.path, dragged.paneId, paneId, tab.path);
               }}
             >
-              <button
-                className="tab-main"
-                type="button"
-                role="tab"
-                aria-selected={tab.path === activePath}
-                tabIndex={tab.path === activePath ? 0 : -1}
-                data-tab-path={tab.path}
-                aria-label={`${tab.path}${tab.isPreview ? " preview" : ""}${tab.changed ? " changed" : ""}${tab.removed ? " removed" : ""}`}
-                title={tab.path}
-                onClick={() => onActivate(tab.path)}
-              >
+              <div className="tab-main" aria-hidden="true">
                 <span className="file-icon">
                   {iconForPath(tab.path, tab.viewerKind)}
                 </span>
@@ -174,7 +171,7 @@ export function OpenTabs({
                     removed
                   </span>
                 ) : null}
-              </button>
+              </div>
               <button
                 className="tab-close"
                 type="button"

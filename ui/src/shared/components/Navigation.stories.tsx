@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { expect, fn, userEvent, within } from "storybook/test";
 import {
   sampleTabs,
   sampleWorkspaceTree,
@@ -20,6 +21,8 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+const activateTab = fn();
+
 export const TopbarStory: Story = {
   name: "Topbar",
   render: () => (
@@ -38,7 +41,11 @@ export const TopbarStory: Story = {
 
 export const SidebarFileTree: Story = {
   render: () => (
-    <aside className="sidebar" style={{ width: 320, height: "100vh" }}>
+    <aside
+      className="sidebar"
+      aria-label="File explorer"
+      style={{ width: 320, height: "100vh" }}
+    >
       <div className="panel-title">
         <span>Explorer</span>
         <span className="pill">live</span>
@@ -67,7 +74,7 @@ export const Tabs: Story = {
         tabs={sampleTabs}
         activePath="ui/src/features/workbench/WorkbenchContainer.tsx"
         paneId="main"
-        onActivate={() => undefined}
+        onActivate={activateTab}
         onClose={() => undefined}
         onPromote={() => undefined}
         onCloseOtherTabs={() => undefined}
@@ -80,6 +87,14 @@ export const Tabs: Story = {
       />
     </div>
   ),
+  play: async ({ canvasElement }) => {
+    activateTab.mockClear();
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole("tab", { name: "docs/product-review.md" }),
+    );
+    await expect(activateTab).toHaveBeenCalledWith("docs/product-review.md");
+  },
 };
 
 export const ShortcutHelpOverlay: Story = {

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { expect, fn, userEvent, within } from "storybook/test";
 import { DraftReviewTray } from "./components/DraftReviewTray.js";
 import {
   manyDraftReviewComments,
@@ -16,17 +17,33 @@ const meta = {
   args: {
     drafts: sampleDraftComments,
     publishing: false,
-    onOpenDraft: () => undefined,
-    onUpdateDraft: () => undefined,
-    onDeleteDraft: () => undefined,
-    onPublishAll: () => undefined,
+    onOpenDraft: fn(),
+    onUpdateDraft: fn(),
+    onDeleteDraft: fn(),
+    onPublishAll: fn(),
   },
 } satisfies Meta<typeof DraftReviewTray>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const PublishCtaEnabled: Story = {};
+export const PublishCtaEnabled: Story = {
+  tags: ["interaction"],
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("complementary", { name: "Draft review tray" }),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      canvas.getByRole("button", { name: /Publish \d+ draft comments/ }),
+    );
+    await expect(args.onPublishAll).toHaveBeenCalled();
+    await userEvent.click(
+      canvas.getAllByRole("button", { name: /Open private draft in/ })[0]!,
+    );
+    await expect(args.onOpenDraft).toHaveBeenCalled();
+  },
+};
 
 export const PublishingBatch: Story = {
   args: {

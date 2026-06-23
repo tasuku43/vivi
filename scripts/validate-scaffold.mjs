@@ -145,8 +145,10 @@ for (const file of walk(root)) {
   const rel = path.relative(root, file).split(path.sep).join("/");
   if (rel === "vivi" || rel === "vivi-otel") continue;
   if (
+    rel === "package-lock.json" ||
     rel.startsWith(".git/") ||
     rel.startsWith("node_modules/") ||
+    rel.startsWith("ui/node_modules/") ||
     rel.startsWith(".tmp-go-build-cache/") ||
     rel.startsWith(".tmp-go-mod-cache/") ||
     rel.startsWith("dist/") ||

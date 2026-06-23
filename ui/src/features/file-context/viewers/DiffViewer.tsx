@@ -371,7 +371,7 @@ function SourceDiff({
               }
             />
             {threadForDisplay && threadDraft ? (
-              <div className="code-comment-thread-row" role="listitem">
+              <div className="code-comment-thread-row">
                 <CodeCommentThread
                   thread={threadForDisplay}
                   draft={threadDraft}
