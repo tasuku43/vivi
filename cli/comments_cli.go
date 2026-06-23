@@ -258,11 +258,11 @@ func suggestedCommandsForCommentsError(command string, args []string, code strin
 	case "not_found":
 		if actorID == "" {
 			return []commentSuggestedCommand{
-				suggestedCommentsCommand("inspect_open_work", "comments active", withURLArg([]string{"comments", "active", "--json"}, serverURL), "", "Inspect the current open worklist before retrying with a fresh thread id."),
+				suggestedCommentsCommand("inspect_open_work", "comments active", withURLArg([]string{"comments", "active", "--json"}, serverURL), "", "Inspect the current open worklist before choosing the next thread-specific action."),
 			}
 		}
 		return []commentSuggestedCommand{
-			suggestedCommentsCommand("inspect_open_work", "comments inbox", withRuntimeArgs(actorCommand([]string{"comments", "inbox"}, actorID, actorKind, "--json"), serverURL, receiptLog), "", "Inspect the current open work queues before retrying with a fresh thread id."),
+			suggestedCommentsCommand("inspect_open_work", "comments inbox", withRuntimeArgs(actorCommand([]string{"comments", "inbox"}, actorID, actorKind, "--json"), serverURL, receiptLog), "", "Inspect current open work routing before choosing the next agent action."),
 		}
 	default:
 		return nil
@@ -277,16 +277,16 @@ func suggestedCommandsForMissingShowThreadID(args []string, actorID string, serv
 	}
 	if actorID == "" {
 		return []commentSuggestedCommand{
-			suggestedCommentsCommand("find_thread_id", "comments list", withURLArg(listArgs, serverURL), "", "List matching comment threads, copy the thread id, then rerun comments show <thread-id>."),
+			suggestedCommentsCommand("inspect_matching_threads", "comments list", withURLArg(listArgs, serverURL), "", "Inspect matching comment threads before choosing a thread-specific command."),
 		}
 	}
-	inboxArgs := actorCommand([]string{"comments", "inbox"}, actorID, commentsArgValue(args, "--actor-kind"), "--json")
+	inboxArgs := actorCommand([]string{"comments", "inbox"}, actorID, commentsArgValue(args, "--actor-kind"), "--full", "--json")
 	if path != "" {
-		inboxArgs = actorCommand([]string{"comments", "inbox"}, actorID, commentsArgValue(args, "--actor-kind"), "--path", path, "--json")
+		inboxArgs = actorCommand([]string{"comments", "inbox"}, actorID, commentsArgValue(args, "--actor-kind"), "--path", path, "--full", "--json")
 	}
 	return []commentSuggestedCommand{
-		suggestedCommentsCommand("find_thread_id", "comments inbox", withRuntimeArgs(inboxArgs, serverURL, receiptLog), "", "List matching open work queues, copy the thread id, then rerun comments show <thread-id>."),
-		suggestedCommentsCommand("list_matching_threads", "comments list", withURLArg(listArgs, serverURL), "", "List all matching comment threads, including terminal history, when the thread is not in the open inbox."),
+		suggestedCommentsCommand("inspect_matching_inbox", "comments inbox", withRuntimeArgs(withAgentHistoryLimitArgs(inboxArgs), serverURL, receiptLog), "", "Inspect matching open work with source, diff, activities, and routing suggestions before choosing the next agent action."),
+		suggestedCommentsCommand("list_matching_threads", "comments list", withURLArg(listArgs, serverURL), "", "List all matching comment threads, including terminal history, when no open work is available."),
 	}
 }
 

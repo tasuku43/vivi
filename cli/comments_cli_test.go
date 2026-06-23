@@ -1567,12 +1567,17 @@ func TestCommentsCLIShowMissingThreadIDSuggestsPathDiscovery(t *testing.T) {
 		t.Fatalf("show missing id suggestions = %#v", envelope.Error.SuggestedCommands)
 	}
 	inbox := envelope.Error.SuggestedCommands[0]
-	if inbox.Intent != "find_thread_id" || inbox.Command != "comments inbox" || !containsString(inbox.Args, "--path") || !containsString(inbox.Args, "net/netfilter/xt_RATEEST.c") || !containsString(inbox.Args, "http://127.0.0.1:59432") || !strings.Contains(inbox.DisplayCommand, "comments inbox --actor codex:show") {
+	if inbox.Intent != "inspect_matching_inbox" || inbox.Command != "comments inbox" || !containsString(inbox.Args, "--path") || !containsString(inbox.Args, "net/netfilter/xt_RATEEST.c") || !containsString(inbox.Args, "--full") || !containsString(inbox.Args, "http://127.0.0.1:59432") || !strings.Contains(inbox.DisplayCommand, "comments inbox --actor codex:show") {
 		t.Fatalf("show missing id inbox suggestion = %#v", inbox)
 	}
 	list := envelope.Error.SuggestedCommands[1]
 	if list.Intent != "list_matching_threads" || list.Command != "comments list" || !containsString(list.Args, "--path") || !containsString(list.Args, "net/netfilter/xt_RATEEST.c") || !containsString(list.Args, "http://127.0.0.1:59432") || !strings.Contains(list.DisplayCommand, "comments list --path net/netfilter/xt_RATEEST.c") {
 		t.Fatalf("show missing id list suggestion = %#v", list)
+	}
+	for _, suggestion := range envelope.Error.SuggestedCommands {
+		if strings.Contains(suggestion.Reason, "copy the thread id") || strings.Contains(suggestion.Reason, "rerun comments show") {
+			t.Fatalf("show missing id suggestion should not require manual thread id copying = %#v", suggestion)
+		}
 	}
 }
 
