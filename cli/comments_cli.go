@@ -1861,13 +1861,15 @@ func commentInboxOutputExample() map[string]any {
 		"cursor": "open:...",
 		"count":  2,
 		"summary": map[string]any{
-			"requiresAttention":    true,
-			"attentionReasons":     []string{"owned_live_claims"},
-			"recommendedAction":    "resume_owned_work",
-			"openThreadCount":      2,
-			"mineCount":            1,
-			"unclaimedCount":       1,
-			"claimedByOthersCount": 0,
+			"requiresAttention":      true,
+			"attentionReasons":       []string{"owned_live_claims"},
+			"recommendedAction":      "resume_owned_work",
+			"totalOpenThreadCount":   2,
+			"openThreadCount":        2,
+			"sourceUnavailableCount": 0,
+			"mineCount":              1,
+			"unclaimedCount":         1,
+			"claimedByOthersCount":   0,
 			"suggestedCommands": []map[string]any{
 				{
 					"intent":        "renew_owned_claim",
@@ -1944,13 +1946,15 @@ func commentMineOutputExample() map[string]any {
 		"cursor": "open:...",
 		"count":  1,
 		"summary": map[string]any{
-			"requiresAttention":    true,
-			"attentionReasons":     []string{"owned_live_claims"},
-			"recommendedAction":    "resume_owned_work",
-			"openThreadCount":      1,
-			"mineCount":            1,
-			"unclaimedCount":       0,
-			"claimedByOthersCount": 0,
+			"requiresAttention":      true,
+			"attentionReasons":       []string{"owned_live_claims"},
+			"recommendedAction":      "resume_owned_work",
+			"totalOpenThreadCount":   1,
+			"openThreadCount":        1,
+			"sourceUnavailableCount": 0,
+			"mineCount":              1,
+			"unclaimedCount":         0,
+			"claimedByOthersCount":   0,
 			"suggestedCommands": []map[string]any{
 				{
 					"intent":        "renew_owned_claim",
@@ -1989,13 +1993,15 @@ func commentBatchOutputExample() map[string]any {
 		"open": map[string]any{
 			"count": 1,
 			"summary": map[string]any{
-				"requiresAttention":    true,
-				"attentionReasons":     []string{"owned_live_claims"},
-				"recommendedAction":    "resume_owned_work",
-				"openThreadCount":      1,
-				"mineCount":            1,
-				"unclaimedCount":       0,
-				"claimedByOthersCount": 0,
+				"requiresAttention":      true,
+				"attentionReasons":       []string{"owned_live_claims"},
+				"recommendedAction":      "resume_owned_work",
+				"totalOpenThreadCount":   1,
+				"openThreadCount":        1,
+				"sourceUnavailableCount": 0,
+				"mineCount":              1,
+				"unclaimedCount":         0,
+				"claimedByOthersCount":   0,
 				"suggestedCommands": []map[string]any{
 					{
 						"intent":        "renew_owned_claim",
@@ -2743,16 +2749,18 @@ func commentRoutingSummarySchema() map[string]any {
 	return map[string]any{
 		"type":                 "object",
 		"additionalProperties": true,
-		"required":             []string{"requiresAttention", "attentionReasons", "recommendedAction", "openThreadCount", "mineCount", "unclaimedCount", "claimedByOthersCount"},
+		"required":             []string{"requiresAttention", "attentionReasons", "recommendedAction", "totalOpenThreadCount", "openThreadCount", "sourceUnavailableCount", "mineCount", "unclaimedCount", "claimedByOthersCount"},
 		"properties": map[string]any{
-			"requiresAttention":    map[string]any{"type": "boolean"},
-			"attentionReasons":     arraySchema(map[string]any{"type": "string"}),
-			"recommendedAction":    map[string]any{"type": "string", "enum": []string{"resume_owned_work", "claim_open_work", "wait_for_claim_release", "wait_for_gui_feedback"}},
-			"openThreadCount":      integerCount,
-			"mineCount":            integerCount,
-			"unclaimedCount":       integerCount,
-			"claimedByOthersCount": integerCount,
-			"suggestedCommands":    arraySchema(commentSuggestedCommandSchema()),
+			"requiresAttention":      map[string]any{"type": "boolean"},
+			"attentionReasons":       arraySchema(map[string]any{"type": "string"}),
+			"recommendedAction":      map[string]any{"type": "string", "enum": []string{"resume_owned_work", "claim_open_work", "wait_for_claim_release", "wait_for_gui_feedback"}},
+			"totalOpenThreadCount":   integerCount,
+			"openThreadCount":        integerCount,
+			"sourceUnavailableCount": integerCount,
+			"mineCount":              integerCount,
+			"unclaimedCount":         integerCount,
+			"claimedByOthersCount":   integerCount,
+			"suggestedCommands":      arraySchema(commentSuggestedCommandSchema()),
 		},
 	}
 }
@@ -4197,14 +4205,17 @@ func commentsInbox(ctx context.Context, stdout io.Writer, options commentsComman
 }
 
 func summarizeOpenRouting(routing commentOpenRoutingOutput, actorID string, cursor string, clientEventScope string, serverURL string, receiptLog string) commentRoutingSummary {
+	actionableOpenThreadCount := routing.Mine.Count + routing.Unclaimed.Count + routing.ClaimedByOthers.Count
 	summary := commentRoutingSummary{
-		RequiresAttention:    false,
-		AttentionReasons:     []string{},
-		RecommendedAction:    "wait_for_gui_feedback",
-		OpenThreadCount:      routing.Mine.Count + routing.Unclaimed.Count + routing.ClaimedByOthers.Count,
-		MineCount:            routing.Mine.Count,
-		UnclaimedCount:       routing.Unclaimed.Count,
-		ClaimedByOthersCount: routing.ClaimedByOthers.Count,
+		RequiresAttention:      false,
+		AttentionReasons:       []string{},
+		RecommendedAction:      "wait_for_gui_feedback",
+		TotalOpenThreadCount:   actionableOpenThreadCount + routing.SourceUnavailableCount,
+		OpenThreadCount:        actionableOpenThreadCount,
+		SourceUnavailableCount: routing.SourceUnavailableCount,
+		MineCount:              routing.Mine.Count,
+		UnclaimedCount:         routing.Unclaimed.Count,
+		ClaimedByOthersCount:   routing.ClaimedByOthers.Count,
 	}
 	actorID = strings.TrimSpace(actorID)
 	if routing.Mine.Count > 0 {
@@ -4238,13 +4249,15 @@ func summarizeOpenRouting(routing commentOpenRoutingOutput, actorID string, curs
 
 func summarizeOwnedRoutingRecovery(group commentInboxGroupOutput, actorID string, clientEventScope string, serverURL string, receiptLog string) commentRoutingSummary {
 	summary := commentRoutingSummary{
-		RequiresAttention:    false,
-		AttentionReasons:     []string{},
-		RecommendedAction:    "wait_for_gui_feedback",
-		OpenThreadCount:      group.Count,
-		MineCount:            group.Count,
-		UnclaimedCount:       0,
-		ClaimedByOthersCount: 0,
+		RequiresAttention:      false,
+		AttentionReasons:       []string{},
+		RecommendedAction:      "wait_for_gui_feedback",
+		TotalOpenThreadCount:   group.Count,
+		OpenThreadCount:        group.Count,
+		SourceUnavailableCount: 0,
+		MineCount:              group.Count,
+		UnclaimedCount:         0,
+		ClaimedByOthersCount:   0,
 	}
 	actorID = strings.TrimSpace(actorID)
 	if group.Count > 0 {
@@ -4350,6 +4363,7 @@ func commentOpenRouting(ctx context.Context, options commentsCommandOptions, ord
 				return commentOpenRoutingOutput{}, err
 			}
 			if !available {
+				routing.SourceUnavailableCount++
 				continue
 			}
 			routing.Unclaimed.Threads = append(routing.Unclaimed.Threads, thread)
@@ -4365,6 +4379,7 @@ func commentOpenRouting(ctx context.Context, options commentsCommandOptions, ord
 			return commentOpenRoutingOutput{}, err
 		}
 		if !available {
+			routing.SourceUnavailableCount++
 			continue
 		}
 		routing.ClaimedByOthers.Threads = append(routing.ClaimedByOthers.Threads, thread)
@@ -6713,20 +6728,23 @@ type commentInboxGroupOutput struct {
 }
 
 type commentRoutingSummary struct {
-	RequiresAttention    bool                      `json:"requiresAttention"`
-	AttentionReasons     []string                  `json:"attentionReasons"`
-	RecommendedAction    string                    `json:"recommendedAction"`
-	OpenThreadCount      int                       `json:"openThreadCount"`
-	MineCount            int                       `json:"mineCount"`
-	UnclaimedCount       int                       `json:"unclaimedCount"`
-	ClaimedByOthersCount int                       `json:"claimedByOthersCount"`
-	SuggestedCommands    []commentSuggestedCommand `json:"suggestedCommands,omitempty"`
+	RequiresAttention      bool                      `json:"requiresAttention"`
+	AttentionReasons       []string                  `json:"attentionReasons"`
+	RecommendedAction      string                    `json:"recommendedAction"`
+	TotalOpenThreadCount   int                       `json:"totalOpenThreadCount"`
+	OpenThreadCount        int                       `json:"openThreadCount"`
+	SourceUnavailableCount int                       `json:"sourceUnavailableCount"`
+	MineCount              int                       `json:"mineCount"`
+	UnclaimedCount         int                       `json:"unclaimedCount"`
+	ClaimedByOthersCount   int                       `json:"claimedByOthersCount"`
+	SuggestedCommands      []commentSuggestedCommand `json:"suggestedCommands,omitempty"`
 }
 
 type commentOpenRoutingOutput struct {
-	Mine            commentInboxGroupOutput
-	Unclaimed       commentInboxGroupOutput
-	ClaimedByOthers commentInboxGroupOutput
+	Mine                   commentInboxGroupOutput
+	Unclaimed              commentInboxGroupOutput
+	ClaimedByOthers        commentInboxGroupOutput
+	SourceUnavailableCount int
 }
 
 type commentClaimOutput struct {

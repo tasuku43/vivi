@@ -827,7 +827,9 @@ claim, and returns three groups:
     "requiresAttention": true,
     "attentionReasons": ["owned_live_claims"],
     "recommendedAction": "resume_owned_work",
+    "totalOpenThreadCount": 3,
     "openThreadCount": 3,
+    "sourceUnavailableCount": 0,
     "mineCount": 1,
     "unclaimedCount": 1,
     "claimedByOthersCount": 1,
@@ -845,7 +847,10 @@ claim next, and work another live actor is handling. `summary.recommendedAction`
 is the adapter branch: `resume_owned_work` when live claims already belong to
 the actor, `claim_open_work` when unclaimed GUI feedback is ready,
 `wait_for_claim_release` when all open work is owned by other actors, and
-`wait_for_gui_feedback` when the queue is empty. `summary.suggestedCommands`
+`wait_for_gui_feedback` when the queue is empty. `summary.openThreadCount` is
+the actionable routed count, while `summary.totalOpenThreadCount` includes open
+threads skipped because their source is unavailable; those skipped threads are
+reported in `summary.sourceUnavailableCount`. `summary.suggestedCommands`
 contains the next safe CLI recipes, such as renewing and following recovered
 owned work or starting `comments work` for claimable feedback. Those recipes
 preserve the selected `--url`, plus `--receipt-log` where relevant, so a
@@ -877,7 +882,9 @@ the still-open subset with the same claim routing used by `inbox`:
       "requiresAttention": true,
       "attentionReasons": ["owned_live_claims"],
       "recommendedAction": "resume_owned_work",
+      "totalOpenThreadCount": 1,
       "openThreadCount": 1,
+      "sourceUnavailableCount": 0,
       "mineCount": 1,
       "unclaimedCount": 0,
       "claimedByOthersCount": 0,

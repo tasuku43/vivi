@@ -625,7 +625,11 @@ func TestCommentsCLIClaimWaitsUntilClaimableWorkAppears(t *testing.T) {
 }
 
 func TestCommentsCLIInboxClassifiesOpenAgentWork(t *testing.T) {
-	server := newCommentsCLITestServer(t)
+	server := newCommentsCLITestServerWithSetup(t, func(root string) {
+		if err := os.WriteFile(filepath.Join(root, "stale.md"), []byte("# Stale\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	})
 	defer server.Close()
 
 	mineID := createCommentThreadForCLIWithBody(t, server.URL, "README.md", "Already claimed by this agent")
@@ -633,6 +637,11 @@ func TestCommentsCLIInboxClassifiesOpenAgentWork(t *testing.T) {
 	otherID := createCommentThreadForCLIWithBody(t, server.URL, "README.md", "Claimed by another agent")
 	time.Sleep(time.Millisecond)
 	unclaimedID := createCommentThreadForCLIWithBody(t, server.URL, "README.md", "Unclaimed follow-up")
+	time.Sleep(time.Millisecond)
+	createCommentThreadForCLIWithBody(t, server.URL, "stale.md", "Stale thread from another root")
+	if err := os.Remove(filepath.Join(server.Root, "stale.md")); err != nil {
+		t.Fatal(err)
+	}
 
 	runCommentsCLIForTest(t, "claim", mineID, "--url", server.URL, "--actor", "codex:inbox-1", "--actor-kind", "codex", "--client-event-id", "inbox-claim-mine", "--lease", "30s", "--json")
 	runCommentsCLIForTest(t, "claim", otherID, "--url", server.URL, "--actor", "claude-code:inbox-2", "--actor-kind", "claude_code", "--client-event-id", "inbox-claim-other", "--lease", "30s", "--json")
@@ -651,10 +660,10 @@ func TestCommentsCLIInboxClassifiesOpenAgentWork(t *testing.T) {
 	if inboxPayload.Actor.ID != "codex:inbox-1" || inboxPayload.Actor.Kind != "codex" {
 		t.Fatalf("inbox actor = %#v", inboxPayload.Actor)
 	}
-	if inboxPayload.Count != 3 || !strings.HasPrefix(inboxPayload.Cursor, "open:") {
+	if inboxPayload.Count != 4 || !strings.HasPrefix(inboxPayload.Cursor, "open:") {
 		t.Fatalf("inbox metadata = %s", inbox.String())
 	}
-	if !inboxPayload.Summary.RequiresAttention || inboxPayload.Summary.RecommendedAction != "resume_owned_work" || inboxPayload.Summary.OpenThreadCount != 3 || inboxPayload.Summary.MineCount != 1 || inboxPayload.Summary.UnclaimedCount != 1 || inboxPayload.Summary.ClaimedByOthersCount != 1 || !containsString(inboxPayload.Summary.AttentionReasons, "owned_live_claims") {
+	if !inboxPayload.Summary.RequiresAttention || inboxPayload.Summary.RecommendedAction != "resume_owned_work" || inboxPayload.Summary.TotalOpenThreadCount != 4 || inboxPayload.Summary.OpenThreadCount != 3 || inboxPayload.Summary.SourceUnavailableCount != 1 || inboxPayload.Summary.MineCount != 1 || inboxPayload.Summary.UnclaimedCount != 1 || inboxPayload.Summary.ClaimedByOthersCount != 1 || !containsString(inboxPayload.Summary.AttentionReasons, "owned_live_claims") {
 		t.Fatalf("inbox summary = %#v", inboxPayload.Summary)
 	}
 	if len(inboxPayload.Summary.SuggestedCommands) != 3 || inboxPayload.Summary.SuggestedCommands[0].Intent != "renew_owned_claim" || inboxPayload.Summary.SuggestedCommands[0].Command != "comments renew" || inboxPayload.Summary.SuggestedCommands[0].ClientEventID == "" || !containsString(inboxPayload.Summary.SuggestedCommands[0].Args, inboxPayload.Summary.SuggestedCommands[0].ClientEventID) || inboxPayload.Summary.SuggestedCommands[1].Command != "comments follow" || inboxPayload.Summary.SuggestedCommands[2].Command != "comments check" {
@@ -688,7 +697,7 @@ func TestCommentsCLIInboxClassifiesOpenAgentWork(t *testing.T) {
 	if inboxPayload.Unclaimed.Count != 2 || !containsCommentThread(inboxPayload.Unclaimed.Threads, mineID) || !containsCommentThread(inboxPayload.Unclaimed.Threads, unclaimedID) {
 		t.Fatalf("unclaimed after release = %#v", inboxPayload.Unclaimed.Threads)
 	}
-	if !inboxPayload.Summary.RequiresAttention || inboxPayload.Summary.RecommendedAction != "claim_open_work" || inboxPayload.Summary.MineCount != 0 || inboxPayload.Summary.UnclaimedCount != 2 || inboxPayload.Summary.ClaimedByOthersCount != 1 || len(inboxPayload.Summary.SuggestedCommands) != 1 || inboxPayload.Summary.SuggestedCommands[0].Intent != "claim_next_open_thread" || inboxPayload.Summary.SuggestedCommands[0].Command != "comments work" || inboxPayload.Summary.SuggestedCommands[0].ClientEventID == "" {
+	if !inboxPayload.Summary.RequiresAttention || inboxPayload.Summary.RecommendedAction != "claim_open_work" || inboxPayload.Summary.TotalOpenThreadCount != 4 || inboxPayload.Summary.OpenThreadCount != 3 || inboxPayload.Summary.SourceUnavailableCount != 1 || inboxPayload.Summary.MineCount != 0 || inboxPayload.Summary.UnclaimedCount != 2 || inboxPayload.Summary.ClaimedByOthersCount != 1 || len(inboxPayload.Summary.SuggestedCommands) != 1 || inboxPayload.Summary.SuggestedCommands[0].Intent != "claim_next_open_thread" || inboxPayload.Summary.SuggestedCommands[0].Command != "comments work" || inboxPayload.Summary.SuggestedCommands[0].ClientEventID == "" {
 		t.Fatalf("inbox summary after release = %#v", inboxPayload.Summary)
 	}
 }
@@ -1549,7 +1558,7 @@ func TestCommentsCLISchemaSurfacesStructuredStdinContracts(t *testing.T) {
 	inboxProperties := inboxPayload.Schema["properties"].(map[string]any)
 	inboxSummary := inboxProperties["summary"].(map[string]any)
 	inboxSummaryProperties := inboxSummary["properties"].(map[string]any)
-	if inboxSummaryProperties["recommendedAction"].(map[string]any)["type"] != "string" || inboxSummaryProperties["mineCount"].(map[string]any)["minimum"] != float64(0) || len(inboxPayload.AcceptedBy) != 2 {
+	if inboxSummaryProperties["recommendedAction"].(map[string]any)["type"] != "string" || inboxSummaryProperties["totalOpenThreadCount"].(map[string]any)["minimum"] != float64(0) || inboxSummaryProperties["sourceUnavailableCount"].(map[string]any)["minimum"] != float64(0) || inboxSummaryProperties["mineCount"].(map[string]any)["minimum"] != float64(0) || len(inboxPayload.AcceptedBy) != 2 {
 		t.Fatalf("inbox schema properties = %#v", inboxPayload)
 	}
 	inboxExampleSummary := inboxPayload.Example["summary"].(map[string]any)
@@ -2815,6 +2824,7 @@ func TestCommentsCLIWorkLoopRejectsSingleThreadModes(t *testing.T) {
 
 type commentsCLITestServer struct {
 	URL        string
+	Root       string
 	oldClient  *http.Client
 	httpClient *http.Client
 	service    *application.Service
@@ -2871,6 +2881,7 @@ func newCommentsCLITestServerWithSetup(t *testing.T, setup func(root string)) *c
 	http.DefaultClient = httpClient
 	return &commentsCLITestServer{
 		URL:        "http://vivi.test",
+		Root:       root,
 		oldClient:  oldClient,
 		httpClient: httpClient,
 		service:    service,
