@@ -5,6 +5,7 @@ import { draftReviewCommentAsViviComment } from "../../../state/comments.js";
 import {
   commentsForPath,
   sampleDiff,
+  sampleComments,
   sampleDraftComments,
   sampleFiles,
   sampleThreadActivities,
@@ -62,6 +63,87 @@ export const SourceWithOpenThread: Story = {
 export const SourceWithAgentReply: Story = {
   args: {
     activeCommentId: "comment-workbench-agent-1",
+  },
+};
+
+export const SourceIgnoresDiffThreadOnSameLine: Story = {
+  tags: ["interaction"],
+  args: {
+    selectedRange: null,
+    activeCommentId: "comment-source-line-10",
+    comments: [
+      {
+        ...sampleComments[0]!,
+        id: "comment-source-line-10",
+        threadId: "thread-source-line-10",
+        anchor: {
+          surface: "source",
+          canonical: {
+            path: sampleFiles.code.path,
+            lineStart: 10,
+            lineEnd: 10,
+            quote:
+              "return client.publishDraftReviewComments({ actor: humanTasuku });",
+            fileHash: sampleFiles.code.etag,
+          },
+        },
+        body: "Source viewer should show this one source-thread message.",
+      },
+      {
+        ...sampleComments[2]!,
+        id: "comment-diff-same-line-1",
+        threadId: "thread-diff-same-line",
+        anchor: {
+          ...sampleComments[2]!.anchor,
+          surface: "diff",
+          canonical: {
+            ...sampleComments[2]!.anchor.canonical,
+            lineStart: 10,
+            lineEnd: 10,
+          },
+        },
+        body: "Diff-only feedback should stay out of source gutter counts.",
+      },
+      {
+        ...sampleComments[2]!,
+        id: "comment-diff-same-line-2",
+        threadId: "thread-diff-same-line",
+        anchor: {
+          ...sampleComments[2]!.anchor,
+          surface: "diff",
+          canonical: {
+            ...sampleComments[2]!.anchor.canonical,
+            lineStart: 10,
+            lineEnd: 10,
+          },
+        },
+        body: "Second diff-only message on the same canonical line.",
+        createdAt: "2026-06-20T09:14:00.000Z",
+        updatedAt: "2026-06-20T09:14:00.000Z",
+      },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const lineAction = canvasElement.querySelector<HTMLButtonElement>(
+      `[data-testid="line-comment-action"][data-comment-surface="source"][data-line="10"][data-path="${sampleFiles.code.path}"]`,
+    );
+    expect(lineAction).toBeInTheDocument();
+    await expect(lineAction).toHaveAttribute(
+      "aria-label",
+      "Open comment thread on line 10 with 1 message; open to reply",
+    );
+    await userEvent.click(lineAction!);
+    await expect(
+      canvas.getByRole("article", { name: "Comment thread for line 10" }),
+    ).toBeVisible();
+    await expect(canvas.getByText("1 message")).toBeVisible();
+    await expect(
+      canvas.getByText("Source viewer should show this one source-thread message."),
+    ).toBeVisible();
+    await expect(
+      canvas.queryByText("Second diff-only message on the same canonical line."),
+    ).not.toBeInTheDocument();
   },
 };
 

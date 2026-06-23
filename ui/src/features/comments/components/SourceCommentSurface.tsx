@@ -331,6 +331,7 @@ export function SourceCommentSurface({
           (thread) =>
             thread.key === visibleThreadKey && thread.lineEnd === lineNumber,
         );
+        const actionThread = displayedThread ?? rowThread;
         const draftingRangeLine = Boolean(
           draftThread &&
           !persistedDraftThread &&
@@ -396,12 +397,12 @@ export function SourceCommentSurface({
               }}
             >
               <button
-                className={`code-line-comment-action${rowThread ? " has-thread" : ""}`}
+                className={`code-line-comment-action${actionThread ? " has-thread" : ""}`}
                 type="button"
                 aria-expanded={threadOpen}
-                aria-label={lineCommentActionLabel(lineNumber, rowThread)}
-                title={lineCommentActionLabel(lineNumber, rowThread)}
-                data-comment-id={rowThread?.comments[0]?.id}
+                aria-label={lineCommentActionLabel(lineNumber, actionThread)}
+                title={lineCommentActionLabel(lineNumber, actionThread)}
+                data-comment-id={actionThread?.comments[0]?.id}
                 data-comment-surface="source"
                 data-line={lineNumber}
                 data-path={file.path}
@@ -410,16 +411,16 @@ export function SourceCommentSurface({
                   event.stopPropagation();
                   if (threadOpen) {
                     closeCommentThread();
-                  } else if (rowThread) {
-                    openCommentThread(rowThread, event.currentTarget);
+                  } else if (actionThread) {
+                    openCommentThread(actionThread, event.currentTarget);
                   } else {
                     startLineComment(lineNumber);
                   }
                 }}
               >
-                {rowThread ? (
+                {actionThread ? (
                   <span className="code-line-comment-count">
-                    {rowThread.comments.length}
+                    {actionThread.comments.length}
                   </span>
                 ) : null}
               </button>

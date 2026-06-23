@@ -909,6 +909,58 @@ it("renders code line comments as an inline thread with replies", () => {
   expect(html).not.toContain(">Comment<");
 });
 
+it("keeps diff comments out of source line comment markers", () => {
+  const diffComment = {
+    ...codeLineComment,
+    id: "comment-diff-1",
+    threadId: "thread-diff",
+    anchor: {
+      ...codeLineComment.anchor,
+      surface: "diff" as const,
+      diff: {
+        path: codeFile.path,
+        base: "HEAD",
+        ref: "working tree",
+        hunkId: "@@ -1,3 +1,3 @@",
+        side: "new" as const,
+        newLineStart: 2,
+        newLineEnd: 2,
+      },
+    },
+    body: "Diff-only message",
+  };
+  const diffReply = {
+    ...diffComment,
+    id: "comment-diff-2",
+    body: "Second diff-only message",
+    createdAt: "2026-01-01T00:02:00.000Z",
+    updatedAt: "2026-01-01T00:02:00.000Z",
+  };
+
+  const html = renderToStaticMarkup(
+    <CodeViewer
+      file={codeFile}
+      theme="dark"
+      selectedRange={null}
+      comments={[codeLineComment, diffComment, diffReply]}
+      activeCommentId={codeLineComment.id}
+      onSelectionChange={() => undefined}
+      onOpenComment={() => undefined}
+      onCreateComment={() => undefined}
+    />,
+  );
+
+  expect(html).toContain(
+    'aria-label="Open comment thread on line 2 with 1 message; open to reply"',
+  );
+  expect(html).not.toContain(
+    'aria-label="Open comment thread on line 2 with 2 messages; open to reply"',
+  );
+  expect(html).toContain("Check this return");
+  expect(html).not.toContain("Diff-only message");
+  expect(html).not.toContain("Second diff-only message");
+});
+
 it("can keep the current stop highlighted without expanding the source thread", () => {
   const html = renderToStaticMarkup(
     <CodeViewer
@@ -982,18 +1034,17 @@ it("projects diff-surface comments onto source code comment threads", () => {
       file={codeFile}
       theme="dark"
       selectedRange={null}
-      comments={[codeLineComment, diffSurfaceComment]}
-      activeCommentId={codeLineComment.id}
+      comments={[diffSurfaceComment]}
+      activeCommentId={diffSurfaceComment.id}
       onSelectionChange={() => undefined}
       onOpenComment={() => undefined}
       onCreateComment={() => undefined}
     />,
   );
 
-  expect(html).toContain("Check this return");
   expect(html).toContain("Only visible in diff mode");
-  expect(html).toContain("2 messages");
-  expect(html).toContain('class="code-line-comment-count">2</span>');
+  expect(html).toContain("1 message");
+  expect(html).toContain('class="code-line-comment-count">1</span>');
 });
 
 it("renders a range comment thread after the final selected code line", () => {
