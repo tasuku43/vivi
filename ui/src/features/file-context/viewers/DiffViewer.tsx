@@ -277,9 +277,13 @@ function SourceDiff({
     setOpenThreadKey(null);
   }
 
-  function openCommentThread(thread: CodeCommentThreadModel) {
+  function openCommentThread(thread: CodeCommentThreadModel, target: Element) {
     setDraftThread(null);
     setOpenThreadKey(thread.key);
+    const firstComment = thread.comments[0];
+    if (firstComment) {
+      onOpenComment?.(firstComment.id, rectLikeFromElement(target));
+    }
   }
 
   function closeCommentThread() {
@@ -421,7 +425,7 @@ function SourceDiffLine({
   rowThread?: CodeCommentThreadModel;
   threadOpen?: boolean;
   drafting?: boolean;
-  onOpenThread?: (thread: CodeCommentThreadModel) => void;
+  onOpenThread?: (thread: CodeCommentThreadModel, target: Element) => void;
   onStartLineComment?: () => void;
 }) {
   const currentLine =
@@ -441,7 +445,7 @@ function SourceDiffLine({
       }
       onClick={(event) => {
         if (!rowThread) return;
-        onOpenThread?.(rowThread);
+        onOpenThread?.(rowThread, event.currentTarget);
       }}
     >
       {currentLine ? (
@@ -459,7 +463,7 @@ function SourceDiffLine({
           data-testid="line-comment-action"
           onClick={(event) => {
             event.stopPropagation();
-            if (rowThread) onOpenThread?.(rowThread);
+            if (rowThread) onOpenThread?.(rowThread, event.currentTarget);
             else onStartLineComment?.();
           }}
         >

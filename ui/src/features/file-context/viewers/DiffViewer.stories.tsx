@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, fn, within } from "storybook/test";
+import { expect, fn, userEvent, within } from "storybook/test";
 import {
   commentsForPath,
   htmlDiff,
@@ -37,7 +37,7 @@ export const DiffCommentOnAddedLine: Story = {
   args: {
     activeCommentId: "comment-diff-added",
   },
-  play: async ({ canvasElement }) => {
+  play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
       canvas.getByRole("region", {
@@ -54,11 +54,20 @@ export const DiffCommentOnAddedLine: Story = {
     expect(lineAction!.getBoundingClientRect().height).toBeGreaterThanOrEqual(
       24,
     );
-    await expect(
-      canvas.getByRole("button", {
-        name: "Open comment thread on line 10 with 1 message; open to reply",
+    const marker = canvas.getByRole("button", {
+      name: "Open comment thread on line 10 with 1 message; open to reply",
+    });
+    await expect(marker).toBeInTheDocument();
+    await userEvent.click(marker);
+    await expect(args.onOpenComment).toHaveBeenCalledWith(
+      "comment-diff-added",
+      expect.objectContaining({
+        height: expect.any(Number),
+        left: expect.any(Number),
+        top: expect.any(Number),
+        width: expect.any(Number),
       }),
-    ).toBeInTheDocument();
+    );
   },
 };
 
