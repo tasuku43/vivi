@@ -3116,12 +3116,26 @@ func commentsNext(ctx context.Context, stdout io.Writer, options commentsCommand
 	}
 	ordered := orderCommentThreadsForAgent(threads)
 	var thread *commentThreadOutput
-	if len(ordered) > 0 {
-		thread = &ordered[0]
+	var item *commentWorkItemOutput
+	selectedIndex := -1
+	for index, candidate := range ordered {
+		if commentsNeedsWorkItem(options) {
+			candidateItem, err := commentWorkItemForThread(ctx, withoutReadHeaders(options), candidate)
+			if err != nil {
+				return err
+			}
+			if sourceContextUnavailable(candidateItem) && index < len(ordered)-1 {
+				continue
+			}
+			item = &candidateItem
+		}
+		thread = &ordered[index]
+		selectedIndex = index
+		break
 	}
-	remaining := len(ordered)
-	if remaining > 0 {
-		remaining--
+	remaining := 0
+	if selectedIndex >= 0 {
+		remaining = len(ordered) - selectedIndex - 1
 	}
 	payload := map[string]any{
 		"thread":    thread,
@@ -3139,11 +3153,7 @@ func commentsNext(ctx context.Context, stdout io.Writer, options commentsCommand
 	if options.WithActivities {
 		payload["activities"] = nil
 	}
-	if commentsNeedsWorkItem(options) && thread != nil {
-		item, err := commentWorkItemForThread(ctx, withoutReadHeaders(options), *thread)
-		if err != nil {
-			return err
-		}
+	if item != nil {
 		if options.WithContext {
 			payload["file"] = item.File
 			payload["source"] = item.Source
@@ -3989,6 +3999,15 @@ func commentClaimPayload(ctx context.Context, options commentsCommandOptions, th
 	var claim *commentActivityOutput
 	var lastClaimErr error
 	for index, candidate := range ordered {
+		if strings.TrimSpace(threadID) == "" && options.WithContext && index < len(ordered)-1 {
+			item, err := commentWorkItemForThread(ctx, withoutReadHeaders(options), candidate)
+			if err != nil {
+				return nil, false, err
+			}
+			if sourceContextUnavailable(item) {
+				continue
+			}
+		}
 		claimedThread, activity, err := claimCommentThread(ctx, options, candidate.ID)
 		if err != nil {
 			lastClaimErr = err
@@ -4477,6 +4496,10 @@ func commentWorkItemForThread(ctx context.Context, options commentsCommandOption
 		item.Source = &contextPayload.Source
 		item.Diff = contextPayload.Diff
 	}
+	if options.WithDiff && sourceContextUnavailable(item) {
+		diff := unavailableTextDiffForThread(thread, item.Source.Reason)
+		item.Diff = &diff
+	}
 	if options.WithDiff && item.Diff == nil {
 		diff, err := fetchTextDiff(ctx, withoutReadHeaders(options), thread.Path)
 		if err != nil {
@@ -4492,6 +4515,20 @@ func commentWorkItemForThread(ctx context.Context, options commentsCommandOption
 		item.Activities = activities
 	}
 	return item, nil
+}
+
+func sourceContextUnavailable(item commentWorkItemOutput) bool {
+	return item.Source != nil && !item.Source.Available && item.Source.Reason == "source_unavailable"
+}
+
+func unavailableTextDiffForThread(thread commentThreadOutput, reason string) textDiffOutput {
+	return textDiffOutput{
+		Path:         thread.Path,
+		Status:       "unavailable",
+		BaseLabel:    "HEAD",
+		CompareLabel: "working tree",
+		Reason:       reason,
+	}
 }
 
 func commentsDoctor(ctx context.Context, stdout io.Writer, options commentsCommandOptions) error {
@@ -5389,7 +5426,7 @@ func fetchCommentThreadActivities(ctx context.Context, options commentsCommandOp
 func contextPayloadForThread(ctx context.Context, options commentsCommandOptions, thread commentThreadOutput) (commentContextPayload, error) {
 	file, err := fetchFilePayload(ctx, withoutReadHeaders(options), thread.Path)
 	if err != nil {
-		return commentContextPayload{}, err
+		return unavailableContextPayloadForThread(thread), nil
 	}
 	source := sourceContextForThread(file, thread, options.ContextLines)
 	payload := commentContextPayload{
@@ -5413,6 +5450,19 @@ func contextPayloadForThread(ctx context.Context, options commentsCommandOptions
 		payload.Diff = &diff
 	}
 	return payload, nil
+}
+
+func unavailableContextPayloadForThread(thread commentThreadOutput) commentContextPayload {
+	source := sourceContextOutput{
+		Path:      thread.Path,
+		Available: false,
+		Reason:    "source_unavailable",
+	}
+	if anchorStart, anchorEnd, ok := anchorLineRange(thread.Anchor); ok {
+		source.AnchorStartLine = anchorStart
+		source.AnchorEndLine = anchorEnd
+	}
+	return commentContextPayload{Source: source}
 }
 
 func fetchCommentThreadByID(ctx context.Context, options commentsCommandOptions, threadID string) (commentThreadOutput, error) {

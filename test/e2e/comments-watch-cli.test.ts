@@ -1,4 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import {
@@ -29,6 +30,20 @@ interface WatchEvent {
     diff?: { path: string; status: string; content?: string };
     activities?: Array<{ type: string; clientEventId?: string }>;
   }>;
+}
+
+interface NextCommentPayload {
+  thread: { id: string; path: string; status: string } | null;
+  count: number;
+  remaining: number;
+  file?: { path: string; viewerKind: string; encoding: string } | null;
+  source?: {
+    path: string;
+    available: boolean;
+    reason?: string;
+    lines?: Array<{ number: number; text: string; anchor: boolean }>;
+  } | null;
+  diff?: { path: string; status: string; reason?: string } | null;
 }
 
 let fixture: ContractFixture;
@@ -169,6 +184,84 @@ it(
   20_000,
 );
 
+it("skips stale threads whose files no longer exist when selecting next full work", async () => {
+  server = await startGoViviServer({
+    rootDir: fixture.rootDir,
+    dataDir: path.join(fixture.outsideDir, "next-cli-data"),
+  });
+  const stalePath = path.join(fixture.rootDir, "stale.md");
+  await writeFile(stalePath, "# Stale\n\nTemporary review target\n");
+  const stale = await graphql<{ createThread: { id: string } }>(server.url, {
+    operationName: "CreateThread",
+    query: `mutation CreateThread($input: CommentInput!) {
+      createThread(input: $input) { id }
+    }`,
+    variables: {
+      input: {
+        path: "stale.md",
+        body: "This old thread points at a file that disappeared",
+        actor: { id: "human:tasuku", kind: "human", displayName: "Tasuku" },
+        anchor: {
+          surface: "source",
+          canonical: {
+            path: "stale.md",
+            lineStart: 1,
+            lineEnd: 1,
+            quote: "# Stale",
+          },
+        },
+      },
+    },
+  });
+  await unlink(stalePath);
+
+  const live = await graphql<{ createThread: { id: string } }>(server.url, {
+    operationName: "CreateThread",
+    query: `mutation CreateThread($input: CommentInput!) {
+      createThread(input: $input) { id }
+    }`,
+    variables: {
+      input: {
+        path: "README.md",
+        body: "Please review the live file",
+        actor: { id: "human:tasuku", kind: "human", displayName: "Tasuku" },
+        anchor: {
+          surface: "source",
+          canonical: {
+            path: "README.md",
+            lineStart: 1,
+            lineEnd: 1,
+            quote: "# Vivi Fixture",
+          },
+        },
+      },
+    },
+  });
+
+  const next = await runGoCommentsNext(server.url);
+  expect(next.count).toBe(2);
+  expect(next.thread).toMatchObject({
+    id: live.createThread.id,
+    path: "README.md",
+    status: "open",
+  });
+  expect(next.thread?.id).not.toBe(stale.createThread.id);
+  expect(next.file).toMatchObject({
+    path: "README.md",
+    viewerKind: "markdown",
+    encoding: "utf8",
+  });
+  expect(next.source).toMatchObject({
+    path: "README.md",
+    available: true,
+  });
+  expect(next.source?.lines?.some((line) => line.anchor)).toBe(true);
+  expect(next.diff).toMatchObject({
+    path: "README.md",
+    status: "available",
+  });
+});
+
 async function graphql<T>(
   baseUrl: string,
   payload: {
@@ -195,6 +288,41 @@ async function graphql<T>(
     );
   }
   return body.data;
+}
+
+async function runGoCommentsNext(baseUrl: string): Promise<NextCommentPayload> {
+  const invocation = goCliInvocation([
+    "comments",
+    "next",
+    "--url",
+    baseUrl,
+    "--actor",
+    "codex:e2e",
+    "--full",
+    "--json",
+  ]);
+  const child = spawn(invocation.command, invocation.args, {
+    cwd: process.cwd(),
+    env: goEnv(),
+  });
+  let stdout = "";
+  let stderr = "";
+  child.stdout.on("data", (chunk: Buffer) => {
+    stdout += chunk.toString("utf8");
+  });
+  child.stderr.on("data", (chunk: Buffer) => {
+    stderr += chunk.toString("utf8");
+  });
+  const code = await new Promise<number | null>((resolve, reject) => {
+    child.once("exit", resolve);
+    child.once("error", reject);
+  });
+  if (code !== 0) {
+    throw new Error(
+      `comments next exited ${code}\nstdout:\n${stdout}\nstderr:\n${stderr}`,
+    );
+  }
+  return JSON.parse(stdout) as NextCommentPayload;
 }
 
 interface GoProcessServer {
