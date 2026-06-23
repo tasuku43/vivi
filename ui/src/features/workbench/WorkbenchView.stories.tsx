@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { expect, within } from "storybook/test";
 import { ReviewWorkbenchStory } from "../../storybook/ReviewWorkbenchStory.js";
 import {
   commentsForPath,
@@ -44,9 +45,21 @@ export const EmptyWorkspace: Story = {
 };
 
 export const WorkspaceWithFileTreeAndSelectedFile: Story = {
+  tags: ["interaction"],
+  parameters: {
+    a11y: { test: "todo" },
+  },
   args: {
     file: sampleFiles.code,
     activeCommentId: "comment-workbench-open-1",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Explorer")).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("tab", { name: /WorkbenchContainer.tsx/ }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByText("Review Queue")).toBeInTheDocument();
   },
 };
 

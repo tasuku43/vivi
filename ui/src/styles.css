@@ -20,10 +20,12 @@
   --comment-tint-active: rgba(169, 134, 255, 0.22);
   --comment-line: rgba(169, 134, 255, 0.42);
   --comment-text: #d8c7ff;
+  --diff-add: #56d364;
+  --diff-remove: #ff7b72;
   --overlay: rgba(5, 8, 13, 0.56);
   --palette: rgba(21, 25, 35, 0.98);
   --shadow: rgba(0, 0, 0, 0.62);
-  --subtle: #697386;
+  --subtle: #8f99ab;
   --error: #f7768e;
   font-family:
     Inter,
@@ -56,6 +58,8 @@
   --comment-tint-active: rgba(126, 87, 194, 0.2);
   --comment-line: rgba(126, 87, 194, 0.35);
   --comment-text: #5e3aa3;
+  --diff-add: #2da44e;
+  --diff-remove: #cf222e;
   --overlay: rgba(17, 24, 39, 0.28);
   --palette: rgba(255, 255, 255, 0.98);
   --shadow: rgba(17, 24, 39, 0.2);
@@ -4682,10 +4686,10 @@ kbd {
   color: var(--subtle);
 }
 .diff-add {
-  color: #2da44e;
+  color: var(--diff-add);
 }
 .diff-remove {
-  color: #cf222e;
+  color: var(--diff-remove);
 }
 .diff-card {
   border: 1px solid var(--line);

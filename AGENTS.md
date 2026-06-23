@@ -108,3 +108,18 @@ Implementation priorities for UI work:
 - Add a Markdown H1/H2 outline in the right inspector.
 - Treat Cmd/Ctrl + K as a modal overlay, not a permanent layout.
 - Keep UI state decomposed: tree state, open tabs, active viewer, inspector state, and command palette state should be separate enough to test.
+
+## Storybook operating mode
+
+Storybook is Vivi's UI regression lab, not only a component catalog. Before
+changing visible UI, read `ui/src/storybook/README.md` and inspect
+`ui/src/storybook/storybook-lab.manifest.json`.
+
+For every visible UI change:
+
+- add or update the closest story with domain-shaped fixtures,
+- update the manifest when a new product-facing surface appears,
+- add a Storybook `play` interaction for representative pointer, keyboard,
+  focus, text input, filter, or open/close behavior,
+- run `task storybook:verify` and `task storybook:build` in addition to the
+  focused tests for the change.

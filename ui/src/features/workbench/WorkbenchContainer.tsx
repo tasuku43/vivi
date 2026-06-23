@@ -1973,7 +1973,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               }}
               onDoubleClick={() => setSidebarWidth(defaultSidebarWidth)}
             />
-            <aside className="sidebar">
+            <aside className="sidebar" aria-label="File explorer">
               <div className="panel-title">
                 <span>Explorer</span>
                 <button

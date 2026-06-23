@@ -14,9 +14,13 @@ export function WorkbenchView({
 }: WorkbenchViewProps) {
   return (
     <div className="workbench-shell">
-      <aside className="sidebar">{sidebar}</aside>
+      <aside className="sidebar" aria-label="File explorer">
+        {sidebar}
+      </aside>
       <main className="viewer-shell">{viewer}</main>
-      <aside className="inspector">{inspector}</aside>
+      <aside className="inspector" aria-label="Review inspector">
+        {inspector}
+      </aside>
     </div>
   );
 }

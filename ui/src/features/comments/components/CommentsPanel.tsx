@@ -130,6 +130,7 @@ export function CommentsPanel({
         </p>
         <div
           className="global-comment-filters"
+          role="group"
           aria-label="Comment status filters"
         >
           {([
@@ -359,20 +360,6 @@ export function CommentsPanel({
                           </span>
                         ) : null}
                       </span>
-                    ) : null}
-                    {activity &&
-                    activity.timeline.length > activity.inline.length ? (
-                      <details
-                        className="comment-activity-timeline"
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <summary>Activity timeline</summary>
-                        <ol>
-                          {activity.timeline.map((event) => (
-                            <li key={event.id}>{activityLabel(event)}</li>
-                          ))}
-                        </ol>
-                      </details>
                     ) : null}
                     {latest.anchor.canonical.quote ? (
                       <span className="global-comment-quote">

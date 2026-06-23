@@ -144,7 +144,7 @@ export function Inspector({
     messageCount: comments.length,
   });
   return (
-    <aside className="inspector">
+    <aside className="inspector" aria-label="Review inspector">
       <div className="panel-title">
         <span>Review</span>
         <span className="pill">Read-only</span>
@@ -648,7 +648,9 @@ export function Inspector({
                 const activity =
                   threadActivities[comment.threadId ?? comment.id];
                 return (activity?.timeline ?? []).map((event) => (
-                  <li key={event.id}>{activityLabel(event)}</li>
+                  <li key={`${comment.id}-${event.id}`}>
+                    {activityLabel(event)}
+                  </li>
                 ));
               })}
             </ol>

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { expect, fn, userEvent, within } from "storybook/test";
 import {
   commentsForPath,
   sampleDiff,
@@ -16,16 +17,16 @@ const meta = {
   },
   args: {
     file: sampleFiles.code,
-    theme: "light",
+    theme: "dark",
     selectedRange: { start: 9, end: 12 },
     comments: commentsForPath(sampleFiles.code.path),
     threadActivities: sampleThreadActivities,
-    onSelectionChange: () => undefined,
-    onCreateComment: () => undefined,
-    onOpenComment: () => undefined,
-    onCloseComment: () => undefined,
-    onCommentStatusChange: () => undefined,
-    onDiffToggle: () => undefined,
+    onSelectionChange: fn(),
+    onCreateComment: fn(),
+    onOpenComment: fn(),
+    onCloseComment: fn(),
+    onCommentStatusChange: fn(),
+    onDiffToggle: fn(),
   },
 } satisfies Meta<typeof CodeViewer>;
 
@@ -33,8 +34,22 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const SourceWithOpenThread: Story = {
+  tags: ["interaction"],
   args: {
     activeCommentId: "comment-workbench-open-1",
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("region", {
+        name: `Code viewer for ${sampleFiles.code.path}`,
+      }),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Diff from HEAD" }),
+    );
+    await expect(args.onDiffToggle).toHaveBeenCalled();
+    await expect(canvas.getByText("Current scope")).toBeInTheDocument();
   },
 };
 
