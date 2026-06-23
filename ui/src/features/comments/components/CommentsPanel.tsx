@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type {
   CommentSource,
   CommentStatus,
@@ -108,22 +109,12 @@ export function CommentsPanel({
         </button>
       </div>
       <div className="global-comments-tools">
-        <input
-          value={query}
-          placeholder="Search comments, paths, quotes"
-          aria-label="Search comments"
-          aria-describedby={`${resultSummaryId} ${keyboardHelpId}`}
-          onChange={(event) => onQueryChange(event.currentTarget.value)}
-          onKeyDown={(event) => {
-            const nextTarget = commentInboxKeyboardTarget(
-              event.key,
-              -1,
-              visibleThreads.length,
-            );
-            if (nextTarget === null) return;
-            event.preventDefault();
-            focusCommentInboxTarget(nextTarget);
-          }}
+        <CommentsSearchInput
+          query={query}
+          resultSummaryId={resultSummaryId}
+          keyboardHelpId={keyboardHelpId}
+          visibleThreadCount={visibleThreads.length}
+          onQueryChange={onQueryChange}
         />
         <p className="sr-only" id={keyboardHelpId}>
           Press Down Arrow from search to move into visible comment threads. Use
@@ -505,6 +496,50 @@ interface CommentThreadSummary {
   primaryComment: ViviComment;
   latestComment: ViviComment;
   needsAttention: boolean;
+}
+
+function CommentsSearchInput({
+  query,
+  resultSummaryId,
+  keyboardHelpId,
+  visibleThreadCount,
+  onQueryChange,
+}: {
+  query: string;
+  resultSummaryId: string;
+  keyboardHelpId: string;
+  visibleThreadCount: number;
+  onQueryChange: (query: string) => void;
+}) {
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    const timeout = window.setTimeout(
+      () => searchInputRef.current?.focus(),
+      0,
+    );
+    return () => window.clearTimeout(timeout);
+  }, []);
+
+  return (
+    <input
+      ref={searchInputRef}
+      value={query}
+      placeholder="Search comments, paths, quotes"
+      aria-label="Search comments"
+      aria-describedby={`${resultSummaryId} ${keyboardHelpId}`}
+      onChange={(event) => onQueryChange(event.currentTarget.value)}
+      onKeyDown={(event) => {
+        const nextTarget = commentInboxKeyboardTarget(
+          event.key,
+          -1,
+          visibleThreadCount,
+        );
+        if (nextTarget === null) return;
+        event.preventDefault();
+        focusCommentInboxTarget(nextTarget);
+      }}
+    />
+  );
 }
 
 type CommentInboxKeyboardFocusTarget = number | "search";

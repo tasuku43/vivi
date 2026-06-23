@@ -41,7 +41,9 @@ export const WorkspaceComments: Story = {
     await expect(
       canvas.getByRole("complementary", { name: "Comments" }),
     ).toBeInTheDocument();
-    await userEvent.type(canvas.getByLabelText("Search comments"), "agent");
+    const search = canvas.getByLabelText("Search comments");
+    await expect(search).toHaveFocus();
+    await userEvent.type(search, "agent");
     await expect(args.onQueryChange).toHaveBeenCalled();
     const filters = canvas.getByRole("group", {
       name: "Comment status filters",
