@@ -85,7 +85,6 @@ export function reviewCommandActions({
         id: "focus-review-queue",
         label: "Focus Review Queue",
         detail: "Move keyboard focus to the right inspector queue",
-        shortcut: `${shortcutPrefix} Shift R`,
       },
     );
   }

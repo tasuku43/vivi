@@ -20,7 +20,6 @@ const shortcutGroups: readonly {
       ["Open next unseen item", "Cmd/Ctrl Shift U"],
       ["Next review item", "Cmd/Ctrl Shift J"],
       ["Previous review item", "Cmd/Ctrl Shift K"],
-      ["Focus Review Queue", "Cmd/Ctrl Shift R"],
       ["Open Attention / Comments", "Cmd/Ctrl Shift C"],
       ["Return to current stop", "Cmd/Ctrl I"],
       ["Resolve / reopen current stop", "Cmd/Ctrl Shift Enter"],

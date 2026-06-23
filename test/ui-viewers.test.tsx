@@ -369,7 +369,7 @@ it("renders the shortcut guide as one bundled reference", () => {
   expect(html).toContain("Cmd/Ctrl Shift U");
   expect(html).toContain("Cmd/Ctrl Shift J");
   expect(html).toContain("Cmd/Ctrl Shift K");
-  expect(html).toContain("Cmd/Ctrl Shift R");
+  expect(html).not.toContain("Cmd/Ctrl Shift R");
   expect(html).toContain("Cmd/Ctrl Shift C");
   expect(html).toContain("Open Attention / Comments");
   expect(html).toContain("Cmd/Ctrl G");

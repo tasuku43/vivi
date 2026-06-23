@@ -773,7 +773,7 @@ it("maps workspace keyboard shortcuts to app actions", () => {
     "open-previous-search-result",
   );
   expect(keyboardShortcutAction({ ...command, key: "R", shiftKey: true })).toBe(
-    "focus-review-queue",
+    null,
   );
   expect(keyboardShortcutAction({ ...command, key: "w" })).toBe(
     "close-active-tab",
@@ -1770,7 +1770,6 @@ it("builds contextual review command palette actions", () => {
     {
       id: "focus-review-queue",
       label: "Focus Review Queue",
-      shortcut: "Cmd/Ctrl Shift R",
     },
     {
       id: "open-next-thread",

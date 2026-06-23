@@ -100,7 +100,6 @@ export const Actions: Story = {
         id: "focus-review-queue",
         label: "Focus Review Queue",
         detail: "Move keyboard focus to the inspector work list",
-        shortcut: "Cmd/Ctrl Shift R",
       },
       {
         id: "publish-drafts",

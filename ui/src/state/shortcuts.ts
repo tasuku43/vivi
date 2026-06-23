@@ -6,7 +6,6 @@ export type KeyboardShortcutAction =
   | "toggle-sidebar"
   | "toggle-inspector"
   | "focus-comments-panel"
-  | "focus-review-queue"
   | "focus-current-inline-thread"
   | "toggle-current-thread-status"
   | "archive-current-thread"
@@ -45,7 +44,6 @@ export function keyboardShortcutAction(
   if (!event.shiftKey && key === "e") return "toggle-source";
   if (!event.shiftKey && key === "b") return "toggle-sidebar";
   if (event.shiftKey && key === "\\") return "toggle-inspector";
-  if (event.shiftKey && key === "r") return "focus-review-queue";
   if (!event.shiftKey && key === "i") return "focus-current-inline-thread";
   if (event.shiftKey && event.key === "Enter")
     return "toggle-current-thread-status";

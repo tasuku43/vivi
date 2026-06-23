@@ -1904,7 +1904,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       if (action === "open-next-search-result") moveTextSearchResult("next");
       if (action === "open-previous-search-result")
         moveTextSearchResult("previous");
-      if (action === "focus-review-queue") focusReviewQueue();
       if (action === "focus-current-inline-thread") focusCurrentInlineThread();
       if (
         action === "toggle-current-thread-status" ||
