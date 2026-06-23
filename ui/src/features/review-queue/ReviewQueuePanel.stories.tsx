@@ -163,8 +163,8 @@ export const ResolvedThreadActivityIsHistory: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("No open threads")).toBeInTheDocument();
     await expect(canvas.getByText("Codex marked resolved")).toBeInTheDocument();
-    await expect(canvas.queryByText("Current stop")).not.toBeInTheDocument();
-    await expect(canvas.queryByText("Next stop")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Queue stop")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Next queue stop")).not.toBeInTheDocument();
   },
 };
 

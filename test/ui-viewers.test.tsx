@@ -3336,8 +3336,8 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
   expect(html).toContain("2 open threads");
   expect(html).toContain("3 total messages");
   expect(html).toContain('class="review-stop-summary"');
-  expect(html).toContain("Current stop");
-  expect(html).toContain("Next stop");
+  expect(html).toContain("Queue stop");
+  expect(html).toContain("Next queue stop");
   expect(html).toContain("diff · L7");
   expect(html).toContain(
     "Agent reply needs a human decision before this file is clear.",
@@ -3349,7 +3349,7 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
     'aria-describedby="review-queue-interaction-help review-queue-keyboard-help review-queue-item-1-description"',
   );
   expect(html).toContain(
-    "unseen review work, 2 open threads, 3 total messages, Current stop diff · L7: Agent reply needs a human decision before this file is clear.",
+    "unseen review work, 2 open threads, 3 total messages, Queue stop diff · L7: Agent reply needs a human decision before this file is clear.",
   );
   expect(html).toContain(
     "<strong>1/2</strong> files seen · 1 unseen · 2 open threads",
@@ -3482,8 +3482,8 @@ it("keeps resolved-only Review Queue files out of next-stop guidance", () => {
   expect(html).toContain("No open threads · 1 total message");
   expect(html).toContain("Resolved after the DSCP paths were checked.");
   expect(html).not.toContain('class="review-stop-summary"');
-  expect(html).not.toContain("Current stop");
-  expect(html).not.toContain("Next stop");
+  expect(html).not.toContain("Queue stop");
+  expect(html).not.toContain("Next queue stop");
   expect(html).toContain("seen, 1 total message, from HEAD diff");
 });
 

@@ -911,7 +911,7 @@ function reviewQueueItemDescription(
 }
 
 function reviewQueueStopTitle(active: boolean): string {
-  return active ? "Current stop" : "Next stop";
+  return active ? "Queue stop" : "Next queue stop";
 }
 
 const emptyMissingCommentPaths = new Set<string>();
