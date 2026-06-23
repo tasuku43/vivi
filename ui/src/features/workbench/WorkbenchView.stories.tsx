@@ -384,6 +384,9 @@ export const CommentsPanelOpensInlineThread: Story = {
     await expect(
       canvas.getByRole("textbox", { name: "Reply to thread" }),
     ).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("textbox", { name: "Reply to thread" }),
+    ).not.toHaveFocus();
 
     const rowTarget = canvasElement.querySelector<HTMLElement>(
       '.code-line.has-comment[data-line="5"]',
@@ -395,6 +398,9 @@ export const CommentsPanelOpensInlineThread: Story = {
     await expect(
       canvas.getByLabelText(/Comment thread for line 5/i),
     ).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("textbox", { name: "Reply to thread" }),
+    ).not.toHaveFocus();
 
     await userEvent.click(
       canvas.getByRole("button", { name: "Open command palette" }),

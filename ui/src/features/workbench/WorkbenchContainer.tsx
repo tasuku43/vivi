@@ -1168,6 +1168,25 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     setPaletteOpen(true);
   }
 
+  function openCommentInbox() {
+    const entry = commentInboxOpenState({
+      activeComment,
+      activeCommentId,
+      attentionThreadCount: attentionCommentThreadCount,
+    });
+    setPaletteOpen(false);
+    setShortcutHelpOpen(false);
+    setActiveCommentId(entry.activeCommentId);
+    setCommentsPanelStatus(entry.status);
+    setCommentsPanelQuery(entry.query);
+    setCommentsPanelOpen(true);
+  }
+
+  function openShortcutHelp() {
+    setPaletteOpen(false);
+    setShortcutHelpOpen(true);
+  }
+
   function runPaletteAction(id: string) {
     setPaletteOpen(false);
     setPaletteQuery("");
@@ -1999,6 +2018,35 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     return () => window.removeEventListener("mouseup", clearManualDrag);
   }, [manualDraggedTab]);
 
+  useEffect(() => {
+    const runTopbarFallbackAction = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const button = target.closest<HTMLElement>("[data-topbar-action]");
+      if (!button) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+
+      window.setTimeout(() => {
+        const action = button.dataset.topbarAction;
+        if (action === "shortcuts") openShortcutHelp();
+        if (action === "quick-open") openPalette("file");
+        if (action === "comments") openCommentInbox();
+        if (action === "search") openPalette("text");
+      }, 0);
+    };
+
+    window.addEventListener("click", runTopbarFallbackAction, {
+      capture: true,
+    });
+    return () =>
+      window.removeEventListener("click", runTopbarFallbackAction, {
+        capture: true,
+      });
+  });
+
   return (
     <div className="app-shell">
       <Topbar
@@ -2012,23 +2060,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         openCommentThreadCount={openThreadTargets.length}
         reviewOpenCommentThreadCount={reviewQueueProgress.openThreads}
         commentAttentionCount={attentionCommentThreadCount}
-        onOpenComments={() => {
-          const entry = commentInboxOpenState({
-            activeComment,
-            activeCommentId,
-            attentionThreadCount: attentionCommentThreadCount,
-          });
-          setPaletteOpen(false);
-          setShortcutHelpOpen(false);
-          setActiveCommentId(entry.activeCommentId);
-          setCommentsPanelStatus(entry.status);
-          setCommentsPanelQuery(entry.query);
-          setCommentsPanelOpen(true);
-        }}
-        onOpenShortcuts={() => {
-          setPaletteOpen(false);
-          setShortcutHelpOpen(true);
-        }}
+        onOpenComments={openCommentInbox}
+        onOpenShortcuts={openShortcutHelp}
       />
 
       <div

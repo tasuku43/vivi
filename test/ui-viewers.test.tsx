@@ -1,7 +1,7 @@
 import { Children, isValidElement } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import type { ViviComment } from "../ui/src/domain/comments.js";
 import type { FilePayload } from "../ui/src/domain/fs-node.js";
 import {
@@ -149,6 +149,124 @@ it("renders the topbar as brand, workspace identity, and distinct actions", () =
   expect(html).toContain('aria-keyshortcuts="Meta+Shift+F Control+Shift+F"');
   expect(html).toContain('aria-label="Keyboard shortcuts"');
   expect(html).toContain("Keyboard shortcuts (Cmd/Ctrl+/)");
+});
+
+it("opens topbar overlays during click before window dismissals run", () => {
+  const actions: string[] = [];
+  const topbar = Topbar({
+    root: "/Users/tasuku/work/vivi",
+    themePreference: "system",
+    onThemeCycle: () => actions.push("theme"),
+    onQuickOpen: () => actions.push("quick-open"),
+    onSearchText: () => actions.push("search"),
+    onOpenComments: () => actions.push("comments"),
+    onOpenShortcuts: () => actions.push("shortcuts"),
+  });
+  const command = findElement(topbar, (element) => {
+    const props = element.props as { "aria-label"?: string };
+    return props["aria-label"] === "Open command palette";
+  });
+  const props = command.props as {
+    onClick: (event: {
+      detail: number;
+      preventDefault: () => void;
+      stopPropagation: () => void;
+      nativeEvent: { stopImmediatePropagation: () => void };
+    }) => void;
+  };
+
+  let prevented = false;
+  let stopped = false;
+  let stoppedImmediate = false;
+
+  vi.useFakeTimers();
+  try {
+    props.onClick({
+      detail: 1,
+      preventDefault: () => {
+        prevented = true;
+      },
+      stopPropagation: () => {
+        stopped = true;
+      },
+      nativeEvent: {
+        stopImmediatePropagation: () => {
+          stoppedImmediate = true;
+        },
+      },
+    });
+
+    expect(prevented).toBe(true);
+    expect(stopped).toBe(true);
+    expect(stoppedImmediate).toBe(true);
+    expect(actions).toEqual([]);
+    vi.runOnlyPendingTimers();
+    expect(actions).toEqual(["quick-open"]);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("keeps topbar keyboard activation on the same overlay path", () => {
+  const actions: string[] = [];
+  const topbar = Topbar({
+    root: "/Users/tasuku/work/vivi",
+    themePreference: "system",
+    onThemeCycle: () => actions.push("theme"),
+    onQuickOpen: () => actions.push("quick-open"),
+    onSearchText: () => actions.push("search"),
+    onOpenComments: () => actions.push("comments"),
+    onOpenShortcuts: () => actions.push("shortcuts"),
+  });
+  const command = findElement(topbar, (element) => {
+    const props = element.props as { "aria-label"?: string };
+    return props["aria-label"] === "Open command palette";
+  });
+  const props = command.props as {
+    onClick: (event: {
+      detail: number;
+      preventDefault: () => void;
+      stopPropagation: () => void;
+      nativeEvent: { stopImmediatePropagation: () => void };
+    }) => void;
+  };
+
+  vi.useFakeTimers();
+  try {
+    props.onClick({
+      detail: 0,
+      preventDefault: () => undefined,
+      stopPropagation: () => undefined,
+      nativeEvent: { stopImmediatePropagation: () => undefined },
+    });
+
+    expect(actions).toEqual([]);
+    vi.runOnlyPendingTimers();
+    expect(actions).toEqual(["quick-open"]);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("marks overlay topbar buttons for native click fallback routing", () => {
+  const topbar = Topbar({
+    root: "/Users/tasuku/work/vivi",
+    themePreference: "system",
+    onThemeCycle: () => undefined,
+    onQuickOpen: () => undefined,
+    onSearchText: () => undefined,
+    onOpenComments: () => undefined,
+    onOpenShortcuts: () => undefined,
+  });
+  const actions = ["shortcuts", "quick-open", "comments", "search"];
+
+  for (const action of actions) {
+    const button = findElement(topbar, (element) => {
+      const props = element.props as { "data-topbar-action"?: string };
+      return props["data-topbar-action"] === action;
+    });
+    expect(button).toBeTruthy();
+  }
 });
 
 it("prioritizes attention-needed comments in the topbar entry point", () => {
@@ -784,6 +902,7 @@ it("renders code line comments as an inline thread with replies", () => {
     html.indexOf("Agreed, keep it explicit"),
   );
   expect(html).toContain('placeholder="Reply to thread"');
+  expect(html).not.toContain("autofocus");
   expect(html).toContain('aria-label="Add reply"');
   expect(html).toContain('aria-describedby="comment-reply-hint-src-app-ts-2-2"');
   expect(html).toContain('aria-keyshortcuts="Meta+Enter Control+Enter"');
