@@ -1314,6 +1314,10 @@ func TestCommentActivityBatchSuggestedCommandsMapRecommendedActions(t *testing.T
 
 func TestCommentsCLIProtocolSurfacesAgentStartupManifest(t *testing.T) {
 	out := runCommentsCLIForTest(t, "protocol", "--json")
+	withActor := runCommentsCLIForTest(t, "protocol", "--actor", "codex:dogfood", "--actor-kind", "codex", "--actor-name", "Dogfood agent", "--json")
+	if withActor.String() != out.String() {
+		t.Fatalf("protocol should accept and ignore actor workflow flags\nwithout actor: %s\nwith actor: %s", out.String(), withActor.String())
+	}
 	var payload struct {
 		Name                  string   `json:"name"`
 		Version               int      `json:"version"`

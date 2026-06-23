@@ -955,6 +955,9 @@ func parseCommentsProtocolFlags(args []string) (commentsCommandOptions, []string
 	flags.StringVar(&options.URL, "url", "", "Vivi server URL")
 	flags.BoolVar(&options.JSON, "json", true, "write JSON output")
 	flags.StringVar(&options.ReceiptLog, "receipt-log", "", "path to append successful write receipts as JSONL")
+	flags.StringVar(&options.ActorID, "actor", "", "accepted for agent workflow consistency")
+	flags.StringVar(&options.ActorKind, "actor-kind", "", "accepted for agent workflow consistency")
+	flags.StringVar(&options.ActorName, "actor-name", "", "accepted for agent workflow consistency")
 	flagArgs, positional := splitCommentsFlagsAndPositionals(args)
 	if err := flags.Parse(flagArgs); err != nil {
 		return options, nil, err
