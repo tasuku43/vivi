@@ -75,10 +75,10 @@ export const CurrentThreadActions: Story = {
     const resolveButtons = canvas.getAllByRole("button", {
       name: "Resolve current thread",
     });
-    await expect(resolveButtons).toHaveLength(2);
+    await expect(resolveButtons).toHaveLength(1);
     await expect(
       canvas.getAllByRole("button", { name: "Archive current thread" }),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
     await userEvent.click(resolveButtons[0]!);
     await expect(args.onStatusChange).toHaveBeenCalledWith(
       "thread-workbench-open",

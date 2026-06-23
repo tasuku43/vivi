@@ -200,7 +200,7 @@ export function CommentsPanel({
             >
               Return
             </button>
-            {onStatusChange ? (
+            {onStatusChange && !currentStopVisible ? (
               <>
                 <button
                   type="button"
