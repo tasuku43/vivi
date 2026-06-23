@@ -596,10 +596,11 @@ command. For
 `comments show <thread-id> --actor <actor> --json`. Actions such as
 `ignore_own_heartbeat`, `ignore_own_activity`, and `finish_current_work`
 intentionally have no suggested write command.
-Use `comments protocol --json` at adapter startup to discover the preferred
-resident loop (`comments work --wait --loop --idle-events --actor <actor>
---full --json`),
-restart recovery commands (`comments mine --actor <actor> --full --json`),
+Use `comments protocol --receipt-log <path> --json` at durable adapter startup
+to discover the preferred resident loop (`comments work --wait --loop
+--idle-events --actor <actor> --full --receipt-log <path> --json`),
+restart recovery commands (`comments mine --actor <actor> --full --receipt-log
+<path> --json`),
 passive intake alternatives, single-thread companion commands, structured write
 recipes, schema lookup commands, and the JSON error policy. The protocol
 manifest is server-independent; it tells the adapter how to drive the CLI,
@@ -610,6 +611,8 @@ protocol carries that selected server through its runtime command recipes.
 The manifest is self-describing: `manifestSchema` is
 `commentProtocolManifest`, and `manifestSchemaCommand` is the exact argv for
 fetching the JSON Schema that validates `comments protocol --json`.
+For short, disposable probes, `comments protocol --json` remains valid and
+returns the same contract with `receiptLedger.enabled` set to false.
 Pass `--receipt-log <path>` to personalize the offline manifest for a durable
 agent restart ledger. The manifest's `receiptLedger` field then records the
 path plus `comments verify-receipts --receipt-log <path> --json`, and its
@@ -625,6 +628,8 @@ and count without recording read receipts, claims, or comments, then returns
 `comments mine --full --json`,
 `comments work --wait --loop --idle-events --full --json` or
 `comments inbox --full --json`.
+When startup was called with `--receipt-log <path>`, those suggestions include
+the same receipt ledger flag.
 This gives a resident adapter a safe first server touch and an explicit
 restart-resume probe before it starts a long-running work loop. Pass
 `--receipt-log <path>` to include `receiptLedger` verification in the same
