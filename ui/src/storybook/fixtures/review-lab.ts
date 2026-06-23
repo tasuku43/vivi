@@ -32,6 +32,11 @@ export const humanTasuku: CommentActor = {
   displayName: "Tasuku",
 };
 
+export const guiReviewer: CommentActor = {
+  id: "gui-reviewer",
+  kind: "human",
+};
+
 export const codexAgent: CommentActor = {
   id: "codex:run-42",
   kind: "codex",
@@ -39,14 +44,14 @@ export const codexAgent: CommentActor = {
 };
 
 export const claudeAgent: CommentActor = {
-	id: "claude-code:run-7",
-	kind: "claude-code",
-	displayName: "Claude Code",
+  id: "claude-code:run-7",
+  kind: "claude-code",
+  displayName: "Claude Code",
 };
 
 export const unknownCodingAgent: CommentActor = {
-	id: "coding-agent",
-	kind: "unknown",
+  id: "coding-agent",
+  kind: "unknown",
 };
 
 export const sampleWorkspaceTree: TreeSnapshot = {
@@ -536,7 +541,8 @@ export const sampleDraftComments: DraftReviewComment[] = [
       viewerKind: "markdown",
       lineStart: 11,
       lineEnd: 11,
-      quote: "Draft comments stay private until the reviewer publishes a batch.",
+      quote:
+        "Draft comments stay private until the reviewer publishes a batch.",
       body: "Rendered Markdown draft anchored to the H2 paragraph before publish.",
     }),
     anchor: {
@@ -545,7 +551,8 @@ export const sampleDraftComments: DraftReviewComment[] = [
         path: sampleMarkdownFile.path,
         lineStart: 11,
         lineEnd: 11,
-        quote: "Draft comments stay private until the reviewer publishes a batch.",
+        quote:
+          "Draft comments stay private until the reviewer publishes a batch.",
         fileHash: sampleMarkdownFile.etag,
       },
       rendered: {
@@ -700,7 +707,7 @@ export const sampleActivityEvents: CommentThreadActivityEvent[] = [
     "activity-created-diff",
     "thread-diff-added",
     "thread_created",
-    humanTasuku,
+    guiReviewer,
     "2026-06-20T09:13:00.000Z",
   ),
   activity(

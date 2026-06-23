@@ -18,6 +18,7 @@ type Service struct {
 	Preview       *PreviewService
 	Event         *EventService
 	ActivityEvent *ActivityEventService
+	ReviewActor   *workspace.Actor
 
 	ThreadActivityObserverFactories []ThreadActivityObserverFactory
 }
@@ -26,6 +27,7 @@ type Options struct {
 	Workspace                       *workspace.FS
 	Git                             *gitreview.Reviewer
 	Comments                        *comments.Store
+	ReviewActor                     *workspace.Actor
 	ThreadActivityObserverFactories []ThreadActivityObserverFactory
 }
 
@@ -60,6 +62,7 @@ func NewService(options Options) *Service {
 		Preview:       &PreviewService{workspace: options.Workspace},
 		Event:         NewEventService(),
 		ActivityEvent: NewActivityEventService(),
+		ReviewActor:   options.ReviewActor,
 	}
 	if len(options.ThreadActivityObserverFactories) > 0 {
 		service.ThreadActivityObserverFactories = options.ThreadActivityObserverFactories
@@ -83,7 +86,9 @@ func (service *Service) NewThreadActivityObserver(actor map[string]any, clientEv
 }
 
 func (service *Service) Config() workspace.Config {
-	return service.Workspace.Config()
+	config := service.Workspace.Config()
+	config.ReviewActor = service.ReviewActor
+	return config
 }
 
 func (service *Service) ReadTree(relativePath string, depth int) (workspace.TreeSnapshot, error) {

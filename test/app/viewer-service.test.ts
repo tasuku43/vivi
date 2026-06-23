@@ -35,6 +35,37 @@ it("delegates tree reads to the filesystem port", async () => {
   });
 });
 
+it("adds the configured review actor to viewer config", () => {
+  const fsPort: FileSystemPort = {
+    async readTree() {
+      return { root: ".", version: 1, nodes: [] };
+    },
+    async readFile() {
+      throw new Error("not used");
+    },
+    readHtmlPreview() {
+      throw new Error("not used");
+    },
+    getConfig() {
+      return { root: ".", allowHtmlScripts: false, maxFileSizeBytes: 123 };
+    },
+  };
+  const service = new ViewerService({
+    fileSystem: fsPort,
+    reviewActor: {
+      id: "gui-reviewer",
+      kind: "human",
+      displayName: "gui-reviewer",
+    },
+  });
+
+  expect(service.getConfig().reviewActor).toEqual({
+    id: "gui-reviewer",
+    kind: "human",
+    displayName: "gui-reviewer",
+  });
+});
+
 it("delegates Git review reads when the optional port is present", async () => {
   const fsPort: FileSystemPort = {
     async readTree() {

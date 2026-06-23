@@ -71,6 +71,19 @@ func TestServerReadyPayloadCanCarryAgentActor(t *testing.T) {
 	}
 }
 
+func TestReviewActorFromFlagUsesBrowserReviewerIdentity(t *testing.T) {
+	actor := reviewActorFromFlag(" gui-reviewer ")
+	if actor == nil {
+		t.Fatal("expected review actor")
+	}
+	if actor.ID != "gui-reviewer" || actor.Kind != "human" || actor.DisplayName != "gui-reviewer" {
+		t.Fatalf("unexpected review actor: %#v", actor)
+	}
+	if reviewActorFromFlag(" ") != nil {
+		t.Fatal("blank actor should not create a review actor")
+	}
+}
+
 func TestCommentsHelpTextSurfacesWorkSession(t *testing.T) {
 	help := commentsHelpText()
 	for _, text := range []string{

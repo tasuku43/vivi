@@ -60,7 +60,7 @@ func run(args []string) error {
 	noHTMLScripts := flags.Bool("no-html-scripts", false, "keep HTML preview scripts disabled")
 	gitTimeout := flags.Duration("git-review-timeout", 2*time.Second, "Git review timeout")
 	logLevel := flags.String("log-level", "info", "log level")
-	actor := flags.String("actor", "", "agent actor id to include in ready JSON suggested commands")
+	actor := flags.String("actor", "", "review actor id for browser comments and ready JSON suggested commands")
 	readyJSON := flags.Bool("ready-json", false, "print a JSON server-ready event after startup")
 	showVersion := flags.Bool("version", false, "print version")
 	flags.Usage = func() { fmt.Fprintln(flags.Output(), helpText()) }
@@ -118,6 +118,7 @@ func run(args []string) error {
 		Git:              reviewer,
 		Comments:         commentStore,
 		AllowHTMLScripts: *allowHTMLScripts,
+		ReviewActor:      reviewActorFromFlag(*actor),
 	})
 	if err != nil {
 		return err
@@ -200,7 +201,7 @@ func helpText() string {
 		"  --no-html-scripts          Keep HTML preview scripts disabled",
 		"  --git-review-timeout <d>   Git review timeout such as 2s or 500ms",
 		"  --log-level <level>        Log level (default: info)",
-		"  --actor <actor>            Agent actor id for --ready-json suggested commands",
+		"  --actor <actor>            Review actor id for browser comments and ready JSON suggested commands",
 		"  --ready-json               Print a JSON server-ready event after startup",
 		"  --version                  Print version",
 		"  --help                     Show this help",
@@ -247,6 +248,18 @@ func newServerReadyPayload(root string, serverURL string, actor string) serverRe
 				"Check comment protocol readiness before starting an actor-owned feedback loop.",
 			),
 		},
+	}
+}
+
+func reviewActorFromFlag(actor string) *workspace.Actor {
+	actor = strings.TrimSpace(actor)
+	if actor == "" {
+		return nil
+	}
+	return &workspace.Actor{
+		ID:          actor,
+		Kind:        "human",
+		DisplayName: actor,
 	}
 }
 

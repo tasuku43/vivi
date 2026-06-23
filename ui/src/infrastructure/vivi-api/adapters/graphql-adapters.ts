@@ -36,8 +36,16 @@ import type {
 
 export const adaptGraphqlTree = (dto: TreeFieldsFragment): TreeSnapshot =>
   dto as unknown as TreeSnapshot;
-export const adaptGraphqlConfig = (dto: ConfigFieldsFragment): ViewerConfig =>
-  dto as ViewerConfig;
+export const adaptGraphqlConfig = (
+  dto: ConfigFieldsFragment,
+): ViewerConfig => ({
+  root: dto.root,
+  allowHtmlScripts: dto.allowHtmlScripts,
+  maxFileSizeBytes: dto.maxFileSizeBytes,
+  ...(dto.reviewActor
+    ? { reviewActor: adaptGraphqlActor(dto.reviewActor) }
+    : {}),
+});
 export const adaptGraphqlFile = (dto: FileFieldsFragment): FilePayload =>
   dto as unknown as FilePayload;
 export const adaptGraphqlComment = (

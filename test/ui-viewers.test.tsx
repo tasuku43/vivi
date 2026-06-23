@@ -66,7 +66,10 @@ import {
   MermaidViewer,
 } from "../ui/src/features/file-context/viewers/MermaidViewer.js";
 import { TextViewer } from "../ui/src/features/file-context/viewers/TextViewer.js";
-import { TextSearchNavigationBar } from "../ui/src/features/workbench/WorkbenchContainer.js";
+import {
+  reviewActorForConfig,
+  TextSearchNavigationBar,
+} from "../ui/src/features/workbench/WorkbenchContainer.js";
 import type { CommentDraft } from "../ui/src/state/comments.js";
 import { summarizeThreadActivity } from "../ui/src/state/comment-activity.js";
 
@@ -288,9 +291,7 @@ it("renders workspace status as a readable local-review instrument", () => {
     serverTone: "pending" as const,
     detail: "3 review refreshes · last review 12ms",
   };
-  const html = renderToStaticMarkup(
-    <WorkspaceStatusbar status={status} />,
-  );
+  const html = renderToStaticMarkup(<WorkspaceStatusbar status={status} />);
 
   expect(workspaceStatusbarLabel(status)).toBe(
     "Workspace status · Workspace: Watching 42 files · 3 tabs open · Current file: brief.md · preview · rendered · Review: 4 files to review · 2 threads open · 1 draft · Live updates: Updating review + 2 diffs",
@@ -841,9 +842,7 @@ it("renders text search navigation as a compact reader control", () => {
   expect(html).toContain("2 of 4");
   expect(html).toContain("Line 12");
   expect(html).toContain("&lt;h2&gt;");
-  expect(html).toContain(
-    '<mark class="text-search-nav-match">needle</mark>',
-  );
+  expect(html).toContain('<mark class="text-search-nav-match">needle</mark>');
   expect(html).toContain(" in notes&lt;/h2&gt;");
   expect(html).toContain("Previous");
   expect(html).toContain("Next");
@@ -882,7 +881,9 @@ it("renders code line comments as an inline thread with replies", () => {
   expect(html).toContain('placeholder="Reply to thread"');
   expect(html).not.toContain("autofocus");
   expect(html).toContain('aria-label="Add reply"');
-  expect(html).toContain('aria-describedby="comment-reply-hint-src-app-ts-2-2"');
+  expect(html).toContain(
+    'aria-describedby="comment-reply-hint-src-app-ts-2-2"',
+  );
   expect(html).toContain('aria-keyshortcuts="Meta+Enter Control+Enter"');
   expect(html).toContain("Resolve current thread");
   expect(html).toContain("Archive current thread");
@@ -1590,9 +1591,7 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
   expect(html).toContain("Meta+Shift+U Control+Shift+U");
   expect(html).toContain("<strong>2/3</strong> files seen");
   expect(html).toContain("1 unseen");
-  expect(html).toContain(
-    'aria-valuetext="2 of 3 review files seen, 1 unseen"',
-  );
+  expect(html).toContain('aria-valuetext="2 of 3 review files seen, 1 unseen"');
   expect(html).toContain("viewing 1/3");
   expect(html).toContain('class="review-queue" role="list"');
   expect(html).toContain(
@@ -1742,15 +1741,11 @@ it("summarizes active-file review focus without mixing drafts into open threads"
     '<div class="active-file-actions" aria-label="Active file actions">',
   );
   expect(html).toContain("Open 3 messages in Comments panel");
-  expect(html).toContain(
-    'class="review-focus-action comments-panel-action"',
-  );
+  expect(html).toContain('class="review-focus-action comments-panel-action"');
   expect(html).toContain('data-testid="review-open-comments-panel"');
   expect(html).toContain('data-testid="review-comment-thread"');
   expect(html).toContain('data-comment-thread-id="thread-1"');
-  expect(html).toContain(
-    'aria-label="Thread actions for src/app.ts, L2"',
-  );
+  expect(html).toContain('aria-label="Thread actions for src/app.ts, L2"');
   expect(html).toContain('class="active-comment-thread-actions"');
   expect(html).toContain(">Resolve current thread</button>");
   expect(html).toContain(">Reopen</button>");
@@ -1882,7 +1877,9 @@ it("shows precise active-file comment locations in the inspector", () => {
     />,
   );
 
-  expect(html).toContain("Rendered Markdown · block vivi-block-2 · source L3-L4");
+  expect(html).toContain(
+    "Rendered Markdown · block vivi-block-2 · source L3-L4",
+  );
   expect(html).toContain("Diff new L8-L9");
   expect(html).toContain(
     'aria-label="Open thread in README.md, Rendered Markdown · block vivi-block-2 · source L3-L4, markdown rendered, L3-L4, latest: Rendered paragraph needs a clearer transition."',
@@ -2027,6 +2024,32 @@ it("autofocuses new inline comments without focusing existing reply threads", ()
   expect(html).toContain("autofocus");
 });
 
+it("uses the configured review actor for browser-authored drafts", () => {
+  expect(
+    reviewActorForConfig({
+      root: "/work/repo",
+      allowHtmlScripts: false,
+      maxFileSizeBytes: 1024,
+      reviewActor: {
+        id: "gui-reviewer",
+        kind: "human",
+        displayName: "gui-reviewer",
+      },
+    }),
+  ).toEqual({
+    id: "gui-reviewer",
+    kind: "human",
+    displayName: "gui-reviewer",
+  });
+  expect(
+    reviewActorForConfig({
+      root: "/work/repo",
+      allowHtmlScripts: false,
+      maxFileSizeBytes: 1024,
+    }),
+  ).toBeUndefined();
+});
+
 it("renders inline thread actions from the latest published thread status", () => {
   const html = renderToStaticMarkup(
     <CodeCommentThread
@@ -2166,18 +2189,12 @@ it("renders draft review tray editing, success, and publish failure states", () 
   expect(editingHtml).toContain(
     'title="Open private draft in src/app.ts, source, L2, kept private until publish"',
   );
-  expect(editingHtml).toContain(
-    'id="draft-edit-hint-draft-1"',
-  );
-  expect(editingHtml).toContain(
-    "This draft remains private until published.",
-  );
+  expect(editingHtml).toContain('id="draft-edit-hint-draft-1"');
+  expect(editingHtml).toContain("This draft remains private until published.");
   expect(editingHtml).toContain(
     'aria-label="Edit private draft comment for src/app.ts"',
   );
-  expect(editingHtml).toContain(
-    'aria-describedby="draft-edit-hint-draft-1"',
-  );
+  expect(editingHtml).toContain('aria-describedby="draft-edit-hint-draft-1"');
   expect(editingHtml).toContain("Publish review comments");
   expect(editingHtml).toContain(
     "Publish 2 draft comments as 2 open threads across 2 files",
@@ -2232,10 +2249,7 @@ it("renders draft review tray editing, success, and publish failure states", () 
   expect(emptyOpenHtml).toContain("disabled");
 
   const successHtml = renderToStaticMarkup(
-    <DraftReviewTray
-      drafts={[]}
-      publishedBatchId="review-batch-test-1"
-    />,
+    <DraftReviewTray drafts={[]} publishedBatchId="review-batch-test-1" />,
   );
   expect(successHtml).toContain("Published review batch review-batch-test-1");
   expect(successHtml).toContain("visible to agents");
@@ -2336,17 +2350,13 @@ it("renders comment activity in workspace comments rows", () => {
   expect(html).toContain(
     "Press Down Arrow from search to move into visible comment threads.",
   );
-  expect(html).toContain(
-    "Up Arrow from the first thread to return to search.",
-  );
+  expect(html).toContain("Up Arrow from the first thread to return to search.");
   expect(html).toContain(
     'id="comments-panel-result-summary" aria-live="polite"',
   );
   expect(html).toContain('role="list"');
   expect(html).toContain('aria-describedby="comments-panel-keyboard-help"');
-  expect(html).toContain(
-    'aria-label="Comment threads, 1 thread · 2 messages"',
-  );
+  expect(html).toContain('aria-label="Comment threads, 1 thread · 2 messages"');
   expect(html).toContain(
     'class="global-comment-listitem" role="listitem" aria-posinset="1" aria-setsize="1"',
   );
@@ -2374,9 +2384,7 @@ it("renders comment activity in workspace comments rows", () => {
   expect(html).toContain("global-comment-thread-foot");
   expect(html).toContain("global-comment-open-hint");
   expect(html).toContain("Open feedback");
-  expect(html).toContain(
-    'aria-label="Thread actions for src/app.ts, L2"',
-  );
+  expect(html).toContain('aria-label="Thread actions for src/app.ts, L2"');
   expect(html).toContain(">Resolve current thread</button>");
   expect(html).toContain(">Archive current thread</button>");
   expect(html).toContain(
@@ -2670,9 +2678,9 @@ it("returns to the exact active comment from the workspace comment current stop"
   (resolveButton.props as { onClick: () => void }).onClick();
   (archiveButton.props as { onClick: () => void }).onClick();
 
-  expect(flattenText((panel.props as { children?: ReactNode }).children)).toContain(
-    "Hidden by current filter",
-  );
+  expect(
+    flattenText((panel.props as { children?: ReactNode }).children),
+  ).toContain("Hidden by current filter");
   expect(updates).toEqual([
     ["thread-1", "resolved"],
     ["thread-1", "archived"],
@@ -2710,9 +2718,9 @@ it("treats comments inbox filters as pressed state controls", () => {
   expect(
     (attentionFilter.props as { "aria-pressed": boolean })["aria-pressed"],
   ).toBe(true);
-  expect((openFilter.props as { "aria-pressed": boolean })["aria-pressed"]).toBe(
-    false,
-  );
+  expect(
+    (openFilter.props as { "aria-pressed": boolean })["aria-pressed"],
+  ).toBe(false);
 
   (openFilter.props as { onClick: () => void }).onClick();
 
@@ -2794,7 +2802,9 @@ it("shows surface-specific anchor context in workspace comment rows", () => {
   );
 
   expect(html).toContain("markdown rendered");
-  expect(html).toContain("Rendered Markdown · block vivi-block-2 · source L3-L4");
+  expect(html).toContain(
+    "Rendered Markdown · block vivi-block-2 · source L3-L4",
+  );
   expect(html).toContain("Block vivi-block-2, source L3-L4");
   expect(html).toContain("diff");
   expect(html).toContain("Diff new L20-L21");
@@ -2832,10 +2842,10 @@ it("shows the matched comment context while searching the review inbox", () => {
 
   expect(html).toContain("Matched Human");
   expect(html).toContain("Check this return");
-  expect(html).toContain('<mark class="global-comment-search-hit">Check</mark>');
   expect(html).toContain(
-    'matched Human, Check this return"',
+    '<mark class="global-comment-search-hit">Check</mark>',
   );
+  expect(html).toContain('matched Human, Check this return"');
   expect(html).toContain('data-comment-id="comment-2"');
 });
 
@@ -2858,9 +2868,7 @@ it("shows path matches while searching the review inbox", () => {
   expect(html).toContain(
     '<mark class="global-comment-search-hit">src/app</mark>.ts',
   );
-  expect(html).toContain(
-    'matched path, src/app.ts"',
-  );
+  expect(html).toContain('matched path, src/app.ts"');
 });
 
 it("keeps late comment search matches visible in the review inbox snippet", () => {
@@ -2957,9 +2965,7 @@ it("surfaces attention-needed comment threads first in the review inbox", () => 
     />,
   );
 
-  expect(attentionHtml).toContain(
-    "1 thread · 1 message · 1 attention thread",
-  );
+  expect(attentionHtml).toContain("1 thread · 1 message · 1 attention thread");
   expect(attentionHtml).toContain("docs/needs-human.md");
   expect(attentionHtml).not.toContain("src/app.ts");
 });
@@ -3144,7 +3150,7 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
   expect(html).toContain("agent-handoff.md");
   expect(html).toContain("pinned from 2/2");
   expect(html).not.toContain("viewing 2/2");
-  expect(html).toContain('has-open-threads active');
+  expect(html).toContain("has-open-threads active");
   const queueHtml = html.slice(html.indexOf('class="review-queue"'));
   expect(
     queueHtml.indexOf('data-review-path="docs/agent-handoff.md"'),
@@ -4090,15 +4096,15 @@ it("surfaces review work, comments, unread state, and open tabs in the tree", ()
   );
   expect(html).toContain("tree-row file selected changed has-review-work");
   expect(html).toContain("contains-current-stop");
-  expect(html).toContain("tree-row file has-review-work has-unread-work current-review-stop");
+  expect(html).toContain(
+    "tree-row file has-review-work has-unread-work current-review-stop",
+  );
   expect(html).toContain('role="tree"');
   expect(html).toContain(
     'aria-label="Live workspace map, 1 root entry, 3 loaded files, 2 review files, 2 unseen review files, 2 open files, 2 open threads, 3 comments"',
   );
   expect(html).toContain('id="workspace-tree-interaction-help"');
-  expect(html).toContain(
-    'aria-describedby="workspace-tree-interaction-help"',
-  );
+  expect(html).toContain('aria-describedby="workspace-tree-interaction-help"');
   expect(html).toContain("Click a file to preview it.");
   expect(html).toContain(
     "Double-click or press Enter to keep it open as a tab.",
@@ -4112,7 +4118,9 @@ it("surfaces review work, comments, unread state, and open tabs in the tree", ()
   expect(html).toContain(
     "current review.md · 2 attention · 2 open threads · 2 review files · 2 open tabs",
   );
-  expect(html).toContain("attention · 2 open threads · review · changed · open tab");
+  expect(html).toContain(
+    "attention · 2 open threads · review · changed · open tab",
+  );
   expect(html).toContain("attention · current stop · review");
   expect(html).toContain(
     'aria-label="docs, folder, expanded, contains selected file, contains current review stop review.md, 2 open files, 2 review files, 2 unseen review files, 2 open threads, 3 comments"',

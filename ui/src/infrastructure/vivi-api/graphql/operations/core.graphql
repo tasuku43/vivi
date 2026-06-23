@@ -39,6 +39,11 @@ fragment ConfigFields on ViewerConfig {
   root
   allowHtmlScripts
   maxFileSizeBytes
+  reviewActor {
+    id
+    kind
+    displayName
+  }
 }
 fragment FileFields on FilePayload {
   path

@@ -36,6 +36,7 @@ export class ViewerService {
   private readonly watcher?: ViewerServiceOptions["watcher"];
   private readonly changeReview?: ViewerServiceOptions["changeReview"];
   private readonly commentStore?: ViewerServiceOptions["commentStore"];
+  private readonly reviewActor?: ViewerServiceOptions["reviewActor"];
   private subscribers = new Set<(event: FsEvent) => void>();
   private activitySubscribers = new Set<
     (event: CommentThreadActivityEvent) => void
@@ -46,6 +47,7 @@ export class ViewerService {
     this.watcher = options.watcher;
     this.changeReview = options.changeReview;
     this.commentStore = options.commentStore;
+    this.reviewActor = options.reviewActor;
   }
 
   readTree(): Promise<TreeSnapshot> {
@@ -130,13 +132,13 @@ export class ViewerService {
   }
 
   getConfig(): ViewerConfig {
-    return (
-      this.fileSystem.getConfig?.() ?? {
-        root: ".",
-        allowHtmlScripts: false,
-        maxFileSizeBytes: 1024 * 1024,
-      }
-    );
+    const config = this.fileSystem.getConfig?.() ?? {
+      root: ".",
+      allowHtmlScripts: false,
+      maxFileSizeBytes: 1024 * 1024,
+    };
+    if (!this.reviewActor) return config;
+    return { ...config, reviewActor: this.reviewActor };
   }
 
   readChanges(): Promise<ChangeReviewSummary> {

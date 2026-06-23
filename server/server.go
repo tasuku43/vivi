@@ -38,6 +38,7 @@ type Options struct {
 	Git              *gitreview.Reviewer
 	Comments         *comments.Store
 	AllowHTMLScripts bool
+	ReviewActor      *workspace.Actor
 }
 
 type Server struct {
@@ -59,9 +60,10 @@ const (
 func Start(ctx context.Context, options Options) (*Server, error) {
 	mux := http.NewServeMux()
 	app := application.NewService(application.Options{
-		Workspace: options.Workspace,
-		Git:       options.Git,
-		Comments:  options.Comments,
+		Workspace:   options.Workspace,
+		Git:         options.Git,
+		Comments:    options.Comments,
+		ReviewActor: options.ReviewActor,
 	})
 	server := &Server{
 		options:     options,

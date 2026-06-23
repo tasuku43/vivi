@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from "react";
 import type { TextDiff } from "../../domain/change-review.js";
 import type { WorkspaceConnectionStatus } from "../../application/ports/ViviClient.js";
 import type {
+  CommentActor,
   CommentStatus,
   DraftReviewComment,
   ViviComment,
@@ -481,6 +482,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     const draftComment = await client.createDraftReviewComment({
       ...draft,
       body: trimmedBody,
+      actor: reviewActorForConfig(config),
       source: "human",
     });
     setDraftPublishError(null);
@@ -2606,9 +2608,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                       : false
                   }
                   diffEnabled={
-                    paneFile
-                      ? diffEnabled && supportsDiffMode(paneFile)
-                      : false
+                    paneFile ? diffEnabled && supportsDiffMode(paneFile) : false
                   }
                   outline={outlineForFile(paneFile)}
                   refreshedAt={
@@ -2923,6 +2923,14 @@ function combinePublishedAndDraftComments(
   return [...published, ...draftMessages].sort((a, b) =>
     a.createdAt.localeCompare(b.createdAt),
   );
+}
+
+export function reviewActorForConfig(
+  config: ViewerConfig | null,
+): CommentActor | undefined {
+  const actor = config?.reviewActor;
+  if (!actor?.id.trim()) return undefined;
+  return actor;
 }
 
 function errorMessage(error: unknown): string {

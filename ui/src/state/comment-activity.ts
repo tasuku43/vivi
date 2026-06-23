@@ -117,12 +117,19 @@ export function commentActivityShouldMarkUnread(
 }
 
 export function actorLabel(actor: CommentActor): string {
-	if (actor.displayName?.trim()) return actor.displayName.trim();
-	if (actor.kind === "claude-code") return "Claude Code";
-	if (actor.kind === "codex") return "Codex";
-	if (actor.kind === "human") return "Human";
-	if (actor.id.trim() && actor.id.trim() !== "unknown") return actor.id.trim();
-	return "Unknown agent";
+  if (actor.displayName?.trim()) return actor.displayName.trim();
+  if (actor.kind === "claude-code") return "Claude Code";
+  if (actor.kind === "codex") return "Codex";
+  if (
+    actor.kind === "human" &&
+    actor.id.trim() &&
+    actor.id.trim() !== "human"
+  ) {
+    return actor.id.trim();
+  }
+  if (actor.kind === "human") return "Human";
+  if (actor.id.trim() && actor.id.trim() !== "unknown") return actor.id.trim();
+  return "Unknown agent";
 }
 
 function activityVerb(event: {

@@ -79,6 +79,7 @@ type ViewerConfig {
   root: String!
   allowHtmlScripts: Boolean!
   maxFileSizeBytes: Int!
+  reviewActor: CommentActor
 }
 
 type TreeSnapshot {

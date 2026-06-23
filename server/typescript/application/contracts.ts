@@ -96,4 +96,5 @@ export interface ViewerServiceOptions {
   watcher?: WatcherPort;
   changeReview?: ChangeReviewPort;
   commentStore?: CommentStorePort;
+  reviewActor?: CommentActor;
 }

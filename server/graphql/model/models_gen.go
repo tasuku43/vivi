@@ -240,9 +240,10 @@ type Subscription struct {
 }
 
 type ViewerConfig struct {
-	Root             string `json:"root"`
-	AllowHTMLScripts bool   `json:"allowHtmlScripts"`
-	MaxFileSizeBytes int    `json:"maxFileSizeBytes"`
+	Root             string        `json:"root"`
+	AllowHTMLScripts bool          `json:"allowHtmlScripts"`
+	MaxFileSizeBytes int           `json:"maxFileSizeBytes"`
+	ReviewActor      *CommentActor `json:"reviewActor,omitempty"`
 }
 
 type Workspace struct {

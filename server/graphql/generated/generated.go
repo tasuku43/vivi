@@ -336,6 +336,7 @@ type ComplexityRoot struct {
 	ViewerConfig struct {
 		AllowHTMLScripts func(childComplexity int) int
 		MaxFileSizeBytes func(childComplexity int) int
+		ReviewActor      func(childComplexity int) int
 		Root             func(childComplexity int) int
 	}
 
@@ -1807,6 +1808,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ViewerConfig.MaxFileSizeBytes(childComplexity), true
+	case "ViewerConfig.reviewActor":
+		if e.ComplexityRoot.ViewerConfig.ReviewActor == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ViewerConfig.ReviewActor(childComplexity), true
 	case "ViewerConfig.root":
 		if e.ComplexityRoot.ViewerConfig.Root == nil {
 			break
@@ -2043,6 +2050,7 @@ type ViewerConfig {
   root: String!
   allowHtmlScripts: Boolean!
   maxFileSizeBytes: Int!
+  reviewActor: CommentActor
 }
 
 type TreeSnapshot {
@@ -2929,6 +2937,8 @@ func (ec *executionContext) childFields_ViewerConfig(ctx context.Context, field 
 		return ec.fieldContext_ViewerConfig_allowHtmlScripts(ctx, field)
 	case "maxFileSizeBytes":
 		return ec.fieldContext_ViewerConfig_maxFileSizeBytes(ctx, field)
+	case "reviewActor":
+		return ec.fieldContext_ViewerConfig_reviewActor(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ViewerConfig", field.Name)
 }
@@ -9386,6 +9396,38 @@ func (ec *executionContext) fieldContext_ViewerConfig_maxFileSizeBytes(_ context
 	return graphql.NewScalarFieldContext("ViewerConfig", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
+func (ec *executionContext) _ViewerConfig_reviewActor(ctx context.Context, field graphql.CollectedField, obj *model.ViewerConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ViewerConfig_reviewActor(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ReviewActor, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.CommentActor) graphql.Marshaler {
+			return ec.marshalOCommentActor2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentActor(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ViewerConfig_reviewActor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ViewerConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CommentActor(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Workspace_tree(ctx context.Context, field graphql.CollectedField, obj *model.Workspace) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -13528,6 +13570,11 @@ func (ec *executionContext) _ViewerConfig(ctx context.Context, sel ast.Selection
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "reviewActor":
+			out.Values[i] = ec._ViewerConfig_reviewActor(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -15056,6 +15103,13 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	_ = ctx
 	res := graphql.MarshalBoolean(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOCommentActor2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentActor(ctx context.Context, sel ast.SelectionSet, v *model.CommentActor) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._CommentActor(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOCommentActorInput2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentActorInput(ctx context.Context, v any) (*model.CommentActorInput, error) {

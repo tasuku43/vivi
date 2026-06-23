@@ -10,10 +10,27 @@ import (
 )
 
 func viewerConfigFromDomain(config workspace.Config) *model.ViewerConfig {
+	var reviewActor *model.CommentActor
+	if config.ReviewActor != nil && strings.TrimSpace(config.ReviewActor.ID) != "" {
+		kind := model.CommentActorKind(config.ReviewActor.Kind)
+		if !kind.IsValid() {
+			kind = model.CommentActorKindUnknown
+		}
+		var displayName *string
+		if strings.TrimSpace(config.ReviewActor.DisplayName) != "" {
+			displayName = &config.ReviewActor.DisplayName
+		}
+		reviewActor = &model.CommentActor{
+			ID:          strings.TrimSpace(config.ReviewActor.ID),
+			Kind:        kind,
+			DisplayName: displayName,
+		}
+	}
 	return &model.ViewerConfig{
 		Root:             config.Root,
 		AllowHTMLScripts: config.AllowHTMLScripts,
 		MaxFileSizeBytes: int(config.MaxFileSizeBytes),
+		ReviewActor:      reviewActor,
 	}
 }
 

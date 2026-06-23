@@ -69,6 +69,13 @@ type Config struct {
 	Root             string `json:"root"`
 	AllowHTMLScripts bool   `json:"allowHtmlScripts"`
 	MaxFileSizeBytes int64  `json:"maxFileSizeBytes"`
+	ReviewActor      *Actor `json:"reviewActor,omitempty"`
+}
+
+type Actor struct {
+	ID          string `json:"id"`
+	Kind        string `json:"kind"`
+	DisplayName string `json:"displayName,omitempty"`
 }
 
 type FileSearchResult struct {

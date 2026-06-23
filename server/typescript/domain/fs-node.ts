@@ -1,4 +1,5 @@
 import type { ViewerKind } from "./viewer-kind.js";
+import type { CommentActor } from "./comments.js";
 
 export type NodeKind = "file" | "directory";
 
@@ -56,4 +57,5 @@ export interface ViewerConfig {
   root: string;
   allowHtmlScripts: boolean;
   maxFileSizeBytes: number;
+  reviewActor?: CommentActor;
 }
