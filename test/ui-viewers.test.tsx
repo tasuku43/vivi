@@ -2371,7 +2371,7 @@ it("renders comment activity in workspace comments rows", () => {
   expect(html).toContain("source");
   expect(html).toContain("global-comment-thread-foot");
   expect(html).toContain("global-comment-open-hint");
-  expect(html).toContain("Open thread");
+  expect(html).toContain("Open feedback");
   expect(html).toContain(
     'aria-label="Thread actions for src/app.ts, L2"',
   );
@@ -2508,7 +2508,7 @@ it("opens the latest comment when a workspace comment row is activated", () => {
 
   props.onClick();
 
-  expect(flattenText(props.children)).toContain("Open thread");
+  expect(flattenText(props.children)).toContain("Open feedback");
   expect(opened).toEqual(["comment-latest"]);
 });
 
@@ -3008,6 +3008,7 @@ it("uses the latest authoritative status for comments inbox threads", () => {
   expect(openHtml).toContain("Resolved 1");
   expect(resolvedHtml).toContain("1 thread · 2 messages");
   expect(resolvedHtml).toContain("Resolved");
+  expect(resolvedHtml).toContain("Resolved feedback");
   expect(resolvedHtml).toContain("Resolved after the follow-up.");
 });
 

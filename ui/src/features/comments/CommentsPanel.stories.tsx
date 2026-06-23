@@ -55,6 +55,7 @@ export const WorkspaceComments: Story = {
         name: "Resolve comment for ui/src/features/workbench/WorkbenchContainer.tsx, L9-L12",
       }),
     ).toBeInTheDocument();
+    await expect(canvas.getAllByText("Open feedback")[0]).toBeInTheDocument();
   },
 };
 
@@ -65,9 +66,19 @@ export const OpenOnly: Story = {
 };
 
 export const ResolvedAndArchivedHistory: Story = {
+  tags: ["interaction"],
   args: {
+    comments: sampleComments.filter(
+      (comment) =>
+        comment.status === "resolved" || comment.status === "archived",
+    ),
     statusFilter: "all",
-    query: "legacy",
+    query: "",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Resolved feedback")).toBeInTheDocument();
+    await expect(canvas.getByText("Archived feedback")).toBeInTheDocument();
   },
 };
 

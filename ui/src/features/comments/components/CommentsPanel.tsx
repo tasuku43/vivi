@@ -388,7 +388,7 @@ export function CommentsPanel({
                           : ""}
                       </span>
                       <span className="global-comment-open-hint">
-                        Open thread
+                        {threadFootHintLabel(thread.status)}
                       </span>
                     </span>
                     {activity?.inline.length ? (
@@ -948,6 +948,12 @@ function commentThreadAriaLabel(
   ]
     .filter(Boolean)
     .join(", ");
+}
+
+function threadFootHintLabel(status: CommentStatus): string {
+  if (status === "open") return "Open feedback";
+  if (status === "resolved") return "Resolved feedback";
+  return "Archived feedback";
 }
 
 function sourceLabel(source: CommentSource | undefined): string {
