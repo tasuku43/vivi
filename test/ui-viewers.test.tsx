@@ -1941,6 +1941,46 @@ it("disables the inspector comments panel action when the panel is unavailable",
   );
 });
 
+it("explains that the comments panel action needs a selected review file", () => {
+  const queuedChange = {
+    path: "src/app.ts",
+    source: "git" as const,
+    status: "modified" as const,
+  };
+  const inspector = Inspector({
+    file: null,
+    reviewChanges: [queuedChange],
+    reviewDiffStats: {},
+    loadingReviewDiffs: {},
+    unreadReviewPaths: new Set([queuedChange.path]),
+    comments: [],
+    selectedCodeRange: null,
+    activePaneId: "main",
+    onOpenEventPath: () => undefined,
+    onConfirmEventPath: () => undefined,
+    onOpenNextChanged: () => undefined,
+    onOpenPreviousChanged: () => undefined,
+    onOpenAllChanged: () => undefined,
+    onRevealInTree: () => undefined,
+    onOpenComments: () => undefined,
+    onCommentStatusChange: () => undefined,
+  });
+
+  const button = findElement(inspector, (element) => {
+    const props = element.props as { "data-testid"?: string };
+    return props["data-testid"] === "review-open-comments-panel";
+  });
+  const props = button.props as {
+    "aria-label"?: string;
+    disabled?: boolean;
+    title?: string;
+  };
+
+  expect(props.disabled).toBe(true);
+  expect(props.title).toBe("Select a review file to view comments");
+  expect(props["aria-label"]).toBe("Select a review file to view comments");
+});
+
 it("renders comment activity in inline thread headers without changing lifecycle status", () => {
   const html = renderToStaticMarkup(
     <CodeCommentThread

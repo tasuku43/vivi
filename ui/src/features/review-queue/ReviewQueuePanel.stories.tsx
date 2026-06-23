@@ -109,6 +109,26 @@ export const ReviewQueueItemWithLatestAgentActivity: Story = {
   },
 };
 
+export const ReviewQueueNoActiveFile: Story = {
+  args: {
+    file: null,
+    activePath: null,
+    comments: [],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("No file selected")).toBeInTheDocument();
+    const commentsPanelAction = canvas.getByTestId(
+      "review-open-comments-panel",
+    );
+    await expect(commentsPanelAction).toBeDisabled();
+    await expect(commentsPanelAction).toHaveAttribute(
+      "aria-label",
+      "Select a review file to view comments",
+    );
+  },
+};
+
 export const ActiveReviewFilePinnedFromQueuePosition: Story = {
   args: {
     activePath: sampleReviewQueueItems[1]!.path,

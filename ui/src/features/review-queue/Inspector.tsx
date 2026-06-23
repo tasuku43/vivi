@@ -155,6 +155,7 @@ export function Inspector({
   });
   const commentsPanelAction = commentsPanelActionState({
     canOpen: Boolean(onOpenComments),
+    hasFile: Boolean(file),
     messageCount: comments.length,
   });
   const gitReviewGuidance = gitReviewUnavailableGuidance(
@@ -968,15 +969,24 @@ function focusReviewQueueTarget(index: number) {
 
 function commentsPanelActionState({
   canOpen,
+  hasFile,
   messageCount,
 }: {
   canOpen: boolean;
+  hasFile: boolean;
   messageCount: number;
 }): {
   description: string;
   disabled: boolean;
   label: string;
 } {
+  if (!hasFile) {
+    return {
+      description: "Select a review file to view comments",
+      disabled: true,
+      label: "Open in Comments panel",
+    };
+  }
   if (!messageCount) {
     return {
       description: "No comments in this file yet",
