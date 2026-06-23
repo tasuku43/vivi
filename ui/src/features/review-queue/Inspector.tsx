@@ -238,6 +238,7 @@ export function Inspector({
                 item.path,
                 reviewComments,
               );
+              const reviewQueueItemDescriptionId = `review-queue-item-${index + 1}-description`;
               const statusLabel = change
                 ? changeStatusLabel(change.status, change.kind)
                 : "comment";
@@ -257,11 +258,10 @@ export function Inspector({
                     className={`change-open${item.threadCounts.open ? " has-open-threads" : ""}${active ? " active" : ""}`}
                     disabled={!isReviewQueueItemOpenable(item)}
                     aria-current={active ? "true" : undefined}
-                    aria-describedby="review-queue-interaction-help review-queue-keyboard-help"
+                    aria-describedby={`review-queue-interaction-help review-queue-keyboard-help ${reviewQueueItemDescriptionId}`}
                     aria-keyshortcuts="ArrowDown ArrowUp Home End"
                     aria-label={reviewQueueItemAriaLabel(item, {
                       active,
-                      reviewStop,
                       statusLabel,
                     })}
                     data-review-index={index}
@@ -283,6 +283,15 @@ export function Inspector({
                     title="Click to preview; double-click to keep open as a tab"
                     type="button"
                   >
+                    <span
+                      className="sr-only"
+                      id={reviewQueueItemDescriptionId}
+                    >
+                      {reviewQueueItemDescription(item, {
+                        active,
+                        reviewStop,
+                      })}
+                    </span>
                     <span
                       className={
                         item.unread ? "unread-dot" : "unread-dot read"
@@ -783,17 +792,31 @@ function reviewQueueItemAriaLabel(
   item: ReviewQueueItem,
   {
     active,
-    reviewStop,
     statusLabel,
   }: {
     active: boolean;
-    reviewStop: ReviewQueueStop | null;
     statusLabel: string;
   },
 ): string {
   return [
     `${statusLabel} ${item.path}`,
     active ? "current review file" : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function reviewQueueItemDescription(
+  item: ReviewQueueItem,
+  {
+    active,
+    reviewStop,
+  }: {
+    active: boolean;
+    reviewStop: ReviewQueueStop | null;
+  },
+): string {
+  return [
     item.unread ? "unseen review work" : "seen",
     item.threadCounts.open
       ? `${item.threadCounts.open} open ${item.threadCounts.open === 1 ? "thread" : "threads"}`
@@ -802,9 +825,10 @@ function reviewQueueItemAriaLabel(
       ? `${item.commentCount} ${item.commentCount === 1 ? "message" : "messages"}`
       : "",
     reviewStop
-      ? `${reviewQueueStopTitle(active).toLowerCase()} ${reviewStop.label}, ${reviewStop.preview}`
+      ? `${reviewQueueStopTitle(active)} ${reviewStop.label}: ${reviewStop.preview}`
       : "",
     item.change ? `from ${reviewQueueSourceLabel(item.change.source)}` : "",
+    item.latestActivity ? activityLabel(item.latestActivity) : "",
   ]
     .filter(Boolean)
     .join(", ");

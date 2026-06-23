@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, within } from "storybook/test";
+import { expect, userEvent, within } from "storybook/test";
 import { buildReviewQueueItems } from "../../state/review-queue.js";
 import {
   manyReviewComments,
@@ -58,7 +58,30 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const ReviewQueueItemWithOpenThreads: Story = {};
+export const ReviewQueueItemWithOpenThreads: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const row = canvas.getByRole("button", {
+      name: `modified ${sampleFiles.code.path}, current review file`,
+    });
+    await userEvent.click(row);
+    await expect(row).toHaveAttribute(
+      "aria-describedby",
+      expect.stringContaining("review-queue-item-1-description"),
+    );
+    const descriptionId = row
+      .getAttribute("aria-describedby")
+      ?.split(/\s+/)
+      .find((id) => id.startsWith("review-queue-item-"));
+    await expect(descriptionId).toBeTruthy();
+    await expect(
+      canvasElement.querySelector(`#${descriptionId}`),
+    ).toHaveTextContent("unseen review work");
+    await expect(
+      canvasElement.querySelector(`#${descriptionId}`),
+    ).toHaveTextContent("open thread");
+  },
+};
 
 export const ReviewQueueItemWithLatestAgentActivity: Story = {
   args: {

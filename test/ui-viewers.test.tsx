@@ -1675,14 +1675,16 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
   expect(html).toContain('aria-keyshortcuts="ArrowDown ArrowUp Home End"');
   expect(html).toContain('id="review-queue-interaction-help"');
   expect(html).toContain(
-    'aria-describedby="review-queue-interaction-help review-queue-keyboard-help"',
+    'aria-describedby="review-queue-interaction-help review-queue-keyboard-help review-queue-item-1-description"',
   );
+  expect(html).toContain('id="review-queue-item-1-description"');
+  expect(html).toContain("unseen review work, from HEAD diff");
   expect(html).toContain("Click or press Enter to preview a review file.");
   expect(html).toContain("Double-click to keep it open as a tab.");
   expect(html).toContain('data-review-index="0"');
   expect(html).toContain('data-review-path="src/app.ts"');
   expect(html).toContain(
-    'aria-label="modified src/app.ts, current review file, unseen review work, from HEAD diff"',
+    'aria-label="modified src/app.ts, current review file"',
   );
   expect(html).toContain("src/app.ts:2");
   expect(html).toContain("+100");
@@ -3115,7 +3117,13 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
     "Agent reply needs a human decision before this file is clear.",
   );
   expect(html).toContain(
-    'aria-label="comment docs/agent-handoff.md, current review file, unseen review work, 2 open threads, 3 messages, current stop diff · L7, Agent reply needs a human decision before this file is clear."',
+    'aria-label="comment docs/agent-handoff.md, current review file"',
+  );
+  expect(html).toContain(
+    'aria-describedby="review-queue-interaction-help review-queue-keyboard-help review-queue-item-1-description"',
+  );
+  expect(html).toContain(
+    "unseen review work, 2 open threads, 3 messages, Current stop diff · L7: Agent reply needs a human decision before this file is clear.",
   );
   expect(html).toContain(
     "<strong>1/2</strong> files seen · 1 unseen · 2 open threads",
@@ -3165,11 +3173,11 @@ it("opens Review Queue rows as preview on click and stable tabs on double click"
     "Click to preview; double-click to keep open as a tab",
   );
   expect(props["aria-describedby"]).toBe(
-    "review-queue-interaction-help review-queue-keyboard-help",
+    "review-queue-interaction-help review-queue-keyboard-help review-queue-item-1-description",
   );
   expect(props["aria-keyshortcuts"]).toBe("ArrowDown ArrowUp Home End");
   expect(props["aria-label"]).toBe(
-    "modified src/app.ts, current review file, seen, from HEAD diff",
+    "modified src/app.ts, current review file",
   );
   expect(calls).toEqual(["preview:src/app.ts", "normal:src/app.ts"]);
 });
