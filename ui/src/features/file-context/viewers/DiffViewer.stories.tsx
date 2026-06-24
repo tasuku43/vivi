@@ -92,6 +92,34 @@ export const ActiveDiffCommentStaysInline: Story = {
   },
 };
 
+export const MultipleDraftFormsStayOpen: Story = {
+  tags: ["interaction"],
+  args: {
+    comments: [],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Add comment on line 6" }),
+    );
+    await expect(
+      canvas.getByRole("article", { name: "Comment thread for line 6" }),
+    ).toBeVisible();
+
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Add comment on line 9" }),
+    );
+
+    await expect(
+      canvas.getByRole("article", { name: "Comment thread for line 6" }),
+    ).toBeVisible();
+    await expect(
+      canvas.getByRole("article", { name: "Comment thread for line 9" }),
+    ).toBeVisible();
+    await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(2);
+  },
+};
+
 export const DiffCommentOnRemovedLine: Story = {
   args: {
     activeCommentId: "comment-diff-removed",
