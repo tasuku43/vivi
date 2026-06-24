@@ -67,6 +67,29 @@ export const SourceMarkdownComment: Story = {
   },
 };
 
+export const MultipleRenderedDraftFormsStayOpen: Story = {
+  tags: ["interaction"],
+  args: {
+    mode: "rendered",
+    comments: [],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole("heading", { name: "Review Surface" }),
+    );
+    await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(1);
+
+    await userEvent.click(
+      canvas.getByText(
+        "Vivi keeps the human review surface close to the files that changed.",
+      ),
+    );
+
+    await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(2);
+  },
+};
+
 export const RenderedDiffMode: Story = {
   args: {
     mode: "rendered",

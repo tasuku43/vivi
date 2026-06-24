@@ -54,6 +54,14 @@ export {
   renderMarkdownDocumentHtml,
 } from "../rendering/markdown-rendering.js";
 
+type MarkdownRenderedThreadTarget = {
+  blockId: string;
+  blockIds: string[];
+  draft: CommentDraft;
+  host: HTMLElement;
+  mount: HTMLElement;
+};
+
 export function MarkdownViewer({
   file,
   mode: controlledMode,
@@ -96,13 +104,9 @@ export function MarkdownViewer({
   threadActivities?: Record<string, CommentActivitySummary>;
 }) {
   const [localMode, setLocalMode] = useState<ViewerMode>("rendered");
-  const [renderedThreadTarget, setRenderedThreadTarget] = useState<{
-    blockId: string;
-    blockIds: string[];
-    draft: CommentDraft;
-    host: HTMLElement;
-    mount: HTMLElement;
-  } | null>(null);
+  const [renderedThreadTargets, setRenderedThreadTargets] = useState<
+    MarkdownRenderedThreadTarget[]
+  >([]);
   const [sourceSelectedRange, setSourceSelectedRange] =
     useState<LineRange | null>(null);
   const mode =
@@ -111,8 +115,12 @@ export function MarkdownViewer({
       : localMode;
   const html = renderMarkdownDocumentHtml(file.content);
   const markdownRef = useRef<HTMLElement | null>(null);
+  const renderedThreadTargetsRef = useRef<MarkdownRenderedThreadTarget[]>([]);
   const setMode = (nextMode: ViewerMode) => {
-    setRenderedThreadTarget(null);
+    setRenderedThreadTargets((items) => {
+      for (const item of items) item.host.remove();
+      return [];
+    });
     setLocalMode(nextMode);
     onModeChange?.(nextMode);
   };
@@ -151,7 +159,7 @@ export function MarkdownViewer({
       markdownRef.current,
       comments,
       activeCommentId,
-      renderedThreadTarget?.blockIds,
+      renderedThreadTargets.flatMap((target) => target.blockIds),
     );
   }, [
     activeCommentId,
@@ -159,37 +167,50 @@ export function MarkdownViewer({
     diffEnabled,
     html,
     mode,
-    renderedThreadTarget,
+    renderedThreadTargets,
   ]);
 
   useLayoutEffect(() => {
     if (
       mode !== "rendered" ||
       diffEnabled ||
-      !renderedThreadTarget ||
+      !renderedThreadTargets.length ||
       !markdownRef.current
     ) {
       return;
     }
-    const hostBlockId = renderedThreadTarget.blockIds.at(-1);
-    const block = Array.from(
+    const blocks = Array.from(
       markdownRef.current.querySelectorAll<HTMLElement>(
         `[${renderedCommentBlockAttribute}]`,
       ),
-    ).find((candidate) => candidate.dataset.viviCommentBlockId === hostBlockId);
-    if (!block) return;
-    placeRenderedThreadHost(block, renderedThreadTarget.host);
+    );
+    for (const target of renderedThreadTargets) {
+      const hostBlockId = target.blockIds.at(-1);
+      const block = blocks.find(
+        (candidate) => candidate.dataset.viviCommentBlockId === hostBlockId,
+      );
+      if (block) placeRenderedThreadHost(block, target.host);
+    }
   });
 
-  useLayoutEffect(
+  useEffect(() => {
+    renderedThreadTargetsRef.current = renderedThreadTargets;
+  }, [renderedThreadTargets]);
+
+  useEffect(
     () => () => {
-      renderedThreadTarget?.host.remove();
+      for (const target of renderedThreadTargetsRef.current) {
+        target.host.remove();
+      }
     },
-    [renderedThreadTarget],
+    [],
   );
 
   useEffect(() => {
-    setRenderedThreadTarget(null);
+    setRenderedThreadTargets((items) => {
+      for (const item of items) item.host.remove();
+      return [];
+    });
   }, [file.path]);
 
   const openRenderedDraft = (
@@ -200,7 +221,7 @@ export function MarkdownViewer({
     const hostBlock = blocks.at(-1);
     if (!hostBlock) return;
     const { host, mount } = createRenderedThreadHost(hostBlock);
-    setRenderedThreadTarget({
+    const nextTarget: MarkdownRenderedThreadTarget = {
       blockId: target.blockId,
       blockIds: target.blockIds,
       host,
@@ -219,6 +240,20 @@ export function MarkdownViewer({
         }),
         threadId: comment?.threadId ?? comment?.id,
       },
+    };
+    const key = renderedThreadTargetKey(file.path, nextTarget);
+    setRenderedThreadTargets((items) => {
+      for (const item of items) {
+        if (renderedThreadTargetKey(file.path, item) === key) {
+          item.host.remove();
+        }
+      }
+      return [
+        ...items.filter(
+          (item) => renderedThreadTargetKey(file.path, item) !== key,
+        ),
+        nextTarget,
+      ];
     });
   };
 
@@ -250,7 +285,24 @@ export function MarkdownViewer({
   };
 
   const closeRenderedThread = () => {
-    setRenderedThreadTarget(null);
+    setRenderedThreadTargets((items) => {
+      for (const item of items) item.host.remove();
+      return [];
+    });
+    onCloseComment?.();
+  };
+
+  const closeRenderedThreadTarget = (key: string) => {
+    setRenderedThreadTargets((items) => {
+      for (const item of items) {
+        if (renderedThreadTargetKey(file.path, item) === key) {
+          item.host.remove();
+        }
+      }
+      return items.filter(
+        (item) => renderedThreadTargetKey(file.path, item) !== key,
+      );
+    });
     onCloseComment?.();
   };
 
@@ -284,24 +336,24 @@ export function MarkdownViewer({
     startRenderedComment(block);
   };
 
-  const renderedThreadComments = renderedThreadTarget
-    ? commentsForRenderedTarget(
-        markdownRef.current,
-        renderedThreadTarget,
-        comments,
-      )
-    : [];
-  const renderedThread = renderedThreadTarget
-    ? renderedThreadModel(
-        file.path,
-        renderedThreadTarget.draft,
-        renderedThreadComments,
-      )
-    : null;
-  const renderedThreadId =
-    renderedThread?.comments[0]?.threadId ??
-    renderedThread?.comments[0]?.id ??
-    renderedThreadTarget?.draft.threadId;
+  const renderedThreadEntries = renderedThreadTargets.map((target) => {
+    const threadComments = commentsForRenderedTarget(
+      markdownRef.current,
+      target,
+      comments,
+    );
+    const thread = renderedThreadModel(file.path, target.draft, threadComments);
+    const threadId =
+      thread.comments[0]?.threadId ??
+      thread.comments[0]?.id ??
+      target.draft.threadId;
+    return {
+      key: renderedThreadTargetKey(file.path, target),
+      target,
+      thread,
+      threadId,
+    };
+  });
 
   return (
     <section className="document-viewer">
@@ -379,25 +431,24 @@ export function MarkdownViewer({
           threadActivities={threadActivities}
         />
       )}
-      {renderedThread && renderedThreadTarget
-        ? createPortal(
-            <CodeCommentThread
-              className="rendered-comment-thread"
-              thread={renderedThread}
-              draft={renderedThreadTarget.draft}
-              activity={
-                renderedThreadId
-                  ? threadActivities[renderedThreadId]
-                  : undefined
-              }
-              activeCommentId={activeCommentId}
-              onCreateComment={onCreateComment}
-              onStatusChange={onCommentStatusChange}
-              onClose={closeRenderedThread}
-            />,
-            renderedThreadTarget.mount,
-          )
-        : null}
+      {renderedThreadEntries.map((entry) =>
+        createPortal(
+          <CodeCommentThread
+            className="rendered-comment-thread"
+            thread={entry.thread}
+            draft={entry.target.draft}
+            activity={
+              entry.threadId ? threadActivities[entry.threadId] : undefined
+            }
+            activeCommentId={activeCommentId}
+            onCreateComment={onCreateComment}
+            onStatusChange={onCommentStatusChange}
+            onClose={() => closeRenderedThreadTarget(entry.key)}
+          />,
+          entry.target.mount,
+          entry.key,
+        ),
+      )}
     </section>
   );
 }
@@ -499,4 +550,15 @@ function renderedThreadModel(
     status: "open",
     comments,
   };
+}
+
+function renderedThreadTargetKey(
+  path: string,
+  target: { blockIds: string[]; draft: CommentDraft },
+): string {
+  const lineStart = target.draft.anchor.canonical.lineStart ?? null;
+  const lineEnd = target.draft.anchor.canonical.lineEnd ?? lineStart;
+  return target.draft.threadId
+    ? JSON.stringify(["thread", target.draft.threadId])
+    : JSON.stringify([path, lineStart, lineEnd, target.blockIds.join("|")]);
 }

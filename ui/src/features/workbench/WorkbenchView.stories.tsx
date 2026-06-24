@@ -178,8 +178,8 @@ export const CompactInspectorCanReopenReviewQueue: Story = {
     });
     await expect(within(inspector).getByText("Review Queue")).toBeVisible();
 
-    const focusedReviewItem =
-      canvasElement.ownerDocument.activeElement as HTMLElement | null;
+    const focusedReviewItem = canvasElement.ownerDocument
+      .activeElement as HTMLElement | null;
 
     expect(focusedReviewItem?.classList.contains("change-open")).toBe(true);
 
@@ -218,8 +218,9 @@ export const CompactInspectorCanReopenReviewQueue: Story = {
       within(reopenedInspector).getByText("Review Queue"),
     ).toBeVisible();
 
-    const firstReviewItem =
-      canvasElement.querySelector<HTMLElement>(".review-queue .change-open");
+    const firstReviewItem = canvasElement.querySelector<HTMLElement>(
+      ".review-queue .change-open",
+    );
     expect(firstReviewItem).not.toBeNull();
     if (firstReviewItem) {
       const itemRect = firstReviewItem.getBoundingClientRect();
@@ -628,12 +629,13 @@ export const CommentsPanelOpensInlineThread: Story = {
     await expect(
       canvas.getByLabelText(/Comment thread for lines 9-12/i),
     ).toBeInTheDocument();
+    let replyBoxes = canvas.getAllByRole("textbox", {
+      name: "Reply to thread",
+    });
+    await expect(replyBoxes).toHaveLength(1);
     await expect(
-      canvas.getByRole("textbox", { name: "Reply to thread" }),
-    ).toBeInTheDocument();
-    await expect(
-      canvas.getByRole("textbox", { name: "Reply to thread" }),
-    ).not.toHaveFocus();
+      replyBoxes.some((textbox) => textbox === document.activeElement),
+    ).toBe(false);
 
     const rowTarget = canvasElement.querySelector<HTMLElement>(
       '.code-line.has-comment[data-line="5"]',
@@ -645,9 +647,13 @@ export const CommentsPanelOpensInlineThread: Story = {
     await expect(
       canvas.getByLabelText(/Comment thread for line 5/i),
     ).toBeInTheDocument();
+    replyBoxes = canvas.getAllByRole("textbox", {
+      name: "Reply to thread",
+    });
+    await expect(replyBoxes).toHaveLength(2);
     await expect(
-      canvas.getByRole("textbox", { name: "Reply to thread" }),
-    ).not.toHaveFocus();
+      replyBoxes.some((textbox) => textbox === document.activeElement),
+    ).toBe(false);
 
     await userEvent.click(
       canvas.getByRole("button", { name: "Open command palette" }),

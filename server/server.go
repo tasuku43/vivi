@@ -989,6 +989,7 @@ pre{border:1px solid %s;border-radius:8px;padding:12px;overflow:auto;}
   let activeCommentId = null;
   let draftingBlockIds = [];
   let openBlockIds = [];
+  let openBlockIdGroups = [];
   const post = (message) => parent.postMessage({ path, ...message }, "*");
   const escapeSelectorValue = (value) => String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   const escapeCssIdentifier = (value) => globalThis.CSS?.escape ? CSS.escape(value) : String(value).replace(/[^a-zA-Z0-9_-]/g, (character) => "\\" + character);
@@ -1196,10 +1197,13 @@ pre{border:1px solid %s;border-radius:8px;padding:12px;overflow:auto;}
   };
   const postThreadLayout = () => {
     if (!openBlockIds.length) return;
-    const byId = new Set(openBlockIds);
-    const blocks = commentableBlocks().filter((block) => byId.has(block.dataset.viviCommentBlockId));
-    const target = targetForBlocks(blocks);
-    if (target) post({ type: "vivi-html-thread-layout", blockIds: target.blockIds, rect: target.rect });
+    const groups = openBlockIdGroups.length ? openBlockIdGroups : [openBlockIds];
+    for (const group of groups) {
+      const byId = new Set(group);
+      const blocks = commentableBlocks().filter((block) => byId.has(block.dataset.viviCommentBlockId));
+      const target = targetForBlocks(blocks);
+      if (target) post({ type: "vivi-html-thread-layout", blockIds: target.blockIds, rect: target.rect });
+    }
   };
   const publishSelection = () => {
     const selection = document.getSelection();
@@ -1219,6 +1223,7 @@ pre{border:1px solid %s;border-radius:8px;padding:12px;overflow:auto;}
     activeCommentId = typeof data.activeCommentId === "string" ? data.activeCommentId : null;
     draftingBlockIds = Array.isArray(data.draftingBlockIds) ? data.draftingBlockIds : [];
     openBlockIds = Array.isArray(data.openBlockIds) ? data.openBlockIds : [];
+    openBlockIdGroups = Array.isArray(data.openBlockIdGroups) ? data.openBlockIdGroups.filter((group) => Array.isArray(group)) : [];
     applyHighlights();
   });
   document.addEventListener("click", (event) => {

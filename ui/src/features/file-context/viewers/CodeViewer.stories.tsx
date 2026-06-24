@@ -139,10 +139,14 @@ export const SourceIgnoresDiffThreadOnSameLine: Story = {
     ).toBeVisible();
     await expect(canvas.getByText("1 message")).toBeVisible();
     await expect(
-      canvas.getByText("Source viewer should show this one source-thread message."),
+      canvas.getByText(
+        "Source viewer should show this one source-thread message.",
+      ),
     ).toBeVisible();
     await expect(
-      canvas.queryByText("Second diff-only message on the same canonical line."),
+      canvas.queryByText(
+        "Second diff-only message on the same canonical line.",
+      ),
     ).not.toBeInTheDocument();
   },
 };
@@ -196,8 +200,9 @@ export const NarrowInlineCommentDraft: Story = {
     await expect(canvas.getByLabelText("New line comment")).toBeVisible();
 
     const viewerPane = canvasElement.querySelector<HTMLElement>(".viewer-pane");
-    const thread =
-      canvasElement.querySelector<HTMLElement>(".code-comment-thread");
+    const thread = canvasElement.querySelector<HTMLElement>(
+      ".code-comment-thread",
+    );
     const saveButton = canvas.getByRole("button", {
       name: "Save private draft comment",
     });
@@ -210,6 +215,35 @@ export const NarrowInlineCommentDraft: Story = {
     expect(saveButton.getBoundingClientRect().right).toBeLessThanOrEqual(
       paneRight + 1,
     );
+  },
+};
+
+export const MultipleSourceDraftFormsStayOpen: Story = {
+  tags: ["interaction"],
+  args: {
+    comments: [],
+    selectedRange: null,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Add comment on line 6" }),
+    );
+    await expect(
+      canvas.getByRole("article", { name: "Comment thread for line 6" }),
+    ).toBeVisible();
+
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Add comment on line 9" }),
+    );
+
+    await expect(
+      canvas.getByRole("article", { name: "Comment thread for line 6" }),
+    ).toBeVisible();
+    await expect(
+      canvas.getByRole("article", { name: "Comment thread for line 9" }),
+    ).toBeVisible();
+    await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(2);
   },
 };
 
@@ -235,7 +269,9 @@ export const SavedInlineDraftRemainsVisible: Story = {
       canvas.getByRole("button", { name: "Save private draft comment" }),
     );
 
-    await expect(canvas.getByText("Persist this draft in place.")).toBeVisible();
+    await expect(
+      canvas.getByText("Persist this draft in place."),
+    ).toBeVisible();
     await expect(canvas.getByText("1 message")).toBeVisible();
     expect(canvas.getAllByText("Draft").length).toBeGreaterThan(0);
   },

@@ -32,6 +32,11 @@ import {
 } from "../../../state/comments.js";
 import { CodeCommentThread } from "./CodeCommentThread.js";
 
+type SourceDraftThread = {
+  thread: CodeCommentThreadModel;
+  draft: CommentDraft;
+};
+
 export function SourceCommentSurface({
   file,
   highlightedLines,
@@ -66,11 +71,8 @@ export function SourceCommentSurface({
   threadActivities?: Record<string, CommentActivitySummary>;
 }) {
   const [anchorLine, setAnchorLine] = useState<number | null>(null);
-  const [draftThread, setDraftThread] = useState<{
-    thread: CodeCommentThreadModel;
-    draft: CommentDraft;
-  } | null>(null);
-  const [openThreadKey, setOpenThreadKey] = useState<string | null>(null);
+  const [draftThreads, setDraftThreads] = useState<SourceDraftThread[]>([]);
+  const [openThreadKeys, setOpenThreadKeys] = useState<string[]>([]);
   const [lineDragging, setLineDragging] = useState(false);
   const [highlightState, setHighlightState] = useState(() => ({
     visible: highlightedLines ?? null,
@@ -93,15 +95,17 @@ export function SourceCommentSurface({
         thread.comments.some((comment) => comment.id === activeCommentId),
       )
     : undefined;
-  const persistedDraftThread = draftThread
-    ? matchingCodeCommentThread(commentThreads, draftThread.thread)
-    : undefined;
-  const visibleThreadKey =
-    persistedDraftThread?.key ??
-    draftThread?.thread.key ??
-    openThreadKey ??
-    (expandActiveCommentThread ? activeThread?.key : null) ??
-    null;
+  const visibleThreadKeys = new Set<string>();
+  for (const draftThread of draftThreads) {
+    visibleThreadKeys.add(
+      matchingCodeCommentThread(commentThreads, draftThread.thread)?.key ??
+        draftThread.thread.key,
+    );
+  }
+  for (const key of openThreadKeys) visibleThreadKeys.add(key);
+  if (expandActiveCommentThread && activeThread) {
+    visibleThreadKeys.add(activeThread.key);
+  }
 
   useEffect(() => {
     setHighlightState((state) =>
@@ -115,8 +119,8 @@ export function SourceCommentSurface({
 
   useEffect(() => {
     setAnchorLine(null);
-    setOpenThreadKey(null);
-    setDraftThread(null);
+    setOpenThreadKeys([]);
+    setDraftThreads([]);
   }, [file.path]);
 
   useEffect(() => {
@@ -153,11 +157,8 @@ export function SourceCommentSurface({
       moved: false,
     };
     setLineDragging(true);
-    setDraftThread(null);
-    setOpenThreadKey(null);
     setAnchorLine(lineNumber);
     onSelectionChange({ start: lineNumber, end: lineNumber });
-    onCloseComment?.();
   }
 
   function extendLineDrag(lineNumber: number) {
@@ -244,7 +245,7 @@ export function SourceCommentSurface({
       normalized.start,
       normalized.end,
     );
-    setDraftThread({
+    const nextDraftThread: SourceDraftThread = {
       thread: {
         key,
         path: file.path,
@@ -254,29 +255,34 @@ export function SourceCommentSurface({
         comments: [],
       },
       draft: sourceCommentDraft(file, normalized, quote),
-    });
+    };
+    setDraftThreads((items) => [
+      ...items.filter((item) => item.thread.key !== key),
+      nextDraftThread,
+    ]);
     setAnchorLine(normalized.start);
-    setOpenThreadKey(null);
     onSelectionChange(normalized);
-    onCloseComment?.();
   }
 
   function openCommentThread(
     thread: (typeof commentThreads)[number],
-    target: Element,
+    target?: Element,
   ) {
-    setDraftThread(null);
-    setOpenThreadKey(thread.key);
+    setOpenThreadKeys((keys) =>
+      keys.includes(thread.key) ? keys : [...keys, thread.key],
+    );
     onSelectionChange({ start: thread.lineStart, end: thread.lineEnd });
     const firstComment = thread.comments[0];
-    if (firstComment) {
+    if (firstComment && target) {
       onOpenComment?.(firstComment.id, rectLikeFromElement(target));
     }
   }
 
-  function closeCommentThread() {
-    setDraftThread(null);
-    setOpenThreadKey(null);
+  function closeCommentThread(threadKey: string) {
+    setDraftThreads((items) =>
+      items.filter((item) => item.thread.key !== threadKey),
+    );
+    setOpenThreadKeys((keys) => keys.filter((key) => key !== threadKey));
     onSelectionChange(null);
     onCloseComment?.();
   }
@@ -329,12 +335,17 @@ export function SourceCommentSurface({
         );
         const displayedThread = commentThreads.find(
           (thread) =>
-            thread.key === visibleThreadKey && thread.lineEnd === lineNumber,
+            visibleThreadKeys.has(thread.key) && thread.lineEnd === lineNumber,
         );
         const actionThread = displayedThread ?? rowThread;
+        const draftThread = draftThreads.find(
+          (candidate) =>
+            !matchingCodeCommentThread(commentThreads, candidate.thread) &&
+            lineNumber >= candidate.thread.lineStart &&
+            lineNumber <= candidate.thread.lineEnd,
+        );
         const draftingRangeLine = Boolean(
           draftThread &&
-          !persistedDraftThread &&
           lineNumber >= draftThread.thread.lineStart &&
           lineNumber <= draftThread.thread.lineEnd,
         );
@@ -413,7 +424,7 @@ export function SourceCommentSurface({
                 onClick={(event) => {
                   event.stopPropagation();
                   if (threadOpen) {
-                    closeCommentThread();
+                    closeCommentThread(threadForDisplay?.key ?? "");
                   } else if (actionThread) {
                     openCommentThread(actionThread, event.currentTarget);
                   } else {
@@ -456,7 +467,7 @@ export function SourceCommentSurface({
                   activeCommentId={activeCommentId}
                   onCreateComment={onCreateComment}
                   onStatusChange={onCommentStatusChange}
-                  onClose={closeCommentThread}
+                  onClose={() => closeCommentThread(threadForDisplay.key)}
                 />
               </div>
             ) : null}

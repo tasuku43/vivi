@@ -1482,11 +1482,7 @@ function isSelfClosingTag(tag: string): boolean {
   return tag.slice(0, -1).trimEnd().endsWith("/");
 }
 
-function findOpeningTagStart(
-  html: string,
-  tagName: string,
-  from = 0,
-): number {
+function findOpeningTagStart(html: string, tagName: string, from = 0): number {
   const lower = html.toLowerCase();
   const needle = `<${tagName.toLowerCase()}`;
   let index = from;
@@ -1502,11 +1498,7 @@ function findOpeningTagStart(
   return -1;
 }
 
-function findClosingTagStart(
-  html: string,
-  tagName: string,
-  from = 0,
-): number {
+function findClosingTagStart(html: string, tagName: string, from = 0): number {
   const lower = html.toLowerCase();
   const needle = `</${tagName.toLowerCase()}`;
   let index = from;
@@ -1585,6 +1577,7 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
   let activeCommentId = null;
   let draftingBlockIds = [];
   let openBlockIds = [];
+  let openBlockIdGroups = [];
   const post = (message) => parent.postMessage({ path, ...message }, "*");
   const cssPath = (element) => {
     if (!element || element.nodeType !== Node.ELEMENT_NODE) return undefined;
@@ -1790,10 +1783,13 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
   };
   const postThreadLayout = () => {
     if (!openBlockIds.length) return;
-    const byId = new Set(openBlockIds);
-    const blocks = commentableBlocks().filter((block) => byId.has(block.dataset.viviCommentBlockId));
-    const target = targetForBlocks(blocks);
-    if (target) post({ type: "vivi-html-thread-layout", blockIds: target.blockIds, rect: target.rect });
+    const groups = openBlockIdGroups.length ? openBlockIdGroups : [openBlockIds];
+    for (const group of groups) {
+      const byId = new Set(group);
+      const blocks = commentableBlocks().filter((block) => byId.has(block.dataset.viviCommentBlockId));
+      const target = targetForBlocks(blocks);
+      if (target) post({ type: "vivi-html-thread-layout", blockIds: target.blockIds, rect: target.rect });
+    }
   };
   const publishSelection = () => {
     const selection = document.getSelection();
@@ -1815,6 +1811,7 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
     activeCommentId = typeof data.activeCommentId === "string" ? data.activeCommentId : null;
     draftingBlockIds = Array.isArray(data.draftingBlockIds) ? data.draftingBlockIds : [];
     openBlockIds = Array.isArray(data.openBlockIds) ? data.openBlockIds : [];
+    openBlockIdGroups = Array.isArray(data.openBlockIdGroups) ? data.openBlockIdGroups.filter((group) => Array.isArray(group)) : [];
     applyHighlights();
   });
   document.addEventListener("click", (event) => {

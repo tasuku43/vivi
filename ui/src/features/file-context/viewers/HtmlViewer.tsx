@@ -33,6 +33,13 @@ import {
 } from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
 
+type HtmlRenderedThreadTarget = {
+  blockId: string;
+  blockIds: string[];
+  draft: CommentDraft;
+  rect: DOMRectLike;
+};
+
 export function HtmlViewer({
   file,
   allowHtmlScripts,
@@ -81,14 +88,12 @@ export function HtmlViewer({
     draft: CommentDraft;
     rect: DOMRectLike;
   } | null>(null);
-  const [renderedThreadTarget, setRenderedThreadTarget] = useState<{
-    blockId: string;
-    blockIds: string[];
-    draft: CommentDraft;
-    rect: DOMRectLike;
-  } | null>(null);
-  const [renderedThreadPosition, setRenderedThreadPosition] =
-    useState<HtmlRenderedThreadPosition | null>(null);
+  const [renderedThreadTargets, setRenderedThreadTargets] = useState<
+    HtmlRenderedThreadTarget[]
+  >([]);
+  const [renderedThreadPositions, setRenderedThreadPositions] = useState<
+    Record<string, HtmlRenderedThreadPosition>
+  >({});
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const sourceRef = useRef<HTMLDivElement | null>(null);
   const mode =
@@ -98,14 +103,14 @@ export function HtmlViewer({
   const htmlSourceBlocks = renderedCommentBlocksForHtml(file.content);
   const setMode = (nextMode: ViewerMode) => {
     setSourceSelectionComment(null);
-    setRenderedThreadTarget(null);
+    setRenderedThreadTargets([]);
     setLocalMode(nextMode);
     onModeChange?.(nextMode);
   };
 
   useEffect(() => {
     setSourceSelectionComment(null);
-    setRenderedThreadTarget(null);
+    setRenderedThreadTargets([]);
   }, [file.content, file.path]);
 
   const postRenderedCommentState = () => {
@@ -116,8 +121,15 @@ export function HtmlViewer({
         type: "vivi-html-comments",
         path: file.path,
         activeCommentId,
-        draftingBlockIds: renderedThreadTarget?.blockIds ?? [],
-        openBlockIds: renderedThreadTarget?.blockIds ?? [],
+        draftingBlockIds: renderedThreadTargets.flatMap(
+          (target) => target.blockIds,
+        ),
+        openBlockIds: renderedThreadTargets.flatMap(
+          (target) => target.blockIds,
+        ),
+        openBlockIdGroups: renderedThreadTargets.map(
+          (target) => target.blockIds,
+        ),
         comments: comments
           .map((comment) => renderedCommentSummaryForComment(comment, "html"))
           .filter(Boolean),
@@ -144,10 +156,13 @@ export function HtmlViewer({
       if (data.type === "vivi-html-thread-layout") {
         const rect = rectFromIframe(data.rect, iframeRef.current);
         if (rect) {
-          setRenderedThreadTarget((current) =>
-            current && !sameRect(current.rect, rect)
-              ? { ...current, rect }
-              : current,
+          setRenderedThreadTargets((items) =>
+            items.map((item) =>
+              sameBlockIds(item.blockIds, data.blockIds ?? []) &&
+              !sameRect(item.rect, rect)
+                ? { ...item, rect }
+                : item,
+            ),
           );
         }
         return;
@@ -162,7 +177,7 @@ export function HtmlViewer({
         return;
       }
       if (data.type === "vivi-html-comment-clear") {
-        setRenderedThreadTarget(null);
+        setRenderedThreadTargets([]);
         onCloseComment?.();
         return;
       }
@@ -174,11 +189,9 @@ export function HtmlViewer({
       }
       const target = renderedTargetFromMessage(data, iframeRef.current);
       if (!target) {
-        setRenderedThreadTarget(null);
         return;
       }
       openRenderedDraft(target);
-      onCloseComment?.();
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
@@ -188,21 +201,26 @@ export function HtmlViewer({
     postRenderedCommentState();
     const timeout = window.setTimeout(postRenderedCommentState, 0);
     return () => window.clearTimeout(timeout);
-  }, [activeCommentId, comments, file.path, mode, renderedThreadTarget]);
+  }, [activeCommentId, comments, file.path, mode, renderedThreadTargets]);
 
   useLayoutEffect(() => {
-    if (!renderedThreadTarget) {
-      setRenderedThreadPosition(null);
+    if (!renderedThreadTargets.length) {
+      setRenderedThreadPositions({});
       return;
     }
     const update = () =>
-      setRenderedThreadPosition(
-        positionHtmlRenderedThread(renderedThreadTarget.rect),
+      setRenderedThreadPositions(
+        Object.fromEntries(
+          renderedThreadTargets.map((target) => [
+            renderedHtmlThreadTargetKey(file.path, target),
+            positionHtmlRenderedThread(target.rect),
+          ]),
+        ),
       );
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, [renderedThreadTarget]);
+  }, [file.path, renderedThreadTargets]);
 
   const openRenderedDraft = (
     target: RenderedCommentBlockTarget,
@@ -213,7 +231,7 @@ export function HtmlViewer({
       htmlSourceBlocks,
       target,
     );
-    setRenderedThreadTarget({
+    const nextTarget: HtmlRenderedThreadTarget = {
       blockId: target.blockId,
       blockIds: target.blockIds,
       rect: target.rect,
@@ -228,11 +246,27 @@ export function HtmlViewer({
         }),
         threadId: comment?.threadId ?? comment?.id,
       },
-    });
+    };
+    const key = renderedHtmlThreadTargetKey(file.path, nextTarget);
+    setRenderedThreadTargets((items) => [
+      ...items.filter(
+        (item) => renderedHtmlThreadTargetKey(file.path, item) !== key,
+      ),
+      nextTarget,
+    ]);
   };
 
   const closeRenderedThread = () => {
-    setRenderedThreadTarget(null);
+    setRenderedThreadTargets([]);
+    onCloseComment?.();
+  };
+
+  const closeRenderedThreadTarget = (key: string) => {
+    setRenderedThreadTargets((items) =>
+      items.filter(
+        (item) => renderedHtmlThreadTargetKey(file.path, item) !== key,
+      ),
+    );
     onCloseComment?.();
   };
 
@@ -252,20 +286,22 @@ export function HtmlViewer({
     });
   };
 
-  const renderedThreadComments = renderedThreadTarget
-    ? commentsForRenderedHtmlTarget(renderedThreadTarget, comments)
-    : [];
-  const renderedThread = renderedThreadTarget
-    ? renderedThreadModel(
-        file.path,
-        renderedThreadTarget.draft,
-        renderedThreadComments,
-      )
-    : null;
-  const renderedThreadId =
-    renderedThread?.comments[0]?.threadId ??
-    renderedThread?.comments[0]?.id ??
-    renderedThreadTarget?.draft.threadId;
+  const renderedThreadEntries = renderedThreadTargets.map((target) => {
+    const threadComments = commentsForRenderedHtmlTarget(target, comments);
+    const thread = renderedThreadModel(file.path, target.draft, threadComments);
+    const threadId =
+      thread.comments[0]?.threadId ??
+      thread.comments[0]?.id ??
+      target.draft.threadId;
+    const key = renderedHtmlThreadTargetKey(file.path, target);
+    return {
+      key,
+      position: renderedThreadPositions[key],
+      target,
+      thread,
+      threadId,
+    };
+  });
 
   return (
     <section className="html-viewer">
@@ -354,31 +390,34 @@ export function HtmlViewer({
         onSave={onCreateComment}
         onDismiss={() => setSourceSelectionComment(null)}
       />
-      {renderedThread && renderedThreadTarget && renderedThreadPosition ? (
-        <div
-          className="html-rendered-comment-thread-host"
-          style={
-            {
-              left: renderedThreadPosition.left,
-              top: renderedThreadPosition.top,
-              width: renderedThreadPosition.width,
-              maxHeight: renderedThreadPosition.maxHeight,
-            } as CSSProperties
-          }
-        >
-          <CodeCommentThread
-            className="rendered-comment-thread html-rendered-comment-thread"
-            thread={renderedThread}
-            draft={renderedThreadTarget.draft}
-            activity={
-              renderedThreadId ? threadActivities[renderedThreadId] : undefined
+      {renderedThreadEntries.map((entry) =>
+        entry.position ? (
+          <div
+            key={entry.key}
+            className="html-rendered-comment-thread-host"
+            style={
+              {
+                left: entry.position.left,
+                top: entry.position.top,
+                width: entry.position.width,
+                maxHeight: entry.position.maxHeight,
+              } as CSSProperties
             }
-            onCreateComment={onCreateComment}
-            onStatusChange={onCommentStatusChange}
-            onClose={closeRenderedThread}
-          />
-        </div>
-      ) : null}
+          >
+            <CodeCommentThread
+              className="rendered-comment-thread html-rendered-comment-thread"
+              thread={entry.thread}
+              draft={entry.target.draft}
+              activity={
+                entry.threadId ? threadActivities[entry.threadId] : undefined
+              }
+              onCreateComment={onCreateComment}
+              onStatusChange={onCommentStatusChange}
+              onClose={() => closeRenderedThreadTarget(entry.key)}
+            />
+          </div>
+        ) : null,
+      )}
     </section>
   );
 }
@@ -428,7 +467,9 @@ function renderedTargetFromMessage(
 }
 
 function rectFromIframe(
-  rect: { left: number; top: number; width: number; height: number } | undefined,
+  rect:
+    | { left: number; top: number; width: number; height: number }
+    | undefined,
   iframe: HTMLIFrameElement | null,
 ): DOMRectLike | null {
   const iframeRect = iframe?.getBoundingClientRect();
@@ -447,6 +488,13 @@ function sameRect(left: DOMRectLike, right: DOMRectLike): boolean {
     left.top === right.top &&
     left.width === right.width &&
     left.height === right.height
+  );
+}
+
+function sameBlockIds(left: string[], right: string[]): boolean {
+  return (
+    left.length === right.length &&
+    left.every((id, index) => id === right[index])
   );
 }
 
@@ -520,6 +568,17 @@ function renderedThreadModel(
   };
 }
 
+function renderedHtmlThreadTargetKey(
+  path: string,
+  target: { blockIds: string[]; draft: CommentDraft },
+): string {
+  const lineStart = target.draft.anchor.canonical.lineStart ?? null;
+  const lineEnd = target.draft.anchor.canonical.lineEnd ?? lineStart;
+  return target.draft.threadId
+    ? JSON.stringify(["thread", target.draft.threadId])
+    : JSON.stringify([path, lineStart, lineEnd, target.blockIds.join("|")]);
+}
+
 function positionHtmlRenderedThread(
   rect: DOMRectLike,
 ): HtmlRenderedThreadPosition {
@@ -535,7 +594,10 @@ function positionHtmlRenderedThread(
   const maxHeight = Math.max(180, window.innerHeight - belowTop - margin);
   return {
     left,
-    top: Math.min(Math.max(belowTop, margin), window.innerHeight - margin - 180),
+    top: Math.min(
+      Math.max(belowTop, margin),
+      window.innerHeight - margin - 180,
+    ),
     width,
     maxHeight,
   };

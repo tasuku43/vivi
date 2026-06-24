@@ -8,10 +8,7 @@ import type {
   CommentDraft,
   CommentStatusChangeHandler,
 } from "../../../state/comments.js";
-import {
-  isDraftThreadComment,
-  statusLabel,
-} from "../../../state/comments.js";
+import { isDraftThreadComment, statusLabel } from "../../../state/comments.js";
 
 export function CodeCommentThread({
   thread,
@@ -50,7 +47,7 @@ export function CodeCommentThread({
     : "to save private draft";
   const hasActiveComment = Boolean(
     activeCommentId &&
-      thread.comments.some((comment) => comment.id === activeCommentId),
+    thread.comments.some((comment) => comment.id === activeCommentId),
   );
   const toggleStatusLabel =
     threadStatus === "open"
@@ -63,20 +60,12 @@ export function CodeCommentThread({
   const archiveLabel = hasActiveComment ? "Archive current thread" : "Archive";
 
   useEffect(() => {
-    const onClick = (event: MouseEvent) => {
-      const target = event.target as Node | null;
-      if (target && threadRef.current?.contains(target)) return;
-      if (isTopbarTarget(target)) return;
-      onClose();
-    };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       onClose();
     };
-    window.addEventListener("click", onClick);
     window.addEventListener("keydown", onKeyDown, { capture: true });
     return () => {
-      window.removeEventListener("click", onClick);
       window.removeEventListener("keydown", onKeyDown, { capture: true });
     };
   }, [onClose]);
@@ -237,7 +226,9 @@ export function CodeCommentThread({
         </p>
         <div className="code-comment-thread-footer">
           <div>
-            {thread.comments.some((comment) => !isDraftThreadComment(comment)) ? (
+            {thread.comments.some(
+              (comment) => !isDraftThreadComment(comment),
+            ) ? (
               <>
                 <button
                   type="button"
@@ -275,10 +266,6 @@ export function CodeCommentThread({
       </form>
     </article>
   );
-}
-
-function isTopbarTarget(target: Node | null): boolean {
-  return target instanceof Element && Boolean(target.closest(".topbar"));
 }
 
 export function isCommentSubmitShortcut(event: {
