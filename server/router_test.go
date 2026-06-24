@@ -111,6 +111,26 @@ func TestRenderedHTMLCommentBlocksAreAnnotatedSafely(t *testing.T) {
 	}
 }
 
+func TestRenderedHTMLCommentBlocksMapSemanticControls(t *testing.T) {
+	html := addRenderedCommentBlockIDsToHTML(`<section>
+  <header><h1>Settings</h1></header>
+  <button
+    type="button"
+  >Unseen</button>
+</section>`)
+
+	for _, want := range []string{
+		`<section data-vivi-comment-block-id="vivi-block-1" data-vivi-source-line-start="1" data-vivi-source-line-end="6">`,
+		`<header data-vivi-comment-block-id="vivi-block-2" data-vivi-source-line-start="2" data-vivi-source-line-end="2"><h1 data-vivi-comment-block-id="vivi-block-3" data-vivi-source-line-start="2" data-vivi-source-line-end="2">Settings</h1></header>`,
+		`<button
+    type="button" data-vivi-comment-block-id="vivi-block-4" data-vivi-source-line-start="3" data-vivi-source-line-end="5"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("annotated html missing %q in %s", want, html)
+		}
+	}
+}
+
 func TestHTMLPreviewRuntimeUsesRenderedThreadContract(t *testing.T) {
 	html := renderEmbeddedMermaidPreviewHTML(
 		addRenderedCommentBlockIDsToHTML(`<h1>Hello</h1>`),
@@ -136,6 +156,9 @@ func TestHTMLPreviewRuntimeUsesRenderedThreadContract(t *testing.T) {
 		`blockquote.vivi-rendered-comment-block.has-rendered-comment`,
 		`li.vivi-rendered-comment-block{--rendered-comment-block-left:calc(-1.45em - 12px);}`,
 		`Open comment thread with `,
+		`const preferredBlockSelectors = ["button","a","tr","li","pre","figure","aside","blockquote","h1","h2","h3","h4","h5","h6","p","section","article","main","nav","header","footer"];`,
+		`const interactiveSelector = "input,select,textarea,[contenteditable]";`,
+		`event.preventDefault();`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("preview runtime missing %q", want)

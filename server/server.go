@@ -634,9 +634,11 @@ type openHTMLElement struct {
 }
 
 var renderedCommentBlockTags = map[string]bool{
+	"a": true, "article": true, "button": true, "footer": true,
 	"h1": true, "h2": true, "h3": true, "h4": true, "h5": true, "h6": true,
+	"header": true, "main": true, "nav": true,
 	"p": true, "li": true, "pre": true, "tr": true,
-	"blockquote": true, "aside": true, "figure": true,
+	"section": true, "blockquote": true, "aside": true, "figure": true,
 }
 
 var rawTextHTMLTags = map[string]bool{"script": true, "style": true, "textarea": true}
@@ -983,8 +985,8 @@ pre{border:1px solid %s;border-radius:8px;padding:12px;overflow:auto;}
 (() => {
   const path = %s;
   const blockSelector = "[data-vivi-comment-block-id]";
-  const preferredBlockSelectors = ["tr","li","pre","figure","aside","blockquote","h1","h2","h3","h4","h5","h6","p"];
-  const interactiveSelector = "a,button,input,select,textarea,summary,[contenteditable]";
+  const preferredBlockSelectors = ["button","a","tr","li","pre","figure","aside","blockquote","h1","h2","h3","h4","h5","h6","p","section","article","main","nav","header","footer"];
+  const interactiveSelector = "input,select,textarea,[contenteditable]";
   let renderedComments = [];
   let activeCommentId = null;
   let draftingBlockIds = [];
@@ -1140,6 +1142,8 @@ pre{border:1px solid %s;border-radius:8px;padding:12px;overflow:auto;}
       if (event.target.closest?.(".rendered-comment-marker")) return;
       if (event.target.closest?.(interactiveSelector)) return;
       if (document.getSelection()?.toString().trim()) return;
+      event.preventDefault();
+      event.stopPropagation();
       const target = targetForBlocks([block]);
       const commentId = block.dataset.viviCommentId;
       postTarget(target, commentId ? "vivi-html-comment-open" : "vivi-html-block-target", commentId);
@@ -1242,6 +1246,8 @@ pre{border:1px solid %s;border-radius:8px;padding:12px;overflow:auto;}
     }
     if (event.target.closest?.(interactiveSelector)) return;
     if (document.getSelection()?.toString().trim()) return;
+    event.preventDefault();
+    event.stopPropagation();
     const target = targetForBlocks([block]);
     const commentId = block.dataset.viviCommentId;
     postTarget(target, commentId ? "vivi-html-comment-open" : "vivi-html-block-target", commentId);

@@ -2,15 +2,23 @@ export const renderedCommentBlockAttribute = "data-vivi-comment-block-id";
 export const renderedCommentBlockSelector = `[${renderedCommentBlockAttribute}]`;
 
 const renderedCommentBlockTags = new Set([
+  "a",
+  "article",
+  "button",
+  "footer",
   "h1",
   "h2",
   "h3",
   "h4",
   "h5",
   "h6",
+  "header",
+  "main",
+  "nav",
   "p",
   "li",
   "pre",
+  "section",
   "tr",
   "blockquote",
   "aside",

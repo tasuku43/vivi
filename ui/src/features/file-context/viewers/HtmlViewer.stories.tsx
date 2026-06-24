@@ -33,32 +33,6 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-function postHtmlDraftTarget(
-  canvasElement: HTMLElement,
-  target: {
-    blockId: string;
-    text: string;
-    sourceLineStart: number;
-    sourceLineEnd: number;
-    rect: { left: number; top: number; width: number; height: number };
-  },
-): void {
-  canvasElement.ownerDocument.defaultView?.postMessage(
-    {
-      type: "vivi-html-block-target",
-      path: sampleFiles.html.path,
-      blockId: target.blockId,
-      blockIds: [target.blockId],
-      selector: `[data-vivi-comment-block-id='${target.blockId}']`,
-      text: target.text,
-      sourceLineStart: target.sourceLineStart,
-      sourceLineEnd: target.sourceLineEnd,
-      rect: target.rect,
-    },
-    "*",
-  );
-}
-
 export const SourceHtmlComment: Story = {
   tags: ["interaction"],
   args: {
@@ -143,28 +117,30 @@ export const MultiplePreviewDraftFormsStayOpen: Story = {
     await expect(
       canvas.findByTitle(sampleFiles.html.path),
     ).resolves.toBeInTheDocument();
+    const frame = canvas.getByTitle(sampleFiles.html.path) as HTMLIFrameElement;
+    await waitForHtmlDraftPreviewReady(frame);
 
-    postHtmlDraftTarget(canvasElement, {
-      blockId: "html-draft-h1",
-      text: "Review Preview",
-      sourceLineStart: 6,
-      sourceLineEnd: 6,
-      rect: { left: 28, top: 28, width: 704, height: 44 },
-    });
+    frame.contentWindow?.postMessage(
+      { type: "vivi-story-click-block", blockId: "html-draft-button" },
+      "*",
+    );
     await waitFor(() =>
       expect(canvas.getAllByLabelText("New line comment")).toHaveLength(1),
     );
+    await expect(
+      canvas.getByRole("article", { name: "Comment thread for lines 9-11" }),
+    ).toBeVisible();
 
-    postHtmlDraftTarget(canvasElement, {
-      blockId: "html-draft-p",
-      text: "Rendered HTML comments map back to source blocks.",
-      sourceLineStart: 7,
-      sourceLineEnd: 7,
-      rect: { left: 28, top: 96, width: 704, height: 28 },
-    });
+    frame.contentWindow?.postMessage(
+      { type: "vivi-story-click-block", blockId: "html-draft-section" },
+      "*",
+    );
     await waitFor(() =>
       expect(canvas.getAllByLabelText("New line comment")).toHaveLength(2),
     );
+    await expect(
+      canvas.getByRole("article", { name: "Comment thread for lines 5-12" }),
+    ).toBeVisible();
   },
 };
 
@@ -197,14 +173,21 @@ function htmlDraftPreviewStoryDocument(path: string): string {
     </style>
   </head>
   <body>
-    <main class="review-card">
+    <main class="review-card" data-vivi-comment-block-id="html-draft-section" data-vivi-source-line-start="5" data-vivi-source-line-end="12">
       <h1 data-vivi-comment-block-id="html-draft-h1" data-vivi-source-line-start="6" data-vivi-source-line-end="6">Review Preview</h1>
       <p data-vivi-comment-block-id="html-draft-p" data-vivi-source-line-start="7" data-vivi-source-line-end="7">Rendered HTML comments map back to source blocks.</p>
+      <button
+        data-vivi-comment-block-id="html-draft-button"
+        data-vivi-source-line-start="9"
+        data-vivi-source-line-end="11"
+        type="button"
+      >Approve local preview</button>
     </main>
     <script>
       (() => {
         const path = ${JSON.stringify(path)};
         const blocks = Array.from(document.querySelectorAll("[data-vivi-comment-block-id]"));
+        const postReady = () => parent.postMessage({ type: "vivi-story-html-ready", path }, "*");
         const postBlock = (block) => {
           const rect = block.getBoundingClientRect();
           parent.postMessage({
@@ -220,6 +203,15 @@ function htmlDraftPreviewStoryDocument(path: string): string {
           }, "*");
         };
         window.addEventListener("message", (event) => {
+          if (event.source === parent && event.data?.type === "vivi-story-click-block") {
+            const block = blocks.find((item) => item.dataset.viviCommentBlockId === event.data.blockId);
+            block?.click();
+            return;
+          }
+          if (event.source === parent && event.data?.type === "vivi-story-ready-request") {
+            postReady();
+            return;
+          }
           if (event.source !== parent || event.data?.type !== "vivi-html-comments" || event.data.path !== path) return;
           const drafting = new Set(event.data.draftingBlockIds || []);
           blocks.forEach((block) => {
@@ -233,11 +225,43 @@ function htmlDraftPreviewStoryDocument(path: string): string {
             }
           }
         });
-        blocks.forEach((block) => block.addEventListener("click", () => postBlock(block)));
+        blocks.forEach((block) => block.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          postBlock(block);
+        }));
+        postReady();
       })();
     </script>
   </body>
 </html>`;
+}
+
+async function waitForHtmlDraftPreviewReady(
+  frame: HTMLIFrameElement,
+): Promise<void> {
+  const frameWindow = frame.contentWindow;
+  if (!frameWindow) throw new Error("missing HTML preview frame");
+  await new Promise<void>((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      window.removeEventListener("message", onMessage);
+      reject(new Error("HTML preview story frame did not become ready"));
+    }, 3000);
+    const onMessage = (event: MessageEvent) => {
+      if (
+        event.source !== frameWindow ||
+        event.data?.type !== "vivi-story-html-ready" ||
+        event.data.path !== sampleFiles.html.path
+      ) {
+        return;
+      }
+      window.clearTimeout(timeout);
+      window.removeEventListener("message", onMessage);
+      resolve();
+    };
+    window.addEventListener("message", onMessage);
+    frameWindow.postMessage({ type: "vivi-story-ready-request" }, "*");
+  });
 }
 
 function htmlCommentPreviewStoryDocument(path: string): string {

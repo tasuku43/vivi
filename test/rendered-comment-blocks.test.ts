@@ -78,6 +78,42 @@ line
     ]);
   });
 
+  it("maps semantic HTML and controls back to source ranges", () => {
+    const blocks = renderedCommentBlocksForHtml(`<section>
+  <header><h1>Settings</h1></header>
+  <button
+    type="button"
+  >Unseen</button>
+</section>`);
+
+    expect(blocks).toEqual([
+      expect.objectContaining({
+        blockId: "vivi-block-1",
+        tagName: "section",
+        sourceLineStart: 1,
+        sourceLineEnd: 6,
+      }),
+      expect.objectContaining({
+        blockId: "vivi-block-2",
+        tagName: "header",
+        sourceLineStart: 2,
+        sourceLineEnd: 2,
+      }),
+      expect.objectContaining({
+        blockId: "vivi-block-3",
+        tagName: "h1",
+        sourceLineStart: 2,
+        sourceLineEnd: 2,
+      }),
+      expect.objectContaining({
+        blockId: "vivi-block-4",
+        tagName: "button",
+        sourceLineStart: 3,
+        sourceLineEnd: 5,
+      }),
+    ]);
+  });
+
   it("keeps block annotation linear for many nested-looking tags", () => {
     const html = `<body ${"<body ".repeat(2_000)}><pre class="mermaid">${"<div>a".repeat(4_000)}</body>`;
 

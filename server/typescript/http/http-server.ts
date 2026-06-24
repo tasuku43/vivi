@@ -1571,8 +1571,8 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
 (() => {
   const path = ${JSON.stringify(options.path)};
   const blockSelector = "[data-vivi-comment-block-id]";
-  const preferredBlockSelectors = ["tr","li","pre","figure","aside","blockquote","h1","h2","h3","h4","h5","h6","p"];
-  const interactiveSelector = "a,button,input,select,textarea,summary,[contenteditable]";
+  const preferredBlockSelectors = ["button","a","tr","li","pre","figure","aside","blockquote","h1","h2","h3","h4","h5","h6","p","section","article","main","nav","header","footer"];
+  const interactiveSelector = "input,select,textarea,[contenteditable]";
   let renderedComments = [];
   let activeCommentId = null;
   let draftingBlockIds = [];
@@ -1726,6 +1726,8 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
       if (event.target.closest?.(".rendered-comment-marker")) return;
       if (event.target.closest?.(interactiveSelector)) return;
       if (document.getSelection()?.toString().trim()) return;
+      event.preventDefault();
+      event.stopPropagation();
       const target = targetForBlocks([block]);
       const commentId = block.dataset.viviCommentId;
       postTarget(target, commentId ? "vivi-html-comment-open" : "vivi-html-block-target", commentId);
@@ -1830,6 +1832,8 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
     }
     if (event.target.closest?.(interactiveSelector)) return;
     if (document.getSelection()?.toString().trim()) return;
+    event.preventDefault();
+    event.stopPropagation();
     const target = targetForBlocks([block]);
     const commentId = block.dataset.viviCommentId;
     postTarget(target, commentId ? "vivi-html-comment-open" : "vivi-html-block-target", commentId);
