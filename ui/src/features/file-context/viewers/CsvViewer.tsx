@@ -15,6 +15,7 @@ import { CommentedSourceLines } from "../../comments/components/CommentedSourceL
 import { SelectionCommentComposer } from "../../comments/components/SelectionCommentComposer.js";
 import {
   DiffToggleButton,
+  ViewerToolbar,
   ViewerModeButton,
 } from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
@@ -76,37 +77,38 @@ export function CsvViewer({
 
   return (
     <section className="csv-viewer">
-      <div className="viewer-toolbar">
-        <span className="sandbox-status">
-          {parsed.rows.length} rows · {parsed.headers.length} columns
-          {parsed.truncated ? " · preview limited" : ""}
-        </span>
-        <div className="viewer-toolbar-actions">
-          <div className="segmented-control" aria-label="CSV view mode">
-            <ViewerModeButton
-              active={mode === "table"}
-              mode="table"
-              path={file.path}
-              onClick={() => setMode("table")}
-            >
-              Table
-            </ViewerModeButton>
-            <ViewerModeButton
-              active={mode === "source"}
-              mode="source"
-              path={file.path}
-              onClick={() => setMode("source")}
-            >
-              Source
-            </ViewerModeButton>
-          </div>
-          <DiffToggleButton
-            enabled={diffEnabled}
+      <ViewerToolbar
+        status={
+          <>
+            {parsed.rows.length} rows · {parsed.headers.length} columns
+            {parsed.truncated ? " · preview limited" : ""}
+          </>
+        }
+      >
+        <div className="segmented-control" aria-label="CSV view mode">
+          <ViewerModeButton
+            active={mode === "table"}
+            mode="table"
             path={file.path}
-            onToggle={onDiffToggle}
-          />
+            onClick={() => setMode("table")}
+          >
+            Table
+          </ViewerModeButton>
+          <ViewerModeButton
+            active={mode === "source"}
+            mode="source"
+            path={file.path}
+            onClick={() => setMode("source")}
+          >
+            Source
+          </ViewerModeButton>
         </div>
-      </div>
+        <DiffToggleButton
+          enabled={diffEnabled}
+          path={file.path}
+          onToggle={onDiffToggle}
+        />
+      </ViewerToolbar>
       {diffEnabled ? (
         <DiffViewer
           path={file.path}

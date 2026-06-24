@@ -29,6 +29,7 @@ import { CommentedSourceLines } from "../../comments/components/CommentedSourceL
 import { SelectionCommentComposer } from "../../comments/components/SelectionCommentComposer.js";
 import {
   DiffToggleButton,
+  ViewerToolbar,
   ViewerModeButton,
 } from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
@@ -305,37 +306,34 @@ export function HtmlViewer({
 
   return (
     <section className="html-viewer">
-      <div className="viewer-toolbar">
-        <span className="sandbox-status">
-          sandboxed · scripts {allowHtmlScripts ? "on" : "off"}
-        </span>
-        <div className="viewer-toolbar-actions">
-          <div className="segmented-control" aria-label="HTML view mode">
-            <ViewerModeButton
-              active={mode === "preview"}
-              mode="preview"
-              path={file.path}
-              onClick={() => setMode("preview")}
-            >
-              Preview
-            </ViewerModeButton>
-            <ViewerModeButton
-              active={mode === "source"}
-              mode="source"
-              path={file.path}
-              onClick={() => setMode("source")}
-            >
-              Source
-            </ViewerModeButton>
-          </div>
-          {toolbarAction}
-          <DiffToggleButton
-            enabled={diffEnabled}
+      <ViewerToolbar
+        status={`sandboxed · scripts ${allowHtmlScripts ? "on" : "off"}`}
+      >
+        <div className="segmented-control" aria-label="HTML view mode">
+          <ViewerModeButton
+            active={mode === "preview"}
+            mode="preview"
             path={file.path}
-            onToggle={onDiffToggle}
-          />
+            onClick={() => setMode("preview")}
+          >
+            Preview
+          </ViewerModeButton>
+          <ViewerModeButton
+            active={mode === "source"}
+            mode="source"
+            path={file.path}
+            onClick={() => setMode("source")}
+          >
+            Source
+          </ViewerModeButton>
         </div>
-      </div>
+        {toolbarAction}
+        <DiffToggleButton
+          enabled={diffEnabled}
+          path={file.path}
+          onToggle={onDiffToggle}
+        />
+      </ViewerToolbar>
       {diffEnabled ? (
         <DiffViewer
           path={file.path}

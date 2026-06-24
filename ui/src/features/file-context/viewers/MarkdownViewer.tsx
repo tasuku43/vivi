@@ -40,6 +40,7 @@ import { CodeCommentThread } from "../../comments/components/CodeCommentThread.j
 import { SourceCommentSurface } from "../../comments/components/SourceCommentSurface.js";
 import {
   DiffToggleButton,
+  ViewerToolbar,
   ViewerModeButton,
 } from "../components/ViewerControlButton.js";
 import {
@@ -357,37 +358,35 @@ export function MarkdownViewer({
 
   return (
     <section className="document-viewer">
-      <div
-        className="viewer-toolbar viewer-toolbar-actions-only"
-        aria-label={`Markdown viewer controls for ${file.path}`}
+      <ViewerToolbar
+        actionsOnly
+        ariaLabel={`Markdown viewer controls for ${file.path}`}
       >
-        <div className="viewer-toolbar-actions">
-          <div className="segmented-control" aria-label="Markdown view mode">
-            <ViewerModeButton
-              active={mode === "rendered"}
-              mode="rendered"
-              path={file.path}
-              onClick={() => setMode("rendered")}
-            >
-              Rendered
-            </ViewerModeButton>
-            <ViewerModeButton
-              active={mode === "source"}
-              mode="source"
-              path={file.path}
-              onClick={() => setMode("source")}
-            >
-              Source
-            </ViewerModeButton>
-          </div>
-          {toolbarAction}
-          <DiffToggleButton
-            enabled={diffEnabled}
+        <div className="segmented-control" aria-label="Markdown view mode">
+          <ViewerModeButton
+            active={mode === "rendered"}
+            mode="rendered"
             path={file.path}
-            onToggle={onDiffToggle}
-          />
+            onClick={() => setMode("rendered")}
+          >
+            Rendered
+          </ViewerModeButton>
+          <ViewerModeButton
+            active={mode === "source"}
+            mode="source"
+            path={file.path}
+            onClick={() => setMode("source")}
+          >
+            Source
+          </ViewerModeButton>
         </div>
-      </div>
+        {toolbarAction}
+        <DiffToggleButton
+          enabled={diffEnabled}
+          path={file.path}
+          onToggle={onDiffToggle}
+        />
+      </ViewerToolbar>
       {diffEnabled ? (
         <DiffViewer
           path={file.path}

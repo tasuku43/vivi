@@ -20,7 +20,10 @@ import {
 import { languageForPath } from "../../../state/file-icons.js";
 import type { ResolvedTheme } from "../../../state/theme.js";
 import { SourceCommentSurface } from "../../comments/components/SourceCommentSurface.js";
-import { DiffToggleButton } from "../components/ViewerControlButton.js";
+import {
+  DiffToggleButton,
+  ViewerToolbar,
+} from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
 
 export function CodeViewer({
@@ -125,72 +128,72 @@ export function CodeViewer({
 
   return (
     <section className="code-pro" aria-label={`Code viewer for ${file.path}`}>
-      <div
-        className="viewer-toolbar"
-        aria-label={`Code viewer controls for ${file.path}`}
+      <ViewerToolbar
+        actionsClassName="code-pro-actions"
+        ariaLabel={`Code viewer controls for ${file.path}`}
+        status={
+          <>
+            {refreshedAt ? (
+              <span className="refresh-pill">
+                refreshed {new Date(refreshedAt).toLocaleTimeString()}
+              </span>
+            ) : selected ? (
+              `Lines ${selected.start}-${selected.end} selected`
+            ) : (
+              "Read-only"
+            )}
+            {copyStatus ? (
+              <span className="copy-status">{copyStatus}</span>
+            ) : null}
+          </>
+        }
       >
-        <span className="sandbox-status">
-          {refreshedAt ? (
-            <span className="refresh-pill">
-              refreshed {new Date(refreshedAt).toLocaleTimeString()}
-            </span>
-          ) : selected ? (
-            `Lines ${selected.start}-${selected.end} selected`
-          ) : (
-            "Read-only"
-          )}
-          {copyStatus ? (
-            <span className="copy-status">{copyStatus}</span>
-          ) : null}
-        </span>
-        <div className="viewer-toolbar-actions code-pro-actions">
-          {selected ? (
-            <>
-              <button
-                type="button"
-                onClick={() =>
-                  void copyText(
-                    formatLineReference(file.path, selected),
-                    "Reference copied",
-                  )
-                }
-              >
-                Copy ref
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  void copyText(
-                    formatSelectedCodeWithLineNumbers(
-                      file.path,
-                      file.content,
-                      selected,
-                    ),
-                    "Code copied",
-                  )
-                }
-              >
-                Copy range
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onSelectionChange(null);
-                  onCloseComment?.();
-                }}
-              >
-                Clear
-              </button>
-            </>
-          ) : null}
-          {toolbarAction}
-          <DiffToggleButton
-            enabled={diffEnabled}
-            path={file.path}
-            onToggle={onDiffToggle}
-          />
-        </div>
-      </div>
+        {selected ? (
+          <>
+            <button
+              type="button"
+              onClick={() =>
+                void copyText(
+                  formatLineReference(file.path, selected),
+                  "Reference copied",
+                )
+              }
+            >
+              Copy ref
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                void copyText(
+                  formatSelectedCodeWithLineNumbers(
+                    file.path,
+                    file.content,
+                    selected,
+                  ),
+                  "Code copied",
+                )
+              }
+            >
+              Copy range
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onSelectionChange(null);
+                onCloseComment?.();
+              }}
+            >
+              Clear
+            </button>
+          </>
+        ) : null}
+        {toolbarAction}
+        <DiffToggleButton
+          enabled={diffEnabled}
+          path={file.path}
+          onToggle={onDiffToggle}
+        />
+      </ViewerToolbar>
       <div className="code-scope-bar">
         <span>Current scope</span>
         <strong>

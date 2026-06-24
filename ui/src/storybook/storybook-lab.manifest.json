@@ -48,9 +48,7 @@
         "Review/Comments/Comments Panel/AgentActivityVisible",
         "System/States/Activity/CommentsWatchDisconnected"
       ],
-      "interactionStories": [
-        "Review/Comments/Comments Panel/WorkspaceComments"
-      ]
+      "interactionStories": ["Review/Comments/Comments Panel/WorkspaceComments"]
     },
     {
       "id": "comment-lifecycle",
@@ -93,7 +91,8 @@
       "interactionStories": [
         "Viewers/Code/CodeViewer/SourceWithOpenThread",
         "Viewers/Markdown/MarkdownViewer/RenderedMarkdownComment",
-        "Viewers/HTML/HtmlViewer/SourceHtmlComment"
+        "Viewers/HTML/HtmlViewer/SourceHtmlComment",
+        "Viewers/File Coverage/FileViewer/ViewerToolbarStickyByExtension"
       ]
     },
     {
@@ -109,9 +108,7 @@
         "Review/Diff/Diff Viewer/BinaryDiff",
         "Viewers/FileViewer Shell/CodeDiff"
       ],
-      "interactionStories": [
-        "Review/Diff/Diff Viewer/DiffCommentOnAddedLine"
-      ]
+      "interactionStories": ["Review/Diff/Diff Viewer/DiffCommentOnAddedLine"]
     },
     {
       "id": "navigation-overlays",

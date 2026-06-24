@@ -1,5 +1,33 @@
 import type { ReactNode } from "react";
 
+export function ViewerToolbar({
+  actionsClassName,
+  actionsOnly = false,
+  ariaLabel,
+  children,
+  status,
+}: {
+  actionsClassName?: string;
+  actionsOnly?: boolean;
+  ariaLabel?: string;
+  children: ReactNode;
+  status?: ReactNode;
+}) {
+  return (
+    <div
+      className={`viewer-toolbar${actionsOnly ? " viewer-toolbar-actions-only" : ""}`}
+      aria-label={ariaLabel}
+    >
+      {status ? <span className="sandbox-status">{status}</span> : null}
+      <div
+        className={`viewer-toolbar-actions${actionsClassName ? ` ${actionsClassName}` : ""}`}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function DiffToggleButton({
   enabled,
   path,

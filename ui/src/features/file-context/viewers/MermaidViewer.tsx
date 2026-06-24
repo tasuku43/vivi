@@ -20,6 +20,7 @@ import {
 } from "../rendering/mermaid-rendering.js";
 import {
   DiffToggleButton,
+  ViewerToolbar,
   ViewerModeButton,
 } from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
@@ -84,36 +85,31 @@ export function MermaidViewer({
 
   return (
     <section className="mermaid-viewer">
-      <div className="viewer-toolbar">
-        <span className="sandbox-status">
-          Mermaid preview · strict security
-        </span>
-        <div className="viewer-toolbar-actions">
-          <div className="segmented-control" aria-label="Mermaid view mode">
-            <ViewerModeButton
-              active={mode === "preview"}
-              mode="preview"
-              path={file.path}
-              onClick={() => setMode("preview")}
-            >
-              Preview
-            </ViewerModeButton>
-            <ViewerModeButton
-              active={mode === "source"}
-              mode="source"
-              path={file.path}
-              onClick={() => setMode("source")}
-            >
-              Source
-            </ViewerModeButton>
-          </div>
-          <DiffToggleButton
-            enabled={diffEnabled}
+      <ViewerToolbar status="Mermaid preview · strict security">
+        <div className="segmented-control" aria-label="Mermaid view mode">
+          <ViewerModeButton
+            active={mode === "preview"}
+            mode="preview"
             path={file.path}
-            onToggle={onDiffToggle}
-          />
+            onClick={() => setMode("preview")}
+          >
+            Preview
+          </ViewerModeButton>
+          <ViewerModeButton
+            active={mode === "source"}
+            mode="source"
+            path={file.path}
+            onClick={() => setMode("source")}
+          >
+            Source
+          </ViewerModeButton>
         </div>
-      </div>
+        <DiffToggleButton
+          enabled={diffEnabled}
+          path={file.path}
+          onToggle={onDiffToggle}
+        />
+      </ViewerToolbar>
       {diffEnabled ? (
         <DiffViewer
           path={file.path}

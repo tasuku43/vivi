@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, waitFor } from "storybook/test";
+import type { FilePayload } from "../../../domain/fs-node.js";
 import {
   commentsForPath,
   sampleFiles,
@@ -226,3 +227,195 @@ export const ViewerToolbarChromeConsistency: Story = {
     }
   },
 };
+
+export const ViewerToolbarStickyByExtension: Story = {
+  tags: ["interaction"],
+  render: (args) => (
+    <div className="toolbar-sticky-matrix">
+      {toolbarStickyCases.map((item) => (
+        <section
+          aria-label={`${item.extension} sticky toolbar case`}
+          className="toolbar-sticky-case"
+          data-toolbar-sticky-case={item.extension}
+          key={item.extension}
+        >
+          <header>
+            <strong>{item.extension}</strong>
+            <span>{item.file.path}</span>
+          </header>
+          <div className="toolbar-sticky-scroll">
+            <FileViewer
+              {...args}
+              file={item.file}
+              viewerMode={item.viewerMode}
+              selectedCodeRange={
+                item.file.viewerKind === "code" ? { start: 12, end: 12 } : null
+              }
+              theme={item.file.viewerKind === "code" ? "dark" : args.theme}
+              comments={commentsForPath(item.file.path)}
+            />
+          </div>
+        </section>
+      ))}
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    await waitFor(() => {
+      expect(
+        canvasElement.querySelectorAll("[data-toolbar-sticky-case]"),
+      ).toHaveLength(toolbarStickyCases.length);
+      expect(
+        canvasElement.querySelectorAll(
+          "[data-toolbar-sticky-case] .file-viewer-frame > section > .viewer-toolbar",
+        ),
+      ).toHaveLength(toolbarStickyCases.length);
+    });
+
+    for (const item of toolbarStickyCases) {
+      const caseElement = canvasElement.querySelector<HTMLElement>(
+        `[data-toolbar-sticky-case="${item.extension}"]`,
+      );
+      expect(caseElement).toBeTruthy();
+      if (!caseElement) continue;
+      const scrollBox = caseElement.querySelector<HTMLElement>(
+        ".toolbar-sticky-scroll",
+      );
+      const toolbar = caseElement.querySelector<HTMLElement>(
+        ".file-viewer-frame > section > .viewer-toolbar",
+      );
+      expect(scrollBox).toBeTruthy();
+      expect(toolbar).toBeTruthy();
+      if (!scrollBox || !toolbar) continue;
+
+      scrollBox.scrollTop = 120;
+      scrollBox.dispatchEvent(new Event("scroll", { bubbles: true }));
+
+      await waitFor(() => {
+        const scrollTop = scrollBox.getBoundingClientRect().top;
+        const toolbarRect = toolbar.getBoundingClientRect();
+        expect(Math.abs(toolbarRect.top - scrollTop)).toBeLessThanOrEqual(1);
+        expect(toolbarRect.bottom).toBeGreaterThan(scrollTop + 24);
+      });
+    }
+  },
+};
+
+const toolbarStickyCases = [
+  {
+    extension: ".md",
+    file: storyFileWithContent(
+      sampleFiles.markdown,
+      "docs/sticky-toolbar.md",
+      Array.from({ length: 16 }, (_, index) =>
+        [
+          `# Sticky Markdown ${index + 1}`,
+          "",
+          "Rendered Markdown should keep the viewer toolbar pinned while review content scrolls.",
+        ].join("\n"),
+      ).join("\n\n"),
+    ),
+    viewerMode: "rendered" as const,
+  },
+  {
+    extension: ".html",
+    file: storyFileWithContent(
+      sampleFiles.html,
+      "preview/sticky-toolbar.html",
+      [
+        "<!doctype html>",
+        "<html>",
+        "  <body>",
+        ...Array.from(
+          { length: 24 },
+          (_, index) =>
+            `    <p>HTML preview row ${index + 1}: the toolbar remains pinned.</p>`,
+        ),
+        "  </body>",
+        "</html>",
+      ].join("\n"),
+    ),
+    viewerMode: "preview" as const,
+  },
+  {
+    extension: ".go",
+    file: storyFileWithContent(
+      sampleFiles.code,
+      "server/review_cli.go",
+      Array.from(
+        { length: 80 },
+        (_, index) =>
+          `func stickyToolbarCase${index + 1}() int { return ${index + 1} }`,
+      ).join("\n"),
+    ),
+  },
+  {
+    extension: ".json",
+    file: storyFileWithContent(
+      sampleFiles.json,
+      "reports/sticky-toolbar.json",
+      JSON.stringify(
+        Object.fromEntries(
+          Array.from({ length: 36 }, (_, index) => [
+            `check_${index + 1}`,
+            { status: "pass", durationMs: 100 + index },
+          ]),
+        ),
+        null,
+        2,
+      ),
+    ),
+  },
+  {
+    extension: ".csv",
+    file: storyFileWithContent(
+      sampleFiles.csv,
+      "reports/sticky-toolbar.csv",
+      [
+        "name,status,durationMs",
+        ...Array.from(
+          { length: 48 },
+          (_, index) => `check-${index + 1},pass,${120 + index}`,
+        ),
+      ].join("\n"),
+    ),
+  },
+  {
+    extension: ".mmd",
+    file: storyFileWithContent(
+      sampleFiles.mermaid,
+      "docs/sticky-toolbar.mmd",
+      [
+        "flowchart TD",
+        ...Array.from(
+          { length: 34 },
+          (_, index) => `  Node${index} --> Node${index + 1}`,
+        ),
+      ].join("\n"),
+    ),
+  },
+  {
+    extension: ".txt",
+    file: storyFileWithContent(
+      sampleFiles.unknownText,
+      "logs/sticky-toolbar.txt",
+      Array.from(
+        { length: 72 },
+        (_, index) => `line ${index + 1}: plain text toolbar remains pinned`,
+      ).join("\n"),
+    ),
+  },
+];
+
+function storyFileWithContent(
+  base: FilePayload,
+  path: string,
+  content: string,
+): FilePayload {
+  return {
+    ...base,
+    path,
+    content,
+    etag: `etag:${path}:sticky-toolbar`,
+    size: new TextEncoder().encode(content).byteLength,
+  };
+}

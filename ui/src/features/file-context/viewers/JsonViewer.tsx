@@ -15,6 +15,7 @@ import { CommentedSourceLines } from "../../comments/components/CommentedSourceL
 import { SelectionCommentComposer } from "../../comments/components/SelectionCommentComposer.js";
 import {
   DiffToggleButton,
+  ViewerToolbar,
   ViewerModeButton,
 } from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
@@ -70,36 +71,33 @@ export function JsonViewer({
 
   return (
     <section className="json-viewer">
-      <div className="viewer-toolbar">
-        <span className="sandbox-status">
-          {parsed.ok ? "JSON tree" : "Invalid JSON, source shown"}
-        </span>
-        <div className="viewer-toolbar-actions">
-          <div className="segmented-control" aria-label="JSON view mode">
-            <ViewerModeButton
-              active={mode === "tree"}
-              mode="tree"
-              path={file.path}
-              onClick={() => setMode("tree")}
-            >
-              Tree
-            </ViewerModeButton>
-            <ViewerModeButton
-              active={mode === "source"}
-              mode="source"
-              path={file.path}
-              onClick={() => setMode("source")}
-            >
-              Source
-            </ViewerModeButton>
-          </div>
-          <DiffToggleButton
-            enabled={diffEnabled}
+      <ViewerToolbar
+        status={parsed.ok ? "JSON tree" : "Invalid JSON, source shown"}
+      >
+        <div className="segmented-control" aria-label="JSON view mode">
+          <ViewerModeButton
+            active={mode === "tree"}
+            mode="tree"
             path={file.path}
-            onToggle={onDiffToggle}
-          />
+            onClick={() => setMode("tree")}
+          >
+            Tree
+          </ViewerModeButton>
+          <ViewerModeButton
+            active={mode === "source"}
+            mode="source"
+            path={file.path}
+            onClick={() => setMode("source")}
+          >
+            Source
+          </ViewerModeButton>
         </div>
-      </div>
+        <DiffToggleButton
+          enabled={diffEnabled}
+          path={file.path}
+          onToggle={onDiffToggle}
+        />
+      </ViewerToolbar>
       {diffEnabled ? (
         <DiffViewer
           path={file.path}

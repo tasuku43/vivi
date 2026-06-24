@@ -13,7 +13,10 @@ import {
 import type { ResolvedTheme } from "../../../state/theme.js";
 import { CommentedSourceLines } from "../../comments/components/CommentedSourceLines.js";
 import { SelectionCommentComposer } from "../../comments/components/SelectionCommentComposer.js";
-import { DiffToggleButton } from "../components/ViewerControlButton.js";
+import {
+  DiffToggleButton,
+  ViewerToolbar,
+} from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
 
 export function TextViewer({
@@ -66,22 +69,19 @@ export function TextViewer({
   };
   return (
     <section className="text-viewer">
-      <div
-        className="viewer-toolbar"
-        aria-label={`Text viewer controls for ${file.path}`}
+      <ViewerToolbar
+        ariaLabel={`Text viewer controls for ${file.path}`}
+        status="Plain text"
       >
-        <span className="sandbox-status">Plain text</span>
-        <div className="viewer-toolbar-actions">
-          <DiffToggleButton
-            enabled={diffEnabled}
-            path={file.path}
-            onToggle={onDiffToggle}
-          />
-          <button type="button" onClick={() => setWrap((value) => !value)}>
-            {wrap ? "No wrap" : "Wrap"}
-          </button>
-        </div>
-      </div>
+        <DiffToggleButton
+          enabled={diffEnabled}
+          path={file.path}
+          onToggle={onDiffToggle}
+        />
+        <button type="button" onClick={() => setWrap((value) => !value)}>
+          {wrap ? "No wrap" : "Wrap"}
+        </button>
+      </ViewerToolbar>
       {diffEnabled ? (
         <DiffViewer
           path={file.path}

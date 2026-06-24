@@ -6,6 +6,7 @@ import type { CommentCreateHandler } from "../../../state/comments.js";
 import type { ResolvedTheme } from "../../../state/theme.js";
 import {
   DiffToggleButton,
+  ViewerToolbar,
   ViewerModeButton,
 } from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
@@ -48,39 +49,40 @@ export function ImageViewer({
   }
   return (
     <section className="image-viewer">
-      <div className="viewer-toolbar">
-        <span className="sandbox-status">
-          {formatBytes(file.size)}
-          {file.mimeType === "image/svg+xml"
-            ? " · SVG as image, scripts inactive"
-            : ""}
-        </span>
-        <div className="viewer-toolbar-actions">
-          <div className="segmented-control" aria-label="Image size mode">
-            <ViewerModeButton
-              active={fit === "fit"}
-              mode="fit"
-              path={file.path}
-              onClick={() => setFit("fit")}
-            >
-              Fit
-            </ViewerModeButton>
-            <ViewerModeButton
-              active={fit === "actual"}
-              mode="actual"
-              path={file.path}
-              onClick={() => setFit("actual")}
-            >
-              Actual
-            </ViewerModeButton>
-          </div>
-          <DiffToggleButton
-            enabled={diffEnabled}
+      <ViewerToolbar
+        status={
+          <>
+            {formatBytes(file.size)}
+            {file.mimeType === "image/svg+xml"
+              ? " · SVG as image, scripts inactive"
+              : ""}
+          </>
+        }
+      >
+        <div className="segmented-control" aria-label="Image size mode">
+          <ViewerModeButton
+            active={fit === "fit"}
+            mode="fit"
             path={file.path}
-            onToggle={onDiffToggle}
-          />
+            onClick={() => setFit("fit")}
+          >
+            Fit
+          </ViewerModeButton>
+          <ViewerModeButton
+            active={fit === "actual"}
+            mode="actual"
+            path={file.path}
+            onClick={() => setFit("actual")}
+          >
+            Actual
+          </ViewerModeButton>
         </div>
-      </div>
+        <DiffToggleButton
+          enabled={diffEnabled}
+          path={file.path}
+          onToggle={onDiffToggle}
+        />
+      </ViewerToolbar>
       {diffEnabled ? (
         <DiffViewer
           path={file.path}

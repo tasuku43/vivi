@@ -3,7 +3,10 @@ import type { ViviComment } from "../../../domain/comments.js";
 import type { FilePayload } from "../../../domain/fs-node.js";
 import type { CommentCreateHandler } from "../../../state/comments.js";
 import type { ResolvedTheme } from "../../../state/theme.js";
-import { DiffToggleButton } from "../components/ViewerControlButton.js";
+import {
+  DiffToggleButton,
+  ViewerToolbar,
+} from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
 
 export function BinaryMetadataViewer({
@@ -31,16 +34,13 @@ export function BinaryMetadataViewer({
 }) {
   return (
     <section className="binary-metadata-viewer">
-      <div className="viewer-toolbar">
-        <span className="sandbox-status">{metadataSummary(file)}</span>
-        <div className="viewer-toolbar-actions">
-          <DiffToggleButton
-            enabled={diffEnabled}
-            path={file.path}
-            onToggle={onDiffToggle}
-          />
-        </div>
-      </div>
+      <ViewerToolbar status={metadataSummary(file)}>
+        <DiffToggleButton
+          enabled={diffEnabled}
+          path={file.path}
+          onToggle={onDiffToggle}
+        />
+      </ViewerToolbar>
       {diffEnabled ? (
         <DiffViewer
           path={file.path}

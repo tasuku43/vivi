@@ -927,6 +927,42 @@ body.resizing-workbench-pane {
   position: relative;
   min-width: 0;
 }
+.toolbar-sticky-matrix {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  padding: 16px;
+  background: var(--bg);
+}
+.toolbar-sticky-case {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+.toolbar-sticky-case > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  padding: 8px 10px;
+}
+.toolbar-sticky-case > header span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.toolbar-sticky-case > header strong {
+  color: var(--text);
+}
+.toolbar-sticky-scroll {
+  height: 180px;
+  overflow: auto;
+  background: var(--bg);
+}
 .file-location-bar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
@@ -2024,7 +2060,6 @@ body.resizing-workbench-pane {
   border: 0;
   border-radius: 0;
   background: var(--code);
-  overflow: hidden;
 }
 .code-pro-title,
 .code-pro-actions {
@@ -3885,7 +3920,8 @@ body.resizing-workbench-pane {
   padding: 2px 6px;
 }
 .global-comment-anchor {
-  border: 1px solid color-mix(in srgb, var(--comment-line) 60%, var(--soft-line));
+  border: 1px solid
+    color-mix(in srgb, var(--comment-line) 60%, var(--soft-line));
   border-radius: 999px;
   background: color-mix(in srgb, var(--comment-tint) 54%, transparent);
   color: var(--comment-text);
@@ -5337,10 +5373,7 @@ kbd {
     right: 8px;
   }
   .workbench:not(.inspector-hidden) .inspector-rail-toggle {
-    right: min(
-      calc(var(--inspector-width, 280px) - 12px),
-      calc(100% - 60px)
-    );
+    right: min(calc(var(--inspector-width, 280px) - 12px), calc(100% - 60px));
   }
   .markdown h1 {
     font-size: 34px;
@@ -5380,10 +5413,7 @@ kbd {
 .story-workbench-compact-inspector
   .workbench:not(.inspector-hidden)
   .inspector-rail-toggle {
-  right: min(
-    calc(var(--inspector-width, 280px) - 12px),
-    calc(100% - 60px)
-  );
+  right: min(calc(var(--inspector-width, 280px) - 12px), calc(100% - 60px));
 }
 
 @media (max-width: 720px) {
