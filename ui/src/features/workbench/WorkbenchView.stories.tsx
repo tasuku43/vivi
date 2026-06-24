@@ -17,6 +17,7 @@ import {
   sampleReviewChanges,
   sampleReviewDiffStats,
   sampleReviewQueueItems,
+  sampleTabs,
   sampleThreadActivities,
   sampleUnreadReviewPaths,
 } from "../../storybook/fixtures/review-lab.js";
@@ -507,6 +508,79 @@ export const MissingSourceRecoversFromReviewQueue: Story = {
     await expect(
       canvas.getByText(/const \[commentsPanelOpen, setCommentsPanelOpen\]/),
     ).toBeInTheDocument();
+  },
+};
+
+export const ReviewQueueOpenKeepsWorkspaceChrome: Story = {
+  tags: ["interaction"],
+  parameters: {
+    a11y: { test: "todo" },
+  },
+  args: {
+    state: "error",
+    file: missingReadmeFile,
+    viewerError:
+      "Error: stat /Users/tasuku/work/github.com/torvalds/linux/README.md: no such file or directory",
+    viewerSourceMissing: true,
+    reviewQueueOpenFile: sampleFiles.code,
+    tabs: [
+      ...sampleTabs,
+      {
+        path: "net/netfilter/xt_DSCP.c",
+        viewerKind: "code",
+        paneId: "main",
+        isPreview: true,
+      },
+      {
+        path: "include/uapi/linux/netfilter_ipv4/ipt_ECN.h",
+        viewerKind: "code",
+        paneId: "main",
+      },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const inspector = canvas.getByRole("complementary", {
+      name: "Review inspector",
+    });
+
+    await userEvent.click(
+      within(inspector).getByRole("button", {
+        name: /ui\/src\/features\/workbench\/WorkbenchContainer\.tsx/,
+      }),
+    );
+
+    const sidebar = canvas.getByRole("complementary", {
+      name: "File explorer",
+    });
+    sidebar.scrollTop = 36;
+    sidebar.dispatchEvent(new Event("scroll"));
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => resolve()),
+    );
+
+    const topbar = canvasElement.querySelector<HTMLElement>(".topbar");
+    const explorerTitle = canvas
+      .getByText("Explorer")
+      .closest<HTMLElement>(".panel-title");
+    const tabs = canvasElement.querySelector<HTMLElement>(".tabs");
+
+    expect(topbar).not.toBeNull();
+    expect(explorerTitle).not.toBeNull();
+    expect(tabs).not.toBeNull();
+    if (!topbar || !explorerTitle || !tabs) return;
+
+    const topbarRect = topbar.getBoundingClientRect();
+    const explorerRect = explorerTitle.getBoundingClientRect();
+    const tabsRect = tabs.getBoundingClientRect();
+
+    expect(explorerRect.top).toBeGreaterThanOrEqual(topbarRect.bottom - 1);
+    expect(explorerRect.height).toBeGreaterThanOrEqual(40);
+    expect(tabsRect.height).toBeGreaterThanOrEqual(38);
+    expect(tabsRect.height).toBeLessThanOrEqual(40);
+    await expect(
+      canvas.getByRole("tab", { name: /WorkbenchContainer\.tsx/ }),
+    ).toBeVisible();
   },
 };
 
