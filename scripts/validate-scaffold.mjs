@@ -17,6 +17,7 @@ const required = [
   "scripts/prepare-ui-assets.mjs",
   "scripts/run-go-build.mjs",
   "scripts/run-go-test.mjs",
+  "scripts/vivi-go-cli.mjs",
   "cli/typescript/main.ts",
   "server/typescript/http/http-server.ts",
   "server/typescript/application/viewer-service.ts",
@@ -65,6 +66,17 @@ const errors = [];
 for (const file of required) {
   if (!existsSync(path.join(root, file)))
     errors.push(`missing required file: ${file}`);
+}
+
+const packagePath = path.join(root, "package.json");
+if (existsSync(packagePath)) {
+  const pkg = JSON.parse(readFileSync(packagePath, "utf8"));
+  if (pkg.bin?.vivi !== "scripts/vivi-go-cli.mjs") {
+    errors.push("package.json bin.vivi must delegate to the canonical Go CLI");
+  }
+  if (pkg.scripts?.["dev:server"]?.includes("cli/typescript/main.ts")) {
+    errors.push("npm run dev:server must not start the TypeScript CLI harness");
+  }
 }
 for (const file of forbiddenFileNames) {
   if (existsSync(path.join(root, file)))

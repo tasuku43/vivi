@@ -2,6 +2,13 @@
 
 ## CLI contract
 
+The canonical `vivi` command is the Go CLI/backend, whether invoked from a
+release binary, Homebrew/mise install, `go run ./cli`, or the repository-local
+`npm exec -- vivi <args>` shim. The preserved TypeScript server harness is
+available only through explicit development commands such as
+`npm run dev:server:typescript`; it is not an agent-facing CLI and does not
+implement the `review` or `comments` contract.
+
 ```bash
 vivi [root]
 vivi [root] --port 4317
@@ -110,6 +117,22 @@ same screen tells it to keep the selected `--receipt-log` on startup, resident
 loops, and suggested writes. Adapters can orient from help text before relying
 on hard-coded command recipes.
 
+For a durable agent loop, use:
+
+```bash
+vivi . --port 0 --ready-json --actor codex
+vivi comments protocol --receipt-log /tmp/vivi-agent-receipts.jsonl --json
+vivi comments doctor --actor codex --receipt-log /tmp/vivi-agent-receipts.jsonl --json
+vivi comments work --actor codex --wait --loop --idle-events --receipt-log /tmp/vivi-agent-receipts.jsonl --json
+```
+
+`comments work` is the preferred integrated intake loop: it claims owned work,
+follows the claimed thread, renews the claim lease, and can keep looping for the
+next feedback item. `comments watch` is passive open-worklist intake: it emits
+claimable open-thread snapshots without owning them. `comments follow` is the
+single-thread activity stream for a thread the agent already knows about, often
+after a claim, release wait, or resumed owned item.
+
 The v1 commands are:
 
 ```bash
@@ -141,7 +164,6 @@ vivi comments schema list --json
 vivi comments schema list --url http://127.0.0.1:4317 --json
 vivi comments schema all --json
 vivi comments doctor --actor codex --client-event-id doctor-start-1 --json
-vivi comments watch --actor claude-code --json
 vivi comments watch --actor claude-code --json
 vivi comments follow <thread-id> --no-initial --json
 vivi comments list --status open --json

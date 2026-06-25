@@ -34,6 +34,11 @@ vivi [workspace] --max-file-size 1048576
 vivi [workspace] --allow-html-scripts
 vivi [workspace] --git-review-timeout 2s
 vivi [workspace] --log-level info
+vivi [workspace] --ready-json --actor codex
+vivi review queue --actor codex --json
+vivi review diff README.md --base HEAD --json
+vivi comments doctor --actor codex --json
+vivi comments work --actor codex --wait --loop --idle-events --json
 vivi --version
 vivi --help
 ```

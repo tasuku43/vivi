@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
 
@@ -11,6 +12,61 @@ it("uses Vivi as the public package and CLI surface without a legacy alias", () 
   expect(pkg.name).toBe("vivi");
   expect(pkg.private).toBe(true);
   expect(Object.keys(pkg.bin)).toEqual(["vivi"]);
+  expect(pkg.bin.vivi).toBe("scripts/vivi-go-cli.mjs");
+  expect(pkg.bin.vivi).not.toContain("typescript");
+});
+
+it("routes the repository npm bin to the canonical Go CLI help surface", () => {
+  const result = spawnSync(
+    process.execPath,
+    ["scripts/vivi-go-cli.mjs", "--help"],
+    {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        GOCACHE: process.env.GOCACHE ?? `${process.cwd()}/.tmp-go-build-cache`,
+        GOMODCACHE:
+          process.env.GOMODCACHE ?? `${process.cwd()}/.tmp-go-mod-cache`,
+      },
+    },
+  );
+
+  expect(result.status).toBe(0);
+  expect(result.stdout).toContain("vivi review <queue|bases|diff>");
+  expect(result.stdout).toContain("vivi comments <protocol|schema|doctor");
+  expect(result.stdout).toContain("--ready-json");
+  expect(result.stdout).not.toMatch(/^vivi \[root\].*Options:/s);
+});
+
+it("keeps review and comments help reachable through the default bin", () => {
+  for (const args of [
+    ["review", "--help"],
+    ["comments", "--help"],
+  ]) {
+    const result = spawnSync(
+      process.execPath,
+      ["scripts/vivi-go-cli.mjs", ...args],
+      {
+        cwd: process.cwd(),
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          GOCACHE:
+            process.env.GOCACHE ?? `${process.cwd()}/.tmp-go-build-cache`,
+          GOMODCACHE:
+            process.env.GOMODCACHE ?? `${process.cwd()}/.tmp-go-mod-cache`,
+        },
+      },
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain(
+      args[0] === "review"
+        ? "vivi review - agent-oriented Git review CLI"
+        : "vivi comments - agent-oriented comment thread CLI",
+    );
+  }
 });
 
 it("keeps the public README on the Vivi binary distribution path", () => {
@@ -28,6 +84,23 @@ it("keeps the public README on the Vivi binary distribution path", () => {
   expect(installSection).toContain("mise");
   expect(installSection).toContain("GitHub Releases");
   expect(installSection).not.toMatch(/\bnpx\b|npm install|docker run/i);
+});
+
+it("documents npm as a local Go CLI delegate, not a TypeScript CLI path", () => {
+  const readme = readFileSync("README.md", "utf8");
+  const install = readFileSync("docs/install.md", "utf8");
+  const cliContract = readFileSync("docs/03-cli-or-api-contract.md", "utf8");
+
+  for (const text of [readme, install]) {
+    expect(text).toContain("canonical Go CLI");
+    expect(text).toContain("comments work");
+  }
+  expect(cliContract).toContain("Go CLI/backend");
+  expect(cliContract).toContain("comments work");
+  expect(readme).toContain("npm exec -- vivi --help");
+  expect(cliContract).toContain("comments watch");
+  expect(cliContract).toContain("comments follow");
+  expect(cliContract).not.toContain("dist/typescript/cli/typescript/main.js");
 });
 
 it("publishes Go binary release artifacts without npm or Docker publishing", () => {

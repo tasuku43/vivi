@@ -56,10 +56,17 @@ running a downloaded binary.
 
 ## Usage
 
+The canonical `vivi` command is the Go CLI/backend. It is the only
+agent-facing CLI path and includes the local server launcher plus
+`review` and `comments` subcommands:
+
 ```bash
 vivi .
 vivi ./docs
 vivi ./dist --open
+vivi . --port 0 --ready-json --actor codex
+vivi review queue --actor codex --json
+vivi comments work --actor codex --wait --loop --idle-events --json
 vivi . --include md,html,ts,tsx,json,css,png,jpg
 vivi . --max-file-size 2097152
 vivi . --allow-html-scripts
@@ -131,11 +138,20 @@ task storybook
 Useful commands:
 
 ```bash
+npm exec -- vivi --help
 npm run dev
+npm run dev:server
+npm run dev:server:typescript
 npm run e2e
 npm run verify:comment-ui
 node scripts/validate-scaffold.mjs
 ```
+
+`npm exec -- vivi ...` is a local-development shim that delegates to the
+canonical Go CLI. `npm run dev:server:typescript` starts the preserved
+TypeScript server harness explicitly for contract and adapter development; it
+is not the product CLI and does not expose the agent `review` or `comments`
+surface.
 
 Optional performance instrumentation is build-tag gated and documented in
 [`docs/16-performance-model.md`](docs/16-performance-model.md):
@@ -153,13 +169,14 @@ Against a running Vivi server, run `npm run harness:agent-loop` to verify the
 human comment, actor-aware read receipt, agent reply, and terminal lifecycle.
 
 The Go backend is the distribution target. The TypeScript server remains useful
-while the migration is in progress because the same API contract tests can be
-run against both implementations.
+while the migration is in progress because selected API contract tests can be
+run against both implementations, but default `vivi` invocations must land on
+the Go CLI.
 
 ## Repository Layout
 
 ```text
-cli/           Go CLI entrypoint plus the preserved TypeScript CLI harness
+cli/           Go CLI entrypoint plus an explicit TypeScript dev harness
 server/        Go local HTTP/API server and TypeScript contract implementation
 ui/            React SPA, layered client boundary, features, tests, and Storybook
 test/          unit, integration, contract, and E2E tests

@@ -13,9 +13,11 @@ The project remains one Go module. `cli` may start `server`; `server` does not
 depend on `cli`. The server may serve the generated `ui/dist` asset package but
 does not import browser source from `ui/src`.
 
-The preserved TypeScript server and CLI harnesses live below
-`server/typescript` and `cli/typescript`. They continue to support fast contract
-and adapter tests while the Go binary remains the release target.
+The preserved TypeScript server and CLI harness live below `server/typescript`
+and `cli/typescript`. They support explicit development-only contract and
+adapter tests. They are not the product CLI: release binaries, `go run ./cli`,
+and the repository-local npm bin all route `vivi` to the Go CLI so agents see
+one `review` and `comments` command surface.
 
 ## Browser layers
 

@@ -238,8 +238,10 @@ payload. Use this when an agent should sleep until GUI feedback is ready to
 handle.
 
 `comments work` is the integrated intake stream for coding-agent adapters that
-want the CLI to do the session orchestration. It claims the next matching
-thread, emits a compact `comment_work_claimed` NDJSON event, then follows that
+want the CLI to do the session orchestration. It is the preferred resident loop
+for terminal agents: with `--wait --loop --idle-events --json`, it waits for
+GUI feedback, claims the next matching thread, emits a compact
+`comment_work_claimed` NDJSON event, then follows that
 thread from the claim activity cursor and emits later
 `comment_thread_activity_batch` events. Pass `--full` only when the adapter
 needs the same rich source, diff, and activity payload as `claim --full`
@@ -560,7 +562,7 @@ or needs-info handoff and hand the still-open work back to the queue. Use
 envelope, including the release activity, receipt, and optional triage/comment
 payload.
 
-`comments watch` is intentionally an open worklist watcher. It emits
+`comments watch` is intentionally a passive open worklist watcher. It emits
 newline-delimited JSON snapshots of `commentThreads(status: open)` with a
 resume cursor, starts by emitting the current open threads unless
 `--no-initial` is set, and ignores unpublished draft review comments. If a
@@ -577,6 +579,12 @@ claim. The suggestion includes a cursor-derived `clientEventId` and matching
 `--client-event-id` argv so the claim activity can be correlated and retried
 without inventing a separate id, and it keeps the same resolved `--url` as the
 watch stream that emitted it.
+
+`comments follow` is the single-thread activity stream. Use it after an agent
+already knows the thread id, such as after a claim, a release wait, or recovery
+from `comments mine`; use `comments watch` to discover open work without
+claiming it, and use `comments work` when the agent wants discovery, claim,
+lease renewal, and follow-up activity in one loop.
 
 For a background coding agent,
 `comments watch --full` is the richest intake stream. Each delivered event

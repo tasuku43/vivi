@@ -48,9 +48,14 @@ tasks:
       - task: ui:dev
 
   dev:server:
-    desc: Start the local TypeScript server harness
+    desc: Start the canonical Go local server
     cmds:
       - npm run dev:server
+
+  dev:server:typescript:
+    desc: Start the explicit legacy TypeScript server harness
+    cmds:
+      - npm run dev:server:typescript
 
   lint:
     desc: Enforce UI and architecture boundaries

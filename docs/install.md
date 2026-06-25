@@ -45,3 +45,19 @@ vivi_Linux_x86_64.tar.gz
 ```
 
 Verify `checksums.txt` before running the binary.
+
+## Local Development
+
+Inside this repository, `npm exec -- vivi <args>` delegates to the same
+canonical Go CLI used by the release binary:
+
+```bash
+npm exec -- vivi --help
+npm exec -- vivi . --port 0 --ready-json --actor codex
+npm exec -- vivi comments work --actor codex --wait --loop --idle-events --json
+```
+
+This npm path is for repository development and requires Go. npm is not a
+distribution channel for Vivi releases. The explicit
+`npm run dev:server:typescript` harness remains for TypeScript server contract
+work only; it is not the public `vivi` CLI.

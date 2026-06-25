@@ -5,7 +5,7 @@
   "type": "module",
   "description": "A read-only visual workspace viewer for agent-written local files.",
   "bin": {
-    "vivi": "dist/typescript/cli/typescript/main.js"
+    "vivi": "scripts/vivi-go-cli.mjs"
   },
   "files": [
     "dist",
@@ -14,7 +14,8 @@
   ],
   "scripts": {
     "dev": "npm --prefix ui run dev",
-    "dev:server": "tsx cli/typescript/main.ts . --port 4317",
+    "dev:server": "npm run prepare:go && go run ./cli . --port 4317",
+    "dev:server:typescript": "tsx cli/typescript/main.ts . --port 4317",
     "clean:dist": "node scripts/clean-dist.mjs",
     "prepare:ui-assets": "node scripts/prepare-ui-assets.mjs",
     "prepare:go": "node scripts/prepare-go-workspace.mjs",
