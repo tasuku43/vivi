@@ -2361,7 +2361,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       ) : null}
       <CommentsPanel
         open={commentsPanelOpen}
-        comments={comments}
+        comments={allCommentMessages}
         query={commentsPanelQuery}
         statusFilter={commentsPanelStatus}
         threadActivities={commentActivitySummaries}

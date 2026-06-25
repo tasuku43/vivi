@@ -56,6 +56,15 @@ describe("rendered comment block ranges", () => {
     expect(styles).toMatch(
       /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-left: calc\(-1\.45em - 12px\);/,
     );
+    expect(styles).toMatch(
+      /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-marker-top: calc\(0\.85em \+ 1px\);/,
+    );
+    expect(styles).toMatch(
+      /pre\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-marker-top: 18px;/,
+    );
+    expect(styles).toMatch(
+      /\.rendered-comment-marker \{[\s\S]*?top: var\(--rendered-comment-marker-top, calc\(50% \+ 1px\)\);/,
+    );
   });
 
   it("uses the block surface for comment highlights", () => {

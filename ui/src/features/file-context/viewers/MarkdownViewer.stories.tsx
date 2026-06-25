@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
+import type { ViviComment } from "../../../domain/comments.js";
 import {
   commentsForPath,
+  humanTasuku,
   markdownDiff,
   sampleFiles,
   sampleThreadActivities,
@@ -160,6 +162,82 @@ export const RenderedListDraftFormsDoNotBridge: Story = {
   },
 };
 
+const markerPlacementMarkdown = [
+  "# Marker placement",
+  "",
+  "- marker list item keeps the badge beside the bullet line.",
+  "",
+  "```text",
+  "left   : live file tree",
+  "center : active viewer",
+  "right  : inspector",
+  "```",
+].join("\n");
+
+const markerPlacementComments: ViviComment[] = [
+  markerPlacementComment({
+    id: "comment-md-list-marker",
+    threadId: "thread-md-list-marker",
+    lineStart: 3,
+    lineEnd: 3,
+    quote: "marker list item",
+    body: "List marker should stay pinned to the text row.",
+  }),
+  markerPlacementComment({
+    id: "comment-md-code-marker",
+    threadId: "thread-md-code-marker",
+    lineStart: 5,
+    lineEnd: 9,
+    quote: "left   : live file tree",
+    body: "Code block marker should sit near the top edge.",
+  }),
+];
+
+export const RenderedMarkerPlacement: Story = {
+  tags: ["interaction"],
+  args: {
+    mode: "rendered",
+    file: {
+      ...sampleFiles.markdown,
+      content: markerPlacementMarkdown,
+    },
+    comments: markerPlacementComments,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const listItem = canvas.getByText(/marker list item/).closest("li")!;
+    const listMarker = within(listItem).getByRole("button", {
+      name: /Open comment thread/,
+    });
+    const listTopBefore = listMarker.getBoundingClientRect().top;
+
+    await expect(
+      getComputedStyle(listItem)
+        .getPropertyValue("--rendered-comment-marker-top")
+        .trim(),
+    ).toBe("calc(0.85em + 1px)");
+
+    await userEvent.click(listMarker);
+    await expect(canvas.getByLabelText("Reply to thread")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        Math.abs(
+          within(listItem)
+            .getByRole("button", { name: /Open comment thread/ })
+            .getBoundingClientRect().top - listTopBefore,
+        ),
+      ).toBeLessThan(2),
+    );
+
+    const codeBlock = canvasElement.querySelector("pre")!;
+    await expect(
+      getComputedStyle(codeBlock)
+        .getPropertyValue("--rendered-comment-marker-top")
+        .trim(),
+    ).toBe("18px");
+  },
+};
+
 export const RenderedDiffMode: Story = {
   args: {
     mode: "rendered",
@@ -168,6 +246,38 @@ export const RenderedDiffMode: Story = {
     activeCommentId: "comment-md-rendered",
   },
 };
+
+function markerPlacementComment(input: {
+  id: string;
+  threadId: string;
+  lineStart: number;
+  lineEnd: number;
+  quote: string;
+  body: string;
+}): ViviComment {
+  return {
+    id: input.id,
+    threadId: input.threadId,
+    path: sampleFiles.markdown.path,
+    viewerKind: "markdown",
+    body: input.body,
+    status: "open",
+    source: "human",
+    createdBy: humanTasuku,
+    createdAt: "2026-06-25T09:00:00.000Z",
+    updatedAt: "2026-06-25T09:00:00.000Z",
+    anchor: {
+      surface: "source",
+      canonical: {
+        path: sampleFiles.markdown.path,
+        lineStart: input.lineStart,
+        lineEnd: input.lineEnd,
+        quote: input.quote,
+        fileHash: sampleFiles.markdown.etag,
+      },
+    },
+  };
+}
 
 export const SourceDiffMode: Story = {
   args: {
