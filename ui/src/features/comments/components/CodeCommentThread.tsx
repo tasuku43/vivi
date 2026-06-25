@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CommentStatus } from "../../../domain/comments.js";
 import type { CommentActivitySummary } from "../../../state/comment-activity.js";
 import { activityLabel } from "../../../state/comment-activity.js";
@@ -64,17 +64,23 @@ export function CodeCommentThread({
         ? "Reopen current thread"
         : "Reopen thread";
   const archiveLabel = hasActiveComment ? "Archive current thread" : "Archive";
+  const requestClose = useCallback(() => {
+    if (body.trim() && !window.confirm("Discard this unsent comment?")) {
+      return;
+    }
+    onClose();
+  }, [body, onClose]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      onClose();
+      requestClose();
     };
     window.addEventListener("keydown", onKeyDown, { capture: true });
     return () => {
       window.removeEventListener("keydown", onKeyDown, { capture: true });
     };
-  }, [onClose]);
+  }, [requestClose]);
 
   useEffect(() => {
     if (thread.comments.length) return;
@@ -134,7 +140,7 @@ export function CodeCommentThread({
         <button
           type="button"
           aria-label="Close comment thread"
-          onClick={onClose}
+          onClick={requestClose}
         >
           ×
         </button>

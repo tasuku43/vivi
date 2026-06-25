@@ -170,6 +170,69 @@ export const NewLineComment: Story = {
   },
 };
 
+export const DirtyComposerConfirmsBeforeClose: Story = {
+  tags: ["interaction"],
+  args: {
+    thread: {
+      key: "dirty-new-line-comment",
+      path: sampleFiles.code.path,
+      lineStart: 16,
+      lineEnd: 16,
+      status: "open",
+      comments: [],
+    },
+    draft: {
+      path: sampleFiles.code.path,
+      viewerKind: "text",
+      anchor: {
+        surface: "source",
+        canonical: {
+          path: sampleFiles.code.path,
+          lineStart: 16,
+          lineEnd: 16,
+          quote: "return next;",
+          fileHash: sampleFiles.code.etag,
+        },
+      },
+    },
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.type(
+      canvas.getByLabelText("New line comment"),
+      "Keep this in progress.",
+    );
+
+    const originalConfirm = window.confirm;
+    try {
+      const rejectDiscard = fn(() => false);
+      window.confirm = rejectDiscard;
+      await userEvent.click(
+        canvas.getByRole("button", { name: "Close comment thread" }),
+      );
+      await expect(rejectDiscard).toHaveBeenCalledWith(
+        "Discard this unsent comment?",
+      );
+      await expect(args.onClose).not.toHaveBeenCalled();
+      await expect(canvas.getByLabelText("New line comment")).toHaveValue(
+        "Keep this in progress.",
+      );
+
+      const acceptDiscard = fn(() => true);
+      window.confirm = acceptDiscard;
+      await userEvent.click(
+        canvas.getByRole("button", { name: "Close comment thread" }),
+      );
+      await expect(acceptDiscard).toHaveBeenCalledWith(
+        "Discard this unsent comment?",
+      );
+      await expect(args.onClose).toHaveBeenCalled();
+    } finally {
+      window.confirm = originalConfirm;
+    }
+  },
+};
+
 export const UserWritesOneDraftComment: Story = {
   args: {
     thread: {
