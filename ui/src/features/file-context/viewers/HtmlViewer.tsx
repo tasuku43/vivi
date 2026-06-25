@@ -481,28 +481,14 @@ function commentsForRenderedHtmlTarget(
   target: { blockIds: string[]; draft: CommentDraft },
   comments: ViviComment[],
 ): ViviComment[] {
-  const targetStart = target.draft.anchor.canonical.lineStart;
-  const targetEnd =
-    target.draft.anchor.canonical.lineEnd ??
-    target.draft.anchor.canonical.lineStart;
-  const targetBlockIds = new Set(target.blockIds);
-  return comments
-    .filter((comment) => {
-      const summary = renderedCommentSummaryForComment(comment, "html");
-      const lineStart = comment.anchor.canonical.lineStart;
-      const lineEnd =
-        comment.anchor.canonical.lineEnd ?? comment.anchor.canonical.lineStart;
-      if (
-        targetStart !== undefined &&
-        targetEnd !== undefined &&
-        lineStart !== undefined &&
-        lineEnd !== undefined
-      ) {
-        return lineStart === targetStart && lineEnd === targetEnd;
-      }
-      return Boolean(summary?.blockId && targetBlockIds.has(summary.blockId));
-    })
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  if (target.draft.threadId) {
+    return comments
+      .filter(
+        (comment) => (comment.threadId ?? comment.id) === target.draft.threadId,
+      )
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+  return [];
 }
 
 function renderedThreadModel(
@@ -535,9 +521,10 @@ function renderedHtmlThreadTargetKey(
     : JSON.stringify([path, lineStart, lineEnd, target.blockIds.join("|")]);
 }
 
-export function positionHtmlRenderedThread(
-  viewport: { width: number; height: number },
-): HtmlRenderedThreadPosition {
+export function positionHtmlRenderedThread(viewport: {
+  width: number;
+  height: number;
+}): HtmlRenderedThreadPosition {
   const margin = 24;
   const width = Math.min(520, Math.max(300, viewport.width - margin * 2));
   const maxHeight = Math.max(220, viewport.height - margin * 2);

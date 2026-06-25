@@ -1,5 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, fn, userEvent, waitFor, within } from "storybook/test";
+import {
+  expect,
+  fireEvent,
+  fn,
+  userEvent,
+  waitFor,
+  within,
+} from "storybook/test";
 import type { ViviComment } from "../../../domain/comments.js";
 import {
   commentsForPath,
@@ -80,10 +87,42 @@ export const RenderedBlockClickDraft: Story = {
     const heading = canvas.getByRole("heading", { name: "Review Surface" });
     await expect(heading).toHaveClass("vivi-rendered-comment-block");
 
-    await userEvent.click(heading);
+    await clickRenderedBlock(heading);
+    await expect(canvas.queryByLabelText("New line comment")).toBeNull();
+    await expect(heading).not.toHaveClass("drafting-rendered-comment");
 
+    await clickRenderedBlock(heading, { altKey: true });
     await expect(canvas.getByLabelText("New line comment")).toBeInTheDocument();
     await expect(heading).toHaveClass("drafting-rendered-comment");
+  },
+};
+
+export const RenderedCommentModifierClickStartsSeparateDraft: Story = {
+  tags: ["interaction"],
+  args: {
+    mode: "rendered",
+    comments: commentsForPath(sampleFiles.markdown.path),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const commentedText = canvas.getByText(
+      /Comment threads are the shared contract/,
+    );
+    const commentedBlock = commentedText.closest(
+      ".vivi-rendered-comment-block",
+    )!;
+    await expect(
+      within(commentedBlock as HTMLElement).getByRole("button", {
+        name: /Open comment thread/,
+      }),
+    ).toBeInTheDocument();
+
+    await clickRenderedBlock(commentedText, { altKey: true });
+
+    await expect(canvas.getByLabelText("New line comment")).toBeInTheDocument();
+    await expect(
+      canvas.queryByText(/This sentence captures the feedback layer/),
+    ).toBeNull();
   },
 };
 
@@ -95,15 +134,19 @@ export const MultipleRenderedDraftFormsStayOpen: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(
+    await clickRenderedBlock(
       canvas.getByRole("heading", { name: "Review Surface" }),
+      {
+        altKey: true,
+      },
     );
     await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(1);
 
-    await userEvent.click(
+    await clickRenderedBlock(
       canvas.getByText(
         "Vivi keeps the human review surface close to the files that changed.",
       ),
+      { altKey: true },
     );
 
     await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(2);
@@ -140,9 +183,15 @@ export const RenderedListDraftFormsDoNotBridge: Story = {
       .getByText(/source\/rendered split-view exploration/)
       .closest("li")!;
 
-    await userEvent.click(canvas.getByText(/long-form Markdown reading model/));
-    await userEvent.click(
+    await clickRenderedBlock(
+      canvas.getByText(/long-form Markdown reading model/),
+      {
+        altKey: true,
+      },
+    );
+    await clickRenderedBlock(
       canvas.getByText(/source\/rendered split-view exploration/),
+      { altKey: true },
     );
 
     await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(2);
@@ -302,9 +351,9 @@ export const RenderedMarkerPlacement: Story = {
       ).toBeLessThan(2),
     );
     const listMetricsAfterCodeOpen = renderedBlockMetrics(listItem);
-    await expect(
-      listMetricsAfterCodeOpen.bottomPadding,
-    ).toBeGreaterThanOrEqual(5);
+    await expect(listMetricsAfterCodeOpen.bottomPadding).toBeGreaterThanOrEqual(
+      5,
+    );
     await expect(listMetricsAfterCodeOpen.height).toBeLessThanOrEqual(36);
   },
 };
@@ -372,7 +421,13 @@ function renderedBlockMetrics(block: HTMLElement): {
 function renderedMarkerTextGap(block: HTMLElement): number {
   const marker = block.querySelector<HTMLElement>(".rendered-comment-marker");
   if (!marker) return Number.POSITIVE_INFINITY;
-  return marker.getBoundingClientRect().left - firstReadableTextRect(block).right;
+  return (
+    marker.getBoundingClientRect().left - firstReadableTextRect(block).right
+  );
+}
+
+function clickRenderedBlock(element: Element, init: MouseEventInit = {}): void {
+  fireEvent.click(element, init);
 }
 
 function firstReadableTextRect(block: HTMLElement): DOMRect {

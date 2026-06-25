@@ -1772,11 +1772,11 @@ function injectHtmlPreviewRuntime(
       if (event.target.closest?.(".rendered-comment-marker")) return;
       if (event.target.closest?.(interactiveSelector)) return;
       if (document.getSelection()?.toString().trim()) return;
+      if (!hasRenderedCommentModifier(event)) return;
       event.preventDefault();
       event.stopPropagation();
       const target = targetForBlocks([block]);
-      const commentId = block.dataset.viviCommentId;
-      postTarget(target, commentId ? "vivi-html-comment-open" : "vivi-html-block-target", commentId);
+      postTarget(target);
     });
   };
   const applyHighlights = () => {
@@ -1855,6 +1855,8 @@ function injectHtmlPreviewRuntime(
   const publishSoon = () => {
     window.requestAnimationFrame(() => window.setTimeout(publishSelection, 0));
   };
+  const hasRenderedCommentModifier = (event) =>
+    event.altKey || event.ctrlKey || event.metaKey;
   window.addEventListener("message", (event) => {
     if (event.source && event.source !== parent) return;
     const data = event.data;
@@ -1885,11 +1887,11 @@ function injectHtmlPreviewRuntime(
     }
     if (event.target.closest?.(interactiveSelector)) return;
     if (document.getSelection()?.toString().trim()) return;
+    if (!hasRenderedCommentModifier(event)) return;
     event.preventDefault();
     event.stopPropagation();
     const target = targetForBlocks([block]);
-    const commentId = block.dataset.viviCommentId;
-    postTarget(target, commentId ? "vivi-html-comment-open" : "vivi-html-block-target", commentId);
+    postTarget(target);
   });
   document.addEventListener("pointermove", (event) => setHoveredBlock(renderedThreadOpen() ? null : closestBlock(event.target)));
   document.addEventListener("pointerleave", () => setHoveredBlock(null));

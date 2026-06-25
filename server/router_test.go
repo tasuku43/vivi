@@ -167,6 +167,8 @@ func TestHTMLPreviewRuntimeUsesRenderedThreadContract(t *testing.T) {
 		`const commentableBlocks = () => Array.from(document.querySelectorAll(blockSelector)).filter(isCommentableBlock);`,
 		`document.addEventListener("pointermove", (event) => setHoveredBlock(renderedThreadOpen() ? null : closestBlock(event.target)));`,
 		`const interactiveSelector = "input,select,textarea,[contenteditable]";`,
+		`const hasRenderedCommentModifier = (event) => event.altKey || event.ctrlKey || event.metaKey;`,
+		`if (!hasRenderedCommentModifier(event)) return;`,
 		`event.preventDefault();`,
 	} {
 		if !strings.Contains(html, want) {

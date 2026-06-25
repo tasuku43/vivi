@@ -92,6 +92,7 @@ export const PreviewSandboxChrome: Story = {
 };
 
 export const PreviewRenderedHtmlThread: Story = {
+  tags: ["interaction"],
   args: {
     mode: "preview",
     activeCommentId: "comment-html-rendered",
@@ -104,6 +105,25 @@ export const PreviewRenderedHtmlThread: Story = {
           "A Storybook-local iframe exercises the same block-target message contract as /preview/html so rendered HTML comments open the shared thread UI.",
       },
     },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.findByTitle(sampleFiles.html.path),
+    ).resolves.toBeInTheDocument();
+    const frame = canvas.getByTitle(sampleFiles.html.path) as HTMLIFrameElement;
+    await waitForHtmlDraftPreviewReady(frame);
+
+    clickHtmlStoryBlockId(frame, "html-p-1");
+    await expect(canvas.queryByLabelText("New line comment")).toBeNull();
+
+    clickHtmlStoryBlockId(frame, "html-p-1", { altKey: true });
+    await waitFor(() =>
+      expect(canvas.getByLabelText("New line comment")).toBeVisible(),
+    );
+    await expect(
+      canvas.queryByText(/HTML rendered comments should be visible/),
+    ).toBeNull();
   },
 };
 
@@ -124,12 +144,18 @@ export const SinglePreviewDraftFormFixedSlot: Story = {
     const frame = canvas.getByTitle(sampleFiles.html.path) as HTMLIFrameElement;
     await waitForHtmlDraftPreviewReady(frame);
 
-    frame.contentWindow?.postMessage(
+    clickHtmlStoryBlock(
+      frame,
+      "This layout treats Markdown as the primary surface.",
+    );
+    await expect(canvas.queryByLabelText("New line comment")).toBeNull();
+
+    clickHtmlStoryBlock(
+      frame,
+      "This layout treats Markdown as the primary surface.",
       {
-        type: "vivi-story-click-text",
-        text: "This layout treats Markdown as the primary surface.",
+        altKey: true,
       },
-      "*",
     );
     await waitFor(() =>
       expect(canvas.getAllByLabelText("New line comment")).toHaveLength(1),
@@ -173,18 +199,19 @@ export const SinglePreviewDraftFormFixedSlot: Story = {
     await userEvent.click(submit);
     await waitFor(() => expect(args.onCreateComment).toHaveBeenCalled());
 
-    frame.contentWindow?.postMessage(
-      { type: "vivi-story-click-text", text: "Rendered" },
-      "*",
-    );
+    clickHtmlStoryBlock(frame, "Rendered", { altKey: true });
     await waitFor(() => {
       expect(
-        canvas.getByRole("article", { name: "Comment thread for lines 486-487" }),
+        canvas.getByRole("article", {
+          name: "Comment thread for lines 486-487",
+        }),
       ).toBeVisible();
     });
     await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(1);
     await expect(
-      canvas.queryByRole("article", { name: "Comment thread for lines 493-497" }),
+      canvas.queryByRole("article", {
+        name: "Comment thread for lines 493-497",
+      }),
     ).toBeNull();
     const secondHost = canvasElement.querySelector<HTMLElement>(
       ".html-rendered-comment-thread-host",
@@ -216,7 +243,7 @@ export const SourceDiffMode: Story = {
 function htmlDocReaderDraftPreviewStoryDocument(path: string): string {
   const annotated = addRenderedCommentBlockIdsToHtml(docReaderMockHtml);
   const styles = `<style data-vivi-story-comment-preview>
-    .vivi-rendered-comment-block { --rendered-comment-block-left: 0px; --rendered-comment-block-right: 0px; --soft-line: rgba(255,255,255,.06); --comment-tint: rgba(169,134,255,.14); --comment-tint-active: rgba(169,134,255,.22); --comment-line: rgba(169,134,255,.42); isolation: isolate; position: relative; z-index: 0; border-radius: 8px; cursor: pointer; }
+      .vivi-rendered-comment-block { --rendered-comment-block-left: 0px; --rendered-comment-block-right: 0px; --soft-line: rgba(255,255,255,.06); --comment-tint: rgba(169,134,255,.14); --comment-tint-active: rgba(169,134,255,.22); --comment-line: rgba(169,134,255,.42); isolation: isolate; position: relative; z-index: 0; border-radius: 8px; }
     .vivi-rendered-comment-block:not(tr)::before { content: ""; position: absolute; z-index: 0; top: 0; right: var(--rendered-comment-block-right); bottom: 0; left: var(--rendered-comment-block-left); border-radius: inherit; pointer-events: none; }
     .vivi-rendered-comment-block:not(tr) > * { position: relative; z-index: 1; }
     .vivi-rendered-comment-block.hover-rendered-comment-block:not(tr)::before, tr.vivi-rendered-comment-block.hover-rendered-comment-block { background: var(--soft-line); }
@@ -269,6 +296,7 @@ function htmlDocReaderDraftPreviewStoryDocument(path: string): string {
           rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
         }, "*");
       };
+      const hasRenderedCommentModifier = (event) => event.altKey || event.ctrlKey || event.metaKey;
       const classState = () => ({
         type: "vivi-story-hover-state",
         path,
@@ -297,7 +325,7 @@ function htmlDocReaderDraftPreviewStoryDocument(path: string): string {
         }
         if (event.source === parent && event.data?.type === "vivi-story-click-text") {
           const block = commentableBlocks().find((item) => readableText(item).includes(event.data.text));
-          if (block) postBlock(block);
+          if (block && hasRenderedCommentModifier(event.data)) postBlock(block);
           return;
         }
         if (event.source === parent && event.data?.type === "vivi-story-hover-layout") {
@@ -314,6 +342,7 @@ function htmlDocReaderDraftPreviewStoryDocument(path: string): string {
       document.addEventListener("click", (event) => {
         const block = closestBlock(event.target);
         if (!block) return;
+        if (!hasRenderedCommentModifier(event)) return;
         event.preventDefault();
         event.stopPropagation();
         postBlock(block);
@@ -351,7 +380,7 @@ function htmlDraftPreviewStoryDocument(path: string): string {
       table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 13px; }
       th, td { border-bottom: 1px solid #e5ded4; padding: 9px 10px; text-align: left; }
       button { border: 1px solid #b9ac96; border-radius: 7px; background: #fffaf0; color: #332b20; padding: 8px 12px; }
-      .vivi-rendered-comment-block { --rendered-comment-block-left: 0px; --rendered-comment-block-right: 0px; --soft-line: rgba(24,32,47,.08); isolation: isolate; position: relative; z-index: 0; border-radius: 8px; cursor: pointer; }
+      .vivi-rendered-comment-block { --rendered-comment-block-left: 0px; --rendered-comment-block-right: 0px; --soft-line: rgba(24,32,47,.08); isolation: isolate; position: relative; z-index: 0; border-radius: 8px; }
       .vivi-rendered-comment-block:not(tr)::before { content: ""; position: absolute; z-index: 0; top: 0; right: var(--rendered-comment-block-right); bottom: 0; left: var(--rendered-comment-block-left); border-radius: inherit; pointer-events: none; }
       .vivi-rendered-comment-block:not(tr) > * { position: relative; z-index: 1; }
       .vivi-rendered-comment-block.hover-rendered-comment-block:not(tr)::before, tr.vivi-rendered-comment-block.hover-rendered-comment-block { background: var(--soft-line); }
@@ -400,6 +429,7 @@ function htmlDraftPreviewStoryDocument(path: string): string {
             rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
           }, "*");
         };
+        const hasRenderedCommentModifier = (event) => event.altKey || event.ctrlKey || event.metaKey;
         window.addEventListener("message", (event) => {
           if (event.source === parent && event.data?.type === "vivi-story-click-block") {
             const block = blocks.find((item) => item.dataset.viviCommentBlockId === event.data.blockId);
@@ -434,6 +464,7 @@ function htmlDraftPreviewStoryDocument(path: string): string {
           });
         });
         blocks.forEach((block) => block.addEventListener("click", (event) => {
+          if (!hasRenderedCommentModifier(event)) return;
           event.preventDefault();
           event.stopPropagation();
           postBlock(block);
@@ -443,6 +474,40 @@ function htmlDraftPreviewStoryDocument(path: string): string {
     </script>
   </body>
 </html>`;
+}
+
+function clickHtmlStoryBlock(
+  frame: HTMLIFrameElement,
+  text: string,
+  init: MouseEventInit = {},
+): void {
+  frame.contentWindow?.postMessage(
+    {
+      type: "vivi-story-click-text",
+      text,
+      altKey: init.altKey === true,
+      ctrlKey: init.ctrlKey === true,
+      metaKey: init.metaKey === true,
+    },
+    "*",
+  );
+}
+
+function clickHtmlStoryBlockId(
+  frame: HTMLIFrameElement,
+  blockId: string,
+  init: MouseEventInit = {},
+): void {
+  frame.contentWindow?.postMessage(
+    {
+      type: "vivi-story-click-block",
+      blockId,
+      altKey: init.altKey === true,
+      ctrlKey: init.ctrlKey === true,
+      metaKey: init.metaKey === true,
+    },
+    "*",
+  );
 }
 
 async function waitForHtmlDraftPreviewReady(
@@ -547,6 +612,7 @@ function htmlCommentPreviewStoryDocument(path: string): string {
 	        const path = ${JSON.stringify(path)};
 	        const blocks = Array.from(document.querySelectorAll("[data-vivi-comment-block-id='html-h1-1'], [data-vivi-comment-block-id='html-p-1']"));
 	        const block = document.querySelector("[data-vivi-comment-block-id='html-p-1']");
+	        const postReady = () => parent.postMessage({ type: "vivi-story-html-ready", path }, "*");
 	        const postTarget = (type, id) => {
 	          const firstRect = blocks[0].getBoundingClientRect();
 	          const lastRect = blocks[blocks.length - 1].getBoundingClientRect();
@@ -595,6 +661,15 @@ function htmlCommentPreviewStoryDocument(path: string): string {
 	          });
 	        };
 	        window.addEventListener("message", (event) => {
+	          if (event.source === parent && event.data?.type === "vivi-story-ready-request") {
+	            postReady();
+	            return;
+	          }
+	          if (event.source === parent && event.data?.type === "vivi-story-click-block") {
+	            const targetBlock = blocks.find((item) => item.dataset.viviCommentBlockId === event.data.blockId);
+	            if (targetBlock && hasRenderedCommentModifier(event.data)) postTarget("vivi-html-block-target");
+	            return;
+	          }
 	          if (event.source !== parent || event.data?.type !== "vivi-html-comments" || event.data.path !== path) return;
 	          applyRange();
 	          if (event.data.activeCommentId === "comment-html-rendered") blocks.forEach((item) => item.classList.add("active-rendered-comment"));
@@ -615,7 +690,14 @@ function htmlCommentPreviewStoryDocument(path: string): string {
             block.append(action);
           }
         });
-        block.addEventListener("click", () => postTarget("vivi-html-comment-open", "comment-html-rendered"));
+        const hasRenderedCommentModifier = (event) => event.altKey || event.ctrlKey || event.metaKey;
+        block.addEventListener("click", (event) => {
+          if (!hasRenderedCommentModifier(event)) return;
+          event.preventDefault();
+          event.stopPropagation();
+          postTarget("vivi-html-block-target");
+        });
+        postReady();
       })();
     </script>
   </body>

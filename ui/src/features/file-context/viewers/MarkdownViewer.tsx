@@ -334,17 +334,13 @@ export function MarkdownViewer({
     }
     if (isInteractiveRenderedCommentTarget(event.target)) return;
     if (window.getSelection()?.toString().trim()) return;
-    if (openRenderedComment(block)) return;
+    if (!hasRenderedCommentModifier(event)) return;
 
     startRenderedComment(block);
   };
 
   const renderedThreadEntries = renderedThreadTargets.map((target) => {
-    const threadComments = commentsForRenderedTarget(
-      markdownRef.current,
-      target,
-      comments,
-    );
+    const threadComments = commentsForRenderedTarget(target, comments);
     const thread = renderedThreadModel(file.path, target.draft, threadComments);
     const threadId =
       thread.comments[0]?.threadId ??
@@ -524,39 +520,24 @@ function cssPixelValue(value: string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function hasRenderedCommentModifier(
+  event: Pick<MouseEvent<HTMLElement>, "altKey" | "ctrlKey" | "metaKey">,
+): boolean {
+  return event.altKey || event.ctrlKey || event.metaKey;
+}
+
 function commentsForRenderedTarget(
-  root: HTMLElement | null,
   target: { blockIds: string[]; draft: CommentDraft },
   comments: ViviComment[],
 ): ViviComment[] {
-  if (!root) return [];
-  const targetStart = target.draft.anchor.canonical.lineStart;
-  const targetEnd =
-    target.draft.anchor.canonical.lineEnd ??
-    target.draft.anchor.canonical.lineStart;
-  const targetBlockIds = new Set(target.blockIds);
-  return comments
-    .filter((comment) => {
-      const summary = renderedCommentSummaryForComment(comment, "markdown");
-      const lineStart = comment.anchor.canonical.lineStart;
-      const lineEnd =
-        comment.anchor.canonical.lineEnd ?? comment.anchor.canonical.lineStart;
-      if (
-        targetStart !== undefined &&
-        targetEnd !== undefined &&
-        lineStart !== undefined &&
-        lineEnd !== undefined
-      ) {
-        return lineStart === targetStart && lineEnd === targetEnd;
-      }
-      return Boolean(
-        summary &&
-        findBlocksForRenderedComment(root, summary).some((block) =>
-          targetBlockIds.has(block.dataset.viviCommentBlockId ?? ""),
-        ),
-      );
-    })
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  if (target.draft.threadId) {
+    return comments
+      .filter(
+        (comment) => (comment.threadId ?? comment.id) === target.draft.threadId,
+      )
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+  return [];
 }
 
 function renderedThreadModel(

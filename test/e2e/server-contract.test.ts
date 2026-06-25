@@ -164,10 +164,7 @@ it("targets the nearest rendered HTML block in the UI mock index cards", async (
   });
   server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
 
-  const titleLine = lineNumberFor(
-    indexHtml,
-    "<h2>01 Classic explorer</h2>",
-  );
+  const titleLine = lineNumberFor(indexHtml, "<h2>01 Classic explorer</h2>");
   const cardLine = lineNumberFor(
     indexHtml,
     '<a class="mock-card" href="01-classic-explorer.html"',
@@ -178,7 +175,9 @@ it("targets the nearest rendered HTML block in the UI mock index cards", async (
     await page.goto(`${server.url}/preview/html?path=index.html`);
 
     const titleTargetPromise = nextHtmlBlockTarget(page);
-    await page.getByRole("heading", { name: "01 Classic explorer" }).click();
+    await page
+      .getByRole("heading", { name: "01 Classic explorer" })
+      .click({ modifiers: ["Alt"] });
     const titleTarget = await titleTargetPromise;
     expect(titleTarget).toMatchObject({
       type: "vivi-html-block-target",
@@ -190,7 +189,7 @@ it("targets the nearest rendered HTML block in the UI mock index cards", async (
     const cardTargetPromise = nextHtmlBlockTarget(page);
     await page
       .locator('a.mock-card[href="01-classic-explorer.html"] .tag')
-      .click();
+      .click({ modifiers: ["Alt"] });
     const cardTarget = await cardTargetPromise;
     expect(cardTarget.type).toBe("vivi-html-block-target");
     expect(cardTarget.text).toContain("01 Classic explorer");
@@ -264,10 +263,16 @@ it("does not dim broad layout containers during a complex rendered HTML draft fl
     const page = await browser.newPage();
     await page.goto(`${server.url}/preview/html?path=index.html`);
 
+    await expectNoHtmlBlockTarget(page, async () => {
+      await page
+        .getByText("This layout treats Markdown as the primary surface.")
+        .click();
+    });
+
     const targetPromise = nextHtmlBlockTarget(page);
     await page
       .getByText("This layout treats Markdown as the primary surface.")
-      .click();
+      .click({ modifiers: ["Alt"] });
     const target = await targetPromise;
     expect(target).toMatchObject({
       type: "vivi-html-block-target",
@@ -344,7 +349,10 @@ it("preserves authored HTML styles during a rendered HTML draft flow", async () 
     });
 
     const targetPromise = nextHtmlBlockTarget(page);
-    await page.getByText("02 Document reader", { exact: true }).first().click();
+    await page
+      .getByText("02 Document reader", { exact: true })
+      .first()
+      .click({ modifiers: ["Alt"] });
     await targetPromise;
     await page.mouse.move(500, 540);
 
@@ -812,6 +820,28 @@ async function nextHtmlBlockTarget(
         window.addEventListener("message", onMessage);
       }),
   );
+}
+
+async function expectNoHtmlBlockTarget(
+  page: Page,
+  action: () => Promise<void>,
+): Promise<void> {
+  const received = page.evaluate(
+    () =>
+      new Promise<boolean>((resolve) => {
+        let sawTarget = false;
+        const onMessage = (event: MessageEvent) => {
+          if (event.data?.type === "vivi-html-block-target") sawTarget = true;
+        };
+        window.addEventListener("message", onMessage);
+        window.setTimeout(() => {
+          window.removeEventListener("message", onMessage);
+          resolve(sawTarget);
+        }, 150);
+      }),
+  );
+  await action();
+  expect(await received).toBe(false);
 }
 
 async function renderedHtmlHoverState(page: Page): Promise<
