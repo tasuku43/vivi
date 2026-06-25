@@ -147,7 +147,8 @@ When the fake agent needs a durable restart ledger, it passes
 run `comments verify-receipts --receipt-log <path|-> --json`, whose output is
 described by `comments schema commentWriteReceiptLedgerVerification --json`, to
 validate the whole ledger in one startup check; failed ledger suggestions carry
-the same server URL. The fake agent may also call
+the same server URL, while failed per-receipt check suggestions preserve the
+receipt actor and ledger path for retry decisions. The fake agent may also call
 `comments protocol --receipt-log <path> --json` at startup; that manifest's
 `receiptLedger` and command recipes are already ledger-aware. When the intake
 or preflight command itself receives `--receipt-log <path>`, the harness

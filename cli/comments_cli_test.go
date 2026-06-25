@@ -1069,6 +1069,10 @@ func TestCommentsCLIReceiptLogAppendsAgentWriteLedger(t *testing.T) {
 	if ledgerVerification.OK || ledgerVerification.Count != 2 || ledgerVerification.Verified != 1 || ledgerVerification.Failed != 1 || len(ledgerVerification.SuggestedCommands) != 1 || !containsString(ledgerVerification.SuggestedCommands[0].Args, server.URL) || len(ledgerVerification.Verifications[1].MissingEffects) != 1 {
 		t.Fatalf("broken ledger verification = %s", brokenLedger.String())
 	}
+	brokenSuggestions := ledgerVerification.Verifications[1].SuggestedCommands
+	if len(brokenSuggestions) != 2 || brokenSuggestions[0].Command != "comments show" || !containsString(brokenSuggestions[0].Args, "codex:ledger") || brokenSuggestions[0].StdinRequired || brokenSuggestions[1].Command != "comments check" || !containsString(brokenSuggestions[1].Args, "codex:ledger") || !containsString(brokenSuggestions[1].Args, "--receipt-log") || !containsString(brokenSuggestions[1].Args, brokenLog) || !containsString(brokenSuggestions[1].Args, server.URL) {
+		t.Fatalf("broken receipt suggestions = %#v", brokenSuggestions)
+	}
 }
 
 func TestCommentsCLITriagePostsStructuredAgentReply(t *testing.T) {

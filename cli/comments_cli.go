@@ -6122,9 +6122,11 @@ func verifyCommentWriteReceipt(ctx context.Context, options commentsCommandOptio
 	}
 	verification.addCheck("effects_match", len(verification.MissingEffects) == 0, "All receipt effects are present in thread activity history.")
 	if !verification.OK {
+		actorID := strings.TrimSpace(receipt.ActorID)
+		actorKind := inferActorKind(actorID, "")
 		verification.SuggestedCommands = []commentSuggestedCommand{
-			suggestedCommentsCommand("inspect_thread", "comments show", withURLArg([]string{"comments", "show", receipt.ThreadID, "--json"}, options.URL), "", "Inspect the current thread, comments, and activities on the same Vivi server before trusting this receipt."),
-			suggestedCommentsCommand("check_thread_before_retrying", "comments check", withURLArg([]string{"comments", "check", receipt.ThreadID, "--json"}, options.URL), "", "Recompute current write safety on the same Vivi server before retrying or reconciling the operation."),
+			suggestedCommentsCommand("inspect_thread", "comments show", withURLArg(actorCommand([]string{"comments", "show", receipt.ThreadID}, actorID, actorKind, "--json"), options.URL), "", "Inspect the current thread, comments, and activities on the same Vivi server before trusting this receipt."),
+			suggestedCommentsCommand("check_thread_before_retrying", "comments check", withRuntimeArgs(actorCommand([]string{"comments", "check", receipt.ThreadID}, actorID, actorKind, "--json"), options.URL, options.ReceiptLog), "", "Recompute current write safety on the same Vivi server before retrying or reconciling the operation."),
 		}
 	}
 	return verification, nil
