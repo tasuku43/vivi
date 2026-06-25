@@ -169,7 +169,11 @@ open-worklist event identifies `commentOpenWorklistEvent` and suggests
 `claim_next_open_thread` via
 `comments work --actor <actor> --once --full --json`, so the fake agent can move
 from GUI-published feedback to a claimed work item without hard-coded command
-recipes or accidentally staying attached to a follow stream.
+recipes or accidentally staying attached to a follow stream. The protocol
+manifest also advertises `passive_rich_open_worklist` with
+`comments watch --full`, which is the monitor-process entrypoint when a harness
+or adapter wants to assert `items[].brief` before handing work to per-thread
+workers.
 When a suggested command includes `clientEventId`, the harness treats that
 value as the operation id for one logical attempt. Real adapters should do the
 same for structured writes: reuse the id on retry so `comment_added` and

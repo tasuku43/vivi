@@ -1163,6 +1163,13 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 				"reason":  "Observe GUI-published open threads without claiming them; follow the event's claim_next_open_thread suggestion to take ownership.",
 			},
 			{
+				"intent":  "passive_rich_open_worklist",
+				"command": "comments watch",
+				"args":    withRuntimeArgs([]string{"comments", "watch", "--actor", actor, "--client-event-id", "<client-event-id>", "--full", "--json"}, serverURL, receiptLog),
+				"events":  []string{"commentOpenWorklistEvent"},
+				"reason":  "Observe GUI-published open threads with items[].brief so a monitor can hand individual work items to per-thread worker agents without claiming them first.",
+			},
+			{
 				"intent":  "blocking_single_claim",
 				"command": "comments claim",
 				"args":    withRuntimeArgs([]string{"comments", "claim", "--actor", actor, "--client-event-id", "<client-event-id>", "--wait", "--full", "--json"}, serverURL, receiptLog),

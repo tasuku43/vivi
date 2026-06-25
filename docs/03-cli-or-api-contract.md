@@ -758,7 +758,9 @@ and count without recording read receipts, claims, or comments, then returns
 `recommendedAction` and startup `suggestedCommands` such as
 the primary `comments work --wait --loop --idle-events --idle-on-change --json` resident loop,
 plus recovery helpers such as `comments mine --json` and routing snapshots such
-as `comments inbox --json`.
+as `comments inbox --json`. The protocol manifest also includes a
+`passive_rich_open_worklist` intake alternative using `comments watch --full`
+for adapters that split monitoring from per-thread worker execution.
 If `--actor` is omitted, doctor returns `recommendedAction: "configure_actor"`
 with an actor-selection retry command that preserves the same server URL and
 receipt ledger path.

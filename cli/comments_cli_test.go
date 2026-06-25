@@ -1375,6 +1375,7 @@ func TestCommentsCLIProtocolSurfacesAgentStartupManifest(t *testing.T) {
 			Intent string   `json:"intent"`
 			Args   []string `json:"args"`
 			Events []string `json:"events"`
+			Reason string   `json:"reason"`
 		} `json:"intakeAlternatives"`
 		ThreadCompanions []struct {
 			Intent string   `json:"intent"`
@@ -1415,7 +1416,7 @@ func TestCommentsCLIProtocolSurfacesAgentStartupManifest(t *testing.T) {
 	if payload.PreferredLoop.Intent != "resident_owned_work_loop" || payload.PreferredLoop.Command != "comments work" || !containsString(payload.PreferredLoop.Args, "--client-event-id") || !containsString(payload.PreferredLoop.Args, "<client-event-id>") || !containsString(payload.PreferredLoop.Args, "--wait") || !containsString(payload.PreferredLoop.Args, "--loop") || !containsString(payload.PreferredLoop.Args, "--idle-events") || !containsString(payload.PreferredLoop.Args, "--idle-on-change") || containsString(payload.PreferredLoop.Args, "--full") || !containsString(payload.PreferredLoop.Events, "commentWorkClaimedEvent") {
 		t.Fatalf("preferred loop = %#v", payload.PreferredLoop)
 	}
-	if len(payload.IntakeAlternatives) != 2 || payload.IntakeAlternatives[0].Intent != "passive_open_worklist" || containsString(payload.IntakeAlternatives[0].Args, "--full") || !containsString(payload.IntakeAlternatives[0].Events, "commentOpenWorklistEvent") {
+	if len(payload.IntakeAlternatives) != 3 || payload.IntakeAlternatives[0].Intent != "passive_open_worklist" || containsString(payload.IntakeAlternatives[0].Args, "--full") || !containsString(payload.IntakeAlternatives[0].Events, "commentOpenWorklistEvent") || payload.IntakeAlternatives[1].Intent != "passive_rich_open_worklist" || !containsString(payload.IntakeAlternatives[1].Args, "--full") || !strings.Contains(payload.IntakeAlternatives[1].Reason, "items[].brief") || payload.IntakeAlternatives[2].Intent != "blocking_single_claim" {
 		t.Fatalf("intake alternatives = %#v", payload.IntakeAlternatives)
 	}
 	if len(payload.ThreadCompanions) != 2 || payload.ThreadCompanions[1].Intent != "preflight_guarded_write" || !containsString(payload.ThreadCompanions[1].Args, "check") {
@@ -1495,8 +1496,13 @@ func TestCommentsCLIProtocolPropagatesReceiptLogIntoAgentRecipes(t *testing.T) {
 	if !containsString(payload.PreferredLoop.Args, receiptLog) {
 		t.Fatalf("preferred loop receipt-log propagation = %#v", payload.PreferredLoop)
 	}
-	if len(payload.IntakeAlternatives) != 2 || !containsString(payload.IntakeAlternatives[0].Args, receiptLog) || !containsString(payload.IntakeAlternatives[1].Args, receiptLog) {
+	if len(payload.IntakeAlternatives) != 3 {
 		t.Fatalf("intake receipt-log propagation = %#v", payload.IntakeAlternatives)
+	}
+	for _, alternative := range payload.IntakeAlternatives {
+		if !containsString(alternative.Args, receiptLog) {
+			t.Fatalf("intake receipt-log propagation = %#v", payload.IntakeAlternatives)
+		}
 	}
 	if len(payload.Recovery) != 1 || !containsString(payload.Recovery[0].Args, receiptLog) {
 		t.Fatalf("recovery receipt-log propagation = %#v", payload.Recovery)

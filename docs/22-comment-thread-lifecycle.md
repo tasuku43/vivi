@@ -260,8 +260,9 @@ running `claim`, extracting the activity cursor, starting `follow`, and running
 activity batch and exits successfully.
 Adapters can discover that loop with `comments protocol --json`, which returns
 the preferred `work --wait --loop --idle-events --idle-on-change --json`
-command, passive `watch`, companion `follow`/`check` commands, restart recovery
-commands, structured write recipes, and schema lookup argv without contacting the Vivi server. Commands in that
+command, passive `watch`, rich passive `watch --full` for monitor-to-worker
+handoffs, companion `follow`/`check` commands, restart recovery commands,
+structured write recipes, and schema lookup argv without contacting the Vivi server. Commands in that
 manifest use
 `<client-event-id>` placeholders for durable read/claim attempts and generic
 structured writes; adapters should replace each placeholder with a stable id
