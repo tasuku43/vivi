@@ -166,6 +166,9 @@ const markerPlacementMarkdown = [
   "# Marker placement",
   "",
   "- marker list item keeps the badge beside the bullet line.",
+  "- adjacent list item keeps a compact highlighted row.",
+  "",
+  "The command palette is modal and keeps a balanced paragraph highlight.",
   "",
   "```text",
   "left   : live file tree",
@@ -184,10 +187,26 @@ const markerPlacementComments: ViviComment[] = [
     body: "List marker should stay pinned to the text row.",
   }),
   markerPlacementComment({
+    id: "comment-md-list-adjacent",
+    threadId: "thread-md-list-adjacent",
+    lineStart: 4,
+    lineEnd: 4,
+    quote: "adjacent list item",
+    body: "Adjacent list rows should not merge into a heavy band.",
+  }),
+  markerPlacementComment({
+    id: "comment-md-paragraph-marker",
+    threadId: "thread-md-paragraph-marker",
+    lineStart: 6,
+    lineEnd: 6,
+    quote: "command palette",
+    body: "Paragraph highlights should keep the same visual weight.",
+  }),
+  markerPlacementComment({
     id: "comment-md-code-marker",
     threadId: "thread-md-code-marker",
-    lineStart: 5,
-    lineEnd: 9,
+    lineStart: 8,
+    lineEnd: 12,
     quote: "left   : live file tree",
     body: "Code block marker should sit near the top edge.",
   }),
@@ -206,10 +225,24 @@ export const RenderedMarkerPlacement: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const listItem = canvas.getByText(/marker list item/).closest("li")!;
+    const adjacentListItem = canvas
+      .getByText(/adjacent list item/)
+      .closest("li")!;
+    const paragraph = canvas.getByText(/command palette is modal/);
     const listMarker = within(listItem).getByRole("button", {
       name: /Open comment thread/,
     });
     const listTopBefore = listMarker.getBoundingClientRect().top;
+    const listMetricsBefore = renderedBlockMetrics(listItem);
+    const adjacentListMetrics = renderedBlockMetrics(adjacentListItem);
+    const paragraphMetrics = renderedBlockMetrics(paragraph);
+
+    await expect(listMetricsBefore.height).toBeLessThanOrEqual(34);
+    await expect(adjacentListMetrics.height).toBeLessThanOrEqual(34);
+    await expect(paragraphMetrics.height).toBeLessThanOrEqual(34);
+    await expect(
+      Math.abs(listMetricsBefore.topPadding - listMetricsBefore.bottomPadding),
+    ).toBeLessThanOrEqual(6);
 
     await expect(
       getComputedStyle(listItem)
@@ -228,9 +261,9 @@ export const RenderedMarkerPlacement: Story = {
         ),
       ).toBeLessThan(2),
     );
-    await expect(renderedBlockBottomPadding(listItem)).toBeGreaterThanOrEqual(
-      5,
-    );
+    const listMetricsOpen = renderedBlockMetrics(listItem);
+    await expect(listMetricsOpen.bottomPadding).toBeGreaterThanOrEqual(5);
+    await expect(listMetricsOpen.height).toBeLessThanOrEqual(36);
 
     const codeBlock = canvasElement.querySelector("pre")!;
     await expect(
@@ -252,7 +285,7 @@ export const RenderedMarkerPlacement: Story = {
     await expect(codeMarkerRect.left).toBeGreaterThan(codeBlockRect.left + 180);
     await expect(codeMarkerRect.right).toBeLessThan(codeBlockRect.right);
     await userEvent.click(codeMarker);
-    await expect(canvas.getByText("Lines 5-9")).toBeInTheDocument();
+    await expect(canvas.getByText("Lines 8-12")).toBeInTheDocument();
     await waitFor(() =>
       expect(
         Math.abs(
@@ -262,9 +295,11 @@ export const RenderedMarkerPlacement: Story = {
         ),
       ).toBeLessThan(2),
     );
-    await expect(renderedBlockBottomPadding(listItem)).toBeGreaterThanOrEqual(
-      5,
-    );
+    const listMetricsAfterCodeOpen = renderedBlockMetrics(listItem);
+    await expect(
+      listMetricsAfterCodeOpen.bottomPadding,
+    ).toBeGreaterThanOrEqual(5);
+    await expect(listMetricsAfterCodeOpen.height).toBeLessThanOrEqual(36);
   },
 };
 
@@ -309,14 +344,23 @@ function markerPlacementComment(input: {
   };
 }
 
-function renderedBlockBottomPadding(block: HTMLElement): number {
+function renderedBlockMetrics(block: HTMLElement): {
+  bottomPadding: number;
+  height: number;
+  topPadding: number;
+} {
   const textRect = firstReadableTextRect(block);
   const blockRect = block.getBoundingClientRect();
   const beforeStyle = getComputedStyle(block, "::before");
   const beforeTop = Number.parseFloat(beforeStyle.top);
   const beforeHeight = Number.parseFloat(beforeStyle.height);
+  const highlightTop = blockRect.top + beforeTop;
   const highlightBottom = blockRect.top + beforeTop + beforeHeight;
-  return highlightBottom - textRect.bottom;
+  return {
+    bottomPadding: highlightBottom - textRect.bottom,
+    height: beforeHeight,
+    topPadding: textRect.top - highlightTop,
+  };
 }
 
 function firstReadableTextRect(block: HTMLElement): DOMRect {

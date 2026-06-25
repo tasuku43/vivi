@@ -20,7 +20,7 @@ describe("code viewer line actions", () => {
 describe("rendered comment block ranges", () => {
   it("defines one layout-independent surface for document blocks", () => {
     expect(styles).toMatch(
-      /\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-left: -12px;[\s\S]*?--rendered-comment-block-right: -12px;/,
+      /\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-left: -8px;[\s\S]*?--rendered-comment-block-right: -8px;/,
     );
     expect(styles).toMatch(
       /\.vivi-rendered-comment-block \{[\s\S]*?cursor: pointer;/,
@@ -54,13 +54,13 @@ describe("rendered comment block ranges", () => {
 
   it("paints list markers inside the highlight without moving the list item", () => {
     expect(styles).toMatch(
-      /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-left: calc\(-1\.45em - 12px\);/,
+      /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-left: calc\(-1\.35em - 8px\);/,
     );
     expect(styles).toMatch(
-      /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-y-pad: 6px;[\s\S]*?--rendered-comment-block-top: calc\([\s\S]*?-1 \* var\(--rendered-comment-block-y-pad\)/,
+      /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-y-pad: 2px;[\s\S]*?--rendered-comment-block-bottom-pad: 1px;[\s\S]*?--rendered-comment-block-top: calc\([\s\S]*?-1 \* var\(--rendered-comment-block-y-pad\)/,
     );
     expect(styles).toMatch(
-      /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-bottom-pad: calc\([\s\S]*?var\(--rendered-comment-block-y-pad\) \+ 10px/,
+      /li\.vivi-rendered-comment-block:has\(> \.rendered-comment-thread-host\) \{[\s\S]*?--rendered-comment-block-bottom-pad: 11px;/,
     );
     expect(styles).toMatch(
       /\.vivi-rendered-comment-block:not\(tr\)::before \{[\s\S]*?bottom: calc\([\s\S]*?var\(--rendered-comment-block-bottom\)[\s\S]*?var\(--rendered-comment-block-bottom-pad\)/,
