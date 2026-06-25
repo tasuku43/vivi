@@ -1043,7 +1043,10 @@ to add rich `items` inside each group. Each item includes a compact `brief`
 with the thread id, path, latest comment excerpt, source state when context is
 requested, and item-specific suggested command intents. This lets a resident
 monitor hand one `items[]` entry directly to a worker agent without copying the
-group-level routing summary.
+group-level routing summary. `sourceUnavailable.items[]` is included as well:
+its briefs use `handle_source_unavailable` and either suggest claiming the
+specific thread for guarded handoff/archive guidance or following the existing
+claim owner until the missing-source work is released.
 
 `batch <review-batch-id>` is the publish-batch snapshot for agents that are
 responding to one human GUI review action. It reads all threads in the batch
@@ -1091,7 +1094,9 @@ still letting a background agent pick the next claimable thread. The
 `open.summary` shape matches `inbox.summary`, so a batch-oriented adapter can
 use the same `resume_owned_work`, `claim_open_work`,
 `wait_for_claim_release`, and `wait_for_gui_feedback` branches while preserving
-the human's review batch as the reporting unit.
+the human's review batch as the reporting unit. The source-unavailable routing
+group also receives item briefs so a monitor can hand missing-anchor feedback to
+a worker without losing the file path or suggested recovery command.
 
 `mine` is the restart/resume command for agents. It returns open threads whose
 latest live `thread_claimed` activity belongs to `--actor`, plus the matching

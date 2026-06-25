@@ -761,7 +761,7 @@ func TestCommentsCLIInboxClassifiesOpenAgentWork(t *testing.T) {
 	runCommentsCLIForTest(t, "claim", mineID, "--url", server.URL, "--actor", "codex:inbox-1", "--actor-kind", "codex", "--client-event-id", "inbox-claim-mine", "--lease", "30s", "--json")
 	runCommentsCLIForTest(t, "claim", otherID, "--url", server.URL, "--actor", "claude-code:inbox-2", "--actor-kind", "claude_code", "--client-event-id", "inbox-claim-other", "--lease", "30s", "--json")
 
-	inbox := runCommentsCLIForTest(t, "inbox", "--url", server.URL, "--actor", "codex:inbox-1", "--actor-kind", "codex", "--with-activities", "--json")
+	inbox := runCommentsCLIForTest(t, "inbox", "--url", server.URL, "--actor", "codex:inbox-1", "--actor-kind", "codex", "--full", "--json")
 	var inboxPayload struct {
 		SchemaVersion     int                     `json:"schemaVersion"`
 		SchemaCommand     []string                `json:"schemaCommand"`
@@ -820,6 +820,9 @@ func TestCommentsCLIInboxClassifiesOpenAgentWork(t *testing.T) {
 	}
 	if inboxPayload.SourceUnavailable.Count != 1 || len(inboxPayload.SourceUnavailable.Threads) != 1 || inboxPayload.SourceUnavailable.Threads[0].Path != "stale.md" {
 		t.Fatalf("source-unavailable group = %#v", inboxPayload.SourceUnavailable)
+	}
+	if len(inboxPayload.SourceUnavailable.Items) != 1 || inboxPayload.SourceUnavailable.Items[0].Brief == nil || inboxPayload.SourceUnavailable.Items[0].Brief.RecommendedAction != "handle_source_unavailable" || inboxPayload.SourceUnavailable.Items[0].Brief.SourceState != "unavailable" || !containsString(inboxPayload.SourceUnavailable.Items[0].Brief.SuggestedCommandIntents, "claim_source_unavailable_thread") {
+		t.Fatalf("source-unavailable items = %#v", inboxPayload.SourceUnavailable.Items)
 	}
 
 	runCommentsCLIForTest(t, "release", mineID, "--url", server.URL, "--actor", "codex:inbox-1", "--actor-kind", "codex", "--client-event-id", "inbox-release-mine", "--json")
@@ -2119,6 +2122,10 @@ func TestCommentsCLISchemaSurfacesStructuredStdinContracts(t *testing.T) {
 	if _, ok := summaryProperties["suggestedCommands"]; !ok {
 		t.Fatalf("activity batch summary schema missing suggestedCommands = %#v", summaryProperties)
 	}
+	activityRecommendedActions := summaryProperties["recommendedAction"].(map[string]any)["enum"].([]any)
+	if !containsAnyString(activityRecommendedActions, "handle_source_unavailable") {
+		t.Fatalf("activity batch recommended action enum missing source-unavailable branch = %#v", activityRecommendedActions)
+	}
 	suggestedCommandItems := summaryProperties["suggestedCommands"].(map[string]any)["items"].(map[string]any)
 	embeddedSuggestedCommandProperties := suggestedCommandItems["properties"].(map[string]any)
 	if _, ok := embeddedSuggestedCommandProperties["clientEventId"]; !ok {
@@ -2142,6 +2149,10 @@ func TestCommentsCLISchemaSurfacesStructuredStdinContracts(t *testing.T) {
 	workSummary := workProperties["summary"].(map[string]any)
 	if workSummary["type"] != "object" || workClaimedPayload.Example["summary"].(map[string]any)["recommendedAction"] != "start_work" {
 		t.Fatalf("work claimed summary schema = %#v", workClaimedPayload)
+	}
+	workSummaryRecommendedActions := workSummary["properties"].(map[string]any)["recommendedAction"].(map[string]any)["enum"].([]any)
+	if !containsAnyString(workSummaryRecommendedActions, "handle_source_unavailable") {
+		t.Fatalf("work claimed recommended action enum missing source-unavailable branch = %#v", workSummaryRecommendedActions)
 	}
 	workClaimedSummaryExample := workClaimedPayload.Example["summary"].(map[string]any)
 	workClaimedSuggestions := workClaimedSummaryExample["suggestedCommands"].([]any)

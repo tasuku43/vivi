@@ -3183,7 +3183,7 @@ func commentActivityBatchSummarySchema() map[string]any {
 			"kinds":                      arraySchema(map[string]any{"type": "string"}),
 			"requiresAttention":          map[string]any{"type": "boolean"},
 			"attentionReasons":           arraySchema(map[string]any{"type": "string"}),
-			"recommendedAction":          map[string]any{"type": "string", "enum": []string{"start_work", "reconsider_work", "inspect_external_activity", "ignore_own_heartbeat", "ignore_own_activity", "finish_current_work", "observe"}},
+			"recommendedAction":          map[string]any{"type": "string", "enum": []string{"start_work", "reconsider_work", "inspect_external_activity", "ignore_own_heartbeat", "ignore_own_activity", "finish_current_work", "handle_source_unavailable", "observe"}},
 			"suggestedCommands":          arraySchema(commentSuggestedCommandSchema()),
 			"ownActivityCount":           integerCount,
 			"externalActivityCount":      integerCount,
@@ -3258,7 +3258,7 @@ func commentClaimSummarySchema() map[string]any {
 			"kinds":                      arraySchema(map[string]any{"type": "string"}),
 			"requiresAttention":          map[string]any{"type": "boolean"},
 			"attentionReasons":           arraySchema(map[string]any{"type": "string"}),
-			"recommendedAction":          map[string]any{"type": "string", "enum": []string{"start_work", "reconsider_work", "inspect_external_activity", "ignore_own_heartbeat", "ignore_own_activity", "finish_current_work", "observe", "resume_owned_work", "claim_open_work", "wait_for_claim_release", "wait_for_gui_feedback"}},
+			"recommendedAction":          map[string]any{"type": "string", "enum": []string{"start_work", "reconsider_work", "inspect_external_activity", "ignore_own_heartbeat", "ignore_own_activity", "finish_current_work", "handle_source_unavailable", "observe", "resume_owned_work", "claim_open_work", "wait_for_claim_release", "wait_for_gui_feedback"}},
 			"suggestedCommands":          arraySchema(commentSuggestedCommandSchema()),
 			"ownActivityCount":           integerCount,
 			"externalActivityCount":      integerCount,
@@ -4888,6 +4888,9 @@ func commentsInbox(ctx context.Context, stdout io.Writer, options commentsComman
 		if routing.ClaimedByOthers.Items, err = commentWorkItemsForThreads(ctx, withoutReadHeaders(options), routing.ClaimedByOthers.Threads, commentWorkItemBriefBuilder(options, "inbox:claimed-by-others", "wait_for_claim_release", []string{"open_threads_claimed_by_others"}, commentClaimsByThreadID(routing.ClaimedByOthers.Claims))); err != nil {
 			return err
 		}
+		if routing.SourceUnavailable.Items, err = commentWorkItemsForThreads(ctx, withoutReadHeaders(options), routing.SourceUnavailable.Threads, commentWorkItemBriefBuilder(options, "inbox:source-unavailable", "handle_source_unavailable", []string{"source_unavailable"}, commentClaimsByThreadID(routing.SourceUnavailable.Claims))); err != nil {
+			return err
+		}
 	}
 	outputRouting := limitCommentOpenRoutingHistory(routing, options.CommentLimit)
 	summary := summarizeOpenRouting(routing, options.ActorID, options.ActorKind, cursor, "inbox", options.Path, options.URL, options.ReceiptLog)
@@ -5052,6 +5055,9 @@ func commentsBatch(ctx context.Context, stdout io.Writer, options commentsComman
 			return err
 		}
 		if routing.ClaimedByOthers.Items, err = commentWorkItemsForThreads(ctx, withoutReadHeaders(options), routing.ClaimedByOthers.Threads, commentWorkItemBriefBuilder(options, "batch:claimed-by-others", "wait_for_claim_release", []string{"open_threads_claimed_by_others"}, commentClaimsByThreadID(routing.ClaimedByOthers.Claims))); err != nil {
+			return err
+		}
+		if routing.SourceUnavailable.Items, err = commentWorkItemsForThreads(ctx, withoutReadHeaders(options), routing.SourceUnavailable.Threads, commentWorkItemBriefBuilder(options, "batch:source-unavailable", "handle_source_unavailable", []string{"source_unavailable"}, commentClaimsByThreadID(routing.SourceUnavailable.Claims))); err != nil {
 			return err
 		}
 	}
@@ -5374,6 +5380,18 @@ func suggestedCommandsForWorkItemBrief(recommendedAction string, thread commentT
 		}
 	case "wait_for_claim_release":
 		return suggestedCommandsForWritePreflight("claimed_by_other_actor", thread, claim, options.ActorID, options.ActorKind, options.URL, options.ReceiptLog)
+	case "handle_source_unavailable":
+		if claim != nil {
+			return suggestedCommandsForWritePreflight("claimed_by_other_actor", thread, claim, options.ActorID, options.ActorKind, options.URL, options.ReceiptLog)
+		}
+		if strings.TrimSpace(options.ActorID) == "" {
+			return []commentSuggestedCommand{
+				suggestedCommentsCommand("inspect_source_unavailable_thread", "comments show", withURLArg([]string{"comments", "show", threadID, "--json"}, options.URL), "", "Inspect the thread conversation because the referenced source path is unavailable in this workspace."),
+			}
+		}
+		return []commentSuggestedCommand{
+			suggestedCommentsCommandWithClientEventID("claim_source_unavailable_thread", "comments claim", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "claim", threadID}, options.ActorID, options.ActorKind, "--full", "--json")), options.URL, options.ReceiptLog), "", "Claim this source-unavailable thread and receive the guarded handoff or archive suggestions for the missing source path.", commentSuggestedClientEventID(clientEventScope, threadID, "claim-source-unavailable")),
+		}
 	default:
 		return suggestedCommandsForWritePreflight("", thread, claim, options.ActorID, options.ActorKind, options.URL, options.ReceiptLog)
 	}

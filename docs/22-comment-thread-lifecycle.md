@@ -374,10 +374,15 @@ have a live lease.
 
 `comments inbox` is the routing snapshot for agents that need to decide what to
 do next. It reads open threads without read receipts and classifies them into
-`mine`, `unclaimed`, and `claimedByOthers` using the latest live claim event.
+`mine`, `unclaimed`, `claimedByOthers`, and `sourceUnavailable` using the
+latest live claim event and the selected root's source availability.
 Each group includes threads, count, and matching live claim activities where
 claims exist. With `--full`, each group also includes rich work items so an
-agent can triage owned and claimable feedback from one JSON response. The
+agent can triage owned, claimable, blocked-by-claim, and missing-source
+feedback from one JSON response. Source-unavailable item briefs recommend
+`handle_source_unavailable` and expose a thread-specific recovery intent so a
+monitor can hand missing-anchor feedback to a worker intentionally instead of
+dropping it from the queue. The
 top-level `summary` turns those groups into an adapter decision:
 `resume_owned_work`, `claim_open_work`, `wait_for_claim_release`, or
 `wait_for_gui_feedback`, with matching `suggestedCommands` so the agent can
@@ -391,12 +396,13 @@ a durable ledger.
 `comments batch <review-batch-id>` is the routing snapshot for one published
 GUI review batch. It includes all threads in that publish action, summary
 counts for `open`, `resolved`, and `archived`, and an `open` section grouped as
-`mine`, `unclaimed`, and `claimedByOthers`. The `open.summary` branch contract
-matches `comments inbox`, so a batch-oriented adapter can resume owned work,
-claim the next open batch item, or wait for another actor without switching
-protocol shapes. Use it when the agent should keep a human's batch of feedback
-together while still claiming and closing individual threads. The command is a
-snapshot and does not create read receipts.
+`mine`, `unclaimed`, `claimedByOthers`, and `sourceUnavailable`. The
+`open.summary` branch contract matches `comments inbox`, so a batch-oriented
+adapter can resume owned work, claim the next open batch item, wait for another
+actor, or route source-unavailable items without switching protocol shapes. Use
+it when the agent should keep a human's batch of feedback together while still
+claiming and closing individual threads. The command is a snapshot and does not
+create read receipts.
 
 `comments mine` is the recovery path for an agent session that already claimed
 work. It is exposed by the startup protocol and doctor suggestions so a
