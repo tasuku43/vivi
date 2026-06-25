@@ -892,8 +892,9 @@ it("renders code line comments as an inline thread with replies", () => {
   expect(html).toContain('placeholder="Reply to thread"');
   expect(html).not.toContain("autofocus");
   expect(html).toContain('aria-label="Add reply"');
+  expect(html).toContain("Replying in this thread");
   expect(html).toContain(
-    'aria-describedby="comment-reply-hint-src-app-ts-2-2"',
+    'aria-describedby="comment-composer-mode-src-app-ts-2-2 comment-reply-hint-src-app-ts-2-2"',
   );
   expect(html).toContain('aria-keyshortcuts="Meta+Enter Control+Enter"');
   expect(html).toContain("Resolve current thread");
@@ -2231,6 +2232,10 @@ it("autofocuses new inline comments without focusing existing reply threads", ()
 
   expect(html).toContain('aria-label="New line comment"');
   expect(html).toContain('aria-label="Save private draft comment"');
+  expect(html).toContain("New separate thread");
+  expect(html).toContain(
+    'aria-describedby="comment-composer-mode-src-app-ts-4-4 comment-reply-hint-src-app-ts-4-4"',
+  );
   expect(html).toContain("<kbd>Cmd/Ctrl Enter</kbd> to save private draft");
   expect(html).toContain("autofocus");
 });

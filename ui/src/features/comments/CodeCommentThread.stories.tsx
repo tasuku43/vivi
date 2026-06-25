@@ -84,8 +84,15 @@ export const Open: Story = {
     await expect(
       canvas.getByRole("article", { name: "Comment thread for lines 9-12" }),
     ).toBeInTheDocument();
+    await expect(canvas.getByText("Replying in this thread")).toBeVisible();
     await expect(canvas.getByLabelText("Reply to thread")).not.toHaveFocus();
-    await userEvent.type(canvas.getByLabelText("Reply to thread"), "Looks good");
+    await expect(
+      canvas.getByLabelText("Reply to thread"),
+    ).toHaveAccessibleDescription(/Replying in this thread.*to send/);
+    await userEvent.type(
+      canvas.getByLabelText("Reply to thread"),
+      "Looks good",
+    );
     await userEvent.click(canvas.getByRole("button", { name: "Add reply" }));
     await expect(args.onCreateComment).toHaveBeenCalled();
     await userEvent.click(
@@ -151,7 +158,11 @@ export const NewLineComment: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("New draft")).toBeVisible();
+    await expect(canvas.getByText("New separate thread")).toBeVisible();
     await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
+    await expect(
+      canvas.getByLabelText("New line comment"),
+    ).toHaveAccessibleDescription(/New separate thread.*to save private draft/);
     await expect(
       canvas.getByRole("button", { name: "Save private draft comment" }),
     ).toBeDisabled();
@@ -167,9 +178,7 @@ export const UserWritesOneDraftComment: Story = {
       lineStart: 6,
       lineEnd: 6,
       status: "open",
-      comments: [
-        draftReviewCommentAsViviComment(sampleDraftComments[0]!),
-      ],
+      comments: [draftReviewCommentAsViviComment(sampleDraftComments[0]!)],
     },
     draft: {
       path: sampleFiles.code.path,

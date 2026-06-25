@@ -41,13 +41,16 @@ export function CodeCommentThread({
     thread.lineStart === thread.lineEnd
       ? `Line ${thread.lineEnd}`
       : `Lines ${thread.lineStart}-${thread.lineEnd}`;
+  const isReplyComposer = thread.comments.length > 0;
+  const composerModeId = commentComposerModeId(thread.key);
   const replyHintId = commentReplyHintId(thread.key);
-  const submitLabel = thread.comments.length
+  const submitLabel = isReplyComposer
     ? "Add reply"
     : "Save private draft comment";
-  const submitHint = thread.comments.length
-    ? "to send"
-    : "to save private draft";
+  const submitHint = isReplyComposer ? "to send" : "to save private draft";
+  const composerModeLabel = isReplyComposer
+    ? "Replying in this thread"
+    : "New separate thread";
   const hasActiveComment = Boolean(
     activeCommentId &&
     thread.comments.some((comment) => comment.id === activeCommentId),
@@ -211,18 +214,18 @@ export function CodeCommentThread({
           void submit();
         }}
       >
+        <div className="code-comment-composer-mode" id={composerModeId}>
+          <span aria-hidden="true" />
+          {composerModeLabel}
+        </div>
         <textarea
           ref={textareaRef}
-          autoFocus={!thread.comments.length}
+          autoFocus={!isReplyComposer}
           rows={2}
           value={body}
-          placeholder={
-            thread.comments.length ? "Reply to thread" : "Leave a comment"
-          }
-          aria-label={
-            thread.comments.length ? "Reply to thread" : "New line comment"
-          }
-          aria-describedby={replyHintId}
+          placeholder={isReplyComposer ? "Reply to thread" : "Leave a comment"}
+          aria-label={isReplyComposer ? "Reply to thread" : "New line comment"}
+          aria-describedby={`${composerModeId} ${replyHintId}`}
           aria-keyshortcuts="Meta+Enter Control+Enter"
           onChange={(event) => setBody(event.currentTarget.value)}
           onKeyDown={(event) => {
@@ -298,11 +301,19 @@ export function isCommentSubmitShortcut(event: {
 }
 
 function commentReplyHintId(threadKey: string): string {
+  return `comment-reply-hint-${safeCommentThreadKey(threadKey)}`;
+}
+
+function commentComposerModeId(threadKey: string): string {
+  return `comment-composer-mode-${safeCommentThreadKey(threadKey)}`;
+}
+
+function safeCommentThreadKey(threadKey: string): string {
   const safeKey = threadKey
     .replace(/[^a-zA-Z0-9_-]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .toLowerCase();
-  return `comment-reply-hint-${safeKey || "thread"}`;
+  return safeKey || "thread";
 }
 
 function formatCommentTime(value: string): string {
