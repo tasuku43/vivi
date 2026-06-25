@@ -609,7 +609,9 @@ thread id, path, latest comment excerpt, source state when available, and
 item-specific `suggestedCommandIntents` such as `claim_open_thread` or
 `follow_until_released`. That shape lets a monitor agent hand one item directly
 to a worker agent without reconstructing routing context from the top-level
-summary.
+summary. The item brief can be more specific than the watch event summary; for
+example, a watch event with open work can recommend `claim_open_work` while a
+single missing-source item recommends `handle_source_unavailable`.
 
 Use `dismiss` when intentionally closing work with an explanatory agent reply,
 use raw `archive` only when no new reply is needed, and `reopen` before

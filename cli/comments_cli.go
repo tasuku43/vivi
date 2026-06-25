@@ -5355,10 +5355,18 @@ func commentWorkItemsForThreads(ctx context.Context, options commentsCommandOpti
 func commentWorkItemBriefBuilder(options commentsCommandOptions, clientEventScope string, recommendedAction string, attentionReasons []string, claimsByThreadID map[string]commentActivityOutput) commentWorkItemBriefBuilderFunc {
 	return func(item commentWorkItemOutput) *commentBriefOutput {
 		thread := item.Thread
-		commands := suggestedCommandsForWorkItemBrief(recommendedAction, thread, commentClaimForThread(claimsByThreadID, thread.ID), options, clientEventScope)
-		brief := commentBriefForWorkItem(thread, &item, recommendedAction, attentionReasons, commands)
+		itemAction, itemReasons := commentWorkItemBriefDecision(recommendedAction, attentionReasons, item)
+		commands := suggestedCommandsForWorkItemBrief(itemAction, thread, commentClaimForThread(claimsByThreadID, thread.ID), options, clientEventScope)
+		brief := commentBriefForWorkItem(thread, &item, itemAction, itemReasons, commands)
 		return &brief
 	}
+}
+
+func commentWorkItemBriefDecision(recommendedAction string, attentionReasons []string, item commentWorkItemOutput) (string, []string) {
+	if item.Thread.Status == "open" && sourceContextUnavailable(item) {
+		return "handle_source_unavailable", appendUnique(attentionReasons, "source_unavailable")
+	}
+	return recommendedAction, attentionReasons
 }
 
 func suggestedCommandsForWorkItemBrief(recommendedAction string, thread commentThreadOutput, claim *commentActivityOutput, options commentsCommandOptions, clientEventScope string) []commentSuggestedCommand {

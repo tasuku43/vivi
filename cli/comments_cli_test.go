@@ -2768,6 +2768,34 @@ func TestCommentsCLIContextAndNextCanIncludeCurrentDiff(t *testing.T) {
 	}
 }
 
+func TestCommentsCLIWatchFullMarksSourceUnavailableItemBrief(t *testing.T) {
+	server := newCommentsCLITestServerWithSetup(t, func(root string) {
+		if err := os.WriteFile(filepath.Join(root, "stale.md"), []byte("# Stale\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	})
+	defer server.Close()
+	threadID := createCommentThreadForCLIWithBody(t, server.URL, "stale.md", "Feedback on a missing file")
+	if err := os.Remove(filepath.Join(server.Root, "stale.md")); err != nil {
+		t.Fatal(err)
+	}
+
+	watchOutput := runCommentsCLIForTest(t, "watch", "--url", server.URL, "--actor", "codex:watch-source-unavailable", "--actor-kind", "codex", "--client-event-id", "watch-source-unavailable", "--full", "--once", "--json")
+	watchEvent := decodeSingleWatchEvent(t, watchOutput)
+	if watchEvent.Count != 1 || len(watchEvent.Items) != 1 || watchEvent.Items[0].Thread.ID != threadID {
+		t.Fatalf("watch source-unavailable worklist = %s", watchOutput.String())
+	}
+	if watchEvent.Summary.RecommendedAction != "claim_open_work" {
+		t.Fatalf("watch source-unavailable summary should remain worklist-level = %#v", watchEvent.Summary)
+	}
+	if watchEvent.Items[0].Source == nil || watchEvent.Items[0].Source.Available || watchEvent.Items[0].Source.Reason != "source_unavailable" {
+		t.Fatalf("watch source-unavailable context = %#v", watchEvent.Items[0].Source)
+	}
+	if watchEvent.Items[0].Brief == nil || watchEvent.Items[0].Brief.RecommendedAction != "handle_source_unavailable" || watchEvent.Items[0].Brief.SourceState != "unavailable" || !containsString(watchEvent.Items[0].Brief.AttentionReasons, "source_unavailable") || !containsString(watchEvent.Items[0].Brief.SuggestedCommandIntents, "claim_source_unavailable_thread") {
+		t.Fatalf("watch source-unavailable brief = %#v", watchEvent.Items[0].Brief)
+	}
+}
+
 func TestCommentsCLIWatchStreamsOpenWorklistSnapshots(t *testing.T) {
 	server := newCommentsCLITestServer(t)
 	defer server.Close()

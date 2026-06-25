@@ -1337,6 +1337,9 @@ Each item is aligned with one open thread and is intended as the background
 agent's triage unit: a compact `brief` for routing or sub-agent handoff, the
 human comment thread, the anchored source snippet when requested, the current
 per-file diff when requested, and the thread activity history when requested.
+The event-level summary still describes the whole open worklist, so an event
+can recommend `claim_open_work` while a specific item brief recommends
+`handle_source_unavailable` because that item's source path is missing.
 For actor-attributed watch deliveries, the activity list includes the delivered
 read receipt keyed by the event cursor. The legacy `threads` array remains
 present for clients that only need the worklist snapshot.
