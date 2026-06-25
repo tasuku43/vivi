@@ -91,6 +91,7 @@
       "interactionStories": [
         "Viewers/Code/CodeViewer/SourceWithOpenThread",
         "Viewers/Markdown/MarkdownViewer/RenderedBlockClickDraft",
+        "Viewers/Markdown/MarkdownViewer/RenderedListDraftFormsDoNotBridge",
         "Viewers/Markdown/MarkdownViewer/RenderedMarkdownComment",
         "Viewers/HTML/HtmlViewer/SinglePreviewDraftFormFixedSlot",
         "Viewers/HTML/HtmlViewer/SourceHtmlComment",

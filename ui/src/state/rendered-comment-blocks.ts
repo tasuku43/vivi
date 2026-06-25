@@ -142,6 +142,7 @@ export function applyRenderedCommentHighlights(
   activeCommentId?: string | null,
   draftingBlockIds?: string[] | null,
   kind: "markdown" | "html" = "markdown",
+  draftingBlockIdGroups?: string[][] | null,
 ): void {
   if (!root) return;
   const blocks = commentableRenderedBlocks(root);
@@ -157,6 +158,7 @@ export function applyRenderedCommentHighlights(
       "rendered-comment-range-join-after",
     );
     block.style.removeProperty("--rendered-comment-join-after");
+    block.style.removeProperty("--rendered-comment-block-bottom");
     delete block.dataset.viviCommentId;
     delete block.dataset.viviCommentCount;
     removeRenderedCommentAction(block);
@@ -204,15 +206,17 @@ export function applyRenderedCommentHighlights(
   }
 
   const draftingIds = new Set(draftingBlockIds ?? []);
-  if (draftingIds.size) {
+  const draftGroups =
+    draftingBlockIdGroups?.filter((group) => group.length) ??
+    (draftingIds.size ? [Array.from(draftingIds)] : []);
+  for (const group of draftGroups) {
+    const groupIds = new Set(group);
     const draftingBlocks = blocks.filter((block) =>
-      draftingIds.has(block.dataset.viviCommentBlockId ?? ""),
+      groupIds.has(block.dataset.viviCommentBlockId ?? ""),
     );
     applyRenderedCommentRangeBridge(draftingBlocks);
-    for (const block of blocks) {
-      if (draftingIds.has(block.dataset.viviCommentBlockId ?? "")) {
-        block.classList.add("drafting-rendered-comment");
-      }
+    for (const block of draftingBlocks) {
+      block.classList.add("drafting-rendered-comment");
     }
   }
 }

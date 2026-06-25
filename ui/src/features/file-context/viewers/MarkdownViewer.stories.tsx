@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, fn, userEvent, within } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import {
   commentsForPath,
   markdownDiff,
@@ -105,6 +105,58 @@ export const MultipleRenderedDraftFormsStayOpen: Story = {
     );
 
     await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(2);
+  },
+};
+
+export const RenderedListDraftFormsDoNotBridge: Story = {
+  tags: ["interaction"],
+  args: {
+    mode: "rendered",
+    comments: [],
+    file: {
+      ...sampleFiles.markdown,
+      content: [
+        "# Mockup roles",
+        "",
+        "- [`01-classic-explorer.html`]: baseline layout with sidebar tree, tabs, viewer, and status bar.",
+        "- [`02-doc-reader.html`]: long-form Markdown reading model with right-side outline/inspector.",
+        "- [`03-preview-lab.html`]: HTML preview and live event diagnostics exploration.",
+        "- [`04-split-workbench.html`]: source/rendered split-view exploration.",
+        "- [`05-command-focus.html`]: command palette and keyboard-heavy workflow exploration.",
+      ].join("\n"),
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const docReader = canvas
+      .getByText(/long-form Markdown reading model/)
+      .closest("li")!;
+    const previewLab = canvas
+      .getByText(/HTML preview and live event diagnostics/)
+      .closest("li")!;
+    const splitWorkbench = canvas
+      .getByText(/source\/rendered split-view exploration/)
+      .closest("li")!;
+
+    await userEvent.click(canvas.getByText(/long-form Markdown reading model/));
+    await userEvent.click(
+      canvas.getByText(/source\/rendered split-view exploration/),
+    );
+
+    await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(2);
+    await expect(docReader).toHaveClass("drafting-rendered-comment");
+    await expect(splitWorkbench).toHaveClass("drafting-rendered-comment");
+    await expect(previewLab).not.toHaveClass("drafting-rendered-comment");
+    await expect(
+      canvasElement.querySelectorAll(".rendered-comment-range-join-after"),
+    ).toHaveLength(0);
+    await waitFor(() =>
+      expect(
+        Number.parseFloat(
+          docReader.style.getPropertyValue("--rendered-comment-block-bottom"),
+        ),
+      ).toBeGreaterThan(0),
+    );
   },
 };
 

@@ -161,6 +161,8 @@ export function MarkdownViewer({
       comments,
       activeCommentId,
       renderedThreadTargets.flatMap((target) => target.blockIds),
+      "markdown",
+      renderedThreadTargets.map((target) => target.blockIds),
     );
   }, [
     activeCommentId,
@@ -492,9 +494,34 @@ function createRenderedThreadHost(block: HTMLElement): {
 function placeRenderedThreadHost(block: HTMLElement, host: HTMLElement): void {
   if (block.localName === "li") {
     if (host.parentElement !== block) block.append(host);
+    scheduleListItemThreadHostInset(block, host);
     return;
   }
   if (block.nextElementSibling !== host) block.after(host);
+}
+
+function scheduleListItemThreadHostInset(
+  block: HTMLElement,
+  host: HTMLElement,
+): void {
+  const update = () => {
+    const style = window.getComputedStyle(host);
+    const inset =
+      host.getBoundingClientRect().height +
+      cssPixelValue(style.marginTop) +
+      cssPixelValue(style.marginBottom);
+    block.style.setProperty(
+      "--rendered-comment-block-bottom",
+      `${Math.max(0, Math.ceil(inset))}px`,
+    );
+  };
+  update();
+  window.requestAnimationFrame(update);
+}
+
+function cssPixelValue(value: string): number {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function commentsForRenderedTarget(
