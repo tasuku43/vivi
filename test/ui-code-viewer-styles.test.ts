@@ -57,22 +57,22 @@ describe("rendered comment block ranges", () => {
       /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-left: calc\(-1\.45em - 12px\);/,
     );
     expect(styles).toMatch(
-      /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-top: -3px;[\s\S]*?--rendered-comment-block-bottom-pad: 5px;/,
+      /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-y-pad: 6px;[\s\S]*?--rendered-comment-block-top: calc\([\s\S]*?-1 \* var\(--rendered-comment-block-y-pad\)/,
     );
     expect(styles).toMatch(
-      /li\.vivi-rendered-comment-block::before \{[\s\S]*?bottom: calc\([\s\S]*?var\(--rendered-comment-block-bottom\)[\s\S]*?var\(--rendered-comment-block-bottom-pad, 0px\)/,
+      /li\.vivi-rendered-comment-block::before \{[\s\S]*?bottom: calc\([\s\S]*?var\(--rendered-comment-block-bottom\)[\s\S]*?var\(--rendered-comment-block-y-pad, 0px\)/,
     );
     expect(styles).toMatch(
       /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-marker-top: calc\(0\.85em \+ 1px\);/,
     );
     expect(styles).toMatch(
-      /pre\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-marker-top: 18px;/,
+      /pre\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-marker-left: calc\(100% - 28px\);[\s\S]*?--rendered-comment-marker-top: 18px;/,
     );
     expect(styles).toMatch(
       /\.rendered-comment-marker \{[\s\S]*?top: var\(--rendered-comment-marker-top, calc\(50% \+ 1px\)\);/,
     );
     expect(styles).toMatch(
-      /pre\.vivi-rendered-comment-block > \.rendered-comment-marker \{[\s\S]*?position: absolute;[\s\S]*?top: var\(--rendered-comment-marker-top, 18px\);[\s\S]*?right: auto;[\s\S]*?left: -8px;/,
+      /pre\.vivi-rendered-comment-block > \.rendered-comment-marker \{[\s\S]*?position: absolute;[\s\S]*?top: var\(--rendered-comment-marker-top, 18px\);[\s\S]*?right: auto;[\s\S]*?left: var\(--rendered-comment-marker-left, calc\(100% - 28px\)\);/,
     );
   });
 

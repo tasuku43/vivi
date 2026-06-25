@@ -169,7 +169,7 @@ const markerPlacementMarkdown = [
   "",
   "```text",
   "left   : live file tree",
-  "center : active viewer",
+  "center : tabs plus active viewer",
   "right  : inspector",
   "```",
 ].join("\n");
@@ -235,10 +235,19 @@ export const RenderedMarkerPlacement: Story = {
         .getPropertyValue("--rendered-comment-marker-top")
         .trim(),
     ).toBe("18px");
+    await expect(
+      getComputedStyle(codeBlock)
+        .getPropertyValue("--rendered-comment-marker-left")
+        .trim(),
+    ).toContain("ch");
 
     const codeMarker = within(codeBlock).getByRole("button", {
       name: /Open comment thread/,
     });
+    const codeMarkerRect = codeMarker.getBoundingClientRect();
+    const codeBlockRect = codeBlock.getBoundingClientRect();
+    await expect(codeMarkerRect.left).toBeGreaterThan(codeBlockRect.left + 180);
+    await expect(codeMarkerRect.right).toBeLessThan(codeBlockRect.right);
     await userEvent.click(codeMarker);
     await expect(canvas.getByText("Lines 5-9")).toBeInTheDocument();
     await waitFor(() =>

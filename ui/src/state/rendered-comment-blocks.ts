@@ -402,7 +402,46 @@ function ensureRenderedCommentAction(
       : null;
   if (threadHost) host.insertBefore(action, threadHost);
   else host.append(action);
+  if (host.localName === "pre") placePreRenderedCommentAction(host);
   return action;
+}
+
+function placePreRenderedCommentAction(host: HTMLElement): void {
+  const style = window.getComputedStyle(host);
+  const paddingLeft = cssPixelValue(style.paddingLeft);
+  const paddingRight = cssPixelValue(style.paddingRight);
+  const markerWidth = 20;
+  const markerGap = 10;
+  const markerInset = 8;
+  const longestLine = Math.max(
+    1,
+    ...readableBlockLines(host)
+      .split("\n")
+      .map((line) => line.length),
+  );
+  const maxLeft = Math.max(
+    markerInset,
+    host.clientWidth - paddingRight - markerWidth - markerInset,
+  );
+  host.style.setProperty(
+    "--rendered-comment-marker-left",
+    `min(calc(${paddingLeft}px + ${longestLine}ch + ${markerGap}px), ${maxLeft}px)`,
+  );
+}
+
+function cssPixelValue(value: string): number {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function readableBlockLines(element: HTMLElement): string {
+  const readable = element.cloneNode(true) as HTMLElement;
+  for (const decoration of readable.querySelectorAll(
+    ".rendered-comment-marker, .rendered-comment-thread-host",
+  )) {
+    decoration.remove();
+  }
+  return readable.textContent ?? "";
 }
 
 export function readableBlockText(element: HTMLElement): string {
