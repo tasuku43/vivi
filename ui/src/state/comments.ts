@@ -181,7 +181,7 @@ export function codeCommentThreads(
   comments: ThreadComment[],
 ): CodeCommentThread[] {
   const byKey = new Map<string, CodeCommentThread>();
-  for (const comment of comments) {
+  for (const comment of visibleThreadComments(comments)) {
     const lineStart = comment.anchor.canonical.lineStart;
     if (!lineStart) continue;
     const lineEnd = comment.anchor.canonical.lineEnd ?? lineStart;
@@ -272,6 +272,32 @@ export function isDraftThreadComment(
   comment: ThreadComment,
 ): comment is ThreadComment & { draft: true } {
   return comment.draft === true || comment.id.startsWith("draft:");
+}
+
+export function visibleThreadComments<T extends ThreadComment>(
+  comments: T[],
+): T[] {
+  const groups = new Map<string, T[]>();
+  for (const comment of comments) {
+    const threadId = comment.threadId ?? comment.id;
+    groups.set(threadId, [...(groups.get(threadId) ?? []), comment]);
+  }
+
+  const hiddenThreadIds = new Set<string>();
+  for (const [threadId, threadComments] of groups.entries()) {
+    const published = threadComments.filter(
+      (comment) => !isDraftThreadComment(comment),
+    );
+    if (!published.length) continue;
+    const latest = published.reduce((current, comment) =>
+      comment.updatedAt > current.updatedAt ? comment : current,
+    );
+    if (latest.status === "archived") hiddenThreadIds.add(threadId);
+  }
+
+  return comments.filter(
+    (comment) => !hiddenThreadIds.has(comment.threadId ?? comment.id),
+  );
 }
 
 export function activeCommentsForPath(
@@ -547,7 +573,9 @@ export function commentsForLine(
   comments: ViviComment[],
   line: number,
 ): ViviComment[] {
-  return comments.filter((comment) => commentContainsLine(comment, line));
+  return visibleThreadComments(comments).filter((comment) =>
+    commentContainsLine(comment, line),
+  );
 }
 
 export function commentContainsLine(

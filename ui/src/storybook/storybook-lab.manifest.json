@@ -53,12 +53,11 @@
     {
       "id": "comment-lifecycle",
       "label": "Comment lifecycle",
-      "intent": "Represent open, resolved, archived, draft, published, failure, and agent-read/reply states without requiring a backend.",
+      "intent": "Represent open, resolved, draft, published, failure, agent-read/reply, and archive-action states without requiring a backend. Archived threads are hidden from the browser UI after the transition.",
       "requiredStories": [
         "Review/Comments/Inline Thread/Open",
         "Review/Comments/Inline Thread/NewLineComment",
         "Review/Comments/Inline Thread/Resolved",
-        "Review/Comments/Inline Thread/Archived",
         "Review/Comments/Inline Thread/AgentHasReadThread",
         "Review/Comments/Inline Thread/AgentHasReplied",
         "Review/Drafts/Draft Review Tray/PublishCtaEnabled",

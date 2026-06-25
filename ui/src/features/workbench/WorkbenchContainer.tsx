@@ -108,6 +108,7 @@ import {
 } from "../../state/git-review-refresh.js";
 import {
   draftReviewCommentAsViviComment,
+  visibleThreadComments,
   type CommentDraft,
 } from "../../state/comments.js";
 import {
@@ -2890,7 +2891,7 @@ function mergeComments(
     byId.set(comment.id, comment);
   }
   for (const comment of incoming) byId.set(comment.id, comment);
-  return [...byId.values()].sort((a, b) =>
+  return visibleThreadComments([...byId.values()]).sort((a, b) =>
     b.createdAt.localeCompare(a.createdAt),
   );
 }
@@ -2922,7 +2923,7 @@ function combinePublishedAndDraftComments(
   const draftMessages = (
     path ? drafts.filter((draft) => draft.path === path) : drafts
   ).map((draft) => draftReviewCommentAsViviComment(draft, comments));
-  return [...published, ...draftMessages].sort((a, b) =>
+  return visibleThreadComments([...published, ...draftMessages]).sort((a, b) =>
     a.createdAt.localeCompare(b.createdAt),
   );
 }

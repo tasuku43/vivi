@@ -98,7 +98,6 @@ export const Open: Story = {
   },
 };
 export const Resolved: Story = { args: args("resolved") };
-export const Archived: Story = { args: args("archived") };
 
 export const CurrentThreadActions: Story = {
   tags: ["interaction"],

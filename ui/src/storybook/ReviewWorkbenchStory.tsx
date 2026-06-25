@@ -20,7 +20,10 @@ import { TreeSidebar } from "../shared/components/TreeSidebar.js";
 import { WorkbenchErrorMessage } from "../features/workbench/WorkbenchErrorMessage.js";
 import { WorkbenchPendingFileMessage } from "../features/workbench/WorkbenchPendingFileMessage.js";
 import { extractMarkdownOutline } from "../state/outline.js";
-import { draftReviewCommentAsViviComment } from "../state/comments.js";
+import {
+  draftReviewCommentAsViviComment,
+  visibleThreadComments,
+} from "../state/comments.js";
 import {
   commentInboxOpenState,
   countAttentionCommentThreads,
@@ -76,7 +79,7 @@ export interface ReviewWorkbenchStoryProps {
   viewerMode?: ViewerMode;
   commentsPanelOpen?: boolean;
   commentsPanelQuery?: string;
-  commentsPanelStatus?: "all" | "attention" | "open" | "resolved" | "archived";
+  commentsPanelStatus?: "all" | "attention" | "open" | "resolved";
   commandPaletteOpen?: boolean;
   shortcutHelpOpen?: boolean;
   draftPublishing?: boolean;
@@ -214,10 +217,12 @@ export function ReviewWorkbenchStory({
   }
 
   const selectedPath = storyFile?.path ?? pendingFilePath ?? null;
+  const visibleComments = visibleThreadComments(comments);
   const storyActiveComment =
-    comments.find((comment) => comment.id === storyActiveCommentId) ?? null;
+    visibleComments.find((comment) => comment.id === storyActiveCommentId) ??
+    null;
   const storyAttentionThreadCount = countAttentionCommentThreads(
-    comments,
+    visibleComments,
     unreadReviewPaths,
   );
   const activeTabs =
@@ -235,7 +240,7 @@ export function ReviewWorkbenchStory({
           ]
       : []);
   const activeComments = selectedPath
-    ? commentsForPath(selectedPath, comments)
+    ? commentsForPath(selectedPath, visibleComments)
     : [];
   const activeDrafts = selectedPath
     ? draftsForPath(selectedPath, draftComments)
@@ -243,7 +248,7 @@ export function ReviewWorkbenchStory({
   const viewerComments = combinePublishedAndDraftComments(
     activeComments,
     activeDrafts,
-    comments,
+    visibleComments,
   );
   const outline =
     storyFile?.viewerKind === "markdown"
@@ -300,7 +305,7 @@ export function ReviewWorkbenchStory({
         root={storyState === "empty" ? null : storyRoot}
         themePreference="system"
         openCommentThreadCount={
-          buildCommentThreads(comments).filter(
+          buildCommentThreads(visibleComments).filter(
             (thread) => thread.status === "open",
           ).length
         }
@@ -508,7 +513,7 @@ export function ReviewWorkbenchStory({
           {nodes.length} root entries · {activeTabs.length} open tabs
         </span>
         <span className="statusbar-group">
-          {reviewStatusLabel} · {comments.length} comments ·{" "}
+          {reviewStatusLabel} · {visibleComments.length} comments ·{" "}
           {draftComments.length} drafts
         </span>
         <span className="statusbar-group">
@@ -570,7 +575,7 @@ export function ReviewWorkbenchStory({
       />
       <CommentsPanel
         open={storyCommentsPanelOpen}
-        comments={comments}
+        comments={visibleComments}
         query={storyCommentsPanelQuery}
         statusFilter={storyCommentsPanelStatus}
         threadActivities={threadActivities}

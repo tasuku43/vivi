@@ -96,7 +96,7 @@ The right inspector is primarily a review navigation surface. It should answer w
 Requirements:
 
 - The top section should be Review Queue: a deduplicated file list, primarily from Git working-tree changes against `HEAD` when Git is available.
-- The Review Queue is a file-level work queue: it is the union of Git changes and files with authoritative `open` comment threads. Files with only `resolved` or `archived` threads stay out of the queue and remain available from the corresponding Comments history filters.
+- The Review Queue is a file-level work queue: it is the union of Git changes and files with authoritative `open` comment threads. Files with only `resolved` threads stay out of the queue and remain available from the Comments history filter; files with only `archived` threads are hidden from the browser UI.
 - Each row should keep change kind and diff size visible while adding only the open-thread count, message count, latest attributed activity, and an unseen marker. Agent reads are visible activity but do not create unseen work; new threads, replies, and status changes do.
 - Queue ordering should put files with open threads first, then unseen work and recent activity. The summary progress is explicitly files "seen", not a claim that review is complete.
 - Activity is observation history. The UI must refresh authoritative comments after agent replies or status changes and must never infer a thread lifecycle status from an activity event.

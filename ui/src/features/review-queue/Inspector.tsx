@@ -414,7 +414,8 @@ export function Inspector({
             <strong>Active queue clear</strong>
             <span>
               No Git changes or open comment threads need review right now.
-              Resolved and archived threads stay in Comments history.
+              Resolved threads stay in Comments history; archived threads are
+              hidden from the browser UI.
             </span>
           </div>
         ) : null}

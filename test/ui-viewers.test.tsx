@@ -913,6 +913,35 @@ it("renders code line comments as an inline thread with replies", () => {
   expect(html).not.toContain(">Comment<");
 });
 
+it("hides archived code comment threads from inline source markers", () => {
+  const archivedComment: ViviComment = {
+    ...codeLineComment,
+    id: "comment-archived-inline",
+    threadId: "thread-archived-inline",
+    status: "archived",
+    body: "Archived inline feedback should not render.",
+    updatedAt: "2026-01-01T00:02:00.000Z",
+    archivedAt: "2026-01-01T00:02:00.000Z",
+  };
+  const html = renderToStaticMarkup(
+    <CodeViewer
+      file={codeFile}
+      theme="dark"
+      selectedRange={null}
+      comments={[archivedComment]}
+      activeCommentId={archivedComment.id}
+      onSelectionChange={() => undefined}
+      onOpenComment={() => undefined}
+      onCreateComment={() => undefined}
+    />,
+  );
+
+  expect(html).not.toContain("Archived inline feedback should not render.");
+  expect(html).not.toContain('class="code-line has-comment');
+  expect(html).not.toContain('aria-label="Comment thread for line 2"');
+  expect(html).toContain('aria-label="Add comment on line 2"');
+});
+
 it("keeps diff comments out of source line comment markers", () => {
   const diffComment = {
     ...codeLineComment,
@@ -3090,13 +3119,14 @@ it("scopes comments inbox filter counts to the current search", () => {
     />,
   );
 
-  expect(html).toContain("2 open · 1 resolved · 0 archived");
+  expect(html).toContain("2 open · 1 resolved");
   expect(html).toContain("All 1");
   expect(html).toContain("Open 1");
   expect(html).toContain('aria-label="Clear comments search"');
   expect(html).toContain('aria-label="Show all 1 thread"');
   expect(html).toContain('aria-label="Show 1 open thread"');
   expect(html).toContain('aria-label="Show 0 resolved threads"');
+  expect(html).not.toContain("Archived");
   expect(html).toContain("1 thread · 1 message");
   expect(html).toContain("src/app.ts");
   expect(html).not.toContain("docs/guide.md");
@@ -3267,7 +3297,7 @@ it("uses the latest authoritative status for comments inbox threads", () => {
 
   expect(openHtml).toContain("No open threads");
   expect(openHtml).toContain(
-    "Resolved and archived threads remain available in the history filters.",
+    "Resolved threads remain available in the history filter.",
   );
   expect(openHtml).toContain("All 1");
   expect(openHtml).toContain("Resolved 1");
@@ -3275,6 +3305,37 @@ it("uses the latest authoritative status for comments inbox threads", () => {
   expect(resolvedHtml).toContain("Resolved");
   expect(resolvedHtml).toContain("Resolved feedback");
   expect(resolvedHtml).toContain("Resolved after the follow-up.");
+});
+
+it("hides archived comment threads from the comments inbox", () => {
+  const archivedComment: ViviComment = {
+    ...codeLineComment,
+    id: "comment-archived",
+    threadId: "thread-archived",
+    status: "archived",
+    body: "Archived feedback should not be visible in the browser UI.",
+    updatedAt: "2026-01-01T00:05:00.000Z",
+    archivedAt: "2026-01-01T00:05:00.000Z",
+  };
+  const html = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={[{ ...codeLineComment, threadId: "thread-1" }, archivedComment]}
+      query=""
+      statusFilter="all"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("1 open · 0 resolved");
+  expect(html).toContain("All 1");
+  expect(html).toContain("Open 1");
+  expect(html).not.toContain("Archived feedback should not be visible");
+  expect(html).not.toContain("Archived");
+  expect(html).not.toContain('aria-label="Show 1 archived thread"');
 });
 
 it("uses comments inbox empty states as review guidance", () => {
@@ -3804,7 +3865,7 @@ it("explains an empty Review Queue as active review work being clear", () => {
     "No Git changes or open comment threads need review right now.",
   );
   expect(html).toContain(
-    "Resolved and archived threads stay in Comments history.",
+    "Resolved threads stay in Comments history; archived threads are hidden from the browser UI.",
   );
   expect(html).not.toContain("No files to review.");
 });

@@ -6,6 +6,7 @@ import {
   codeCommentThreads,
   lineCommentThreadActionLabel,
   preferredCodeCommentThread,
+  visibleThreadComments,
 } from "../../ui/src/state/comments.js";
 
 const anchor = {
@@ -79,19 +80,20 @@ describe("comment thread projection", () => {
     ).toEqual(["open"]);
   });
 
-  it("prefers open inline threads and labels terminal threads honestly", () => {
+  it("prefers open inline threads and hides archived threads from UI projections", () => {
     const resolved = comment("resolved", "resolved", "thread-resolved");
     const open = comment("open", "open", "thread-open");
     const archived = comment("archived", "archived", "thread-archived");
     const threads = codeCommentThreads([resolved, archived, open]);
 
+    expect(threads.map((thread) => thread.status)).toEqual([
+      "open",
+      "resolved",
+    ]);
     expect(preferredCodeCommentThread(threads)?.comments[0]?.id).toBe("open");
     expect(
       preferredCodeCommentThread(threads, "resolved")?.comments[0]?.id,
     ).toBe("resolved");
-    expect(lineCommentThreadActionLabel(3, threads[0])).toBe(
-      "Open archived comment thread on line 3 with 1 message; reopen to reply",
-    );
     expect(
       lineCommentThreadActionLabel(
         3,
@@ -106,5 +108,30 @@ describe("comment thread projection", () => {
         threads.find((thread) => thread.status === "open"),
       ),
     ).toBe("Open comment thread on line 3 with 1 message; open to reply");
+  });
+
+  it("drops an entire thread when the latest published status is archived", () => {
+    const opened = {
+      ...comment("opened", "open", "thread-a"),
+      updatedAt: "2026-01-01T00:00:01Z",
+    };
+    const reply = {
+      ...comment("reply", "open", "thread-a"),
+      updatedAt: "2026-01-01T00:00:02Z",
+    };
+    const archived = {
+      ...comment("archived", "archived", "thread-a"),
+      updatedAt: "2026-01-01T00:00:03Z",
+    };
+    const resolved = {
+      ...comment("resolved", "resolved", "thread-b"),
+      updatedAt: "2026-01-01T00:00:04Z",
+    };
+
+    expect(
+      visibleThreadComments([opened, reply, archived, resolved]).map(
+        (item) => item.id,
+      ),
+    ).toEqual(["resolved"]);
   });
 });

@@ -13,7 +13,10 @@ import {
 import type { ReviewQueueItem } from "./review-queue.js";
 
 export type ReviewNavigationDirection = "next" | "previous";
-export type CommentActivityStatusFilter = CommentStatus | "all" | "attention";
+export type CommentActivityStatusFilter =
+  | Exclude<CommentStatus, "archived">
+  | "all"
+  | "attention";
 
 export interface CommentInboxEntryState {
   query: string;

@@ -94,6 +94,8 @@ export function CodeCommentThread({
     }
   }
 
+  if (threadStatus === "archived") return null;
+
   return (
     <article
       ref={threadRef}

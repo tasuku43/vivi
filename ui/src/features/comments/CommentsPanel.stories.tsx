@@ -90,7 +90,7 @@ export const CurrentThreadActions: Story = {
   },
 };
 
-export const ResolvedAndArchivedHistory: Story = {
+export const ResolvedHistoryArchivedHidden: Story = {
   tags: ["interaction"],
   args: {
     comments: sampleComments.filter(
@@ -103,7 +103,10 @@ export const ResolvedAndArchivedHistory: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Resolved feedback")).toBeInTheDocument();
-    await expect(canvas.getByText("Archived feedback")).toBeInTheDocument();
+    await expect(canvas.queryByText("Archived feedback")).not.toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("button", { name: /archived/i }),
+    ).not.toBeInTheDocument();
   },
 };
 
@@ -156,8 +159,8 @@ export const ScopedFileSearch: Story = {
       canvas.getByRole("button", { name: "Clear comments search" }),
     );
     await expect(canvas.getByLabelText("Search comments")).toHaveValue("");
-    await expect(canvas.getByRole("button", { name: "Show all 7 threads" }))
-      .toHaveTextContent("All 7");
+    await expect(canvas.getByRole("button", { name: "Show all 6 threads" }))
+      .toHaveTextContent("All 6");
   },
 };
 

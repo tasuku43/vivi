@@ -13,9 +13,11 @@ import {
   commentLocationLabel,
   statusLabel,
   truncateCommentPreview,
+  visibleThreadComments,
 } from "../../../state/comments.js";
 
-type StatusFilter = "all" | "attention" | CommentStatus;
+type VisibleCommentStatus = Exclude<CommentStatus, "archived">;
+type StatusFilter = "all" | "attention" | VisibleCommentStatus;
 
 export function CommentsPanel({
   open,
@@ -49,7 +51,8 @@ export function CommentsPanel({
   threadActivities?: Record<string, CommentActivitySummary>;
 }) {
   if (!open) return null;
-  const allThreads = groupCommentsByThread(comments, unreadReviewPaths);
+  const visibleComments = visibleThreadComments(comments);
+  const allThreads = groupCommentsByThread(visibleComments, unreadReviewPaths);
   const allStats = summarizeCommentThreads(allThreads);
   const matchingThreads = allThreads.filter((thread) =>
     commentThreadMatchesQuery(thread, query),
@@ -96,9 +99,7 @@ export function CommentsPanel({
           <p className="global-comments-eyebrow">Review Inbox</p>
           <h2>Comments</h2>
           <p>
-            {allStats.open} open · {allStats.resolved} resolved ·{" "}
-            {allStats.archived}{" "}
-            archived
+            {allStats.open} open · {allStats.resolved} resolved
             {allStats.needsAttention
               ? ` · ${countNoun(allStats.needsAttention, "attention thread")}`
               : ""}
@@ -131,7 +132,6 @@ export function CommentsPanel({
             "all",
             "open",
             "resolved",
-            "archived",
           ] as StatusFilter[]).map(
             (status) => (
               <button
@@ -813,8 +813,8 @@ function commentInboxEmptyState(
       title: searching ? "No matching open threads" : "No open threads",
       detail: searching
         ? "Try another status filter or broaden your search."
-        : stats.resolved || stats.archived
-          ? "Resolved and archived threads remain available in the history filters."
+        : stats.resolved
+          ? "Resolved threads remain available in the history filter."
           : "New review comments will appear here after they are published.",
     };
   }
@@ -827,17 +827,6 @@ function commentInboxEmptyState(
       detail: searching
         ? "Try another status filter or broaden your search."
         : "Resolved feedback will stay here without returning to the review queue.",
-    };
-  }
-
-  if (statusFilter === "archived") {
-    return {
-      title: searching
-        ? "No matching archived threads"
-        : "No archived threads",
-      detail: searching
-        ? "Try another status filter or broaden your search."
-        : "Archived feedback will stay here as quiet history.",
     };
   }
 

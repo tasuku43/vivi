@@ -52,7 +52,7 @@ without replaying history.
 | ---------- | ----------------------------------------------------- | ------------- | ----------------------------------- | --------------------------------------- | ------------ |
 | `open`     | Inline markers and the Open list                      | Included      | Included by querying `status: open` | Included in open/all exports            | Already open |
 | `resolved` | Hidden inline; visible in the Resolved history filter | Excluded      | Excluded                            | Included when resolved/all is requested | Yes          |
-| `archived` | Hidden inline; visible in the Archived history filter | Excluded      | Excluded                            | Included when archived/all is requested | Yes          |
+| `archived` | Hidden from the browser UI                            | Excluded      | Excluded                            | Included when archived/all is requested | Yes          |
 
 Allowed transitions are `open -> resolved`, `open -> archived`,
 `resolved -> open`, `resolved -> archived`, and `archived -> open`. Repeating
