@@ -151,10 +151,11 @@ the same server URL. The fake agent may also call
 `comments protocol --receipt-log <path> --json` at startup; that manifest's
 `receiptLedger` and command recipes are already ledger-aware. When the intake
 or preflight command itself receives `--receipt-log <path>`, the harness
-expects downstream write suggestions to carry that same flag so a fake adapter
-can execute the suggested argv as-is. Runtime suggestions also preserve the
-resolved `--url`, so watch, work, follow, check, inbox, batch, and doctor
-handoffs keep targeting the same Vivi server that produced the event.
+expects downstream renew, follow, check, and write suggestions to carry that
+same flag so a fake adapter can execute the suggested argv as-is. Runtime
+suggestions also preserve the resolved `--url`, so watch, work, follow, check,
+mine, inbox, batch, and doctor handoffs keep targeting the same Vivi server
+that produced the event.
 The stream events also carry `eventSchema` and `eventSchemaCommand`, letting a
 resident adapter validate each NDJSON line without carrying its own event-type
 lookup table. `comments watch` now participates in that same protocol: each

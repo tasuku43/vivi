@@ -1736,7 +1736,7 @@ func TestCommentsCLIDoctorVerifiesReceiptLedgerForRestart(t *testing.T) {
 	if payload.RecommendedAction != "enter_resident_work_loop" || !payload.ReceiptLedger.OK || payload.ReceiptLedger.Count != 1 || payload.ReceiptLedger.Verified != 1 || payload.ReceiptLedger.Failed != 0 {
 		t.Fatalf("doctor ledger payload = %s", out.String())
 	}
-	if len(payload.SuggestedCommands) != 3 || payload.SuggestedCommands[0].Command != "comments work" || !payload.SuggestedCommands[0].Primary || !containsString(payload.SuggestedCommands[0].Args, "--receipt-log") || !containsString(payload.SuggestedCommands[0].Args, receiptLog) || !containsString(payload.SuggestedCommands[0].Args, server.URL) || payload.SuggestedCommands[1].Command != "comments mine" || !containsString(payload.SuggestedCommands[1].Args, server.URL) || payload.SuggestedCommands[2].Command != "comments inbox" || !containsString(payload.SuggestedCommands[2].Args, receiptLog) || !containsString(payload.SuggestedCommands[2].Args, server.URL) {
+	if len(payload.SuggestedCommands) != 3 || payload.SuggestedCommands[0].Command != "comments work" || !payload.SuggestedCommands[0].Primary || !containsString(payload.SuggestedCommands[0].Args, "--receipt-log") || !containsString(payload.SuggestedCommands[0].Args, receiptLog) || !containsString(payload.SuggestedCommands[0].Args, server.URL) || payload.SuggestedCommands[1].Command != "comments mine" || !containsString(payload.SuggestedCommands[1].Args, "--receipt-log") || !containsString(payload.SuggestedCommands[1].Args, receiptLog) || !containsString(payload.SuggestedCommands[1].Args, server.URL) || payload.SuggestedCommands[2].Command != "comments inbox" || !containsString(payload.SuggestedCommands[2].Args, receiptLog) || !containsString(payload.SuggestedCommands[2].Args, server.URL) {
 		t.Fatalf("doctor ledger suggestions = %#v", payload.SuggestedCommands)
 	}
 
@@ -2410,8 +2410,17 @@ func TestCommentsCLIReceiptLogPropagatesThroughAgentSuggestions(t *testing.T) {
 	work := runCommentsCLIForTest(t, "work", threadID, "--url", server.URL, "--actor", "codex:propagate", "--actor-kind", "codex", "--client-event-id", "propagate-work-1", "--lease", "30s", "--full", "--receipt-log", receiptLog, "--once", "--json")
 	var claimed commentWorkStreamEvent
 	decodeCLIJSON(t, work, &claimed)
-	if claimed.Type != "comment_work_claimed" || len(claimed.Summary.SuggestedCommands) != 4 || !containsString(claimed.Summary.SuggestedCommands[0].Args, "--receipt-log") || !containsString(claimed.Summary.SuggestedCommands[2].Args, receiptLog) || !containsString(claimed.Summary.SuggestedCommands[0].Args, "--url") || !containsString(claimed.Summary.SuggestedCommands[2].Args, server.URL) {
+	if claimed.Type != "comment_work_claimed" || len(claimed.Summary.SuggestedCommands) != 4 || !containsString(claimed.Summary.SuggestedCommands[0].Args, "--receipt-log") || !containsString(claimed.Summary.SuggestedCommands[0].Args, receiptLog) || !containsString(claimed.Summary.SuggestedCommands[2].Args, receiptLog) || !containsString(claimed.Summary.SuggestedCommands[0].Args, "--url") || !containsString(claimed.Summary.SuggestedCommands[2].Args, server.URL) {
 		t.Fatalf("work runtime suggestions = %s", work.String())
+	}
+
+	mine := runCommentsCLIForTest(t, "mine", "--url", server.URL, "--actor", "codex:propagate", "--actor-kind", "codex", "--receipt-log", receiptLog, "--json")
+	var minePayload struct {
+		Summary commentRoutingSummary `json:"summary"`
+	}
+	decodeCLIJSON(t, mine, &minePayload)
+	if len(minePayload.Summary.SuggestedCommands) != 3 || minePayload.Summary.SuggestedCommands[0].Intent != "renew_owned_claim" || !containsString(minePayload.Summary.SuggestedCommands[0].Args, "--receipt-log") || !containsString(minePayload.Summary.SuggestedCommands[0].Args, receiptLog) || !containsString(minePayload.Summary.SuggestedCommands[1].Args, receiptLog) {
+		t.Fatalf("mine runtime suggestions = %#v", minePayload.Summary.SuggestedCommands)
 	}
 
 	check := runCommentsCLIForTest(t, "check", threadID, "--url", server.URL, "--actor", "codex:propagate", "--actor-kind", "codex", "--receipt-log", receiptLog, "--json")
@@ -2420,9 +2429,10 @@ func TestCommentsCLIReceiptLogPropagatesThroughAgentSuggestions(t *testing.T) {
 	}
 	decodeCLIJSON(t, check, &checkPayload)
 	suggestions := checkPayload.Write["suggestedCommands"].([]any)
+	renewSuggestion := suggestions[0].(map[string]any)
 	replySuggestion := suggestions[1].(map[string]any)
 	doneSuggestion := suggestions[4].(map[string]any)
-	if !containsAnyString(replySuggestion["args"].([]any), "--receipt-log") || !containsAnyString(replySuggestion["args"].([]any), receiptLog) || !containsAnyString(replySuggestion["args"].([]any), server.URL) || !containsAnyString(doneSuggestion["args"].([]any), "--receipt-log") || !containsAnyString(doneSuggestion["args"].([]any), receiptLog) || !containsAnyString(doneSuggestion["args"].([]any), server.URL) {
+	if !containsAnyString(renewSuggestion["args"].([]any), "--receipt-log") || !containsAnyString(renewSuggestion["args"].([]any), receiptLog) || !containsAnyString(renewSuggestion["args"].([]any), server.URL) || !containsAnyString(replySuggestion["args"].([]any), "--receipt-log") || !containsAnyString(replySuggestion["args"].([]any), receiptLog) || !containsAnyString(replySuggestion["args"].([]any), server.URL) || !containsAnyString(doneSuggestion["args"].([]any), "--receipt-log") || !containsAnyString(doneSuggestion["args"].([]any), receiptLog) || !containsAnyString(doneSuggestion["args"].([]any), server.URL) {
 		t.Fatalf("check runtime suggestions = %#v", suggestions)
 	}
 }

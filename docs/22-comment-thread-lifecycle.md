@@ -535,12 +535,12 @@ On startup, `comments verify-receipts --receipt-log <path|-> --json` checks the
 whole ledger and returns per-receipt verification payloads plus total, verified,
 and failed counts. `comments doctor --receipt-log <path> --json` runs that same
 ledger check as part of online startup readiness and treats a missing ledger
-file as an empty OK ledger. Commands that emit agent write suggestions, such as
-`doctor`, `watch`, `work`, `follow`, `check`, `inbox`, and `batch`, propagate
-their resolved `--url` into suggested argv, preserve `--actor-kind` alongside
-`--actor`, and propagate `--receipt-log <path>` into suggested write argv, so
-adapters can execute those recipes without reattaching server, actor, or ledger
-flags by hand.
+file as an empty OK ledger. Commands that emit agent suggestions, such as
+`doctor`, `watch`, `work`, `follow`, `check`, `mine`, `inbox`, and `batch`,
+propagate their resolved `--url` into suggested argv, preserve `--actor-kind`
+alongside `--actor`, and propagate `--receipt-log <path>` into suggested renew,
+follow, check, and write argv, so adapters can execute those recipes without
+reattaching server, actor, or ledger flags by hand.
 If a guarded write fails under `--json`, the CLI returns an `error` envelope
 with a stable `code` such as `no_live_claim` or `claimed_by_other_actor` and
 recovery `suggestedCommands`, so a resident adapter can claim, check, follow,

@@ -849,7 +849,7 @@ func parseCommentsFlags(command string, args []string) (commentsCommandOptions, 
 		}
 	}
 	if strings.TrimSpace(options.ReceiptLog) != "" && !commentsCommandWritesReceipt(command) && !commentsCommandVerifiesReceiptLog(command) && !commentsCommandPropagatesReceiptLog(command) && command != "doctor" {
-		return options, nil, fmt.Errorf("--receipt-log is only supported with comments reply, triage, release, done, dismiss, verify-receipts, doctor, claim, work, watch, follow, check, inbox, or batch")
+		return options, nil, fmt.Errorf("--receipt-log is only supported with comments reply, triage, release, done, dismiss, verify-receipts, doctor, claim, work, watch, follow, check, mine, inbox, or batch")
 	}
 	if strings.TrimSpace(options.ReceiptLog) != "" && (commentsCommandVerifiesReceiptLog(command) || command == "doctor") {
 		if strings.TrimSpace(options.Body) != "" || strings.TrimSpace(options.BodyFile) != "" || strings.TrimSpace(options.TriageFile) != "" || strings.TrimSpace(options.ResultFile) != "" || strings.TrimSpace(options.ReceiptFile) != "" {
@@ -3670,7 +3670,7 @@ func commentsCommandVerifiesReceiptLog(command string) bool {
 
 func commentsCommandPropagatesReceiptLog(command string) bool {
 	switch command {
-	case "claim", "work", "watch", "follow", "check", "inbox", "batch":
+	case "claim", "work", "watch", "follow", "check", "mine", "inbox", "batch":
 		return true
 	default:
 		return false
@@ -5030,7 +5030,7 @@ func suggestedCommandsForOwnedRoutingWork(group commentInboxGroupOutput, actorID
 		return nil
 	}
 	return []commentSuggestedCommand{
-		suggestedCommentsCommandWithClientEventID("renew_owned_claim", "comments renew", withURLArg(actorCommand([]string{"comments", "renew", threadID}, actorID, actorKind, "--json"), serverURL), "", "Refresh the recovered live claim before continuing work after an adapter restart.", commentSuggestedClientEventID(clientEventScope, threadID, "renew")),
+		suggestedCommentsCommandWithClientEventID("renew_owned_claim", "comments renew", withRuntimeArgs(actorCommand([]string{"comments", "renew", threadID}, actorID, actorKind, "--json"), serverURL, receiptLog), "", "Refresh the recovered live claim before continuing work after an adapter restart.", commentSuggestedClientEventID(clientEventScope, threadID, "renew")),
 		suggestedCommentsCommand("follow_owned_thread", "comments follow", withRuntimeArgs(actorCommand([]string{"comments", "follow", threadID}, actorID, actorKind, "--full", "--json"), serverURL, receiptLog), "", "Resume watching human follow-up and lifecycle activity for the recovered owned thread."),
 		suggestedCommentsCommand("check_owned_thread", "comments check", withRuntimeArgs(actorCommand([]string{"comments", "check", threadID}, actorID, actorKind, "--full", "--json"), serverURL, receiptLog), "", "Inspect live ownership and guarded-write suggestions before replying or closing the recovered thread."),
 	}
@@ -5508,7 +5508,7 @@ func commentsDoctorSuggestedCommands(options commentsCommandOptions, openThreadC
 	}
 	suggestions := []commentSuggestedCommand{
 		suggestedCommentsCommandWithClientEventID("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(residentCommentsWorkCommand(actorID, options.ActorKind)), options.URL, options.ReceiptLog), "", "Primary agent feedback loop: wait for GUI comments, claim work safely, keep the lease warm, and emit next-action suggestions.", clientSeed+":work").withPrimary(),
-		suggestedCommentsCommand("recover_owned_live_claims", "comments mine", withURLArg(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "mine"}, actorID, options.ActorKind, "--json")), options.URL), "", "Recovery helper: after an adapter restart, inspect live claim routing before claiming new GUI feedback."),
+		suggestedCommentsCommand("recover_owned_live_claims", "comments mine", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "mine"}, actorID, options.ActorKind, "--json")), options.URL, options.ReceiptLog), "", "Recovery helper: after an adapter restart, inspect live claim routing before claiming new GUI feedback."),
 		suggestedCommentsCommand("snapshot_agent_inbox", "comments inbox", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "inbox"}, actorID, options.ActorKind, "--json")), options.URL, options.ReceiptLog), "", "Read compact owned, unclaimed, and other-claimed routing without creating read receipts."),
 	}
 	return suggestions
@@ -6239,7 +6239,7 @@ func suggestedCommandsForWritePreflight(reason string, thread commentThreadOutpu
 			}
 		}
 		return []commentSuggestedCommand{
-			suggestedCommentsCommandWithClientEventID("renew_current_claim", "comments renew", withURLArg(actorCommand([]string{"comments", "renew", threadID}, actorID, actorKind, "--json"), serverURL), "", "Extend the current claim before a longer edit or verification pass.", renewClientEventID),
+			suggestedCommentsCommandWithClientEventID("renew_current_claim", "comments renew", withRuntimeArgs(actorCommand([]string{"comments", "renew", threadID}, actorID, actorKind, "--json"), serverURL, receiptLog), "", "Extend the current claim before a longer edit or verification pass.", renewClientEventID),
 			suggestedCommentsCommandWithClientEventID("reply_with_claim", "comments reply", withRuntimeArgs(actorCommand([]string{"comments", "reply", threadID}, actorID, actorKind, "--body-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "", "Post a guarded non-terminal reply while this actor owns the live claim.", suggestedWriteClientEventID("check", threadID, "reply", claimSeed)),
 			suggestedCommentsCommandWithClientEventID("acknowledge_or_request_clarification", "comments triage", withRuntimeArgs(actorCommand([]string{"comments", "triage", threadID}, actorID, actorKind, "--triage-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentTriageFileInput", "Post a structured acknowledgement, clarification request, or blocked status while keeping the thread open.", suggestedWriteClientEventID("check", threadID, "triage", claimSeed)),
 			suggestedCommentsCommandWithClientEventID("handoff_after_blocked_or_needs_info", "comments release", withRuntimeArgs(actorCommand([]string{"comments", "release", threadID}, actorID, actorKind, "--triage-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentTriageFileInput", "Post a structured blocked or needs-info handoff comment, then release the live claim for another attempt.", suggestedWriteClientEventID("check", threadID, "release", claimSeed)),
