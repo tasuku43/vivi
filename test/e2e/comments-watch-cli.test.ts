@@ -354,8 +354,16 @@ it("explains claim contention when all open threads are leased by another actor"
   expect(contended.summary.suggestedCommands).toEqual(
     expect.arrayContaining([
       expect.objectContaining({
-        command: "comments watch",
-        args: expect.arrayContaining(["comments", "watch", "--cursor"]),
+        command: "comments work",
+        intent: "start_resident_work_loop",
+        primary: true,
+        args: expect.arrayContaining([
+          "comments",
+          "work",
+          "--wait",
+          "--loop",
+          "--idle-events",
+        ]),
       }),
     ]),
   );

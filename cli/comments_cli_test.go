@@ -437,7 +437,7 @@ func TestCommentsCLIClaimLeasesNextOpenThreadForAgentWork(t *testing.T) {
 	if !contendedPayload.Summary.RequiresAttention || contendedPayload.Summary.RecommendedAction != "wait_for_claim_release" || contendedPayload.Summary.OpenThreadCount != 2 || contendedPayload.Summary.MineCount != 0 || contendedPayload.Summary.UnclaimedCount != 0 || contendedPayload.Summary.ClaimedByOthersCount != 2 || !containsString(contendedPayload.Summary.AttentionReasons, "open_threads_claimed_by_others") {
 		t.Fatalf("contended claim summary = %#v", contendedPayload.Summary)
 	}
-	if len(contendedPayload.Summary.SuggestedCommands) != 1 || contendedPayload.Summary.SuggestedCommands[0].Command != "comments watch" || !containsString(contendedPayload.Summary.SuggestedCommands[0].Args, "--cursor") || !containsString(contendedPayload.Summary.SuggestedCommands[0].Args, contendedPayload.Cursor) {
+	if len(contendedPayload.Summary.SuggestedCommands) != 2 || contendedPayload.Summary.SuggestedCommands[0].Command != "comments work" || !contendedPayload.Summary.SuggestedCommands[0].Primary || !containsString(contendedPayload.Summary.SuggestedCommands[0].Args, "--wait") || !containsString(contendedPayload.Summary.SuggestedCommands[0].Args, "--loop") || contendedPayload.Summary.SuggestedCommands[1].Command != "comments inbox" {
 		t.Fatalf("contended claim suggestions = %#v", contendedPayload.Summary.SuggestedCommands)
 	}
 
@@ -1623,13 +1623,13 @@ func TestCommentsCLIDoctorSurfacesAgentReadiness(t *testing.T) {
 	if payload.RecommendedAction != "enter_resident_work_loop" || len(payload.SuggestedCommands) != 3 {
 		t.Fatalf("doctor guidance = %#v %#v", payload.RecommendedAction, payload.SuggestedCommands)
 	}
-	mine := payload.SuggestedCommands[0]
+	work := payload.SuggestedCommands[0]
+	if work.Intent != "start_resident_work_loop" || work.Command != "comments work" || !work.Primary || work.ClientEventID != "doctor-start-1:work" || !containsString(work.Args, "--actor-kind") || !containsString(work.Args, "codex") || !containsString(work.Args, "--loop") || !containsString(work.Args, "--idle-events") || containsString(work.Args, "--full") || !containsString(work.Args, work.ClientEventID) || !containsString(work.Args, server.URL) {
+		t.Fatalf("doctor resident work suggestion = %#v", work)
+	}
+	mine := payload.SuggestedCommands[1]
 	if mine.Intent != "recover_owned_live_claims" || mine.Command != "comments mine" || !containsString(mine.Args, "codex:doctor") || !containsString(mine.Args, "--actor-kind") || !containsString(mine.Args, "codex") || containsString(mine.Args, "--full") || !containsString(mine.Args, server.URL) {
 		t.Fatalf("doctor recovery suggestion = %#v", mine)
-	}
-	work := payload.SuggestedCommands[1]
-	if work.Intent != "start_resident_work_loop" || work.Command != "comments work" || work.ClientEventID != "doctor-start-1:work" || !containsString(work.Args, "--actor-kind") || !containsString(work.Args, "codex") || !containsString(work.Args, "--loop") || !containsString(work.Args, "--idle-events") || containsString(work.Args, "--full") || !containsString(work.Args, work.ClientEventID) || !containsString(work.Args, server.URL) {
-		t.Fatalf("doctor resident work suggestion = %#v", work)
 	}
 	inbox := payload.SuggestedCommands[2]
 	if inbox.Intent != "snapshot_agent_inbox" || inbox.Command != "comments inbox" || !containsString(inbox.Args, "codex:doctor") || !containsString(inbox.Args, "--actor-kind") || !containsString(inbox.Args, "codex") || containsString(inbox.Args, "--full") || !containsString(inbox.Args, server.URL) {
@@ -1661,13 +1661,13 @@ func TestCommentsCLIDoctorGuidesActorConfiguration(t *testing.T) {
 	if payload.RecommendedAction != "configure_actor" || len(payload.SuggestedCommands) != 2 {
 		t.Fatalf("doctor configure guidance = %#v", payload)
 	}
-	protocol := payload.SuggestedCommands[0]
+	configure := payload.SuggestedCommands[0]
+	if configure.Intent != "configure_coding_agent_actor" || configure.Command != "comments doctor" || !configure.Primary || !containsString(configure.Args, "--actor") || !containsString(configure.Args, "<actor>") || !containsString(configure.Args, "--actor-kind") || !containsString(configure.Args, "codex") || !containsString(configure.Args, server.URL) || !containsString(configure.Args, receiptLog) {
+		t.Fatalf("doctor actor configuration suggestion = %#v", configure)
+	}
+	protocol := payload.SuggestedCommands[1]
 	if protocol.Intent != "inspect_protocol" || protocol.Command != "comments protocol" || !containsString(protocol.Args, server.URL) || !containsString(protocol.Args, receiptLog) {
 		t.Fatalf("doctor protocol suggestion = %#v", protocol)
-	}
-	configure := payload.SuggestedCommands[1]
-	if configure.Intent != "configure_coding_agent_actor" || configure.Command != "comments doctor" || !containsString(configure.Args, "--actor") || !containsString(configure.Args, "<actor>") || !containsString(configure.Args, "--actor-kind") || !containsString(configure.Args, "codex") || !containsString(configure.Args, server.URL) || !containsString(configure.Args, receiptLog) {
-		t.Fatalf("doctor actor configuration suggestion = %#v", configure)
 	}
 }
 
@@ -1681,12 +1681,17 @@ func TestCommentsCLIDoctorPreservesActorKindInWaitSuggestion(t *testing.T) {
 		SuggestedCommands []commentSuggestedCommand `json:"suggestedCommands"`
 	}
 	decodeCLIJSON(t, out, &payload)
-	if payload.RecommendedAction != "wait_for_gui_feedback" || len(payload.SuggestedCommands) != 4 {
+	if payload.RecommendedAction != "wait_for_gui_feedback" || len(payload.SuggestedCommands) != 3 {
 		t.Fatalf("doctor wait guidance = %#v", payload)
 	}
-	watch := payload.SuggestedCommands[3]
-	if watch.Intent != "watch_open_worklist" || watch.Command != "comments watch" || !containsString(watch.Args, "--actor-kind") || !containsString(watch.Args, "codex") {
-		t.Fatalf("doctor watch suggestion = %#v", watch)
+	work := payload.SuggestedCommands[0]
+	if work.Intent != "start_resident_work_loop" || work.Command != "comments work" || !work.Primary || !containsString(work.Args, "--actor-kind") || !containsString(work.Args, "codex") {
+		t.Fatalf("doctor primary work suggestion = %#v", work)
+	}
+	for _, suggestion := range payload.SuggestedCommands {
+		if suggestion.Command == "comments watch" {
+			t.Fatalf("doctor should keep watch out of the default readiness suggestions: %#v", payload.SuggestedCommands)
+		}
 	}
 }
 
@@ -1708,7 +1713,7 @@ func TestCommentsCLIDoctorVerifiesReceiptLedgerForRestart(t *testing.T) {
 	if payload.RecommendedAction != "enter_resident_work_loop" || !payload.ReceiptLedger.OK || payload.ReceiptLedger.Count != 1 || payload.ReceiptLedger.Verified != 1 || payload.ReceiptLedger.Failed != 0 {
 		t.Fatalf("doctor ledger payload = %s", out.String())
 	}
-	if len(payload.SuggestedCommands) != 3 || payload.SuggestedCommands[0].Command != "comments mine" || !containsString(payload.SuggestedCommands[0].Args, server.URL) || !containsString(payload.SuggestedCommands[1].Args, "--receipt-log") || !containsString(payload.SuggestedCommands[1].Args, receiptLog) || !containsString(payload.SuggestedCommands[1].Args, server.URL) || !containsString(payload.SuggestedCommands[2].Args, receiptLog) || !containsString(payload.SuggestedCommands[2].Args, server.URL) {
+	if len(payload.SuggestedCommands) != 3 || payload.SuggestedCommands[0].Command != "comments work" || !payload.SuggestedCommands[0].Primary || !containsString(payload.SuggestedCommands[0].Args, "--receipt-log") || !containsString(payload.SuggestedCommands[0].Args, receiptLog) || !containsString(payload.SuggestedCommands[0].Args, server.URL) || payload.SuggestedCommands[1].Command != "comments mine" || !containsString(payload.SuggestedCommands[1].Args, server.URL) || payload.SuggestedCommands[2].Command != "comments inbox" || !containsString(payload.SuggestedCommands[2].Args, receiptLog) || !containsString(payload.SuggestedCommands[2].Args, server.URL) {
 		t.Fatalf("doctor ledger suggestions = %#v", payload.SuggestedCommands)
 	}
 
@@ -1805,7 +1810,7 @@ func TestCommentsCLISchemaSurfacesStructuredStdinContracts(t *testing.T) {
 		t.Fatalf("doctor schema example = %#v", doctorExample)
 	}
 	doctorExampleSuggestions := doctorExample["suggestedCommands"].([]any)
-	if len(doctorExampleSuggestions) < 3 || doctorExampleSuggestions[0].(map[string]any)["command"] != "comments mine" || doctorExampleSuggestions[1].(map[string]any)["command"] != "comments work" {
+	if len(doctorExampleSuggestions) < 3 || doctorExampleSuggestions[0].(map[string]any)["command"] != "comments work" || doctorExampleSuggestions[0].(map[string]any)["primary"] != true || doctorExampleSuggestions[1].(map[string]any)["command"] != "comments mine" {
 		t.Fatalf("doctor schema suggestions = %#v", doctorExampleSuggestions)
 	}
 
@@ -3132,7 +3137,7 @@ func TestCommentsCLIWorkIdleEventIsSelfDescribing(t *testing.T) {
 	if event.Summary.RecommendedAction != "wait_for_gui_feedback" || event.Summary.RequiresAttention {
 		t.Fatalf("idle work summary = %#v", event.Summary)
 	}
-	if len(event.Summary.SuggestedCommands) != 2 || event.Summary.SuggestedCommands[0].Command != "comments work" || event.Summary.SuggestedCommands[0].Intent != "start_resident_work_loop" || !containsString(event.Summary.SuggestedCommands[0].Args, "--wait") || !containsString(event.Summary.SuggestedCommands[0].Args, "--loop") || !containsString(event.Summary.SuggestedCommands[0].Args, server.URL) || event.Summary.SuggestedCommands[1].Command != "comments watch" || event.Summary.SuggestedCommands[1].Intent != "watch_open_worklist" {
+	if len(event.Summary.SuggestedCommands) != 1 || event.Summary.SuggestedCommands[0].Command != "comments work" || event.Summary.SuggestedCommands[0].Intent != "start_resident_work_loop" || !event.Summary.SuggestedCommands[0].Primary || !containsString(event.Summary.SuggestedCommands[0].Args, "--wait") || !containsString(event.Summary.SuggestedCommands[0].Args, "--loop") || !containsString(event.Summary.SuggestedCommands[0].Args, server.URL) {
 		t.Fatalf("idle work suggestions = %#v", event.Summary.SuggestedCommands)
 	}
 }
@@ -3156,7 +3161,7 @@ func TestCommentsCLIWorkWaitCanEmitIdleHeartbeat(t *testing.T) {
 	if event.Summary.RecommendedAction != "wait_for_claim_release" || !event.Summary.RequiresAttention || !hasAttentionReason(event.Summary, "open_threads_claimed_by_others") {
 		t.Fatalf("idle heartbeat summary = %#v", event.Summary)
 	}
-	if len(event.Summary.SuggestedCommands) != 2 || event.Summary.SuggestedCommands[0].Command != "comments inbox" || !containsString(event.Summary.SuggestedCommands[0].Args, "codex:idle-wait") || event.Summary.SuggestedCommands[1].Command != "comments watch" || !containsString(event.Summary.SuggestedCommands[1].Args, event.Cursor) {
+	if len(event.Summary.SuggestedCommands) != 2 || event.Summary.SuggestedCommands[0].Command != "comments work" || !event.Summary.SuggestedCommands[0].Primary || !containsString(event.Summary.SuggestedCommands[0].Args, "codex:idle-wait") || !containsString(event.Summary.SuggestedCommands[0].Args, "--wait") || event.Summary.SuggestedCommands[1].Command != "comments inbox" || !containsString(event.Summary.SuggestedCommands[1].Args, "codex:idle-wait") {
 		t.Fatalf("idle heartbeat suggestions = %#v", event.Summary.SuggestedCommands)
 	}
 }
