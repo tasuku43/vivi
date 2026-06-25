@@ -594,7 +594,8 @@ export class GitChangeReview implements ChangeReviewPort {
         error && typeof error === "object" && "code" in error
           ? String((error as { code?: unknown }).code)
           : "";
-      if (code !== "ENOENT") return unavailable(relativePath, String(error));
+      if (code !== "ENOENT")
+        return unavailable(relativePath, fileSystemDiffReason(error));
     }
 
     const headBytes = head.content;
@@ -795,7 +796,7 @@ function isInsidePath(rootDir: string, target: string): boolean {
   );
 }
 
-function fileSystemDiffReason(error: unknown): string {
+export function fileSystemDiffReason(error: unknown): string {
   const code =
     error && typeof error === "object" && "code" in error
       ? String((error as { code?: unknown }).code)
@@ -805,7 +806,7 @@ function fileSystemDiffReason(error: unknown): string {
     return "Diff is not available because the selected path is a directory.";
   if (code === "EACCES" || code === "EPERM")
     return "File cannot be read due to filesystem permissions.";
-  return error instanceof Error ? error.message : "File cannot be read.";
+  return "File cannot be read.";
 }
 
 async function isEmbeddedGitRepository(absolutePath: string): Promise<boolean> {

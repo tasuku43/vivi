@@ -12,6 +12,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import {
+  fileSystemDiffReason,
   GitChangeReview,
   gitErrorReason,
 } from "../../server/typescript/infrastructure/git-change-review.js";
@@ -527,6 +528,21 @@ it("does not expose raw spawn ENOENT errors", () => {
   ).toBe(
     "Git executable was not found. Install Git or start vivi with Git on PATH.",
   );
+});
+
+it("does not expose raw filesystem read errors in diff reasons", () => {
+  expect(
+    fileSystemDiffReason(
+      Object.assign(new Error("stack secret: /private/root/file.txt"), {
+        code: "EACCES",
+      }),
+    ),
+  ).toBe("File cannot be read due to filesystem permissions.");
+  expect(
+    fileSystemDiffReason(
+      new Error("stack secret: /private/root/file.txt\n    at internal"),
+    ),
+  ).toBe("File cannot be read.");
 });
 
 async function git(args: string[], cwd = dir): Promise<void> {
