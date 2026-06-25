@@ -421,8 +421,12 @@ export function SourceCommentSurface({
                 data-line={lineNumber}
                 data-path={file.path}
                 data-testid="line-comment-action"
+                onPointerDown={(event) => {
+                  if (!actionThread) beginLineDrag(event, lineNumber);
+                }}
                 onClick={(event) => {
                   event.stopPropagation();
+                  if (suppressLineClickRef.current) return;
                   if (threadOpen) {
                     closeCommentThread(threadForDisplay?.key ?? "");
                   } else if (actionThread) {

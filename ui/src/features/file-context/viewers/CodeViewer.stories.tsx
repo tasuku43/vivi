@@ -247,6 +247,38 @@ export const MultipleSourceDraftFormsStayOpen: Story = {
   },
 };
 
+export const SourceCommentActionDragSelectsRange: Story = {
+  tags: ["interaction"],
+  args: {
+    comments: [],
+    selectedRange: null,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const line6Action = canvasElement.querySelector<HTMLButtonElement>(
+      `[data-testid="line-comment-action"][data-comment-surface="source"][data-line="6"][data-path="${sampleFiles.code.path}"]`,
+    );
+    const line9Row = canvasElement.querySelector<HTMLElement>(
+      '.code-line[data-line="9"]',
+    );
+    expect(line6Action).toBeInTheDocument();
+    expect(line9Row).toBeInTheDocument();
+    await userEvent.pointer([
+      { keys: "[MouseLeft>]", target: line6Action! },
+      { target: line9Row! },
+      { keys: "[/MouseLeft]", target: line9Row! },
+    ]);
+
+    await expect(
+      canvas.getByRole("article", { name: "Comment thread for lines 6-9" }),
+    ).toBeVisible();
+    await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(1);
+    await expect(canvas.queryByLabelText("Comment thread for line 6")).toBe(
+      null,
+    );
+  },
+};
+
 export const SavedInlineDraftRemainsVisible: Story = {
   tags: ["interaction"],
   args: {
