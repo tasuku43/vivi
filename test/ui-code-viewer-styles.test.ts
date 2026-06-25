@@ -75,6 +75,9 @@ describe("rendered comment block ranges", () => {
       /\.rendered-comment-marker \{[\s\S]*?top: var\(--rendered-comment-marker-top, calc\(50% \+ 1px\)\);/,
     );
     expect(styles).toMatch(
+      /\.rendered-comment-marker \{[\s\S]*?right: -12px;/,
+    );
+    expect(styles).toMatch(
       /pre\.vivi-rendered-comment-block > \.rendered-comment-marker \{[\s\S]*?position: absolute;[\s\S]*?top: var\(--rendered-comment-marker-top, 18px\);[\s\S]*?right: auto;[\s\S]*?left: var\(--rendered-comment-marker-left, calc\(100% - 28px\)\);/,
     );
   });

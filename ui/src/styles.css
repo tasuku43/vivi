@@ -1868,7 +1868,7 @@ body.resizing-workbench-pane {
   position: absolute;
   z-index: 3;
   top: var(--rendered-comment-marker-top, calc(50% + 1px));
-  right: 8px;
+  right: -12px;
   width: 20px;
   height: 20px;
   border: 1px solid var(--comment-line);

@@ -243,6 +243,11 @@ export const RenderedMarkerPlacement: Story = {
     await expect(
       Math.abs(listMetricsBefore.topPadding - listMetricsBefore.bottomPadding),
     ).toBeLessThanOrEqual(6);
+    await expect(renderedMarkerTextGap(listItem)).toBeGreaterThanOrEqual(10);
+    await expect(
+      renderedMarkerTextGap(adjacentListItem),
+    ).toBeGreaterThanOrEqual(10);
+    await expect(renderedMarkerTextGap(paragraph)).toBeGreaterThanOrEqual(10);
 
     await expect(
       getComputedStyle(listItem)
@@ -264,6 +269,7 @@ export const RenderedMarkerPlacement: Story = {
     const listMetricsOpen = renderedBlockMetrics(listItem);
     await expect(listMetricsOpen.bottomPadding).toBeGreaterThanOrEqual(5);
     await expect(listMetricsOpen.height).toBeLessThanOrEqual(36);
+    await expect(renderedMarkerTextGap(listItem)).toBeGreaterThanOrEqual(10);
 
     const codeBlock = canvasElement.querySelector("pre")!;
     await expect(
@@ -361,6 +367,12 @@ function renderedBlockMetrics(block: HTMLElement): {
     height: beforeHeight,
     topPadding: textRect.top - highlightTop,
   };
+}
+
+function renderedMarkerTextGap(block: HTMLElement): number {
+  const marker = block.querySelector<HTMLElement>(".rendered-comment-marker");
+  if (!marker) return Number.POSITIVE_INFINITY;
+  return marker.getBoundingClientRect().left - firstReadableTextRect(block).right;
 }
 
 function firstReadableTextRect(block: HTMLElement): DOMRect {
