@@ -128,15 +128,15 @@ func TestCommentsCLIShowsPublishedReviewBatchAndHidesDrafts(t *testing.T) {
 		Count   int                   `json:"count"`
 	}
 	decodeCLIJSON(t, after, &afterPayload)
-	if afterPayload.Count != 1 {
+	if afterPayload.Count != 2 {
 		t.Fatalf("active after publish = %s", after.String())
 	}
 	for _, thread := range afterPayload.Threads {
 		if thread.ReviewBatchID != reviewBatchID || thread.Comments[0].ReviewBatchID != reviewBatchID {
 			t.Fatalf("thread missing batch id: %#v", thread)
 		}
-		if len(thread.Comments) != 2 {
-			t.Fatalf("thread did not keep both same-anchor comments: %#v", thread)
+		if len(thread.Comments) != 1 {
+			t.Fatalf("published draft should be its own thread: %#v", thread)
 		}
 	}
 
@@ -149,14 +149,14 @@ func TestCommentsCLIShowsPublishedReviewBatchAndHidesDrafts(t *testing.T) {
 		Items   []commentWorkItemOutput `json:"items"`
 	}
 	decodeCLIJSON(t, batchOnly, &batchPayload)
-	if batchPayload.Count != 1 || len(batchPayload.Threads) != 1 || batchPayload.Threads[0].ID != batchedThreadID {
+	if batchPayload.Count != 2 || len(batchPayload.Threads) != 2 || !containsCommentThread(batchPayload.Threads, batchedThreadID) {
 		t.Fatalf("batch-filtered active payload = %s", batchOnly.String())
 	}
-	if len(batchPayload.Items) != 1 || batchPayload.Items[0].Thread.ID != batchedThreadID {
+	if len(batchPayload.Items) != 2 || !containsWorkItemThread(batchPayload.Items, batchedThreadID) {
 		t.Fatalf("batch-filtered active items = %s", batchOnly.String())
 	}
-	if !containsActivity(batchPayload.Items[0].Activities, "thread_read", "batch-filter-read") {
-		t.Fatalf("batch-filtered activities did not include read receipt: %#v", batchPayload.Items[0].Activities)
+	if !containsWorkItemActivity(batchPayload.Items, "thread_read", "batch-filter-read") {
+		t.Fatalf("batch-filtered activities did not include read receipt: %#v", batchPayload.Items)
 	}
 
 	unbatchedActivities := graphqlForCLI(t, server.URL, map[string]any{
@@ -177,7 +177,7 @@ func TestCommentsCLIShowsPublishedReviewBatchAndHidesDrafts(t *testing.T) {
 		Count  int                  `json:"count"`
 	}
 	decodeCLIJSON(t, nextBatch, &nextBatchPayload)
-	if nextBatchPayload.Count != 1 || nextBatchPayload.Thread == nil || nextBatchPayload.Thread.ID != batchedThreadID {
+	if nextBatchPayload.Count != 2 || nextBatchPayload.Thread == nil || !containsCommentThread(afterPayload.Threads, nextBatchPayload.Thread.ID) {
 		t.Fatalf("batch-filtered next payload = %s", nextBatch.String())
 	}
 }
@@ -3709,6 +3709,24 @@ func containsActivity(items []commentActivityOutput, activityType, clientEventID
 			continue
 		}
 		return true
+	}
+	return false
+}
+
+func containsWorkItemThread(items []commentWorkItemOutput, threadID string) bool {
+	for _, item := range items {
+		if item.Thread.ID == threadID {
+			return true
+		}
+	}
+	return false
+}
+
+func containsWorkItemActivity(items []commentWorkItemOutput, activityType, clientEventID string) bool {
+	for _, item := range items {
+		if containsActivity(item.Activities, activityType, clientEventID) {
+			return true
+		}
 	}
 	return false
 }

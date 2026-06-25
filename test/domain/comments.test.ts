@@ -108,6 +108,13 @@ describe("comment thread projection", () => {
         threads.find((thread) => thread.status === "open"),
       ),
     ).toBe("Open comment thread on line 3 with 1 message; open to reply");
+    expect(
+      lineCommentThreadActionLabel(
+        3,
+        threads.find((thread) => thread.status === "open"),
+        { threadCount: 2, messageCount: 2 },
+      ),
+    ).toBe("Open 2 comment threads on line 3 with 2 messages");
   });
 
   it("drops an entire thread when the latest published status is archived", () => {

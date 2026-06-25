@@ -89,6 +89,7 @@
       ],
       "interactionStories": [
         "Viewers/Code/CodeViewer/SourceWithOpenThread",
+        "Viewers/Code/CodeViewer/SourceWithStackedLineThreads",
         "Viewers/Markdown/MarkdownViewer/RenderedBlockClickDraft",
         "Viewers/Markdown/MarkdownViewer/RenderedListDraftFormsDoNotBridge",
         "Viewers/Markdown/MarkdownViewer/RenderedMarkerPlacement",

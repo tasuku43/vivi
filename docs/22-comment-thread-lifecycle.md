@@ -142,6 +142,9 @@ safer than updating each message independently.
 `publishDraftReviewComments` returns a `PublishedReviewBatch` with one
 `reviewBatchId`. Every resulting open thread and first comment carries that id,
 allowing coding agents to group all threads from the same human publish action.
+Each draft without `threadId` becomes its own open thread, including multiple
+drafts on the same line or rendered block. Only drafts that carry an explicit
+open `threadId` publish as replies to an existing thread.
 
 The CLI wrapper for that workflow is:
 

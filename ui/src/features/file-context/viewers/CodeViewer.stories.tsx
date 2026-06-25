@@ -151,6 +151,75 @@ export const SourceIgnoresDiffThreadOnSameLine: Story = {
   },
 };
 
+export const SourceWithStackedLineThreads: Story = {
+  tags: ["interaction"],
+  args: {
+    selectedRange: null,
+    comments: [
+      {
+        ...sampleComments[0]!,
+        id: "comment-source-stack-1",
+        threadId: "thread-source-stack-1",
+        anchor: {
+          surface: "source",
+          canonical: {
+            path: sampleFiles.code.path,
+            lineStart: 10,
+            lineEnd: 10,
+            quote:
+              "return client.publishDraftReviewComments({ actor: humanTasuku });",
+            fileHash: sampleFiles.code.etag,
+          },
+        },
+        body: "First independent same-line review item.",
+      },
+      {
+        ...sampleComments[1]!,
+        id: "comment-source-stack-2",
+        threadId: "thread-source-stack-2",
+        anchor: {
+          surface: "source",
+          canonical: {
+            path: sampleFiles.code.path,
+            lineStart: 10,
+            lineEnd: 10,
+            quote:
+              "return client.publishDraftReviewComments({ actor: humanTasuku });",
+            fileHash: sampleFiles.code.etag,
+          },
+        },
+        body: "Second independent same-line review item.",
+        createdAt: "2026-06-20T09:16:00.000Z",
+        updatedAt: "2026-06-20T09:16:00.000Z",
+      },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const lineAction = canvasElement.querySelector<HTMLButtonElement>(
+      `[data-testid="line-comment-action"][data-comment-surface="source"][data-line="10"][data-path="${sampleFiles.code.path}"]`,
+    );
+    expect(lineAction).toBeInTheDocument();
+    await expect(lineAction).toHaveAttribute(
+      "aria-label",
+      "Open 2 comment threads on line 10 with 2 messages",
+    );
+    await expect(lineAction).toHaveTextContent("2");
+    await userEvent.click(lineAction!);
+    await expect(
+      canvas.getAllByRole("article", {
+        name: "Comment thread for line 10",
+      }),
+    ).toHaveLength(2);
+    await expect(
+      canvas.getByText("First independent same-line review item."),
+    ).toBeVisible();
+    await expect(
+      canvas.getByText("Second independent same-line review item."),
+    ).toBeVisible();
+  },
+};
+
 export const DiffMode: Story = {
   args: {
     diffEnabled: true,

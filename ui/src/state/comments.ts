@@ -250,8 +250,14 @@ export function preferredCodeCommentThread(
 export function lineCommentThreadActionLabel(
   lineNumber: number,
   thread?: CodeCommentThread,
+  stack?: { threadCount: number; messageCount: number },
 ): string {
   if (!thread) return `Add comment on line ${lineNumber}`;
+  if (stack && stack.threadCount > 1) {
+    const threadLabel = stack.threadCount === 1 ? "thread" : "threads";
+    const messageLabel = stack.messageCount === 1 ? "message" : "messages";
+    return `Open ${stack.threadCount} comment ${threadLabel} on line ${lineNumber} with ${stack.messageCount} ${messageLabel}`;
+  }
   const count = thread.comments.length;
   const messageLabel = count === 1 ? "message" : "messages";
   if (thread.status === "open") {

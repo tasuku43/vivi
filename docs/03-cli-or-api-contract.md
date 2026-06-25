@@ -1553,8 +1553,11 @@ for the UI. `createDraftReviewComment`, `updateDraftReviewComment`, and
 `deleteDraftReviewComment` manage that draft set. `publishDraftReviewComments`
 converts all drafts, or the supplied `draftIds`, into `open` `CommentThread`
 objects in one review batch and returns `{ reviewBatchId, publishedAt,
-threads }`. Before publish, drafts are intentionally absent from `comments`,
-`commentThreads(status: open)`, and the agent comments CLI.
+threads }`. A draft with no `threadId` becomes a new review thread even when
+another draft uses the same anchor; a draft with an explicit `threadId` is
+published as a reply to that open thread. Before publish, drafts are
+intentionally absent from `comments`, `commentThreads(status: open)`, and the
+agent comments CLI.
 
 `commentExport` exposes the comment export data path through GraphQL. The
 current supported format is `jsonl`, returned as `CommentExport.content` with
