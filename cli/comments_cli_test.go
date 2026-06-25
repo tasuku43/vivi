@@ -1548,6 +1548,21 @@ func TestCommentsCLIClassifiesServerUnreachableForAgentRecovery(t *testing.T) {
 	if len(envelope.Error.SuggestedCommands) != 3 || envelope.Error.SuggestedCommands[0].Command != "comments protocol" || !containsString(envelope.Error.SuggestedCommands[0].Args, receiptLog) || envelope.Error.SuggestedCommands[1].Command != "vivi" || envelope.Error.SuggestedCommands[1].Intent != "start_vivi_server" || !containsString(envelope.Error.SuggestedCommands[1].Args, "--ready-json") || !containsString(envelope.Error.SuggestedCommands[1].Args, "--actor") || !containsString(envelope.Error.SuggestedCommands[1].Args, "codex:doctor") || !containsString(envelope.Error.SuggestedCommands[1].Args, "--port") || !containsString(envelope.Error.SuggestedCommands[1].Args, "4317") || envelope.Error.SuggestedCommands[2].Command != "comments doctor" || !containsString(envelope.Error.SuggestedCommands[2].Args, "doctor-start-1") || !containsString(envelope.Error.SuggestedCommands[2].Args, "http://127.0.0.1:4317") || !containsString(envelope.Error.SuggestedCommands[2].Args, receiptLog) {
 		t.Fatalf("server unreachable suggestions = %#v", envelope.Error.SuggestedCommands)
 	}
+	start := envelope.Error.SuggestedCommands[1]
+	if len(start.Args) == 0 || start.Args[0] == "vivi" || strings.Contains(start.DisplayCommand, "vivi vivi") {
+		t.Fatalf("server start suggestion should be executable by prefixing the current vivi executable once: %#v", start)
+	}
+
+	lowPort := newCommentsCommandError([]string{"doctor", "--url", "http://127.0.0.1:9", "--actor", "codex:doctor", "--json"}, err)
+	lowPortPayload, ok := cliErrorPayload(lowPort)
+	if !ok {
+		t.Fatalf("expected low-port structured error, got %T", lowPort)
+	}
+	lowPortEnvelope := lowPortPayload.(commentsErrorEnvelope)
+	lowPortStart := lowPortEnvelope.Error.SuggestedCommands[1]
+	if lowPortStart.Command != "vivi" || !containsString(lowPortStart.Args, "--port") || !containsString(lowPortStart.Args, "0") || containsString(lowPortStart.Args, "9") || strings.Contains(lowPortStart.DisplayCommand, "vivi vivi") {
+		t.Fatalf("low-port start suggestion should use a random port and avoid duplicate executables: %#v", lowPortStart)
+	}
 }
 
 func TestCommentsCLIShowMissingThreadIDSuggestsPathDiscovery(t *testing.T) {

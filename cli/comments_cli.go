@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -223,7 +224,7 @@ func suggestedCommandsForCommentsError(command string, args []string, code strin
 		doctorArgs = append(doctorArgs, "--json")
 		return []commentSuggestedCommand{
 			suggestedCommentsCommand("load_protocol_offline", "comments protocol", withReceiptLogArg([]string{"comments", "protocol", "--json"}, receiptLog), "", "Load the server-independent agent protocol while waiting for Vivi to start."),
-			suggestedCommentsCommand("start_vivi_server", "vivi", suggestedViviServerStartArgs(actorID, serverURL), "", "Start a local Vivi server for the current directory; replace the root argument if the review target is a different workspace."),
+			suggestedCommentsCommand("start_vivi_server", "vivi", suggestedViviServerStartArgs(actorID, serverURL), "", "Start a local Vivi server for the current directory; replace the root argument if the review target is a different workspace, then use the emitted ready JSON URL."),
 			suggestedCommentsCommand("retry_server_readiness", "comments doctor", withRuntimeArgs(doctorArgs, serverURL, receiptLog), "", "After starting Vivi or correcting --url/VIVI_URL, retry the online readiness check."),
 		}
 	}
@@ -303,7 +304,7 @@ func suggestedViviServerStartArgs(actorID string, serverURL string) []string {
 		root = cwd
 	}
 	host, port := suggestedViviServerBind(serverURL)
-	args := []string{"vivi", root, "--host", host, "--port", port, "--ready-json"}
+	args := []string{root, "--host", host, "--port", port, "--ready-json"}
 	if actorID = strings.TrimSpace(actorID); actorID != "" {
 		args = append(args, "--actor", actorID)
 	}
@@ -326,6 +327,9 @@ func suggestedViviServerBind(serverURL string) (string, string) {
 	port := parsed.Port()
 	if port == "" {
 		port = "4317"
+	}
+	if numericPort, err := strconv.Atoi(port); err == nil && numericPort > 0 && numericPort < 1024 {
+		port = "0"
 	}
 	return host, port
 }
