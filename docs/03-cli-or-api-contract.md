@@ -465,6 +465,10 @@ currently claimed by other actors. Empty-queue idle events suggest the
 resident `comments work --wait --loop --idle-events` command, while
 claim-release waits suggest keeping that primary work loop open and using
 `comments inbox` only for diagnostic routing.
+Adapters that want a readiness signal without repeated identical idle
+heartbeats can add `--idle-on-change`; the stream still emits the first
+waiting idle event, then suppresses further idle events until the idle cursor
+changes or claimable work appears.
 When a later activity batch contains `thread_status_changed` to `resolved` or
 `archived`, `work` emits that batch and exits successfully, giving adapters a
 natural stop signal after `done` or `dismiss`.
@@ -915,7 +919,9 @@ harnesses. This lets a coding-agent adapter consume one NDJSON stream for the
 whole GUI feedback queue instead of supervising an outer shell loop around
 `work --wait`. Add `--idle-events` to make the resident loop observable while
 it is between claims; each idle event has the same `sessionId`/`sequence`
-metadata as claimed and activity events.
+metadata as claimed and activity events. Add `--idle-on-change` when the
+adapter wants only the first waiting idle event and later idle events whose
+cursor changed.
 
 `renew <thread-id>` is the explicit heartbeat command for long-running agent
 work. It appends another `thread_claimed` activity for the same actor and

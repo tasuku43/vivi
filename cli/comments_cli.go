@@ -28,45 +28,46 @@ const (
 )
 
 type commentsCommandOptions struct {
-	URL            string
-	JSON           bool
-	Path           string
-	Status         string
-	ReviewBatchID  string
-	ActorID        string
-	ActorKind      string
-	ActorName      string
-	ClientEventID  string
-	Body           string
-	BodyFile       string
-	TriageFile     string
-	ResultFile     string
-	ReceiptFile    string
-	ReceiptLog     string
-	Result         *commentResultOutput
-	TriageDecision string
-	TriageSummary  string
-	TriageNext     string
-	Full           bool
-	WithContext    bool
-	WithDiff       bool
-	WithActivities bool
-	ActivityLimit  int
-	CommentLimit   int
-	RequireClaim   bool
-	WaitForWork    bool
-	DiffBase       string
-	ContextLines   int
-	WatchInterval  time.Duration
-	WatchInitial   bool
-	WatchOnce      bool
-	WorkIdleEvents bool
-	WorkLoop       bool
-	WatchMaxEvents int
-	ResumeCursor   string
-	LeaseDuration  time.Duration
-	RenewInterval  time.Duration
-	SchemaSummary  bool
+	URL              string
+	JSON             bool
+	Path             string
+	Status           string
+	ReviewBatchID    string
+	ActorID          string
+	ActorKind        string
+	ActorName        string
+	ClientEventID    string
+	Body             string
+	BodyFile         string
+	TriageFile       string
+	ResultFile       string
+	ReceiptFile      string
+	ReceiptLog       string
+	Result           *commentResultOutput
+	TriageDecision   string
+	TriageSummary    string
+	TriageNext       string
+	Full             bool
+	WithContext      bool
+	WithDiff         bool
+	WithActivities   bool
+	ActivityLimit    int
+	CommentLimit     int
+	RequireClaim     bool
+	WaitForWork      bool
+	DiffBase         string
+	ContextLines     int
+	WatchInterval    time.Duration
+	WatchInitial     bool
+	WatchOnce        bool
+	WorkIdleEvents   bool
+	WorkIdleOnChange bool
+	WorkLoop         bool
+	WatchMaxEvents   int
+	ResumeCursor     string
+	LeaseDuration    time.Duration
+	RenewInterval    time.Duration
+	SchemaSummary    bool
 }
 
 type graphqlRequest struct {
@@ -827,6 +828,7 @@ func parseCommentsFlags(command string, args []string) (commentsCommandOptions, 
 	flags.BoolVar(&suppressInitial, "no-initial", false, "suppress current open worklist on startup")
 	flags.BoolVar(&options.WatchOnce, "once", false, "poll once and exit")
 	flags.BoolVar(&options.WorkIdleEvents, "idle-events", false, "emit comment_work_idle events while comments work is waiting")
+	flags.BoolVar(&options.WorkIdleOnChange, "idle-on-change", false, "with --idle-events, emit waiting idle events only when the idle cursor changes")
 	flags.BoolVar(&options.WorkLoop, "loop", false, "keep comments work running after terminal status and claim the next item")
 	flags.IntVar(&options.WatchMaxEvents, "max-events", 0, "stop after emitting this many watch events")
 	flags.DurationVar(&options.LeaseDuration, "lease", options.LeaseDuration, "claim lease duration")
@@ -3758,6 +3760,7 @@ func commentsWork(ctx context.Context, stdout io.Writer, options commentsCommand
 	encoder.SetEscapeHTML(false)
 	sessionID := newCommentsStreamSessionID(options, "work")
 	emitted := 0
+	lastIdleCursor := ""
 	for {
 		payload, claimed, err := commentClaimPayload(ctx, options, threadID)
 		if err != nil {
@@ -3775,12 +3778,16 @@ func commentsWork(ctx context.Context, stdout io.Writer, options commentsCommand
 		if !claimed {
 			if (options.WaitForWork || options.WorkLoop) && !options.WatchOnce {
 				if options.WorkIdleEvents {
-					if err := emitCommentsWorkIdleEvent(encoder, payload, sessionID, emitted+1, options.ActorID, options.ActorKind, options.URL, options.ReceiptLog); err != nil {
-						return err
-					}
-					emitted++
-					if reachedWatchMaxEvents(options, emitted) {
-						return nil
+					idleCursor := commentWorkIdleCursor(payload)
+					if !options.WorkIdleOnChange || idleCursor != lastIdleCursor {
+						if err := emitCommentsWorkIdleEvent(encoder, payload, sessionID, emitted+1, options.ActorID, options.ActorKind, options.URL, options.ReceiptLog); err != nil {
+							return err
+						}
+						emitted++
+						lastIdleCursor = idleCursor
+						if reachedWatchMaxEvents(options, emitted) {
+							return nil
+						}
 					}
 				}
 				if err := waitForWatchInterval(ctx, options.WatchInterval); err != nil {
@@ -3836,6 +3843,22 @@ func emitCommentsWorkIdleEvent(encoder *json.Encoder, payload map[string]any, se
 	payload["emittedAt"] = time.Now().UTC().Format(time.RFC3339Nano)
 	payload["summary"] = commentWorkIdleSummary(payload, actorID, actorKind, serverURL, receiptLog)
 	return encoder.Encode(payload)
+}
+
+func commentWorkIdleCursor(payload map[string]any) string {
+	if cursor, ok := payload["cursor"].(string); ok && strings.TrimSpace(cursor) != "" {
+		return cursor
+	}
+	encoded, err := json.Marshal([]any{
+		payload["count"],
+		payload["remaining"],
+		payload["thread"],
+		payload["claim"],
+	})
+	if err != nil {
+		return ""
+	}
+	return string(encoded)
 }
 
 func commentWorkIdleSummary(payload map[string]any, actorID string, actorKind string, serverURL string, receiptLog string) commentOpenWorklistSummary {
@@ -7221,6 +7244,7 @@ func commentsHelpText() string {
 		"  --interval <duration>      Watch, follow, hold, or work polling interval (default 2s)",
 		"  --renew-interval <dur>     Work lease renewal interval (default min(lease/2, 2m))",
 		"  --idle-events              Emit comment_work_idle heartbeat events while comments work is waiting",
+		"  --idle-on-change           With --idle-events, emit waiting idle events only when the idle cursor changes",
 		"  --loop                     Keep comments work running and claim the next item after terminal status",
 		"  --cursor <cursor>          Suppress an already delivered watch/follow snapshot",
 		"  --no-initial               Wait for the next watch/follow change",

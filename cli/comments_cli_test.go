@@ -3181,6 +3181,30 @@ func TestCommentsCLIWorkWaitCanEmitIdleHeartbeat(t *testing.T) {
 	}
 }
 
+func TestCommentsCLIWorkIdleOnChangeSuppressesDuplicateIdleEvents(t *testing.T) {
+	server := newCommentsCLITestServer(t)
+	defer server.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	events, done := startCommentsWorkForTest(t, ctx, "work", "--url", server.URL, "--actor", "codex:idle-change", "--actor-kind", "codex", "--client-event-id", "idle-change-1", "--wait", "--idle-events", "--idle-on-change", "--interval", "10ms", "--max-events", "2", "--json")
+
+	idle := receiveWorkEvent(t, events)
+	if idle.Type != "comment_work_idle" || idle.Sequence != 1 || idle.Count != 0 {
+		t.Fatalf("initial idle event = %#v", idle)
+	}
+	expectNoWorkEvent(t, events, 35*time.Millisecond)
+
+	threadID := createCommentThreadForCLIWithBody(t, server.URL, "README.md", "Claim this once it appears")
+	claimed := receiveWorkEvent(t, events)
+	if claimed.Type != "comment_work_claimed" || claimed.Sequence != 2 || claimed.Thread.ID != threadID || claimed.Claim.ID == "" {
+		t.Fatalf("claimed event after suppressed duplicate idle = %#v", claimed)
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("work returned error: %v", err)
+	}
+}
+
 func TestCommentsCLIWorkStopsAfterTerminalStatus(t *testing.T) {
 	server := newCommentsCLITestServer(t)
 	defer server.Close()
@@ -3593,6 +3617,15 @@ func receiveWorkEvent(t *testing.T, events <-chan commentWorkStreamEvent) commen
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for work event")
 		return commentWorkStreamEvent{}
+	}
+}
+
+func expectNoWorkEvent(t *testing.T, events <-chan commentWorkStreamEvent, duration time.Duration) {
+	t.Helper()
+	select {
+	case event := <-events:
+		t.Fatalf("unexpected work event: %#v", event)
+	case <-time.After(duration):
 	}
 }
 
