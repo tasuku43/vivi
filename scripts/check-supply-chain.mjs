@@ -69,6 +69,62 @@ for (const section of ["dependencies", "devDependencies"]) {
   }
 }
 
+const packageLock = JSON.parse(
+  readFileSync(path.join(root, "package-lock.json"), "utf8"),
+);
+for (const [lockPath, meta] of Object.entries(packageLock.packages ?? {})) {
+  const name = packageNameFromLockPath(lockPath);
+  if (!name || !meta || typeof meta !== "object") continue;
+  const version = meta.version;
+  if (typeof version !== "string") continue;
+  if (name === "js-yaml" && compareVersions(version, "4.2.0") < 0) {
+    errors.push(
+      `package-lock.json: ${lockPath} uses vulnerable js-yaml ${version}; require >=4.2.0`,
+    );
+  }
+  if (name === "uuid" && vulnerableUuidVersion(version)) {
+    errors.push(
+      `package-lock.json: ${lockPath} uses vulnerable uuid ${version}; require a patched release`,
+    );
+  }
+}
+
+function packageNameFromLockPath(lockPath) {
+  const marker = "node_modules/";
+  const index = lockPath.lastIndexOf(marker);
+  if (index === -1) return null;
+  const parts = lockPath.slice(index + marker.length).split("/");
+  return parts[0]?.startsWith("@") ? parts.slice(0, 2).join("/") : parts[0];
+}
+
+function vulnerableUuidVersion(version) {
+  return (
+    compareVersions(version, "11.1.1") < 0 ||
+    (compareVersions(version, "12.0.0") >= 0 &&
+      compareVersions(version, "12.0.1") < 0) ||
+    (compareVersions(version, "13.0.0") >= 0 &&
+      compareVersions(version, "13.0.1") < 0)
+  );
+}
+
+function compareVersions(left, right) {
+  const leftParts = parseVersion(left);
+  const rightParts = parseVersion(right);
+  for (let index = 0; index < 3; index += 1) {
+    const delta = leftParts[index] - rightParts[index];
+    if (delta !== 0) return delta;
+  }
+  return 0;
+}
+
+function parseVersion(version) {
+  return version
+    .split("-", 1)[0]
+    .split(".")
+    .slice(0, 3)
+    .map((part) => Number.parseInt(part, 10) || 0);
+}
+
 if (errors.length) {
   console.error(errors.join("\n"));
   process.exitCode = 1;

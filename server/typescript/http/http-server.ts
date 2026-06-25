@@ -965,20 +965,7 @@ async function serveSpa(
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
-
-  // codeql[js/stack-trace-exposure]
-  res.end(JSON.stringify(publicJsonBody(body)));
-}
-
-function publicJsonBody(body: unknown): unknown {
-  if (body instanceof Error) {
-    return {
-      error: "internal server error",
-      reason: "An internal error occurred.",
-      status: "internal_error",
-    };
-  }
-  return body;
+  res.end(JSON.stringify(body));
 }
 
 async function readJson(req: IncomingMessage): Promise<unknown> {

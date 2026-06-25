@@ -17,6 +17,7 @@ async function fixture(): Promise<string> {
   fixtures.push(dir);
   await cp(".github", path.join(dir, ".github"), { recursive: true });
   await cp("package.json", path.join(dir, "package.json"));
+  await cp("package-lock.json", path.join(dir, "package-lock.json"));
   return dir;
 }
 
@@ -71,4 +72,28 @@ it("rejects an unapproved third-party action even when pinned", async () => {
   const result = check(dir);
   expect(result.status).toBe(1);
   expect(result.stderr).toContain("third-party action is not approved");
+});
+
+it("rejects vulnerable transitive packages in the npm lockfile", async () => {
+  const dir = await fixture();
+  await writeFile(
+    path.join(dir, "package-lock.json"),
+    JSON.stringify(
+      {
+        name: "vivi",
+        lockfileVersion: 3,
+        packages: {
+          "node_modules/js-yaml": { version: "4.1.1" },
+          "node_modules/uuid": { version: "8.3.2" },
+        },
+      },
+      null,
+      2,
+    ),
+  );
+
+  const result = check(dir);
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain("vulnerable js-yaml 4.1.1");
+  expect(result.stderr).toContain("vulnerable uuid 8.3.2");
 });
