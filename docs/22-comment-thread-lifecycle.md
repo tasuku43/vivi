@@ -182,6 +182,7 @@ vivi comments triage <thread-id> --triage-file /tmp/vivi-triage.json --actor cod
 vivi comments schema commentTriageFileInput --json
 vivi comments schema commentResultFileInput --json
 vivi comments schema commentInboxOutput --json
+vivi comments schema commentInboxOutput --summary --json
 vivi comments schema commentBatchOutput --json
 vivi comments schema commentSuggestedCommand --json
 vivi comments schema commentWriteReceipt --json
@@ -191,6 +192,7 @@ vivi comments schema commentActivityBatchEvent --json
 vivi comments schema commentWorkClaimedEvent --json
 vivi comments schema commentWorkIdleEvent --json
 vivi comments schema commentOpenWorklistEvent --json
+vivi comments schema commentOpenWorklistEvent --summary --json
 vivi comments done <thread-id> --body "Implemented in this branch" --actor codex --json
 vivi comments done <thread-id> --body-file /tmp/vivi-reply.md --actor codex --json
 vivi comments done <thread-id> --result-file - --actor codex --json

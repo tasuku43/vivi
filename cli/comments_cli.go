@@ -1398,6 +1398,9 @@ func commentSchemaSummaryKeepsPath(path string) bool {
 	if strings.Contains(path, "suggestedCommands[]") {
 		return commentSchemaPathDepth(path) <= 4
 	}
+	if commentSchemaSummaryKeepsWorkItemBriefPath(path) {
+		return true
+	}
 	if strings.Contains(path, ".threads[]") {
 		if !strings.HasPrefix(path, "unclaimed.threads[]") {
 			return false
@@ -1413,6 +1416,20 @@ func commentSchemaSummaryKeepsPath(path string) bool {
 		}
 	}
 	return false
+}
+
+func commentSchemaSummaryKeepsWorkItemBriefPath(path string) bool {
+	if !strings.Contains(path, "items[].brief.") {
+		return false
+	}
+	switch {
+	case strings.HasSuffix(path, "items[].brief.recommendedAction"),
+		strings.HasSuffix(path, "items[].brief.sourceState"),
+		strings.HasSuffix(path, "items[].brief.suggestedCommandIntents"):
+		return true
+	default:
+		return false
+	}
 }
 
 func commentSchemaPathDepth(path string) int {

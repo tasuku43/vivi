@@ -2250,9 +2250,31 @@ func TestCommentsCLISchemaSurfacesStructuredStdinContracts(t *testing.T) {
 		"unclaimed.threads[].id",
 		"unclaimed.threads[].path",
 		"unclaimed.threads[].comments[].body",
+		"sourceUnavailable.items[].brief.recommendedAction",
+		"sourceUnavailable.items[].brief.sourceState",
+		"sourceUnavailable.items[].brief.suggestedCommandIntents",
 	} {
 		if !summaryPaths[path] {
 			t.Fatalf("inbox schema summary missing path %q in %#v", path, inboxSummaryPayload.Fields)
+		}
+	}
+
+	openWorklistSummaryBuffer := runCommentsCLIForTest(t, "schema", "commentOpenWorklistEvent", "--summary", "--json")
+	if openWorklistSummaryBuffer.Len() >= 8_000 {
+		t.Fatalf("open worklist schema summary should stay compact, got %d bytes", openWorklistSummaryBuffer.Len())
+	}
+	var openWorklistSummaryPayload commentSchemaSummaryOutput
+	decodeCLIJSON(t, openWorklistSummaryBuffer, &openWorklistSummaryPayload)
+	openWorklistSummaryPaths := commentSchemaSummaryPaths(openWorklistSummaryPayload.Fields)
+	for _, path := range []string{
+		"summary.recommendedAction",
+		"summary.suggestedCommands[].displayCommand",
+		"items[].brief.recommendedAction",
+		"items[].brief.sourceState",
+		"items[].brief.suggestedCommandIntents",
+	} {
+		if !openWorklistSummaryPaths[path] {
+			t.Fatalf("open worklist schema summary missing path %q in %#v", path, openWorklistSummaryPayload.Fields)
 		}
 	}
 

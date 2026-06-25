@@ -799,7 +799,11 @@ field map before deciding whether to fetch the full JSON Schema. Summary output
 includes the schema metadata, accepted commands, required top-level fields, the
 full-schema command, and selected JSON paths such as
 `summary.recommendedAction`, `summary.suggestedCommands[].displayCommand`, and
-`unclaimed.threads[].comments[].body`; it is intentionally not a validator.
+`unclaimed.threads[].comments[].body`; rich worklist summaries also keep
+`items[].brief.recommendedAction`, `items[].brief.sourceState`, and
+`items[].brief.suggestedCommandIntents` so monitor agents can discover
+per-item handoff signals without fetching the full schema first. The compact
+summary is intentionally not a validator.
 `commentProtocolManifest` validates the startup manifest itself, and
 `commentDoctorOutput` validates the online startup readiness check. For
 suggested stdin payloads, adapters can run the exact `stdinSchemaCommand` from the
