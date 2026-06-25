@@ -147,23 +147,13 @@ export function commentAnchorThreadKey(
 
 export function draftReviewCommentAsViviComment(
   draft: DraftReviewComment,
-  publishedComments: ViviComment[],
+  _publishedComments?: ViviComment[],
 ): ThreadComment {
-  const matchingPublishedThread = publishedComments.find(
-    (comment) =>
-      comment.path === draft.path &&
-      commentAnchorThreadKey(comment.path, comment.anchor) ===
-        commentAnchorThreadKey(draft.path, draft.anchor),
-  );
   return {
     id: `draft:${draft.id}`,
     draftId: draft.id,
     draft: true,
-    threadId:
-      draft.threadId ??
-      matchingPublishedThread?.threadId ??
-      matchingPublishedThread?.id ??
-      `draft-thread:${commentAnchorThreadKey(draft.path, draft.anchor)}`,
+    threadId: draft.threadId ?? draftReviewThreadKey(draft),
     path: draft.path,
     viewerKind: draft.viewerKind,
     anchor: draft.anchor,
@@ -175,6 +165,10 @@ export function draftReviewCommentAsViviComment(
     createdAt: draft.createdAt,
     updatedAt: draft.updatedAt,
   };
+}
+
+export function draftReviewThreadKey(draft: DraftReviewComment): string {
+  return `draft-thread:${draft.id}:${commentAnchorThreadKey(draft.path, draft.anchor)}`;
 }
 
 export function codeCommentThreads(

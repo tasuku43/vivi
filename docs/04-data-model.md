@@ -123,11 +123,14 @@ interface ViviComment {
 ```
 
 Draft review comments use the same path, body, actor, and anchor shape without
-`status`, `threadId`, or lifecycle timestamps:
+`status` or lifecycle timestamps. `threadId` is optional: drafts without it
+publish as new review threads, while drafts with it publish as replies to the
+referenced open thread.
 
 ```ts
 interface DraftReviewComment {
   id: string;
+  threadId?: string;
   path: string;
   viewerKind: string;
   anchor: ViviComment["anchor"];

@@ -220,6 +220,80 @@ export const SourceWithStackedLineThreads: Story = {
   },
 };
 
+export const SourceDraftOnExistingLineStaysSeparate: Story = {
+  tags: ["interaction"],
+  args: {
+    selectedRange: null,
+    comments: [
+      {
+        ...sampleComments[0]!,
+        id: "comment-source-existing-10",
+        threadId: "thread-source-existing-10",
+        anchor: {
+          surface: "source",
+          canonical: {
+            path: sampleFiles.code.path,
+            lineStart: 10,
+            lineEnd: 10,
+            quote:
+              "return client.publishDraftReviewComments({ actor: humanTasuku });",
+            fileHash: sampleFiles.code.etag,
+          },
+        },
+        body: "Published review item on this source line.",
+      },
+      draftReviewCommentAsViviComment(
+        {
+          ...sampleDraftComments[0]!,
+          id: "draft-source-existing-10",
+          path: sampleFiles.code.path,
+          viewerKind: "text",
+          anchor: {
+            surface: "source",
+            canonical: {
+              path: sampleFiles.code.path,
+              lineStart: 10,
+              lineEnd: 10,
+              quote:
+                "return client.publishDraftReviewComments({ actor: humanTasuku });",
+              fileHash: sampleFiles.code.etag,
+            },
+          },
+          body: "Private draft should become its own review thread on publish.",
+        },
+      ),
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const lineAction = canvasElement.querySelector<HTMLButtonElement>(
+      `[data-testid="line-comment-action"][data-comment-surface="source"][data-line="10"][data-path="${sampleFiles.code.path}"]`,
+    );
+    expect(lineAction).toBeInTheDocument();
+    await expect(lineAction).toHaveAttribute(
+      "aria-label",
+      "Open 2 comment threads on line 10 with 2 messages",
+    );
+
+    await userEvent.click(lineAction!);
+
+    await expect(
+      canvas.getAllByRole("article", {
+        name: "Comment thread for line 10",
+      }),
+    ).toHaveLength(2);
+    await expect(
+      canvas.getByText("Published review item on this source line."),
+    ).toBeVisible();
+    await expect(
+      canvas.getByText(
+        "Private draft should become its own review thread on publish.",
+      ),
+    ).toBeVisible();
+    expect(canvas.getAllByText("Draft").length).toBeGreaterThan(0);
+  },
+};
+
 export const DiffMode: Story = {
   args: {
     diffEnabled: true,
@@ -401,7 +475,6 @@ function SavedInlineDraftHarness(args: ComponentProps<typeof CodeViewer>) {
               body,
               updatedAt: "2026-06-23T10:10:00.000Z",
             },
-            [],
           ),
         ]);
       }}

@@ -168,10 +168,7 @@ export const UserWritesOneDraftComment: Story = {
       lineEnd: 6,
       status: "open",
       comments: [
-        draftReviewCommentAsViviComment(
-          sampleDraftComments[0]!,
-          sampleComments,
-        ),
+        draftReviewCommentAsViviComment(sampleDraftComments[0]!),
       ],
     },
     draft: {
@@ -192,7 +189,7 @@ export const UserWritesMultipleDraftComments: Story = {
       status: "open",
       comments: sampleDraftComments
         .filter((draft) => draft.path === sampleFiles.code.path)
-        .map((draft) => draftReviewCommentAsViviComment(draft, sampleComments)),
+        .map((draft) => draftReviewCommentAsViviComment(draft)),
     },
     draft: {
       path: sampleFiles.code.path,

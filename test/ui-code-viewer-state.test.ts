@@ -249,7 +249,7 @@ it("uses the latest published update as inline thread status", () => {
   ]);
 });
 
-it("groups multiple same-anchor draft review comments into one draft thread", () => {
+it("keeps same-anchor draft review comments as separate draft threads", () => {
   const anchor = {
     surface: "source" as const,
     canonical: { path: "src/app.ts", lineStart: 2, lineEnd: 2 },
@@ -283,12 +283,16 @@ it("groups multiple same-anchor draft review comments into one draft thread", ()
     ),
   ]);
 
-  expect(threads).toHaveLength(1);
-  expect(threads[0]?.comments.map((comment) => comment.body)).toEqual([
+  expect(threads).toHaveLength(2);
+  expect(threads.map((thread) => thread.comments[0]?.body).sort()).toEqual([
     "First draft",
     "Second draft",
   ]);
-  expect(threads[0]?.comments.every((comment) => comment.draft)).toBe(true);
+  expect(
+    threads.every(
+      (thread) => thread.comments.length === 1 && thread.comments[0]?.draft,
+    ),
+  ).toBe(true);
 });
 
 it("records and summarizes recent review events by file path", () => {

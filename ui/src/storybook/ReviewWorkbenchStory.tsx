@@ -248,7 +248,6 @@ export function ReviewWorkbenchStory({
   const viewerComments = combinePublishedAndDraftComments(
     activeComments,
     activeDrafts,
-    visibleComments,
   );
   const outline =
     storyFile?.viewerKind === "markdown"
@@ -612,12 +611,9 @@ export function ReviewWorkbenchStory({
 function combinePublishedAndDraftComments(
   comments: ViviComment[],
   drafts: DraftReviewComment[],
-  allComments: ViviComment[],
 ): ViviComment[] {
   return [
     ...comments,
-    ...drafts.map((draft) =>
-      draftReviewCommentAsViviComment(draft, allComments),
-    ),
+    ...drafts.map((draft) => draftReviewCommentAsViviComment(draft)),
   ].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }

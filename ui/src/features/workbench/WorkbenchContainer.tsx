@@ -2936,7 +2936,7 @@ function combinePublishedAndDraftComments(
     : comments;
   const draftMessages = (
     path ? drafts.filter((draft) => draft.path === path) : drafts
-  ).map((draft) => draftReviewCommentAsViviComment(draft, comments));
+  ).map((draft) => draftReviewCommentAsViviComment(draft));
   return visibleThreadComments([...published, ...draftMessages]).sort((a, b) =>
     a.createdAt.localeCompare(b.createdAt),
   );
