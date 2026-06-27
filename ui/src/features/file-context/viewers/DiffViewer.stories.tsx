@@ -52,7 +52,7 @@ export const DiffCommentOnAddedLine: Story = {
       24,
     );
     const marker = canvas.getByRole("button", {
-      name: "Open comment thread on line 10 with 1 message; open to reply",
+      name: "Open comment thread on line 10 with 1 message; choose new thread or reply",
     });
     await expect(marker).toBeInTheDocument();
     await userEvent.click(marker);
@@ -82,7 +82,7 @@ export const ActiveDiffCommentStaysInline: Story = {
     ).toBeVisible();
     await expect(args.onOpenComment).not.toHaveBeenCalled();
     const marker = canvas.getByRole("button", {
-      name: "Open comment thread on line 10 with 1 message; open to reply",
+      name: "Open comment thread on line 10 with 1 message; choose new thread or reply",
     });
     await userEvent.click(marker);
     await expect(
@@ -108,7 +108,7 @@ export const DiffStartsSeparateDraftOnExistingLine: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(
       canvas.getByRole("button", {
-        name: "Open comment thread on line 10 with 1 message; open to reply",
+        name: "Open comment thread on line 10 with 1 message; choose new thread or reply",
       }),
     );
 
@@ -126,7 +126,16 @@ export const DiffStartsSeparateDraftOnExistingLine: Story = {
         "Existing diff thread should stay separate from the next note.",
       ),
     ).toBeVisible();
-    await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
+    const separateComposer = canvas
+      .getAllByLabelText("New line comment")
+      .find(
+        (composer) =>
+          !composer
+            .getAttribute("aria-describedby")
+            ?.includes("mode-thread-"),
+      );
+    expect(separateComposer).toBeDefined();
+    await expect(separateComposer!).toHaveFocus();
   },
 };
 
@@ -189,7 +198,7 @@ export const ResolvedDiffThreadMarker: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     const marker = canvas.getByRole("button", {
-      name: "Open resolved comment thread on line 10 with 2 messages; reopen to reply",
+      name: "Open resolved comment thread on line 10 with 2 messages; choose new thread or reopen",
     });
     await expect(marker).toBeInTheDocument();
     await userEvent.click(marker);

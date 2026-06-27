@@ -29,6 +29,7 @@ modal  : Cmd/Ctrl + K command palette
 - `04-split-workbench.html`: source/rendered split-view exploration.
 - `05-command-focus.html`: command palette and keyboard-heavy workflow exploration.
 - `06-classic-reader-commandk.html`: preferred integrated direction.
+- `19-right-inspector-concepts.html`: right inspector review-state concepts with A/B/C mode comparison and hidden-history treatment.
 
 ## Implementation guidance
 
