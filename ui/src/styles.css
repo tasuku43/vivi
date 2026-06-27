@@ -1419,6 +1419,11 @@ body.resizing-workbench-pane {
   color: var(--text);
   line-height: 1.78;
 }
+.markdown.markdown-document {
+  width: auto;
+  max-width: min(1120px, calc(100% - 48px));
+  overflow-wrap: break-word;
+}
 .markdown > :first-child {
   margin-top: 0;
 }
@@ -1461,6 +1466,7 @@ body.resizing-workbench-pane {
 .markdown li {
   color: var(--text);
   font-size: 16px;
+  overflow-wrap: break-word;
 }
 .markdown p {
   margin: 14px 0;
@@ -1681,6 +1687,7 @@ body.resizing-workbench-pane {
 }
 .markdown-table-wrap {
   margin: 24px 0;
+  max-width: 100%;
   overflow-x: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1688,7 +1695,7 @@ body.resizing-workbench-pane {
 }
 .markdown table {
   width: 100%;
-  min-width: 520px;
+  min-width: min(100%, 520px);
   border-collapse: collapse;
   font-size: 14px;
 }
@@ -1709,6 +1716,7 @@ body.resizing-workbench-pane {
 .markdown td {
   color: var(--text);
   line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 .markdown tr:last-child td {
   border-bottom: 0;
@@ -2450,6 +2458,14 @@ body.resizing-workbench-pane {
   margin: 6px 0 0;
   padding-left: 18px;
 }
+.comment-activity-timeline li {
+  display: grid;
+  gap: 2px;
+}
+.comment-activity-timeline small {
+  color: var(--subtle);
+  font-size: 10px;
+}
 .code-comment-thread-messages {
   max-height: 280px;
   overflow-y: auto;
@@ -2513,6 +2529,41 @@ body.resizing-workbench-pane {
   border-radius: 999px;
   background: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-faint);
+}
+.code-comment-intent-toggle {
+  display: inline-flex;
+  gap: 2px;
+  margin: 0 0 7px;
+  border: 1px solid var(--soft-line);
+  border-radius: 7px;
+  background: var(--panel);
+  padding: 2px;
+}
+.code-comment-intent-toggle button {
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 680;
+  padding: 4px 8px;
+}
+.code-comment-intent-toggle button.active {
+  background: var(--comment-tint);
+  color: var(--comment-text);
+}
+.code-comment-intent-toggle button:hover,
+.code-comment-intent-toggle button:focus-visible {
+  outline: none;
+  background: var(--soft-line);
+  color: var(--text);
+}
+.code-comment-intent-toggle button.active:hover,
+.code-comment-intent-toggle button.active:focus-visible {
+  background: var(--comment-tint-active);
+  color: var(--comment-text);
 }
 .code-comment-thread-reply textarea {
   display: block;

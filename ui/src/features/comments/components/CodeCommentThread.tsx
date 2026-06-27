@@ -3,12 +3,17 @@ import type { CommentStatus } from "../../../domain/comments.js";
 import type { CommentActivitySummary } from "../../../state/comment-activity.js";
 import { activityLabel } from "../../../state/comment-activity.js";
 import type {
+  CommentComposerIntent,
   CodeCommentThread as CodeCommentThreadModel,
   CommentCreateHandler,
   CommentDraft,
   CommentStatusChangeHandler,
 } from "../../../state/comments.js";
-import { isDraftThreadComment, statusLabel } from "../../../state/comments.js";
+import {
+  draftForCommentComposerIntent,
+  isDraftThreadComment,
+  statusLabel,
+} from "../../../state/comments.js";
 
 export function CodeCommentThread({
   thread,
@@ -32,6 +37,8 @@ export function CodeCommentThread({
   activeCommentId?: string | null;
 }) {
   const [body, setBody] = useState("");
+  const [composerIntent, setComposerIntent] =
+    useState<CommentComposerIntent>("new-thread");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const threadRef = useRef<HTMLElement | null>(null);
@@ -41,7 +48,9 @@ export function CodeCommentThread({
     thread.lineStart === thread.lineEnd
       ? `Line ${thread.lineEnd}`
       : `Lines ${thread.lineStart}-${thread.lineEnd}`;
-  const isReplyComposer = thread.comments.length > 0;
+  const hasPublishedThread = thread.comments.length > 0;
+  const isReplyComposer =
+    hasPublishedThread && composerIntent === "reply" && Boolean(draft.threadId);
   const composerModeId = commentComposerModeId(thread.key);
   const replyHintId = commentReplyHintId(thread.key);
   const submitLabel = isReplyComposer
@@ -49,8 +58,8 @@ export function CodeCommentThread({
     : "Save private draft comment";
   const submitHint = isReplyComposer ? "to send" : "to save private draft";
   const composerModeLabel = isReplyComposer
-    ? "Replying in this thread"
-    : "New separate thread";
+    ? "Reply to thread"
+    : `New thread on ${lineLabel}`;
   const hasActiveComment = Boolean(
     activeCommentId &&
     thread.comments.some((comment) => comment.id === activeCommentId),
@@ -87,13 +96,28 @@ export function CodeCommentThread({
     textareaRef.current?.focus();
   }, [thread.comments.length, thread.key]);
 
+  useEffect(() => {
+    setComposerIntent("new-thread");
+    setBody("");
+    setError(null);
+  }, [thread.key]);
+
+  useEffect(() => {
+    if (!hasPublishedThread || !draft.threadId) {
+      setComposerIntent("new-thread");
+    }
+  }, [draft.threadId, hasPublishedThread]);
+
   async function submit() {
     const trimmed = body.trim();
     if (!trimmed || !onCreateComment || saving) return;
     setSaving(true);
     setError(null);
     try {
-      await onCreateComment(draft, trimmed);
+      await onCreateComment(
+        draftForCommentComposerIntent(draft, composerIntent),
+        trimmed,
+      );
       setBody("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -155,7 +179,12 @@ export function CodeCommentThread({
               <summary>{activity.timeline.length} events</summary>
               <ol>
                 {activity.timeline.map((event) => (
-                  <li key={event.id}>{activityLabel(event)}</li>
+                  <li key={event.id}>
+                    <span>{activityLabel(event)}</span>
+                    {activityMetadataLabel(event) ? (
+                      <small>{activityMetadataLabel(event)}</small>
+                    ) : null}
+                  </li>
                 ))}
               </ol>
             </details>
@@ -224,12 +253,44 @@ export function CodeCommentThread({
           <span aria-hidden="true" />
           {composerModeLabel}
         </div>
+        {hasPublishedThread && draft.threadId ? (
+          <div
+            className="code-comment-intent-toggle"
+            role="group"
+            aria-label="Comment composer intent"
+          >
+            <button
+              className={composerIntent === "new-thread" ? "active" : ""}
+              type="button"
+              aria-pressed={composerIntent === "new-thread"}
+              onClick={() => {
+                setComposerIntent("new-thread");
+                textareaRef.current?.focus();
+              }}
+            >
+              New thread
+            </button>
+            <button
+              className={composerIntent === "reply" ? "active" : ""}
+              type="button"
+              aria-pressed={composerIntent === "reply"}
+              onClick={() => {
+                setComposerIntent("reply");
+                textareaRef.current?.focus();
+              }}
+            >
+              Reply
+            </button>
+          </div>
+        ) : null}
         <textarea
           ref={textareaRef}
-          autoFocus={!isReplyComposer}
+          autoFocus={!hasPublishedThread}
           rows={2}
           value={body}
-          placeholder={isReplyComposer ? "Reply to thread" : "Leave a comment"}
+          placeholder={
+            isReplyComposer ? "Reply to thread" : "Start a new thread"
+          }
           aria-label={isReplyComposer ? "Reply to thread" : "New line comment"}
           aria-describedby={`${composerModeId} ${replyHintId}`}
           aria-keyshortcuts="Meta+Enter Control+Enter"
@@ -327,6 +388,23 @@ function safeCommentThreadKey(threadKey: string): string {
     .replace(/^-+|-+$/g, "")
     .toLowerCase();
   return safeKey || "thread";
+}
+
+function activityMetadataLabel(event: {
+  clientEventId?: string;
+  leaseExpiresAt?: string;
+}): string | null {
+  const details = [
+    event.clientEventId ? `client ${shortMetadataId(event.clientEventId)}` : "",
+    event.leaseExpiresAt
+      ? `lease until ${formatCommentTime(event.leaseExpiresAt)}`
+      : "",
+  ].filter(Boolean);
+  return details.length ? details.join(" · ") : null;
+}
+
+function shortMetadataId(value: string): string {
+  return value.length > 12 ? `${value.slice(0, 8)}...` : value;
 }
 
 function formatCommentTime(value: string): string {

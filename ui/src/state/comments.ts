@@ -17,6 +17,8 @@ export interface CommentDraft {
   anchor: CommentAnchor;
 }
 
+export type CommentComposerIntent = "new-thread" | "reply";
+
 export type CommentCreateHandler = (
   draft: CommentDraft,
   body: string,
@@ -120,6 +122,15 @@ export function codeCommentThreadKey(
   lineEnd = lineStart,
 ): string {
   return JSON.stringify([path, lineStart, lineEnd]);
+}
+
+export function draftForCommentComposerIntent(
+  draft: CommentDraft,
+  intent: CommentComposerIntent,
+): CommentDraft {
+  if (intent === "reply") return draft;
+  const { threadId: _threadId, ...newThreadDraft } = draft;
+  return newThreadDraft;
 }
 
 export function commentAnchorThreadKey(
@@ -277,9 +288,9 @@ export function lineCommentThreadActionLabel(
   const count = thread.comments.length;
   const messageLabel = count === 1 ? "message" : "messages";
   if (thread.status === "open") {
-    return `Open comment thread on line ${lineNumber} with ${count} ${messageLabel}; open to reply`;
+    return `Open comment thread on line ${lineNumber} with ${count} ${messageLabel}; choose new thread or reply`;
   }
-  return `Open ${thread.status} comment thread on line ${lineNumber} with ${count} ${messageLabel}; reopen to reply`;
+  return `Open ${thread.status} comment thread on line ${lineNumber} with ${count} ${messageLabel}; choose new thread or reopen`;
 }
 
 export function latestPublishedStatus(

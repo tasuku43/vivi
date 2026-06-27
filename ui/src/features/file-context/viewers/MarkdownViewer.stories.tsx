@@ -158,11 +158,15 @@ export const RenderedStartsSeparateDraftFromExistingThread: Story = {
         name: "Comment thread for line 7",
       }),
     ).toHaveLength(2);
-    await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
+    await expect(canvas.getAllByLabelText("New line comment")[1]).toHaveFocus();
     await expect(
-      canvas.getByRole("button", { name: "Save private draft comment" }),
+      canvas.getAllByRole("button", {
+        name: "Save private draft comment",
+      })[1],
     ).toBeDisabled();
-    await expect(canvas.getByLabelText("Reply to thread")).toBeInTheDocument();
+    await expect(
+      canvas.getAllByLabelText("New line comment")[0],
+    ).toBeInTheDocument();
   },
 };
 
@@ -201,7 +205,7 @@ export const RenderedResolvedCommentOpensFromBlock: Story = {
     });
     await expect(thread).toBeVisible();
     await expect(within(thread).getAllByText("Resolved")[0]).toBeVisible();
-    await expect(canvas.queryByLabelText("New line comment")).toBeNull();
+    await expect(canvas.getByLabelText("New line comment")).toBeVisible();
   },
 };
 
@@ -445,7 +449,7 @@ export const RenderedMarkerPlacement: Story = {
     ).toBe("calc(0.85em + 1px)");
 
     await userEvent.click(listMarker);
-    await expect(canvas.getByLabelText("Reply to thread")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("New line comment")).toBeInTheDocument();
     await waitFor(() =>
       expect(
         Math.abs(

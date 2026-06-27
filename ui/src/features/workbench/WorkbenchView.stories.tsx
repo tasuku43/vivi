@@ -629,13 +629,14 @@ export const CommentsPanelOpensInlineThread: Story = {
     await expect(
       canvas.getByLabelText(/Comment thread for lines 9-12/i),
     ).toBeInTheDocument();
-    let replyBoxes = canvas.getAllByRole("textbox", {
-      name: "Reply to thread",
+    let composerBoxes = canvas.getAllByRole("textbox", {
+      name: "New line comment",
     });
-    await expect(replyBoxes).toHaveLength(1);
+    await expect(composerBoxes).toHaveLength(1);
     await expect(
-      replyBoxes.some((textbox) => textbox === document.activeElement),
+      composerBoxes.some((textbox) => textbox === document.activeElement),
     ).toBe(false);
+    await expect(canvas.getByText("New thread on Lines 9-12")).toBeVisible();
 
     const rowTarget = canvasElement.querySelector<HTMLElement>(
       '.code-line.has-comment[data-line="5"]',
@@ -647,12 +648,12 @@ export const CommentsPanelOpensInlineThread: Story = {
     await expect(
       canvas.getByLabelText(/Comment thread for line 5/i),
     ).toBeInTheDocument();
-    replyBoxes = canvas.getAllByRole("textbox", {
-      name: "Reply to thread",
+    composerBoxes = canvas.getAllByRole("textbox", {
+      name: "New line comment",
     });
-    await expect(replyBoxes).toHaveLength(2);
+    await expect(composerBoxes).toHaveLength(2);
     await expect(
-      replyBoxes.some((textbox) => textbox === document.activeElement),
+      composerBoxes.some((textbox) => textbox === document.activeElement),
     ).toBe(false);
 
     await userEvent.click(

@@ -3,6 +3,7 @@ import type { DraftReviewComment, ViviComment } from "../domain/comments.js";
 import {
   codeCommentThreads,
   draftReviewCommentAsViviComment,
+  draftForCommentComposerIntent,
   matchingDraftPreviewThread,
 } from "./comments.js";
 
@@ -46,6 +47,22 @@ function draft(
 }
 
 describe("draftReviewCommentAsViviComment", () => {
+  it("removes threadId when the composer intent is a new top-level thread", () => {
+    const replyDraft = {
+      threadId: existingComment.threadId,
+      path: "README.md",
+      viewerKind: "markdown" as const,
+      anchor,
+    };
+
+    expect(draftForCommentComposerIntent(replyDraft, "reply").threadId).toBe(
+      existingComment.threadId,
+    );
+    expect(
+      draftForCommentComposerIntent(replyDraft, "new-thread").threadId,
+    ).toBeUndefined();
+  });
+
   it("keeps threadId-less same-anchor drafts separate from published threads", () => {
     const draftComment = draftReviewCommentAsViviComment(draft("same-anchor"), [
       existingComment,

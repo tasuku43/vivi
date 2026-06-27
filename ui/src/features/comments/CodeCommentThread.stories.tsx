@@ -84,17 +84,31 @@ export const Open: Story = {
     await expect(
       canvas.getByRole("article", { name: "Comment thread for lines 9-12" }),
     ).toBeInTheDocument();
-    await expect(canvas.getByText("Replying in this thread")).toBeVisible();
-    await expect(canvas.getByLabelText("Reply to thread")).not.toHaveFocus();
+    await expect(canvas.getByText("New thread on Lines 9-12")).toBeVisible();
     await expect(
-      canvas.getByLabelText("Reply to thread"),
-    ).toHaveAccessibleDescription(/Replying in this thread.*to send/);
+      canvas.getByLabelText("New line comment"),
+    ).toHaveAccessibleDescription(/New thread on Lines 9-12.*to save/);
     await userEvent.type(
-      canvas.getByLabelText("Reply to thread"),
-      "Looks good",
+      canvas.getByLabelText("New line comment"),
+      "Separate concern",
     );
-    await userEvent.click(canvas.getByRole("button", { name: "Add reply" }));
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Save private draft comment" }),
+    );
     await expect(args.onCreateComment).toHaveBeenCalled();
+    await expect(
+      (args.onCreateComment as unknown as { mock: { calls: unknown[][] } }).mock
+        .calls[0]?.[0],
+    ).not.toMatchObject({ threadId: "thread-workbench-open" });
+
+    await userEvent.click(canvas.getByRole("button", { name: "Reply" }));
+    await expect(canvas.getByText("Reply to thread")).toBeVisible();
+    await userEvent.type(canvas.getByLabelText("Reply to thread"), "Replying");
+    await userEvent.click(canvas.getByRole("button", { name: "Add reply" }));
+    await expect(
+      (args.onCreateComment as unknown as { mock: { calls: unknown[][] } }).mock
+        .calls[1]?.[0],
+    ).toMatchObject({ threadId: "thread-workbench-open" });
     await userEvent.click(
       canvas.getByRole("button", { name: "Resolve thread" }),
     );
@@ -158,11 +172,13 @@ export const NewLineComment: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("New draft")).toBeVisible();
-    await expect(canvas.getByText("New separate thread")).toBeVisible();
+    await expect(canvas.getByText("New thread on Line 14")).toBeVisible();
     await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
     await expect(
       canvas.getByLabelText("New line comment"),
-    ).toHaveAccessibleDescription(/New separate thread.*to save private draft/);
+    ).toHaveAccessibleDescription(
+      /New thread on Line 14.*to save private draft/,
+    );
     await expect(
       canvas.getByRole("button", { name: "Save private draft comment" }),
     ).toBeDisabled();
@@ -243,6 +259,7 @@ export const SubmitFailureKeepsDraftEditable: Story = {
   },
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Reply" }));
     const reply = canvas.getByLabelText("Reply to thread");
     await userEvent.type(reply, "This should survive a failed save.");
     await userEvent.click(canvas.getByRole("button", { name: "Add reply" }));

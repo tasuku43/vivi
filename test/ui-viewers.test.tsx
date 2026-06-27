@@ -874,10 +874,10 @@ it("renders code line comments as an inline thread with replies", () => {
   expect(html).toContain(`data-comment-id="${codeLineReply.id}"`);
   expect(html).toContain('class="code-line-comment-action"');
   expect(html).toContain(
-    'aria-label="Open comment thread on line 2 with 2 messages; open to reply"',
+    'aria-label="Open comment thread on line 2 with 2 messages; choose new thread or reply"',
   );
   expect(html).toContain(
-    'title="Open comment thread on line 2 with 2 messages; open to reply"',
+    'title="Open comment thread on line 2 with 2 messages; choose new thread or reply"',
   );
   expect(html).toContain('aria-label="Add comment on line 1"');
   expect(html).toContain('aria-label="Comment thread for line 2"');
@@ -889,10 +889,12 @@ it("renders code line comments as an inline thread with replies", () => {
   expect(html.indexOf("Check this return")).toBeLessThan(
     html.indexOf("Agreed, keep it explicit"),
   );
-  expect(html).toContain('placeholder="Reply to thread"');
+  expect(html).toContain('placeholder="Start a new thread"');
   expect(html).not.toContain("autofocus");
-  expect(html).toContain('aria-label="Add reply"');
-  expect(html).toContain("Replying in this thread");
+  expect(html).toContain('aria-label="Save private draft comment"');
+  expect(html).toContain("New thread on Line 2");
+  expect(html).toContain("Comment composer intent");
+  expect(html).toContain(">Reply</button>");
   expect(html).toContain(
     'aria-describedby="comment-composer-mode-src-app-ts-2-2 comment-reply-hint-src-app-ts-2-2"',
   );
@@ -911,7 +913,7 @@ it("renders code line comments as an inline thread with replies", () => {
   expect(html).toContain(
     'title="Archive current thread (Cmd/Ctrl Shift Backspace)"',
   );
-  expect(html).toContain("<kbd>Cmd/Ctrl Enter</kbd> to send");
+  expect(html).toContain("<kbd>Cmd/Ctrl Enter</kbd> to save private draft");
   expect(html).toContain("Esc closes");
   expect(html).not.toContain(">Comment<");
 });
@@ -987,10 +989,10 @@ it("keeps diff comments out of source line comment markers", () => {
   );
 
   expect(html).toContain(
-    'aria-label="Open comment thread on line 2 with 1 message; open to reply"',
+    'aria-label="Open comment thread on line 2 with 1 message; choose new thread or reply"',
   );
   expect(html).not.toContain(
-    'aria-label="Open comment thread on line 2 with 2 messages; open to reply"',
+    'aria-label="Open comment thread on line 2 with 2 messages; choose new thread or reply"',
   );
   expect(html).toContain("Check this return");
   expect(html).not.toContain("Diff-only message");
@@ -1015,7 +1017,7 @@ it("can keep the current stop highlighted without expanding the source thread", 
   expect(html).toContain('class="code-line has-comment active-comment"');
   expect(html).toContain(`data-comment-id="${codeLineComment.id}"`);
   expect(html).toContain(
-    'aria-label="Open comment thread on line 2 with 2 messages; open to reply"',
+    'aria-label="Open comment thread on line 2 with 2 messages; choose new thread or reply"',
   );
   expect(html).not.toContain("code-comment-thread-row");
   expect(html).not.toContain("Comment thread for line 2");
@@ -1160,7 +1162,7 @@ it("uses the inline source thread experience for Markdown source mode", () => {
   expect(html).toContain('aria-label="Markdown viewer controls for README.md"');
   expect(html).not.toContain("<strong>README.md</strong>");
   expect(html).toContain(
-    'aria-label="Open comment thread on line 3 with 1 message; open to reply"',
+    'aria-label="Open comment thread on line 3 with 1 message; choose new thread or reply"',
   );
   expect(html).toContain('aria-label="Comment thread for line 3"');
   expect(html).toContain("Check this return");
@@ -1190,6 +1192,7 @@ it("renders a replyable document thread with the code-thread width contract", ()
     },
   };
   const draft: CommentDraft = {
+    threadId: comment.threadId ?? comment.id,
     path: comment.path,
     viewerKind: "markdown",
     anchor: comment.anchor,
@@ -1202,6 +1205,7 @@ it("renders a replyable document thread with the code-thread width contract", ()
         path: "README.md",
         lineStart: 3,
         lineEnd: 4,
+        status: "open",
         comments: [comment],
       }}
       draft={draft}
@@ -1212,8 +1216,10 @@ it("renders a replyable document thread with the code-thread width contract", ()
 
   expect(html).toContain('class="code-comment-thread rendered-comment-thread"');
   expect(html).toContain("Lines 3-4");
-  expect(html).toContain('placeholder="Reply to thread"');
-  expect(html).toContain("<kbd>Cmd/Ctrl Enter</kbd> to send");
+  expect(html).toContain('placeholder="Start a new thread"');
+  expect(html).toContain("New thread on Lines 3-4");
+  expect(html).toContain(">Reply</button>");
+  expect(html).toContain("<kbd>Cmd/Ctrl Enter</kbd> to save private draft");
   expect(html).toContain("Check this return");
 });
 
@@ -1245,7 +1251,7 @@ it("projects a rendered Markdown comment onto its canonical source line", () => 
   );
 
   expect(html).toContain(
-    'aria-label="Open comment thread on line 3 with 1 message; open to reply"',
+    'aria-label="Open comment thread on line 3 with 1 message; choose new thread or reply"',
   );
   expect(html).toContain('class="code-line has-comment"');
 });
@@ -1527,7 +1533,7 @@ it("uses the inline source thread experience for HTML source mode", () => {
   expect(html).toContain("source-comment-surface markdown-source");
   expect(html).toContain('aria-label="HTML view mode"');
   expect(html).toContain(
-    'aria-label="Open comment thread on line 2 with 1 message; open to reply"',
+    'aria-label="Open comment thread on line 2 with 1 message; choose new thread or reply"',
   );
   expect(html).toContain('aria-label="Comment thread for line 2"');
   expect(html).toContain("Check this return");
@@ -2232,7 +2238,7 @@ it("autofocuses new inline comments without focusing existing reply threads", ()
 
   expect(html).toContain('aria-label="New line comment"');
   expect(html).toContain('aria-label="Save private draft comment"');
-  expect(html).toContain("New separate thread");
+  expect(html).toContain("New thread on Line 4");
   expect(html).toContain(
     'aria-describedby="comment-composer-mode-src-app-ts-4-4 comment-reply-hint-src-app-ts-4-4"',
   );
@@ -4177,13 +4183,13 @@ it("labels terminal diff comment markers as reopenable", () => {
   );
 
   expect(html).toContain(
-    'aria-label="Open resolved comment thread on line 2 with 2 messages; reopen to reply"',
+    'aria-label="Open resolved comment thread on line 2 with 2 messages; choose new thread or reopen"',
   );
   expect(html).toContain(
-    'title="Open resolved comment thread on line 2 with 2 messages; reopen to reply"',
+    'title="Open resolved comment thread on line 2 with 2 messages; choose new thread or reopen"',
   );
   expect(html).not.toContain(
-    'aria-label="Open comment thread on line 2 with 2 messages; open to reply"',
+    'aria-label="Open comment thread on line 2 with 2 messages; choose new thread or reply"',
   );
 });
 
@@ -4240,11 +4246,11 @@ it("prefers open diff comment threads when a line also has terminal history", ()
   );
 
   expect(html).toContain(
-    'aria-label="Open comment thread on line 2 with 1 message; open to reply"',
+    'aria-label="Open comment thread on line 2 with 1 message; choose new thread or reply"',
   );
   expect(html).toContain('data-comment-id="diff-open-root"');
   expect(html).not.toContain(
-    'aria-label="Open resolved comment thread on line 2 with 1 message; reopen to reply"',
+    'aria-label="Open resolved comment thread on line 2 with 1 message; choose new thread or reopen"',
   );
 });
 
