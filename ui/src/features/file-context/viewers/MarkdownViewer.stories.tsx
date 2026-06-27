@@ -18,7 +18,7 @@ import {
 import { MarkdownViewer } from "./MarkdownViewer.js";
 
 const meta = {
-  title: "Viewers/Markdown/MarkdownViewer",
+  title: "Files/Markdown Review States",
   component: MarkdownViewer,
   parameters: {
     layout: "fullscreen",
@@ -128,6 +128,7 @@ export const RenderedCommentModifierClickStartsSeparateDraft: Story = {
 };
 
 export const RenderedStartsSeparateDraftFromExistingThread: Story = {
+  name: "Rendered Markdown can start a separate draft beside a thread",
   tags: ["interaction"],
   args: {
     mode: "rendered",
@@ -184,6 +185,7 @@ const renderedMarkdownComment = commentsForPath(sampleFiles.markdown.path).find(
 )!;
 
 export const RenderedResolvedCommentOpensFromBlock: Story = {
+  name: "Rendered Markdown opens a resolved thread from its block",
   tags: ["interaction"],
   args: {
     mode: "rendered",
@@ -219,6 +221,7 @@ export const RenderedResolvedCommentOpensFromBlock: Story = {
 };
 
 export const RenderedArchivedCommentHidden: Story = {
+  name: "Archived Markdown thread stays hidden from the browser UI",
   tags: ["interaction"],
   args: {
     mode: "rendered",

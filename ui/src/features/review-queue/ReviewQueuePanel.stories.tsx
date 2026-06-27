@@ -65,7 +65,7 @@ const baseArgs = {
 };
 
 const meta = {
-  title: "Review/Review Queue/Inspector",
+  title: "Review/Queue States",
   component: Inspector,
   decorators: [
     (Story) => (
@@ -145,6 +145,7 @@ export const ReviewQueueItemWithOpenThreads: Story = {
 };
 
 export const ReviewQueueItemWithLatestAgentActivity: Story = {
+  name: "Queue item shows latest agent activity",
   args: {
     activePath: "docs/agent-handoff.md",
     reviewItems: [

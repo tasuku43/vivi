@@ -14,7 +14,7 @@ import { Topbar } from "./Topbar.js";
 import { TreeSidebar } from "./TreeSidebar.js";
 
 const meta = {
-  title: "Navigation/Core",
+  title: "Workspace/Navigation Chrome",
   parameters: {
     layout: "fullscreen",
     a11y: { test: "error" },
@@ -29,7 +29,7 @@ const openStaleCommentRouting = fn();
 const lazyRevealLoadCalls: string[] = [];
 
 export const TopbarStory: Story = {
-  name: "Topbar",
+  name: "Workspace topbar shows review status",
   render: () => (
     <Topbar
       root={storyRoot}
@@ -45,7 +45,7 @@ export const TopbarStory: Story = {
 };
 
 export const TopbarWithStaleCommentRouting: Story = {
-  name: "Topbar with stale comment routing",
+  name: "Topbar routes stale comments to review work",
   render: () => (
     <Topbar
       root={storyRoot}
@@ -75,6 +75,7 @@ export const TopbarWithStaleCommentRouting: Story = {
 };
 
 export const SidebarFileTree: Story = {
+  name: "Live file tree keeps selected and changed paths visible",
   render: () => (
     <aside
       className="sidebar"
@@ -193,6 +194,7 @@ function SidebarLazyBreadcrumbRevealDemo() {
 }
 
 export const SidebarRevealsLazyBreadcrumbTarget: Story = {
+  name: "File tree reveals a lazy-loaded breadcrumb target",
   tags: ["interaction"],
   render: () => {
     lazyRevealLoadCalls.length = 0;
@@ -241,6 +243,7 @@ function lazyFileNode(
 }
 
 export const Tabs: Story = {
+  name: "Multiple open files stay visible as tabs",
   render: () => (
     <div style={{ padding: 24 }}>
       <OpenTabs
@@ -271,6 +274,7 @@ export const Tabs: Story = {
 };
 
 export const ShortcutHelpOverlay: Story = {
+  name: "Shortcut help overlay is open",
   render: () => <ShortcutHelp open onClose={() => undefined} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -283,6 +287,7 @@ export const ShortcutHelpOverlay: Story = {
 };
 
 export const Statusbar: Story = {
+  name: "Statusbar summarizes watchers, tabs, and server state",
   render: () => (
     <div className="app-shell" style={{ minHeight: 120 }}>
       <footer className="statusbar">

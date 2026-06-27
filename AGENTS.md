@@ -109,6 +109,39 @@ Implementation priorities for UI work:
 - Treat Cmd/Ctrl + K as a modal overlay, not a permanent layout.
 - Keep UI state decomposed: tree state, open tabs, active viewer, inspector state, and command palette state should be separate enough to test.
 
+## GUI design workflow
+
+For new visible GUI surfaces or meaningful layout changes, use the three-stage
+review path unless the user explicitly asks to skip it:
+
+1. HTML Concept Mock
+   - Create or update a static mock in `docs/ui-mocks/`.
+   - Use it to explore layout, density, information hierarchy, and product
+     direction.
+   - Do not wire application behavior in this phase.
+
+2. Storybook Facade
+   - Create React components and stories that may use static props, simplified
+     callbacks, and domain-shaped fixtures.
+   - Treat the facade story as the visual contract for design approval before
+     backend, application, filesystem, SSE, or route behavior is connected.
+   - Include representative states such as empty, dense, loading, error,
+     selected, stale, and open/closed interaction states when relevant.
+   - Update `ui/src/storybook/storybook-lab.manifest.json` when a new
+     product-facing surface appears or when the review focus changes.
+
+3. Wired Feature
+   - Only after explicit user approval, connect the approved facade to real
+     application state, use cases, infrastructure, and server behavior.
+   - Preserve the approved facade story as the visual contract where useful, and
+     add integrated stories for real composed states when they provide better
+     regression coverage.
+   - Add appropriate unit, use-case, adapter, E2E, fixture-driven eval, or stable
+     snapshot coverage for real behavior.
+
+Do not skip directly from concept to wired implementation for meaningful GUI
+changes unless the user explicitly requests it.
+
 ## Storybook operating mode
 
 Storybook is Vivi's UI regression lab, not only a component catalog. Before

@@ -4,7 +4,7 @@ import { sampleFiles } from "../../storybook/fixtures/review-lab.js";
 import { CommandPalette } from "./CommandPalette.js";
 
 const meta = {
-  title: "Navigation/Command Palette",
+  title: "Navigation/Search and Command States",
   component: CommandPalette,
   parameters: {
     layout: "fullscreen",
@@ -60,6 +60,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const QuickOpen: Story = {
+  name: "Quick open filters files",
   tags: ["interaction"],
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
@@ -78,6 +79,7 @@ export const QuickOpen: Story = {
 };
 
 export const TextSearch: Story = {
+  name: "Text search shows file matches",
   args: {
     mode: "text",
     query: "comment threads",
@@ -85,6 +87,7 @@ export const TextSearch: Story = {
 };
 
 export const Actions: Story = {
+  name: "Command actions are available from the palette",
   tags: ["interaction"],
   args: {
     mode: "action",
@@ -120,6 +123,7 @@ export const Actions: Story = {
 };
 
 export const Loading: Story = {
+  name: "Quick open is loading files",
   args: {
     fileResults: [],
     fileLoading: true,
@@ -132,6 +136,7 @@ export const Loading: Story = {
 };
 
 export const TextLoading: Story = {
+  name: "Text search is loading matches",
   args: {
     mode: "text",
     query: "xt_DSCP",
@@ -145,6 +150,7 @@ export const TextLoading: Story = {
 };
 
 export const Empty: Story = {
+  name: "Search has no matching results",
   args: {
     fileResults: [],
     textResults: [],

@@ -1,7 +1,25 @@
 {
   "version": 1,
-  "purpose": "Vivi Storybook is the fast UI regression lab for the local review adapter. Every product-facing UI slice should be represented by at least one stable story and, when the behavior is interactive, one representative interaction story.",
+  "purpose": "Vivi Storybook is the fast UI regression lab and facade-review surface for the local review adapter. Every product-facing UI slice should be represented by at least one stable story and, when the behavior is interactive, one representative interaction story.",
+  "reviewStages": [
+    {
+      "id": "html-concept",
+      "label": "HTML Concept Mock",
+      "intent": "Use docs/ui-mocks to compare layout, density, information hierarchy, and product direction before React implementation."
+    },
+    {
+      "id": "storybook-facade",
+      "label": "Storybook Facade",
+      "intent": "Use React components with static props, simplified callbacks, and domain-shaped fixtures as the design approval surface before real application, backend, filesystem, SSE, route, or preview behavior is wired."
+    },
+    {
+      "id": "wired-feature",
+      "label": "Wired Feature",
+      "intent": "After explicit approval, connect the approved facade to real application state, use cases, infrastructure, and server behavior while preserving useful facade stories as visual contracts."
+    }
+  ],
   "storyFiles": [
+    "ui/src/storybook/DesignReviewFlow.stories.tsx",
     "ui/src/features/command-palette/CommandPalette.stories.tsx",
     "ui/src/features/comments/Activity.stories.tsx",
     "ui/src/features/comments/CodeCommentThread.stories.tsx",
@@ -19,140 +37,201 @@
   ],
   "surfaces": [
     {
+      "id": "design-review-flow",
+      "label": "Design review flow",
+      "stage": "storybook-facade",
+      "intent": "Make Vivi's HTML Concept Mock -> Storybook Facade -> Wired Feature workflow visible inside Storybook itself.",
+      "reviewFocus": [
+        "reviewers can see why a facade story may be static",
+        "agents can identify the current GUI review stage",
+        "Storybook communicates the distinction between visual approval and wired behavior"
+      ],
+      "requiredStories": [
+        "Design Review/Workflow/ThreeStageReviewPath"
+      ],
+      "interactionStories": []
+    },
+    {
       "id": "workspace-shell",
       "label": "Workspace shell",
+      "stage": "storybook-facade",
       "intent": "Preserve the classic local workspace frame: topbar, live tree, tabs, active viewer, right inspector, and status states.",
+      "reviewFocus": [
+        "sidebar remains the stable spatial map",
+        "tabs make multi-file context visible",
+        "active viewer is visually primary",
+        "right inspector is available without competing with reading"
+      ],
       "requiredStories": [
-        "Screens/Workbench/WorkspaceWithFileTreeAndSelectedFile",
-        "Screens/Workbench/LoadingState",
-        "Screens/Workbench/ErrorState",
-        "Screens/Workbench/MissingSourceErrorState",
-        "Screens/Workbench/DisconnectedState",
-        "Navigation/Core/SidebarFileTree",
-        "Navigation/Core/Tabs",
-        "Navigation/Core/Statusbar"
+        "Workspace/Workbench States/WorkspaceWithFileTreeAndSelectedFile",
+        "Workspace/Workbench States/LoadingState",
+        "Workspace/Workbench States/ErrorState",
+        "Workspace/Workbench States/MissingSourceErrorState",
+        "Workspace/Workbench States/DisconnectedState",
+        "Workspace/Navigation Chrome/SidebarFileTree",
+        "Workspace/Navigation Chrome/Tabs",
+        "Workspace/Navigation Chrome/Statusbar"
       ],
       "interactionStories": [
-        "Screens/Workbench/WorkspaceWithFileTreeAndSelectedFile"
+        "Workspace/Workbench States/WorkspaceWithFileTreeAndSelectedFile"
       ]
     },
     {
       "id": "review-navigation",
       "label": "Review navigation",
+      "stage": "storybook-facade",
       "intent": "Keep Review Queue, comments inbox, unread activity, and agent replies visible as the primary right-inspector workflow.",
-      "requiredStories": [
-        "Review/Review Queue/Inspector/ReviewQueueItemWithOpenThreads",
-        "Review/Review Queue/Inspector/ReviewQueueItemWithLatestAgentActivity",
-        "Review/Review Queue/Inspector/GitReviewUnavailable",
-        "Review/Comments/Comments Panel/WorkspaceComments",
-        "Review/Comments/Comments Panel/AgentActivityVisible",
-        "System/States/Activity/CommentsWatchDisconnected"
+      "reviewFocus": [
+        "open review work is easier to find than completed history",
+        "agent activity is visible without creating false unread work",
+        "queue rows expose enough metadata to choose the next file"
       ],
-      "interactionStories": ["Review/Comments/Comments Panel/WorkspaceComments"]
+      "requiredStories": [
+        "Review/Queue States/ReviewQueueItemWithOpenThreads",
+        "Review/Queue States/ReviewQueueItemWithLatestAgentActivity",
+        "Review/Queue States/GitReviewUnavailable",
+        "Review/Comments Inbox States/WorkspaceComments",
+        "Review/Comments Inbox States/AgentActivityVisible",
+        "Review/Activity States/CommentsWatchDisconnected"
+      ],
+      "interactionStories": ["Review/Comments Inbox States/WorkspaceComments"]
     },
     {
       "id": "comment-lifecycle",
       "label": "Comment lifecycle",
+      "stage": "storybook-facade",
       "intent": "Represent open, resolved, draft, published, failure, agent-read/reply, and archive-action states without requiring a backend. Archived threads are hidden from the browser UI after the transition.",
+      "reviewFocus": [
+        "draft comments read as private until publish",
+        "open and resolved threads are visually distinct",
+        "failure and published states are recoverable and obvious"
+      ],
       "requiredStories": [
-        "Review/Comments/Inline Thread/Open",
-        "Review/Comments/Inline Thread/NewLineComment",
-        "Review/Comments/Inline Thread/Resolved",
-        "Review/Comments/Inline Thread/AgentHasReadThread",
-        "Review/Comments/Inline Thread/AgentHasReplied",
-        "Review/Drafts/Draft Review Tray/PublishCtaEnabled",
-        "Review/Drafts/Draft Review Tray/PublishFailure",
-        "Review/Drafts/Draft Review Tray/PublishedStateWithOpenThreads"
+        "Review/Inline Comment States/Open",
+        "Review/Inline Comment States/NewLineComment",
+        "Review/Inline Comment States/Resolved",
+        "Review/Inline Comment States/AgentHasReadThread",
+        "Review/Inline Comment States/AgentHasReplied",
+        "Review/Draft Review States/PublishCtaEnabled",
+        "Review/Draft Review States/PublishFailure",
+        "Review/Draft Review States/PublishedStateWithOpenThreads"
       ],
       "interactionStories": [
-        "Review/Comments/Inline Thread/Open",
-        "Review/Comments/Inline Thread/NewLineComment",
-        "Review/Drafts/Draft Review Tray/PublishCtaEnabled"
+        "Review/Inline Comment States/Open",
+        "Review/Inline Comment States/NewLineComment",
+        "Review/Draft Review States/PublishCtaEnabled"
       ]
     },
     {
       "id": "viewer-coverage",
       "label": "Viewer coverage",
+      "stage": "storybook-facade",
       "intent": "Cover every product viewer surface: Markdown, HTML, code, JSON, CSV/text, Mermaid, image, unknown text, large text, and binary metadata.",
+      "reviewFocus": [
+        "viewer kind is obvious without implying editing",
+        "fallback states remain readable and safe",
+        "toolbar controls stay stable across file types"
+      ],
       "requiredStories": [
-        "Viewers/File Coverage/FileViewer/UnknownTextFallback",
-        "Viewers/File Coverage/FileViewer/MarkdownKnownViewer",
-        "Viewers/File Coverage/FileViewer/CodeWithLocalOutline",
-        "Viewers/File Coverage/FileViewer/HtmlKnownViewer",
-        "Viewers/File Coverage/FileViewer/JsonKnownViewer",
-        "Viewers/File Coverage/FileViewer/CsvTableFallback",
-        "Viewers/File Coverage/FileViewer/MermaidKnownViewer",
-        "Viewers/File Coverage/FileViewer/ImageKnownViewer",
-        "Viewers/File Coverage/FileViewer/BinaryMetadata",
-        "Viewers/File Coverage/FileViewer/LargeTextLimitedPreview",
-        "Viewers/File Coverage/FileViewer/LargeBinaryMetadata"
+        "Files/Viewer Coverage States/UnknownTextFallback",
+        "Files/Viewer Coverage States/MarkdownKnownViewer",
+        "Files/Viewer Coverage States/CodeWithLocalOutline",
+        "Files/Viewer Coverage States/HtmlKnownViewer",
+        "Files/Viewer Coverage States/JsonKnownViewer",
+        "Files/Viewer Coverage States/CsvTableFallback",
+        "Files/Viewer Coverage States/MermaidKnownViewer",
+        "Files/Viewer Coverage States/ImageKnownViewer",
+        "Files/Viewer Coverage States/BinaryMetadata",
+        "Files/Viewer Coverage States/LargeTextLimitedPreview",
+        "Files/Viewer Coverage States/LargeBinaryMetadata"
       ],
       "interactionStories": [
-        "Viewers/Code/CodeViewer/SourceWithOpenThread",
-        "Viewers/Code/CodeViewer/SourceWithStackedLineThreads",
-        "Viewers/Markdown/MarkdownViewer/RenderedBlockClickDraft",
-        "Viewers/Markdown/MarkdownViewer/RenderedListDraftFormsDoNotBridge",
-        "Viewers/Markdown/MarkdownViewer/RenderedMarkerPlacement",
-        "Viewers/Markdown/MarkdownViewer/RenderedMarkdownComment",
-        "Viewers/HTML/HtmlViewer/SinglePreviewDraftFormFixedSlot",
-        "Viewers/HTML/HtmlViewer/SourceHtmlComment",
-        "Viewers/File Coverage/FileViewer/ViewerToolbarStickyByExtension"
+        "Files/Code Review States/SourceWithOpenThread",
+        "Files/Code Review States/SourceWithStackedLineThreads",
+        "Files/Markdown Review States/RenderedBlockClickDraft",
+        "Files/Markdown Review States/RenderedListDraftFormsDoNotBridge",
+        "Files/Markdown Review States/RenderedMarkerPlacement",
+        "Files/Markdown Review States/RenderedMarkdownComment",
+        "Files/HTML Preview States/SinglePreviewDraftFormFixedSlot",
+        "Files/HTML Preview States/SourceHtmlComment",
+        "Files/Viewer Coverage States/ViewerToolbarStickyByExtension"
       ]
     },
     {
       "id": "diff-review",
       "label": "Diff review",
+      "stage": "storybook-facade",
       "intent": "Keep source diffs, rendered Markdown/HTML diffs, unavailable diffs, binary diffs, and diff comments visible.",
-      "requiredStories": [
-        "Review/Diff/Diff Viewer/DiffCommentOnAddedLine",
-        "Review/Diff/Diff Viewer/DiffCommentOnRemovedLine",
-        "Review/Diff/Diff Viewer/RenderedMarkdownComment",
-        "Review/Diff/Diff Viewer/RenderedHtmlComment",
-        "Review/Diff/Diff Viewer/Unavailable",
-        "Review/Diff/Diff Viewer/BinaryDiff",
-        "Viewers/FileViewer Shell/CodeDiff"
+      "reviewFocus": [
+        "added, removed, and unavailable diff states are easy to distinguish",
+        "diff comments stay anchored to the reviewed surface",
+        "rendered diff review remains readable beside source diff review"
       ],
-      "interactionStories": ["Review/Diff/Diff Viewer/DiffCommentOnAddedLine"]
+      "requiredStories": [
+        "Review/Diff States/DiffCommentOnAddedLine",
+        "Review/Diff States/DiffCommentOnRemovedLine",
+        "Review/Diff States/RenderedMarkdownComment",
+        "Review/Diff States/RenderedHtmlComment",
+        "Review/Diff States/Unavailable",
+        "Review/Diff States/BinaryDiff",
+        "Files/Open File Surface States/CodeDiff"
+      ],
+      "interactionStories": ["Review/Diff States/DiffCommentOnAddedLine"]
     },
     {
       "id": "navigation-overlays",
       "label": "Navigation overlays",
+      "stage": "storybook-facade",
       "intent": "Cover Cmd/Ctrl+K quick open, text search, command mode, shortcut help, topbar, tree, and tabs.",
+      "reviewFocus": [
+        "overlays feel modal rather than permanent layout",
+        "keyboard focus and dismissal behavior are reviewable",
+        "search results make the next action obvious"
+      ],
       "requiredStories": [
-        "Navigation/Command Palette/QuickOpen",
-        "Navigation/Command Palette/TextSearch",
-        "Navigation/Command Palette/Actions",
-        "Navigation/Command Palette/Loading",
-        "Navigation/Command Palette/Empty",
-        "Navigation/Core/TopbarStory",
-        "Navigation/Core/ShortcutHelpOverlay",
-        "Screens/Workbench/CommandPaletteOpen",
-        "Screens/Workbench/ShortcutHelpOpen"
+        "Navigation/Search and Command States/QuickOpen",
+        "Navigation/Search and Command States/TextSearch",
+        "Navigation/Search and Command States/Actions",
+        "Navigation/Search and Command States/Loading",
+        "Navigation/Search and Command States/Empty",
+        "Workspace/Navigation Chrome/TopbarStory",
+        "Workspace/Navigation Chrome/ShortcutHelpOverlay",
+        "Workspace/Workbench States/CommandPaletteOpen",
+        "Workspace/Workbench States/ShortcutHelpOpen"
       ],
       "interactionStories": [
-        "Navigation/Command Palette/QuickOpen",
-        "Navigation/Command Palette/Actions"
+        "Navigation/Search and Command States/QuickOpen",
+        "Navigation/Search and Command States/Actions"
       ]
     },
     {
       "id": "stress-and-empty-states",
       "label": "Stress and empty states",
+      "stage": "storybook-facade",
       "intent": "Make dense review sessions, empty workspaces, long lists, loading states, and missing results easy to inspect before E2E.",
+      "reviewFocus": [
+        "empty states explain what is absent without marketing copy",
+        "dense states remain scannable",
+        "long lists preserve stable layout and scrolling"
+      ],
       "requiredStories": [
-        "Screens/Workbench/EmptyWorkspace",
-        "Screens/Workbench/ManyFilesManyComments",
-        "Review/Review Queue/Inspector/ManyFiles",
-        "Review/Comments/Comments Panel/ManyComments",
-        "Review/Drafts/Draft Review Tray/ManyDrafts",
-        "Review/Comments/Comments Panel/NoMatchingComments",
-        "Review/Drafts/Draft Review Tray/EmptyDrafts"
+        "Workspace/Workbench States/EmptyWorkspace",
+        "Workspace/Workbench States/ManyFilesManyComments",
+        "Review/Queue States/ManyFiles",
+        "Review/Comments Inbox States/ManyComments",
+        "Review/Draft Review States/ManyDrafts",
+        "Review/Comments Inbox States/NoMatchingComments",
+        "Review/Draft Review States/EmptyDrafts"
       ],
       "interactionStories": []
     }
   ],
   "agentWorkflow": [
+    "Use HTML Concept Mock -> Storybook Facade -> Wired Feature for meaningful GUI changes unless the user explicitly asks to skip it.",
     "Read ui/src/storybook/README.md before changing product UI.",
+    "Confirm whether the current work is in the html-concept, storybook-facade, or wired-feature stage.",
     "Update or add a story for every user-visible UI state you changed.",
+    "Facade stories may use static props, simplified callbacks, and domain-shaped fixtures; they must not mock filesystem watchers, HTTP routes, GraphQL transport, SSE, or real preview server behavior.",
     "If the UI introduces a new product-facing surface, add it to this manifest.",
     "Add a play interaction for one representative story when the change affects keyboard, pointer, focus, or form behavior.",
     "Run task storybook:verify and task storybook:build before handing off UI changes."

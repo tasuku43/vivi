@@ -12,7 +12,7 @@ import {
 } from "../../storybook/fixtures/review-lab.js";
 
 const meta = {
-  title: "Review/Comments/Comments Panel",
+  title: "Review/Comments Inbox States",
   component: CommentsPanel,
   parameters: {
     layout: "fullscreen",
@@ -40,6 +40,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const WorkspaceComments: Story = {
+  name: "Comments inbox shows status filters",
   tags: ["interaction"],
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
@@ -73,6 +74,7 @@ export const OpenOnly: Story = {
 };
 
 export const CurrentThreadActions: Story = {
+  name: "Current inbox thread can be resolved",
   tags: ["interaction"],
   args: {
     activeCommentId: "comment-workbench-open-1",
@@ -143,6 +145,7 @@ export const PrivateDrafts: Story = {
 };
 
 export const ScopedFileSearch: Story = {
+  name: "Comments inbox filters within the current file",
   tags: ["interaction"],
   args: {
     query: sampleFiles.code.path,

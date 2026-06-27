@@ -13,7 +13,7 @@ import {
 import { CodeViewer } from "./CodeViewer.js";
 
 const meta = {
-  title: "Viewers/Code/CodeViewer",
+  title: "Files/Code Review States",
   component: CodeViewer,
   parameters: {
     layout: "fullscreen",
@@ -152,6 +152,7 @@ export const SourceIgnoresDiffThreadOnSameLine: Story = {
 };
 
 export const SourceWithStackedLineThreads: Story = {
+  name: "Multiple code threads stack on one line",
   tags: ["interaction"],
   args: {
     selectedRange: null,
@@ -221,6 +222,7 @@ export const SourceWithStackedLineThreads: Story = {
 };
 
 export const SourceDraftOnExistingLineStaysSeparate: Story = {
+  name: "Code draft stays separate from an existing thread",
   tags: ["interaction"],
   args: {
     selectedRange: null,
@@ -293,6 +295,7 @@ export const SourceDraftOnExistingLineStaysSeparate: Story = {
 };
 
 export const SourceStartsSeparateDraftOnExistingLine: Story = {
+  name: "Code line can start a separate draft beside an existing thread",
   tags: ["interaction"],
   args: {
     selectedRange: null,
@@ -370,6 +373,7 @@ export const DiffMode: Story = {
 };
 
 export const NarrowInlineCommentDraft: Story = {
+  name: "Narrow code view keeps the private draft usable",
   tags: ["interaction"],
   args: {
     comments: [],

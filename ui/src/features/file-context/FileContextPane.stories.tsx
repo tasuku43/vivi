@@ -10,7 +10,7 @@ import {
 import { FileViewer } from "./components/FileViewer.js";
 
 const meta = {
-  title: "Viewers/FileViewer Shell",
+  title: "Files/Open File Surface States",
   component: FileViewer,
   parameters: {
     layout: "fullscreen",

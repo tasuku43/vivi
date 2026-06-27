@@ -12,7 +12,7 @@ import {
 import { FileViewer } from "./FileViewer.js";
 
 const meta = {
-  title: "Viewers/File Coverage/FileViewer",
+  title: "Files/Viewer Coverage States",
   component: FileViewer,
   parameters: {
     layout: "fullscreen",

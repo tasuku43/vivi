@@ -44,7 +44,7 @@ function comments(status: CommentStatus): ViviComment[] {
 }
 
 const meta = {
-  title: "Review/Comments/Inline Thread",
+  title: "Review/Inline Comment States",
   component: CodeCommentThread,
   parameters: { layout: "centered", a11y: { test: "error" } },
   args: {
@@ -121,6 +121,7 @@ export const Open: Story = {
 export const Resolved: Story = { args: args("resolved") };
 
 export const CurrentThreadActions: Story = {
+  name: "Resolved thread can be reopened",
   tags: ["interaction"],
   args: {
     ...args("resolved"),

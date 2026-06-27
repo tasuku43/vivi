@@ -12,7 +12,7 @@ import {
 import { DiffViewer } from "./DiffViewer.js";
 
 const meta = {
-  title: "Review/Diff/Diff Viewer",
+  title: "Review/Diff States",
   component: DiffViewer,
   parameters: {
     layout: "fullscreen",
@@ -33,6 +33,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const DiffCommentOnAddedLine: Story = {
+  name: "Added diff line opens an inline review thread",
   tags: ["interaction"],
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
@@ -69,6 +70,7 @@ export const DiffCommentOnAddedLine: Story = {
 };
 
 export const ActiveDiffCommentStaysInline: Story = {
+  name: "Active diff thread stays inline",
   args: {
     activeCommentId: "comment-diff-added",
   },
@@ -93,6 +95,7 @@ export const ActiveDiffCommentStaysInline: Story = {
 };
 
 export const DiffStartsSeparateDraftOnExistingLine: Story = {
+  name: "Diff line can start a separate draft beside an existing thread",
   tags: ["interaction"],
   args: {
     comments: [
@@ -174,6 +177,7 @@ export const DiffCommentOnRemovedLine: Story = {
 };
 
 export const ResolvedDiffThreadMarker: Story = {
+  name: "Resolved diff thread can be reopened",
   tags: ["interaction"],
   args: {
     comments: [

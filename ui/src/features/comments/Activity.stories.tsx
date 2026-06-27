@@ -9,7 +9,7 @@ import {
 import { CommentsPanel } from "./components/CommentsPanel.js";
 
 const meta = {
-  title: "System/States/Activity",
+  title: "Review/Activity States",
   parameters: {
     layout: "fullscreen",
     a11y: { test: "error" },

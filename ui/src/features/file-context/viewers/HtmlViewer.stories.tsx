@@ -11,7 +11,7 @@ import {
 import { HtmlViewer } from "./HtmlViewer.js";
 
 const meta = {
-  title: "Viewers/HTML/HtmlViewer",
+  title: "Files/HTML Preview States",
   component: HtmlViewer,
   parameters: {
     layout: "fullscreen",
@@ -154,6 +154,7 @@ export const PreviewRenderedHtmlThread: Story = {
 };
 
 export const PreviewStartsSeparateDraftFromExistingThread: Story = {
+  name: "HTML preview can start a separate draft beside a thread",
   tags: ["interaction"],
   args: {
     mode: "preview",
@@ -193,6 +194,7 @@ export const PreviewStartsSeparateDraftFromExistingThread: Story = {
 };
 
 export const SinglePreviewDraftFormFixedSlot: Story = {
+  name: "HTML preview keeps one fixed draft composer",
   tags: ["interaction"],
   args: {
     mode: "preview",

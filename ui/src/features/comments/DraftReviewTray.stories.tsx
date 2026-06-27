@@ -8,7 +8,7 @@ import {
 } from "../../storybook/fixtures/review-lab.js";
 
 const meta = {
-  title: "Review/Drafts/Draft Review Tray",
+  title: "Review/Draft Review States",
   component: DraftReviewTray,
   parameters: {
     layout: "fullscreen",

@@ -25,7 +25,7 @@ import {
 import { buildReviewQueueItems } from "../../state/review-queue.js";
 
 const meta = {
-  title: "Screens/Workbench",
+  title: "Workspace/Workbench States",
   component: ReviewWorkbenchStory,
   parameters: {
     layout: "fullscreen",
@@ -160,6 +160,7 @@ export const ReviewQueueFocused: Story = {
 };
 
 export const CompactInspectorCanReopenReviewQueue: Story = {
+  name: "Compact inspector can reopen the review queue",
   tags: ["interaction"],
   parameters: {
     a11y: { test: "todo" },
@@ -531,6 +532,7 @@ export const MissingSourceErrorState: Story = {
 };
 
 export const MissingSourceRecoversFromReviewQueue: Story = {
+  name: "Missing source recovers from the review queue",
   tags: ["interaction"],
   parameters: {
     a11y: { test: "todo" },
@@ -567,6 +569,7 @@ export const MissingSourceRecoversFromReviewQueue: Story = {
 };
 
 export const ReviewQueueOpenKeepsWorkspaceChrome: Story = {
+  name: "Open review queue keeps workspace chrome visible",
   tags: ["interaction"],
   parameters: {
     a11y: { test: "todo" },
@@ -656,6 +659,7 @@ export const CommentsPanelOpen: Story = {
 };
 
 export const CommentsPanelOpensInlineThread: Story = {
+  name: "Comments inbox opens the matching inline thread",
   tags: ["interaction"],
   parameters: {
     a11y: { test: "todo" },
@@ -723,6 +727,7 @@ export const CommentsPanelOpensInlineThread: Story = {
 };
 
 export const ViewerHeaderSummarizesScopedCommentHistory: Story = {
+  name: "Viewer header summarizes scoped comment history",
   tags: ["interaction"],
   parameters: {
     a11y: { test: "todo" },

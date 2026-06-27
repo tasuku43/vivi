@@ -3,18 +3,43 @@
 Storybook is Vivi's lightweight review UI regression lab. It is meant to catch
 review-surface regressions before full browser/server E2E tests run.
 
+## Place in the design flow
+
+Vivi uses a three-stage GUI design path for new visible surfaces and meaningful
+layout changes:
+
+1. **HTML Concept Mock**: a static `docs/ui-mocks/` artifact for layout,
+   density, information hierarchy, and product-direction review.
+2. **Storybook Facade**: a React story backed by props, simplified callbacks,
+   and domain-shaped fixtures. This is the visual contract for design approval
+   before real application, server, filesystem, SSE, route, or preview behavior
+   is wired.
+3. **Wired Feature**: the approved facade is connected to real use cases,
+   infrastructure, and server behavior, with behavior covered by the appropriate
+   unit, use-case, adapter, E2E, eval, or snapshot tests.
+
+Storybook therefore contains both facade stories and integrated regression
+stories. Facade stories are intentionally allowed to be "cardboard" from a data
+and backend perspective, but they should be honest about the product states a
+human must review.
+
 ## Scope
 
 Storybook stories cover stable browser UI states that can be represented with
-domain-shaped fixtures:
+domain-shaped fixtures. The left sidebar should group stories by the user state
+under review rather than by component implementation names:
 
-- workbench-level review screens under `Screens/Workbench`
-- comment thread lifecycle states under `Review/Comments`
-- draft review tray and publish CTA states under `Review/Drafts`
-- review queue summaries under `Review/Review Queue`
-- diff, Markdown, and HTML review affordances under `Review/Diff` and `Viewers/*`
-- navigation overlays under `Navigation/*`
-- loading, error, disconnected, and activity states under `System/States`
+- workspace review screens under `Workspace/Workbench States`
+- workspace chrome states under `Workspace/Navigation Chrome`
+- comment thread lifecycle states under `Review/Inline Comment States`
+- comments inbox states under `Review/Comments Inbox States`
+- draft review and publish CTA states under `Review/Draft Review States`
+- review queue summaries under `Review/Queue States`
+- diff review affordances under `Review/Diff States`
+- Markdown, HTML, code, and file fallback states under `Files/* States`
+- navigation overlays under `Navigation/Search and Command States`
+- review activity states under `Review/Activity States`
+- design workflow states under `Design Review/Workflow`
 
 The shared fixtures live in `ui/src/storybook/fixtures/review-lab.ts` and stay
 close to the public domain and GraphQL contract: `ViviComment`,
