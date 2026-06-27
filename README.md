@@ -105,7 +105,7 @@ agent-facing interface structured and deterministic.
 
 For coding agents, `comments work` is the primary feedback loop. Start Vivi
 with `--ready-json --actor <actor>`, then run the primary suggested
-`comments work --wait --loop --idle-events --idle-on-change` command from that ready payload.
+`comments work --loop --url <url> --json` command from that ready payload.
 `review queue` and `review diff` are changed-file context helpers; they are not
 the human-feedback intake loop. `protocol`, `schema`, `watch`, `follow`, and
 raw `claim` remain available for adapter authors, debugging, and recovery.

@@ -13,14 +13,21 @@ import (
 func TestHelpTextSurfacesAgentCommentsLoop(t *testing.T) {
 	help := helpText()
 	for _, command := range []string{
+		"vivi - local review adapter",
 		"vivi review <queue|bases|diff> [options]",
 		"vivi comments <work|doctor|mine|check|triage|release|done|dismiss> [options]",
 		"vivi comments <protocol|schema|inbox|watch|follow|claim|renew|hold|active|next|list|show|context|reply|resolve|archive|reopen> [advanced]",
-		"Agent quick start:",
-		"Start the local server: vivi <root> --port 0 --ready-json --actor <actor>",
-		"Then run the emitted primary comments work command; it includes the resolved --url.",
-		"Use review queue/diff only when the agent needs changed-file context beside human feedback.",
-		"Inspect deeper command help with: vivi comments --help or vivi review --help.",
+		"Human:",
+		"vivi [root] --open",
+		"Agent:",
+		"vivi [root] --port 0 --ready-json --actor <actor>",
+		"vivi comments work --actor <actor> --loop --url <url> --json",
+		"Changed-file context:",
+		"vivi review queue --actor <actor> --json",
+		"Debug/recovery:",
+		"vivi comments doctor|mine|check|protocol|schema ...",
+		"Deeper help:",
+		"vivi comments work --help",
 		"--ready-json",
 	} {
 		if !strings.Contains(help, command) {
@@ -103,6 +110,7 @@ func TestCommentsHelpTextSurfacesWorkSession(t *testing.T) {
 		"Agent common path:",
 		"1. Start Vivi: vivi <root> --port 0 --ready-json --actor <actor>",
 		"vivi comments work --actor <actor> --loop --url <url> --json",
+		"Inspect the compact resident loop with: vivi comments work --help",
 		"Recovery and adapter discovery:",
 		"Safe write rules:",
 		"Read stdinSchemaCommand before stdinRequired writes",
@@ -141,6 +149,26 @@ func TestCommentsHelpTextSurfacesWorkSession(t *testing.T) {
 	}
 }
 
+func TestCommentsWorkHelpTextSurfacesCompactResidentLoop(t *testing.T) {
+	help := commentsWorkHelpText()
+	for _, text := range []string{
+		"vivi comments work - compact resident feedback loop",
+		"Wait silently for GUI feedback",
+		"vivi <root> --port 0 --ready-json --actor <actor>",
+		"vivi comments work --actor <actor> --loop --url <url> --json",
+		"vivi comments work --once --actor <actor> --full --url <url> --json",
+		"silent idle       no claimable feedback; no output by default",
+		"claimed work      event=comment_work_claimed; follow summary.suggestedCommands[0]",
+		"--loop is compact: no --full, no --idle-events, limited activity/comment history.",
+		"Use emitted triage/release/done/dismiss suggestedCommands as-is.",
+		"--receipt-log <path>       Persist write receipts for restart recovery",
+	} {
+		if !strings.Contains(help, text) {
+			t.Fatalf("comments work help text did not include %q\n%s", text, help)
+		}
+	}
+}
+
 func TestNestedHelpFlagsPrintHumanHelp(t *testing.T) {
 	var commentsStdout bytes.Buffer
 	if err := runCommentsCommand(context.Background(), []string{"doctor", "--help"}, &commentsStdout); err != nil {
@@ -148,6 +176,14 @@ func TestNestedHelpFlagsPrintHumanHelp(t *testing.T) {
 	}
 	if text := commentsStdout.String(); !strings.Contains(text, "vivi comments - agent-oriented comment thread CLI") || strings.Contains(text, `"error"`) {
 		t.Fatalf("comments doctor --help printed unexpected output:\n%s", text)
+	}
+
+	var workStdout bytes.Buffer
+	if err := runCommentsCommand(context.Background(), []string{"work", "--help"}, &workStdout); err != nil {
+		t.Fatalf("comments work --help failed: %v", err)
+	}
+	if text := workStdout.String(); !strings.Contains(text, "vivi comments work - compact resident feedback loop") || strings.Contains(text, `"error"`) || strings.Contains(text, "Advanced/debug commands:") {
+		t.Fatalf("comments work --help printed unexpected output:\n%s", text)
 	}
 
 	var reviewStdout bytes.Buffer

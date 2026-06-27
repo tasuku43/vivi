@@ -191,7 +191,7 @@ function exitCodeForSignal(signal: NodeJS.Signals): number {
 
 export function helpText(): string {
   return [
-    "vivi - read-only visual workspace viewer",
+    "vivi - local review adapter",
     "",
     "Usage:",
     "  vivi [root] [--host 127.0.0.1] [--port 4317] [--open] [--include md,html,ts] [--max-file-size 1048576] [--allow-html-scripts]",

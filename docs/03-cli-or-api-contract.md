@@ -104,9 +104,10 @@ activity is available. `review queue` remains available as optional changed-file
 context, and `comments doctor` remains the online readiness and recovery check.
 Without an actor, the primary startup
 suggestion is a `comments doctor` retry that configures the agent actor first.
-The top-level `vivi --help` output includes this startup handoff as the agent
-quick start, so a CLI user can discover the server-first workflow before
-opening the deeper `review` or `comments` help screens.
+The top-level `vivi --help` output presents the CLI as human launch, agent
+loop, changed-file context, and debug/recovery lanes, so a CLI user can choose
+the right surface before opening the deeper `comments work`, `review`, or
+`comments` help screens.
 
 ### Agent comments CLI
 
@@ -120,7 +121,9 @@ current directory with `--ready-json`, and retrying `comments doctor` with the
 same actor, URL, and receipt-log context where available.
 `vivi comments --help` is part of that agent contract: its first screen keeps
 the common path centered on `comments work`, then lists recovery and adapter
-discovery commands separately. `protocol`, `schema`, `watch`, `follow`, and raw
+discovery commands separately. `vivi comments work --help` is the focused help
+screen for the compact resident loop, including idle behavior, event states,
+and token-sensitive defaults. `protocol`, `schema`, `watch`, `follow`, and raw
 `claim` are still supported, but they are advanced/debug surfaces rather than
 the first workflow a coding agent needs to learn. When an adapter opts into
 restart-safe receipt recovery, help tells it to keep the selected

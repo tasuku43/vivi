@@ -18,38 +18,52 @@ it("uses Vivi as the public package and CLI surface without a legacy alias", () 
   expect(pkg.bin.vivi).not.toContain("typescript");
 });
 
-it("routes the repository npm bin to the canonical Go CLI help surface", () => {
-  const result = spawnSync(
-    process.execPath,
-    ["scripts/vivi-go-cli.mjs", "--help"],
-    {
-      cwd: process.cwd(),
-      encoding: "utf8",
-      env: {
-        ...process.env,
-        GOCACHE: process.env.GOCACHE ?? `${process.cwd()}/.tmp-go-build-cache`,
-        GOMODCACHE:
-          process.env.GOMODCACHE ?? `${process.cwd()}/.tmp-go-mod-cache`,
-        VIVI_GO_CLI_FORCE_GO_RUN: "1",
+it(
+  "routes the repository npm bin to the canonical Go CLI help surface",
+  () => {
+    const result = spawnSync(
+      process.execPath,
+      ["scripts/vivi-go-cli.mjs", "--help"],
+      {
+        cwd: process.cwd(),
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          GOCACHE:
+            process.env.GOCACHE ?? `${process.cwd()}/.tmp-go-build-cache`,
+          GOMODCACHE:
+            process.env.GOMODCACHE ?? `${process.cwd()}/.tmp-go-mod-cache`,
+          VIVI_GO_CLI_FORCE_GO_RUN: "1",
+        },
       },
-    },
-  );
+    );
 
-  expect(result.status).toBe(0);
-  expect(result.stdout).toContain("vivi review <queue|bases|diff>");
-  expect(result.stdout).toContain(
-    "vivi comments <work|doctor|mine|check|triage|release|done|dismiss>",
-  );
-  expect(result.stdout).toContain("vivi comments <protocol|schema|inbox|watch");
-  expect(result.stdout).toContain("emitted primary comments work command");
-  expect(result.stdout).toContain("--ready-json");
-  expect(result.stdout).not.toMatch(/^vivi \[root\].*Options:/s);
-}, goCliHelpTimeoutMs);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("vivi review <queue|bases|diff>");
+    expect(result.stdout).toContain(
+      "vivi comments <work|doctor|mine|check|triage|release|done|dismiss>",
+    );
+    expect(result.stdout).toContain(
+      "vivi comments <protocol|schema|inbox|watch",
+    );
+    expect(result.stdout).toContain("Human:");
+    expect(result.stdout).toContain("Agent:");
+    expect(result.stdout).toContain(
+      "vivi comments work --actor <actor> --loop --url <url> --json",
+    );
+    expect(result.stdout).toContain("Changed-file context:");
+    expect(result.stdout).toContain("Debug/recovery:");
+    expect(result.stdout).toContain("--ready-json");
+    expect(result.stdout).not.toMatch(/^vivi \[root\].*Options:/s);
+  },
+  goCliHelpTimeoutMs,
+);
 
 it("keeps review and comments help reachable through the default bin", () => {
   for (const args of [
     ["review", "--help"],
     ["comments", "--help"],
+    ["comments", "work", "--help"],
   ]) {
     const result = spawnSync(
       process.execPath,
@@ -63,6 +77,7 @@ it("keeps review and comments help reachable through the default bin", () => {
             process.env.GOCACHE ?? `${process.cwd()}/.tmp-go-build-cache`,
           GOMODCACHE:
             process.env.GOMODCACHE ?? `${process.cwd()}/.tmp-go-mod-cache`,
+          VIVI_GO_CLI_FORCE_GO_RUN: "1",
         },
       },
     );
@@ -71,7 +86,9 @@ it("keeps review and comments help reachable through the default bin", () => {
     expect(result.stdout).toContain(
       args[0] === "review"
         ? "vivi review - agent-oriented Git review CLI"
-        : "vivi comments - agent-oriented comment thread CLI",
+        : args[1] === "work"
+          ? "vivi comments work - compact resident feedback loop"
+          : "vivi comments - agent-oriented comment thread CLI",
     );
   }
 });
@@ -95,7 +112,7 @@ it("keeps the public README on the Vivi binary distribution path", () => {
 
 it("documents npm as a local Go CLI delegate, not a TypeScript CLI path", () => {
   const readme = readFileSync("README.md", "utf8");
-  const install = readFileSync("docs/install.md", "utf8");
+  const install = readFileSync("docs/27-install.md", "utf8");
   const cliContract = readFileSync("docs/03-cli-or-api-contract.md", "utf8");
 
   for (const text of [readme, install]) {
@@ -123,7 +140,7 @@ it("publishes Go binary release artifacts without npm or Docker publishing", () 
 
 it("keeps Homebrew and mise install paths on the vivi command", () => {
   const formula = readFileSync("docs/release/homebrew/vivi.rb", "utf8");
-  const install = readFileSync("docs/install.md", "utf8");
+  const install = readFileSync("docs/27-install.md", "utf8");
   const oldLowerName = ["path", "lens"].join("");
 
   expect(formula).toContain("class Vivi < Formula");

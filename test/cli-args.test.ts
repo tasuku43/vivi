@@ -32,7 +32,7 @@ it("keeps HTML scripts disabled unless explicitly allowed", () => {
 
 it("shows Vivi command help without the old pre-release name", () => {
   const help = helpText();
-  expect(help).toContain("vivi - read-only visual workspace viewer");
+  expect(help).toContain("vivi - local review adapter");
   expect(help).toContain("vivi [root]");
   expect(help).toContain("--version");
   expect(help).not.toContain(["path", "lens"].join(""));

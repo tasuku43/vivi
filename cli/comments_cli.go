@@ -388,7 +388,15 @@ func firstCommentsPositionalArg(command string, args []string) string {
 }
 
 func runCommentsCommand(ctx context.Context, args []string, stdout io.Writer) error {
-	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" || hasHelpFlag(args[1:]) {
+	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
+		fmt.Fprintln(stdout, commentsHelpText())
+		return nil
+	}
+	if args[0] == "work" && hasHelpFlag(args[1:]) {
+		fmt.Fprintln(stdout, commentsWorkHelpText())
+		return nil
+	}
+	if hasHelpFlag(args[1:]) {
 		fmt.Fprintln(stdout, commentsHelpText())
 		return nil
 	}
@@ -7476,6 +7484,7 @@ func commentsHelpText() string {
 		"     vivi comments work --actor <actor> --loop --url <url> --json",
 		"  3. For each work event, prefer summary.recommendedAction and the primary suggestedCommands entry.",
 		"  4. Use triage/release/done/dismiss suggestions as emitted; do not invent guarded write argv.",
+		"  5. Inspect the compact resident loop with: vivi comments work --help",
 		"",
 		"Recovery and adapter discovery:",
 		"  vivi comments doctor --actor <actor> --url <url> --json",
@@ -7554,6 +7563,52 @@ func commentsHelpText() string {
 		"  --no-initial               Wait for the next watch/follow change",
 		"  --once                     Poll once, emit at most one idle/claimed work event, and exit",
 		"  --max-events <count>       Stop streaming commands after emitting count events",
+	}, "\n")
+}
+
+func commentsWorkHelpText() string {
+	return strings.Join([]string{
+		"vivi comments work - compact resident feedback loop",
+		"",
+		"Purpose:",
+		"  Wait silently for GUI feedback, claim the next open thread, keep the lease warm,",
+		"  and emit compact NDJSON events only when work or thread activity changes.",
+		"",
+		"Start:",
+		"  vivi <root> --port 0 --ready-json --actor <actor>",
+		"  vivi comments work --actor <actor> --loop --url <url> --json",
+		"",
+		"One-shot inspection:",
+		"  vivi comments work --once --actor <actor> --full --url <url> --json",
+		"",
+		"Restart-safe loop:",
+		"  vivi comments work --actor <actor> --loop --receipt-log <path> --url <url> --json",
+		"",
+		"Event states:",
+		"  silent idle       no claimable feedback; no output by default",
+		"  claimed work      event=comment_work_claimed; follow summary.suggestedCommands[0]",
+		"  thread activity   event=comment_activity_batch; branch on summary.recommendedAction",
+		"  terminal status   done/dismiss/release suggestions close or hand off the thread",
+		"",
+		"Token defaults:",
+		"  --loop is compact: no --full, no --idle-events, limited activity/comment history.",
+		"  Add --full only for one-shot inspection; add --idle-events only for observability.",
+		"",
+		"Safe write rules:",
+		"  Use emitted triage/release/done/dismiss suggestedCommands as-is.",
+		"  Keep --require-claim for background writes and reuse emitted --client-event-id on retries.",
+		"  Read stdinSchemaCommand before commands that require --triage-file - or --result-file -.",
+		"",
+		"Options most agents need:",
+		"  --actor <id>               Actor id for claims, reads, and replies",
+		"  --url <url>                Vivi server URL from ready JSON",
+		"  --loop                     Keep waiting after terminal status",
+		"  --once                     Poll once and exit after at most one event",
+		"  --full                     Include source, diff, and activity context",
+		"  --receipt-log <path>       Persist write receipts for restart recovery",
+		"  --activity-limit <count>   Limit emitted activity history",
+		"  --comment-limit <count>    Limit emitted comments",
+		"  --idle-events              Emit explicit idle-state/debug events",
 	}, "\n")
 }
 

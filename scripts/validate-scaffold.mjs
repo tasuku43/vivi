@@ -42,7 +42,7 @@ const required = [
   "docs/14-architecture.md",
   "docs/15-security-model.md",
   "docs/20-go-backend-design.md",
-  "docs/install.md",
+  "docs/27-install.md",
   "docs/release/releasing.md",
   "docs/release/homebrew/vivi.rb",
   "SECURITY.md",
@@ -66,6 +66,18 @@ const errors = [];
 for (const file of required) {
   if (!existsSync(path.join(root, file)))
     errors.push(`missing required file: ${file}`);
+}
+
+const docsRoot = path.join(root, "docs");
+for (const entry of readdirSync(docsRoot)) {
+  const docsPath = path.join(docsRoot, entry);
+  if (
+    statSync(docsPath).isFile() &&
+    entry.endsWith(".md") &&
+    !/^\d{2}-/.test(entry)
+  ) {
+    errors.push(`docs markdown files must use NN- prefix: docs/${entry}`);
+  }
 }
 
 const packagePath = path.join(root, "package.json");
