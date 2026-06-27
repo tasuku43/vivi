@@ -158,7 +158,16 @@ export const RenderedStartsSeparateDraftFromExistingThread: Story = {
         name: "Comment thread for line 7",
       }),
     ).toHaveLength(2);
-    await expect(canvas.getAllByLabelText("New line comment")[1]).toHaveFocus();
+    const separateComposer = canvas
+      .getAllByLabelText("New line comment")
+      .find(
+        (composer) =>
+          !composer
+            .getAttribute("aria-describedby")
+            ?.includes("mode-thread-"),
+      );
+    expect(separateComposer).toBeDefined();
+    await expect(separateComposer!).toHaveFocus();
     await expect(
       canvas.getAllByRole("button", {
         name: "Save private draft comment",

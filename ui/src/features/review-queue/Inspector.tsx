@@ -37,6 +37,8 @@ import {
 import { gitReviewUnavailableGuidance } from "../../state/git-review-refresh.js";
 import type { OutlineHeading } from "../../state/outline.js";
 
+type InspectorMode = "review" | "threads" | "map";
+
 interface Props {
   file: FilePayload | null;
   fileRemoved?: boolean;
@@ -116,6 +118,9 @@ export function Inspector({
     ? reviewChanges.find((change) => change.path === file.path)
     : null;
   const activeThreads = summarizeActiveThreads(comments);
+  const hiddenReviewThreads = activeThreads.filter(
+    (thread) => thread.status !== "open",
+  );
   const activeThreadCounts = countThreadsByStatus(activeThreads);
   const queueItems: ReviewQueueItem[] =
     reviewItems ??
@@ -169,7 +174,9 @@ export function Inspector({
         <span className="pill">Read-only</span>
       </div>
       <div className="inspect-body">
-        <div className="section-title with-action primary-section">
+        <InspectorModeSwitch name={`inspector-mode-${activePaneId}`} />
+        <div className="inspector-review-mode">
+          <div className="section-title with-action primary-section">
           <span>Review Queue</span>
           {queueItems.length ? (
             <span className="queue-actions">
@@ -419,6 +426,7 @@ export function Inspector({
             </span>
           </div>
         ) : null}
+        </div>
 
         <p className="active-file-line">
           {file ? (
@@ -481,12 +489,56 @@ export function Inspector({
             )}
           </div>
         ) : null}
+        {hiddenReviewThreads.length ? (
+          <div className="inspector-review-mode">
+            <details className="hidden-review-history">
+              <summary>
+                <span>Hidden from queue</span>
+                <small>
+                  {hiddenReviewThreadSummary(activeThreadCounts)}
+                </small>
+              </summary>
+              <div className="hidden-review-history-list">
+                {hiddenReviewThreads.slice(0, 4).map((thread) => {
+                  const primaryComment = thread.comments[0]!;
+                  const latestComment =
+                    thread.comments[thread.comments.length - 1] ??
+                    primaryComment;
+                  return (
+                    <button
+                      className={`hidden-review-history-item ${thread.status}`}
+                      key={thread.id}
+                      type="button"
+                      aria-label={`Open hidden ${statusLabel(thread.status)} thread in ${thread.path}, ${commentLineLabel(primaryComment)}`}
+                      onClick={() => onOpenComment?.(primaryComment)}
+                    >
+                      <span className={`comment-status ${thread.status}`}>
+                        {statusLabel(thread.status)}
+                      </span>
+                      <strong>{surfaceLabel(primaryComment)}</strong>
+                      <span>{commentLineLabel(primaryComment)}</span>
+                      <small>
+                        {truncateCommentPreview(latestComment.body, 72)}
+                      </small>
+                    </button>
+                  );
+                })}
+                {hiddenReviewThreads.length > 4 ? (
+                  <span className="hidden-review-history-more">
+                    {hiddenReviewThreads.length - 4} more in Comments history
+                  </span>
+                ) : null}
+              </div>
+            </details>
+          </div>
+        ) : null}
 
-        <h3 className="section-title">Comments</h3>
-        {commentsLoading ? (
-          <p className="muted compact-empty">Loading comments...</p>
-        ) : (
-          <div className="comment-summary">
+        <div className="inspector-comments-mode">
+          <h3 className="section-title">Comments</h3>
+            {commentsLoading ? (
+              <p className="muted compact-empty">Loading comments...</p>
+            ) : (
+              <div className="comment-summary">
             <strong>
               {activeThreadCounts.open} open{" "}
               {activeThreadCounts.open === 1 ? "thread" : "threads"}
@@ -697,29 +749,31 @@ export function Inspector({
                 ) : null}
               </div>
             ) : null}
-          </div>
-        )}
-        {comments.some((comment) => {
-          const activity = threadActivities[comment.threadId ?? comment.id];
-          return activity && activity.timeline.length > activity.inline.length;
-        }) ? (
-          <details className="comment-activity-timeline inspector-timeline">
-            <summary>Activity timeline</summary>
-            <ol>
-              {comments.flatMap((comment) => {
-                const activity =
-                  threadActivities[comment.threadId ?? comment.id];
-                return (activity?.timeline ?? []).map((event) => (
-                  <li key={`${comment.id}-${event.id}`}>
-                    {activityLabel(event)}
-                  </li>
-                ));
-              })}
-            </ol>
-          </details>
-        ) : null}
+              </div>
+            )}
+            {comments.some((comment) => {
+              const activity = threadActivities[comment.threadId ?? comment.id];
+              return activity && activity.timeline.length > activity.inline.length;
+            }) ? (
+              <details className="comment-activity-timeline inspector-timeline">
+                <summary>Activity timeline</summary>
+                <ol>
+                  {comments.flatMap((comment) => {
+                    const activity =
+                      threadActivities[comment.threadId ?? comment.id];
+                    return (activity?.timeline ?? []).map((event) => (
+                      <li key={`${comment.id}-${event.id}`}>
+                        {activityLabel(event)}
+                      </li>
+                    ));
+                  })}
+                </ol>
+              </details>
+            ) : null}
+        </div>
 
-        {file ? (
+        <div className="inspector-map-mode">
+          {file ? (
           <div className="inspector-file-outline">
             <div className="section-title with-action file-map-title">
               <span>In this file</span>
@@ -772,9 +826,9 @@ export function Inspector({
               </p>
             )}
           </div>
-        ) : null}
+          ) : null}
 
-        <details className="file-details">
+          <details className="file-details">
           <summary>Details</summary>
           <div className="kv">
             <span>Type</span>
@@ -829,9 +883,42 @@ export function Inspector({
               Open all changed files as tabs
             </button>
           ) : null}
-        </details>
+          </details>
+        </div>
       </div>
     </aside>
+  );
+}
+
+function InspectorModeSwitch({
+  name,
+}: {
+  name: string;
+}) {
+  const modes: Array<{
+    detail: string;
+    id: InspectorMode;
+    label: string;
+  }> = [
+    { id: "review", label: "A Review", detail: "active work" },
+    { id: "threads", label: "B Threads", detail: "conversation" },
+    { id: "map", label: "C Map", detail: "reading" },
+  ];
+  return (
+    <fieldset className="inspector-mode-switch" aria-label="Inspector mode">
+      {modes.map((item) => (
+        <label key={item.id}>
+          <input
+            defaultChecked={item.id === "review"}
+            name={name}
+            type="radio"
+            value={item.id}
+          />
+          <span>{item.label}</span>
+          <small>{item.detail}</small>
+        </label>
+      ))}
+    </fieldset>
   );
 }
 
@@ -839,6 +926,21 @@ function activeFileReviewLabel(openComments: number): string {
   if (openComments === 0) return "Clear";
   if (openComments === 1) return "1 open thread";
   return `${openComments} open threads`;
+}
+
+function hiddenReviewThreadSummary(
+  counts: Record<CommentStatus, number>,
+): string {
+  return [
+    counts.resolved
+      ? `${counts.resolved} resolved ${counts.resolved === 1 ? "thread" : "threads"}`
+      : "",
+    counts.archived
+      ? `${counts.archived} archived ${counts.archived === 1 ? "thread" : "threads"}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function reviewQueueProgressValueText(

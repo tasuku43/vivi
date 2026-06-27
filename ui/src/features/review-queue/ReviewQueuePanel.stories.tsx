@@ -109,6 +109,64 @@ export const ReviewQueueItemWithLatestAgentActivity: Story = {
   },
 };
 
+export const InspectorModeSwitching: Story = {
+  tags: ["interaction"],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByText("Review Queue")).toBeInTheDocument();
+
+    await userEvent.click(
+      canvas.getByRole("radio", { name: "B Threads conversation" }),
+    );
+    await expect(canvas.getByText("Comments")).toBeVisible();
+    await expect(canvas.getByText("Review Queue")).not.toBeVisible();
+    await expect(canvas.getByText("In this file")).not.toBeVisible();
+
+    await userEvent.click(canvas.getByRole("radio", { name: "C Map reading" }));
+    await expect(canvas.getByText("In this file")).toBeVisible();
+    await expect(canvas.getByText("Comments")).not.toBeVisible();
+    await expect(canvas.getByText("Review Queue")).not.toBeVisible();
+
+    await userEvent.click(
+      canvas.getByRole("radio", { name: "A Review active work" }),
+    );
+    await expect(canvas.getByText("Review Queue")).toBeVisible();
+  },
+};
+
+export const HiddenHistoryDisclosure: Story = {
+  tags: ["interaction"],
+  args: {
+    file: sampleFiles.queue,
+    activePath: resolvedHandoffComment.path,
+    reviewChanges: [resolvedHandoffChange],
+    reviewItems: buildReviewQueueItems(
+      [resolvedHandoffChange],
+      [resolvedHandoffComment],
+      sampleThreadActivities,
+      new Set(),
+    ),
+    comments: [resolvedHandoffComment],
+    reviewComments: [resolvedHandoffComment],
+    unreadReviewPaths: new Set(),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByText("Hidden from queue")).toBeVisible();
+    await expect(canvas.getByText("1 resolved thread")).toBeVisible();
+    await expect(
+      canvasElement.querySelector(".hidden-review-history-item"),
+    ).not.toBeVisible();
+
+    await userEvent.click(canvas.getByText("Hidden from queue"));
+    await expect(
+      canvasElement.querySelector(".hidden-review-history-item"),
+    ).toBeVisible();
+  },
+};
+
 export const ReviewQueueNoActiveFile: Story = {
   args: {
     file: null,

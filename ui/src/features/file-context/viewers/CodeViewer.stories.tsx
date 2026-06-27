@@ -131,7 +131,7 @@ export const SourceIgnoresDiffThreadOnSameLine: Story = {
     expect(lineAction).toBeInTheDocument();
     await expect(lineAction).toHaveAttribute(
       "aria-label",
-      "Open comment thread on line 10 with 1 message; open to reply",
+      "Open comment thread on line 10 with 1 message; choose new thread or reply",
     );
     await userEvent.click(lineAction!);
     await expect(
@@ -320,7 +320,7 @@ export const SourceStartsSeparateDraftOnExistingLine: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(
       canvas.getByRole("button", {
-        name: "Open comment thread on line 10 with 1 message; open to reply",
+        name: "Open comment thread on line 10 with 1 message; choose new thread or reply",
       }),
     );
 
@@ -338,10 +338,21 @@ export const SourceStartsSeparateDraftOnExistingLine: Story = {
         "Existing thread should stay separate from the next note.",
       ),
     ).toBeVisible();
-    await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
-    await expect(
-      canvas.getByRole("button", { name: "Save private draft comment" }),
-    ).toBeDisabled();
+    const separateComposer = canvas
+      .getAllByLabelText("New line comment")
+      .find(
+        (composer) =>
+          !composer
+            .getAttribute("aria-describedby")
+            ?.includes("mode-thread-"),
+      );
+    expect(separateComposer).toBeDefined();
+    await expect(separateComposer!).toHaveFocus();
+    for (const saveButton of canvas.getAllByRole("button", {
+      name: "Save private draft comment",
+    })) {
+      await expect(saveButton).toBeDisabled();
+    }
   },
 };
 
