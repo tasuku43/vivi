@@ -12,3 +12,4 @@ artifacts/perf/
 .vite/
 .DS_Store
 *.log
+.codex-screenshots/
