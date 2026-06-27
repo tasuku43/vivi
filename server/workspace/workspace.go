@@ -470,10 +470,60 @@ func (fsys *FS) WatchEntries() (map[string]WatchEntry, error) {
 }
 
 func (fsys *FS) WatchEntriesWithStats() (map[string]WatchEntry, WatchStats, error) {
+	return fsys.watchEntriesUnder("")
+}
+
+func (fsys *FS) WatchEntriesUnder(relativeDir string) (map[string]WatchEntry, WatchStats, error) {
+	relative, err := normalizeRelativePath(relativeDir)
+	if err != nil {
+		return nil, WatchStats{}, err
+	}
+	if relative == "" {
+		return fsys.watchEntriesUnder("")
+	}
+	if fsys.isIgnored(relative) {
+		return map[string]WatchEntry{}, WatchStats{}, nil
+	}
+	entry, ok, err := fsys.WatchEntry(relative)
+	if err != nil {
+		return nil, WatchStats{}, err
+	}
+	if !ok || entry.Kind != "directory" {
+		return map[string]WatchEntry{}, WatchStats{}, nil
+	}
+	return fsys.watchEntriesUnder(relative)
+}
+
+func (fsys *FS) watchEntriesUnder(relativeDir string) (map[string]WatchEntry, WatchStats, error) {
 	operation := telemetry.StartOperation()
 	started := time.Now()
 	entries := map[string]WatchEntry{}
 	stats := WatchStats{}
+	if relativeDir != "" {
+		entry, ok, err := fsys.WatchEntry(relativeDir)
+		if err != nil {
+			stats.DurationMs = time.Since(started).Milliseconds()
+			operation.Record(context.Background(), "workspace.watch_entries", telemetry.OperationStats{
+				DurationMs: stats.DurationMs,
+				Error:      true,
+			})
+			return entries, stats, err
+		}
+		if ok {
+			entries[relativeDir] = entry
+			err = fsys.walkWatchEntries(relativeDir, entries, &stats)
+		}
+		stats.DurationMs = time.Since(started).Milliseconds()
+		stats.ReturnedEntries = len(entries)
+		operation.Record(context.Background(), "workspace.watch_entries", telemetry.OperationStats{
+			DurationMs:         stats.DurationMs,
+			ScannedDirectories: stats.ScannedDirectories,
+			ScannedFiles:       stats.ScannedFiles,
+			ResultCount:        stats.ReturnedEntries,
+			Error:              err != nil,
+		})
+		return entries, stats, err
+	}
 	err := fsys.walkWatchEntries("", entries, &stats)
 	stats.DurationMs = time.Since(started).Milliseconds()
 	stats.ReturnedEntries = len(entries)
@@ -485,6 +535,76 @@ func (fsys *FS) WatchEntriesWithStats() (map[string]WatchEntry, WatchStats, erro
 		Error:              err != nil,
 	})
 	return entries, stats, err
+}
+
+func (fsys *FS) RootPath() string {
+	return fsys.root
+}
+
+func (fsys *FS) RelativePathForAbsolute(absolute string) (string, bool) {
+	absolute, err := filepath.Abs(absolute)
+	if err != nil {
+		return "", false
+	}
+	if !insidePath(fsys.root, absolute) {
+		return "", false
+	}
+	relative, err := filepath.Rel(fsys.root, absolute)
+	if err != nil {
+		return "", false
+	}
+	if relative == "." {
+		return "", true
+	}
+	relative = filepath.ToSlash(relative)
+	normalized, err := normalizeRelativePath(relative)
+	if err != nil {
+		return "", false
+	}
+	return normalized, true
+}
+
+func (fsys *FS) WatchEntry(relativePath string) (WatchEntry, bool, error) {
+	relative, err := normalizeRelativePath(relativePath)
+	if err != nil {
+		return WatchEntry{}, false, err
+	}
+	if relative != "" && fsys.isIgnored(relative) {
+		return WatchEntry{}, false, nil
+	}
+	resolved, err := fsys.resolvePath(relative, false)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return WatchEntry{}, false, nil
+		}
+		return WatchEntry{}, false, err
+	}
+	info, err := os.Stat(resolved.absolute)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return WatchEntry{}, false, nil
+		}
+		return WatchEntry{}, false, err
+	}
+	if symlinkInfo, err := os.Lstat(resolved.absolute); err == nil && symlinkInfo.Mode()&os.ModeSymlink != 0 && info.IsDir() {
+		return WatchEntry{}, false, nil
+	}
+	if info.IsDir() {
+		return WatchEntry{
+			Path:    resolved.relative,
+			Kind:    "directory",
+			MtimeNs: info.ModTime().UnixNano(),
+		}, true, nil
+	}
+	if !info.Mode().IsRegular() || !fsys.isIncluded(resolved.relative) {
+		return WatchEntry{}, false, nil
+	}
+	return WatchEntry{
+		Path:    resolved.relative,
+		Kind:    "file",
+		Size:    info.Size(),
+		MtimeNs: info.ModTime().UnixNano(),
+	}, true, nil
 }
 
 type resolvedPath struct {

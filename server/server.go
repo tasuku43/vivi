@@ -22,7 +22,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tasuku43/vivi/internal/telemetry"
 	"github.com/tasuku43/vivi/server/application"
 	"github.com/tasuku43/vivi/server/comments"
 	"github.com/tasuku43/vivi/server/gitreview"
@@ -50,12 +49,9 @@ type Server struct {
 	graphql     http.Handler
 	connections map[net.Conn]struct{}
 	connMu      sync.Mutex
+	watchReady  chan struct{}
+	watchOnce   sync.Once
 }
-
-const (
-	watchBaseInterval    = 750 * time.Millisecond
-	watchMaxIdleInterval = 2 * time.Second
-)
 
 func Start(ctx context.Context, options Options) (*Server, error) {
 	mux := http.NewServeMux()
@@ -69,6 +65,7 @@ func Start(ctx context.Context, options Options) (*Server, error) {
 		options:     options,
 		app:         app,
 		connections: map[net.Conn]struct{}{},
+		watchReady:  make(chan struct{}),
 	}
 	server.graphql = vivigraphql.NewHandler(app, func(r *http.Request) bool {
 		return safeJSONWriteRequest(r, server.options.Host)
@@ -183,6 +180,9 @@ func (server *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "text/event-stream")
 	w.Header().Set("cache-control", "no-cache, no-transform")
 	w.Header().Set("connection", "keep-alive")
+	if !server.waitForWorkspaceWatcher(r.Context()) {
+		return
+	}
 	events, unsubscribe := server.app.SubscribeWorkspaceEvents()
 	defer unsubscribe()
 	_, _ = io.WriteString(w, ": connected\n\n")
@@ -211,6 +211,9 @@ func (server *Server) handleGraphqlEvents(w http.ResponseWriter, r *http.Request
 	w.Header().Set("content-type", "text/event-stream")
 	w.Header().Set("cache-control", "no-cache, no-transform")
 	w.Header().Set("connection", "keep-alive")
+	if !server.waitForWorkspaceWatcher(r.Context()) {
+		return
+	}
 	events, unsubscribe := server.app.SubscribeWorkspaceEvents()
 	defer unsubscribe()
 	_, _ = io.WriteString(w, ": connected\n\n")
@@ -347,84 +350,7 @@ func (server *Server) closeConnections() {
 }
 
 func (server *Server) watch(ctx context.Context) {
-	previous, err := server.options.Workspace.WatchEntries()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "[vivi] watcher initial scan failed: %v\n", err)
-		previous = map[string]workspace.WatchEntry{}
-	}
-	idleScans := 0
-	for {
-		timer := time.NewTimer(watchInterval(idleScans))
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			return
-		case <-timer.C:
-			operation := telemetry.StartOperation()
-			started := time.Now()
-			current, stats, err := server.options.Workspace.WatchEntriesWithStats()
-			if err != nil {
-				operation.Record(ctx, "server.watch_loop", telemetry.OperationStats{
-					DurationMs:         time.Since(started).Milliseconds(),
-					ScannedDirectories: stats.ScannedDirectories,
-					ScannedFiles:       stats.ScannedFiles,
-					Error:              true,
-				})
-				fmt.Fprintf(os.Stderr, "[vivi] watcher scan failed: %v\n", err)
-				idleScans = 0
-				continue
-			}
-			emittedEvents := 0
-			for pathname, entry := range current {
-				old, ok := previous[pathname]
-				if !ok {
-					server.publish(application.WorkspaceEvent{Type: "add", Path: pathname, Kind: entry.Kind})
-					emittedEvents++
-					continue
-				}
-				if entry.Kind == "file" && (entry.Size != old.Size || entry.MtimeNs != old.MtimeNs) {
-					server.publish(application.WorkspaceEvent{Type: "change", Path: pathname})
-					emittedEvents++
-				}
-			}
-			for pathname, old := range previous {
-				if _, ok := current[pathname]; !ok {
-					server.publish(application.WorkspaceEvent{Type: "unlink", Path: pathname, Kind: old.Kind})
-					emittedEvents++
-				}
-			}
-			operation.Record(ctx, "server.watch_loop", telemetry.OperationStats{
-				DurationMs:         time.Since(started).Milliseconds(),
-				ScannedDirectories: stats.ScannedDirectories,
-				ScannedFiles:       stats.ScannedFiles,
-				EmittedEvents:      emittedEvents,
-				ResultCount:        len(current),
-			})
-			if emittedEvents > 0 {
-				server.options.Workspace.InvalidateSearchIndex()
-			}
-			previous = current
-			if emittedEvents == 0 {
-				idleScans++
-			} else {
-				idleScans = 0
-			}
-		}
-	}
-}
-
-func watchInterval(idleScans int) time.Duration {
-	if idleScans <= 0 {
-		return watchBaseInterval
-	}
-	interval := watchBaseInterval
-	for range idleScans {
-		interval *= 2
-		if interval >= watchMaxIdleInterval {
-			return watchMaxIdleInterval
-		}
-	}
-	return interval
+	server.watchWorkspace(ctx)
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {

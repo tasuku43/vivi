@@ -128,6 +128,61 @@ func TestWatchEntriesWithStatsCountsWorkspaceScan(t *testing.T) {
 	}
 }
 
+func TestWatchEntryAppliesIgnoreAndInclusionPolicy(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, root, "README.md", []byte("# Ready\n"))
+	mustWrite(t, root, "node_modules/ignored.js", []byte("ignored\n"))
+
+	fsys, err := New(Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry, ok, err := fsys.WatchEntry("README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || entry.Path != "README.md" || entry.Kind != "file" || entry.Size == 0 {
+		t.Fatalf("entry = %#v, ok = %v", entry, ok)
+	}
+	if _, ok, err := fsys.WatchEntry("node_modules/ignored.js"); err != nil || ok {
+		t.Fatalf("ignored entry ok = %v err = %v", ok, err)
+	}
+}
+
+func TestWatchEntriesUnderScansOnlyRequestedSubtree(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, root, "docs/guide.md", []byte("# Guide\n"))
+	mustWrite(t, root, "docs/nested/deep.md", []byte("# Deep\n"))
+	mustWrite(t, root, "src/app.ts", []byte("export const ok = true\n"))
+
+	fsys, err := New(Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries, stats, err := fsys.WatchEntriesUnder("docs")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, want := range []string{"docs", "docs/guide.md", "docs/nested", "docs/nested/deep.md"} {
+		if _, ok := entries[want]; !ok {
+			t.Fatalf("expected %q in entries: %#v", want, entries)
+		}
+	}
+	if _, ok := entries["src/app.ts"]; ok {
+		t.Fatalf("focused scan included sibling subtree: %#v", entries)
+	}
+	if stats.ScannedDirectories != 2 {
+		t.Fatalf("scanned directories = %d, want 2", stats.ScannedDirectories)
+	}
+	if stats.ScannedFiles != 2 {
+		t.Fatalf("scanned files = %d, want 2", stats.ScannedFiles)
+	}
+	if stats.ReturnedEntries != len(entries) {
+		t.Fatalf("returned entries = %d, len(entries) = %d", stats.ReturnedEntries, len(entries))
+	}
+}
+
 func TestReadTreeSkipsSymlinksOutsideRoot(t *testing.T) {
 	root := t.TempDir()
 	outside := t.TempDir()

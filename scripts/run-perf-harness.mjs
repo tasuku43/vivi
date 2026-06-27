@@ -5,6 +5,7 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -12,6 +13,11 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { chromium } from "playwright";
 
+import {
+  aggregateProcessSummaries,
+  summarizeProcessSamples,
+  summarizeProcessSamplesSince,
+} from "./perf-harness-metrics.mjs";
 import { readOtelSpans, summarizeOperationSpans } from "./perf-otel-summary.mjs";
 
 const cwd = process.cwd();
@@ -34,10 +40,18 @@ const scenarios = [];
 const baselineError = [];
 
 try {
-  scenarios.push(await runScenario("idle_watch", async () => {
+  scenarios.push(await runScenario("idle_watch", async ({ baseURL, serverSampler }) => {
     const idleMs = numberEnv("VIVI_PERF_IDLE_MS", 3500);
+    const readyStarted = Date.now();
+    await waitForEventsReady(baseURL);
+    const readyMs = Date.now() - readyStarted;
+    const steadySinceMs = Date.now();
     await delay(idleMs);
-    return { idleMs };
+    return {
+      idleMs,
+      readyMs,
+      steadyServer: serverSampler.summarySince("server_steady_idle", steadySinceMs),
+    };
   }));
 
   scenarios.push(await runScenario("front_workspace", async ({ baseURL }) => {
@@ -126,7 +140,7 @@ try {
     const burstDir = path.join(workspaceRoot, burstDirName);
     try {
       mkdirSync(burstDir, { recursive: true });
-      const observed = await waitForWorkspaceEvents(
+      const observed = await waitForWorkspaceEventsConcurrently(
         baseURL,
         new Set(Array.from({ length: changeCount }, (_, index) => `${burstDirName}/probe-${String(index).padStart(3, "0")}.md`)),
         async () => {
@@ -144,6 +158,59 @@ try {
       return observed;
     } finally {
       rmSync(burstDir, { recursive: true, force: true });
+    }
+  }));
+
+  scenarios.push(await runScenario("coding_agent_storm", async ({ baseURL, serverSampler }) => {
+    const operations = numberEnv("VIVI_PERF_AGENT_STORM_OPS", 300);
+    const fileCount = numberEnv("VIVI_PERF_AGENT_STORM_FILES", 60);
+    const delayMs = numberEnvAllowZero("VIVI_PERF_AGENT_STORM_DELAY_MS", 0);
+    const stormDirName = `.vivi-perf-agent-storm-${process.pid}-${Date.now()}`;
+    const stormDir = path.join(workspaceRoot, stormDirName);
+    const expectedPaths = new Set(
+      Array.from({ length: fileCount }, (_, index) => `${stormDirName}/agent-${String(index).padStart(3, "0")}.md`),
+    );
+    try {
+      const observed = await waitForWorkspaceActivityConcurrently(
+        baseURL,
+        expectedPaths,
+        async () => {
+          mkdirSync(stormDir, { recursive: true });
+          for (let index = 0; index < operations; index++) {
+            const fileIndex = index % fileCount;
+            const file = path.join(stormDir, `agent-${String(fileIndex).padStart(3, "0")}.md`);
+            if (index % 37 === 0) {
+              const tmp = `${file}.tmp-${index}`;
+              writeFileSync(tmp, `# Agent file ${fileIndex}\noperation=${index}\natomic=true\n`, "utf8");
+              renameSync(tmp, file);
+            } else {
+              writeFileSync(file, `# Agent file ${fileIndex}\noperation=${index}\n`, "utf8");
+            }
+            if (index % 11 === 0) {
+              appendFileSync(file, `append=${Date.now()}\n`, "utf8");
+            }
+            if (delayMs > 0) {
+              await delay(delayMs);
+            }
+          }
+        },
+        {
+          quietMs: numberEnv("VIVI_PERF_AGENT_STORM_QUIET_MS", 750),
+          timeoutMs: numberEnv("VIVI_PERF_AGENT_STORM_TIMEOUT_MS", 20_000),
+        },
+      );
+      await delay(numberEnv("VIVI_PERF_POST_AGENT_STORM_MS", 1200));
+      return {
+        operations,
+        fileCount,
+        delayMs,
+        ...observed,
+        stormServer: observed.actionStartedAtMs
+          ? serverSampler.summarySince("server_agent_storm", observed.actionStartedAtMs)
+          : null,
+      };
+    } finally {
+      rmSync(stormDir, { recursive: true, force: true });
     }
   }));
 } catch (error) {
@@ -195,7 +262,7 @@ async function runScenario(name, run) {
   let error = null;
   try {
     const baseURL = await urlPromise;
-    result = await run({ baseURL });
+    result = await run({ baseURL, child, serverSampler });
   } catch (caught) {
     error = caught instanceof Error ? caught.message : String(caught);
   } finally {
@@ -364,6 +431,200 @@ async function waitForWorkspaceEvents(baseURL, expectedPaths, action) {
       missingCount: expectedPaths.size - observed.size,
       sampleEvents: Array.from(observed.values()).slice(0, 5),
     };
+  } finally {
+    controller.abort();
+    await reader.cancel().catch(() => {});
+  }
+}
+
+async function waitForWorkspaceEventsConcurrently(baseURL, expectedPaths, action) {
+  const controller = new AbortController();
+  const response = await fetch(`${baseURL}/events`, { signal: controller.signal });
+  if (!response.ok || !response.body) {
+    throw new Error(`events stream failed with ${response.status}`);
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const observed = new Map();
+  let buffer = "";
+  const streamStarted = Date.now();
+  let actionStarted = null;
+  let actionFinished = null;
+  let actionPromise = null;
+  let firstLatencyMs = null;
+  const timeoutMs = numberEnv("VIVI_PERF_BURST_TIMEOUT_MS", 20_000);
+
+  try {
+    while (Date.now() - streamStarted < timeoutMs) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      if (actionPromise === null && buffer.includes(": connected")) {
+        actionStarted = Date.now();
+        actionPromise = Promise.resolve()
+          .then(action)
+          .finally(() => {
+            actionFinished = Date.now();
+          });
+      }
+      const chunks = buffer.split(/\n\n/);
+      buffer = chunks.pop() ?? "";
+      for (const chunk of chunks) {
+        const data = chunk.split(/\r?\n/).find((line) => line.startsWith("data: "));
+        if (!data) continue;
+        const event = JSON.parse(data.slice("data: ".length));
+        if (!expectedPaths.has(event.path) || observed.has(event.path)) continue;
+        const eventAt = Date.now();
+        const latencyMs = eventAt - (actionStarted ?? streamStarted);
+        firstLatencyMs ??= latencyMs;
+        observed.set(event.path, {
+          path: event.path,
+          eventType: event.type,
+          eventVersion: event.version,
+          latencyMs,
+        });
+        if (observed.size >= expectedPaths.size) {
+          await actionPromise?.catch((error) => {
+            throw error;
+          });
+          return {
+            expectedCount: expectedPaths.size,
+            observedCount: observed.size,
+            firstLatencyMs,
+            lastLatencyMs: latencyMs,
+            actionDurationMs: actionFinished && actionStarted ? actionFinished - actionStarted : null,
+            sampleEvents: Array.from(observed.values()).slice(0, 5),
+          };
+        }
+      }
+    }
+    await actionPromise?.catch((error) => {
+      throw error;
+    });
+    return {
+      expectedCount: expectedPaths.size,
+      observedCount: observed.size,
+      firstLatencyMs,
+      lastLatencyMs: observed.size ? Math.max(...Array.from(observed.values(), (event) => event.latencyMs)) : null,
+      actionDurationMs: actionFinished && actionStarted ? actionFinished - actionStarted : null,
+      missingCount: expectedPaths.size - observed.size,
+      sampleEvents: Array.from(observed.values()).slice(0, 5),
+    };
+  } finally {
+    controller.abort();
+    await reader.cancel().catch(() => {});
+  }
+}
+
+async function waitForWorkspaceActivityConcurrently(baseURL, expectedPaths, action, options = {}) {
+  const controller = new AbortController();
+  const response = await fetch(`${baseURL}/events`, { signal: controller.signal });
+  if (!response.ok || !response.body) {
+    throw new Error(`events stream failed with ${response.status}`);
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const observedByPath = new Map();
+  const countsByType = {};
+  let buffer = "";
+  const streamStarted = Date.now();
+  let actionStarted = null;
+  let actionFinished = null;
+  let actionPromise = null;
+  let firstLatencyMs = null;
+  let lastLatencyMs = null;
+  let lastEventAt = null;
+  let eventCount = 0;
+  const timeoutMs = options.timeoutMs ?? 20_000;
+  const quietMs = options.quietMs ?? 750;
+
+  try {
+    while (Date.now() - streamStarted < timeoutMs) {
+      const read = await Promise.race([
+        reader.read(),
+        delay(25).then(() => ({ timeout: true })),
+      ]);
+      if (read.timeout) {
+        if (actionFinished && lastEventAt && Date.now() - lastEventAt >= quietMs) break;
+        continue;
+      }
+      const { value, done } = read;
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      if (actionPromise === null && buffer.includes(": connected")) {
+        actionStarted = Date.now();
+        actionPromise = Promise.resolve()
+          .then(action)
+          .finally(() => {
+            actionFinished = Date.now();
+          });
+      }
+      const chunks = buffer.split(/\n\n/);
+      buffer = chunks.pop() ?? "";
+      for (const chunk of chunks) {
+        const data = chunk.split(/\r?\n/).find((line) => line.startsWith("data: "));
+        if (!data) continue;
+        const event = JSON.parse(data.slice("data: ".length));
+        const eventAt = Date.now();
+        const latencyMs = eventAt - (actionStarted ?? streamStarted);
+        firstLatencyMs ??= latencyMs;
+        lastLatencyMs = latencyMs;
+        lastEventAt = eventAt;
+        eventCount++;
+        countsByType[event.type] = (countsByType[event.type] ?? 0) + 1;
+        if (!observedByPath.has(event.path)) {
+          observedByPath.set(event.path, {
+            path: event.path,
+            eventType: event.type,
+            eventVersion: event.version,
+            latencyMs,
+          });
+        }
+      }
+    }
+    await actionPromise?.catch((error) => {
+      throw error;
+    });
+    const observedExpected = Array.from(expectedPaths).filter((pathname) => observedByPath.has(pathname));
+    return {
+      expectedUniquePaths: expectedPaths.size,
+      observedExpectedPaths: observedExpected.length,
+      observedUniquePaths: observedByPath.size,
+      eventCount,
+      countsByType,
+      firstLatencyMs,
+      lastLatencyMs,
+      actionStartedAtMs: actionStarted,
+      actionFinishedAtMs: actionFinished,
+      actionDurationMs: actionFinished && actionStarted ? actionFinished - actionStarted : null,
+      missingCount: expectedPaths.size - observedExpected.length,
+      missingSample: Array.from(expectedPaths).filter((pathname) => !observedByPath.has(pathname)).slice(0, 5),
+      sampleEvents: Array.from(observedByPath.values()).slice(0, 5),
+    };
+  } finally {
+    controller.abort();
+    await reader.cancel().catch(() => {});
+  }
+}
+
+async function waitForEventsReady(baseURL) {
+  const controller = new AbortController();
+  const response = await fetch(`${baseURL}/events`, { signal: controller.signal });
+  if (!response.ok || !response.body) {
+    throw new Error(`events stream failed with ${response.status}`);
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  const started = Date.now();
+  try {
+    while (Date.now() - started < 20_000) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      if (buffer.includes(": connected")) return;
+    }
+    throw new Error("timed out waiting for workspace events readiness");
   } finally {
     controller.abort();
     await reader.cancel().catch(() => {});
@@ -616,6 +877,9 @@ function startProcessSampler(pid, label, intervalMs = numberEnv("VIVI_PERF_PROCE
     summary() {
       return summarizeProcessSamples(samples, label);
     },
+    summarySince(sinceLabel, sinceMs) {
+      return summarizeProcessSamplesSince(samples, sinceLabel, sinceMs);
+    },
   };
 }
 
@@ -646,41 +910,6 @@ function parseProcessCpuTime(value) {
     return Math.round((parts[0] * 60 + parts[1]) * 1000);
   }
   return Math.round(parts[0] * 1000);
-}
-
-function summarizeProcessSamples(samples, label) {
-  const rss = samples.map((sample) => sample.rssBytes).filter(Number.isFinite);
-  const cpu = samples.map((sample) => sample.cpuPercent).filter(Number.isFinite);
-  const cpuTime = samples.map((sample) => sample.cpuTimeMs).filter(Number.isFinite);
-  return {
-    label,
-    sampleCount: samples.length,
-    rssBytes: numericSummary(rss),
-    cpuPercent: numericSummary(cpu),
-    cpuTimeMs: cpuTime.length ? { first: cpuTime[0], last: cpuTime.at(-1), delta: cpuTime.at(-1) - cpuTime[0] } : null,
-  };
-}
-
-function aggregateProcessSummaries(summaries) {
-  return {
-    sampleCount: summaries.reduce((sum, summary) => sum + summary.sampleCount, 0),
-    rssBytes: numericSummary(summaries.map((summary) => summary.rssBytes?.max).filter(Number.isFinite)),
-    cpuPercent: numericSummary(summaries.map((summary) => summary.cpuPercent?.max).filter(Number.isFinite)),
-    cpuTimeMs: numericSummary(summaries.map((summary) => summary.cpuTimeMs?.delta).filter(Number.isFinite)),
-  };
-}
-
-function numericSummary(values) {
-  if (values.length === 0) {
-    return { count: 0, min: null, max: null, avg: null };
-  }
-  const sum = values.reduce((total, value) => total + value, 0);
-  return {
-    count: values.length,
-    min: Math.min(...values),
-    max: Math.max(...values),
-    avg: round(sum / values.length, 3),
-  };
 }
 
 function countWorkspace(root) {
@@ -727,7 +956,7 @@ function numberEnv(name, fallback) {
   return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
-function round(value, places) {
-  const scale = 10 ** places;
-  return Math.round(value * scale) / scale;
+function numberEnvAllowZero(name, fallback) {
+  const value = Number.parseInt(process.env[name] ?? "", 10);
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
 }

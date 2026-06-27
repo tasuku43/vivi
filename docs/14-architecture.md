@@ -9,6 +9,9 @@ server/  Go local HTTP/API server, filesystem, review, comments, and events
 cli/     Go process entrypoint and server composition
 ```
 
+For the runtime flow between the CLI, Go server, workspace watcher, event
+delivery, and browser state, see `docs/25-runtime-architecture.md`.
+
 The project remains one Go module. `cli` may start `server`; `server` does not
 depend on `cli`. The server may serve the generated `ui/dist` asset package but
 does not import browser source from `ui/src`.

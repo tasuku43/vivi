@@ -190,6 +190,8 @@ type ActivityEventService struct {
 	subscribers map[chan map[string]any]struct{}
 }
 
+const workspaceEventBufferSize = 1024
+
 func NewActivityEventService() *ActivityEventService {
 	return &ActivityEventService{subscribers: map[chan map[string]any]struct{}{}}
 }
@@ -222,7 +224,7 @@ func NewEventService() *EventService {
 	return &EventService{subscribers: map[chan WorkspaceEvent]struct{}{}, version: 1}
 }
 func (s *EventService) Subscribe() (<-chan WorkspaceEvent, func()) {
-	events := make(chan WorkspaceEvent, 32)
+	events := make(chan WorkspaceEvent, workspaceEventBufferSize)
 	s.mu.Lock()
 	s.subscribers[events] = struct{}{}
 	s.mu.Unlock()

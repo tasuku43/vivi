@@ -13,6 +13,23 @@ func TestEventServicePublishesVersionedWorkspaceEvents(t *testing.T) {
 	}
 }
 
+func TestEventServiceBuffersCodingAgentWriteStorm(t *testing.T) {
+	service := NewEventService()
+	events, unsubscribe := service.Subscribe()
+	defer unsubscribe()
+
+	for index := 0; index < 300; index++ {
+		service.Publish(WorkspaceEvent{Type: "change", Path: "agent-output.md"})
+	}
+
+	for index := 0; index < 300; index++ {
+		event := <-events
+		if event.Version != index+2 {
+			t.Fatalf("event %d version = %d, want %d", index, event.Version, index+2)
+		}
+	}
+}
+
 func TestServiceComposesInjectedThreadActivityObservers(t *testing.T) {
 	calls := []string{}
 	factory := func(label string) ThreadActivityObserverFactory {

@@ -15,8 +15,9 @@ Use watcher events as the primary signal. Use hashes and versions as validation 
 
 - Refetch the currently open file when it changes.
 - Refetch the tree on add/remove events.
-- Back off recursive polling after repeated empty watch scans, while resetting to
-  the normal interval as soon as a filesystem event is emitted.
+- Use platform watcher events as the default change signal, with recursive scans
+  limited to startup reconciliation, focused new-directory reconciliation, and
+  watcher-error recovery. Recursive polling is a degraded fallback only.
 - Preserve selected and expanded state in the UI.
 - Bound initial sidebar expansion so large trees do not mount every descendant on first render.
 - Cap rendered visible sidebar rows after large folders are expanded, while keeping selected and changed paths plus their ancestors rendered.
@@ -103,7 +104,15 @@ watching, one file-change probe, Git review refresh, filename search, and
 content search as separate scenarios. It also launches a headless browser for a
 front-end workspace smoke path, samples the server process RSS/CPU with `ps`,
 runs the review CLI repeatedly against the local server, and can apply a burst
-of temporary workspace changes. It writes:
+of temporary workspace changes. The idle scenario records both whole-process
+startup cost and a separate `steadyServer` sample after `/events` reports
+watcher readiness. Burst writes are measured concurrently with SSE reading so
+first-event latency is not hidden behind the write loop. The
+`coding_agent_storm` scenario simulates a coding agent rewriting files as fast
+as the host filesystem accepts them: it creates a temporary directory, performs
+many immediate writes/renames/appends, reads SSE concurrently, and reports
+missing expected paths plus a `stormServer` CPU/RSS window that starts when the
+write action starts. It writes:
 
 ```text
 artifacts/perf/summary.json
@@ -127,6 +136,7 @@ Useful knobs:
 ```bash
 VIVI_PERF_CLI_ITERATIONS=10 npm run perf:otel
 VIVI_PERF_BURST_CHANGES=100 VIVI_PERF_BURST_DELAY_MS=10 npm run perf:otel
+VIVI_PERF_AGENT_STORM_OPS=300 VIVI_PERF_AGENT_STORM_FILES=60 npm run perf:otel
 VIVI_PERF_SKIP_BUILD=1 npm run perf:otel
 ```
 
@@ -229,6 +239,118 @@ Baseline interpretation:
   linux-scale trees. The latency is bounded by scan duration plus backoff timing,
   not by SSE delivery after the scan completes.
 
+### Platform watcher slice: linux workspace on 2026-06-27
+
+Implementation slice:
+
+- Added a Go server watcher adapter backed by platform filesystem events
+  (`fsnotify`).
+- Kept `workspace.FS` responsible for root containment, ignores, inclusion, and
+  single-path watch metadata.
+- Kept SSE and GraphQL workspace event contracts unchanged, but delayed the
+  initial `connected` marker until startup reconciliation and directory watch
+  registration complete.
+- Replaced per-event recursive scans with single-path metadata checks. New
+  directories use focused subtree reconciliation so files created before a watch
+  is attached are still observed.
+- Full recursive scans now run at startup and on watcher-error recovery; polling
+  remains only as a degraded fallback if the platform watcher cannot start.
+
+Measurement command:
+
+```bash
+docker compose -f docker-compose.otel.yml up -d
+VIVI_PERF_RUN_NAME=linux-platform-watch-final2-2026-06-27 \
+  VIVI_PERF_WORKSPACE=/Users/tasuku/work/github.com/torvalds/linux \
+  VIVI_PERF_IDLE_MS=3500 \
+  VIVI_PERF_BURST_CHANGES=30 \
+  VIVI_PERF_BURST_DELAY_MS=20 \
+  VIVI_PERF_CLI_ITERATIONS=5 \
+  npm run perf:otel
+```
+
+Coding-agent storm measurement command:
+
+```bash
+VIVI_PERF_RUN_NAME=linux-agent-storm-final-2026-06-27 \
+  VIVI_PERF_WORKSPACE=/Users/tasuku/work/github.com/torvalds/linux \
+  VIVI_PERF_IDLE_MS=3500 \
+  VIVI_PERF_BURST_CHANGES=30 \
+  VIVI_PERF_BURST_DELAY_MS=20 \
+  VIVI_PERF_AGENT_STORM_OPS=300 \
+  VIVI_PERF_AGENT_STORM_FILES=60 \
+  VIVI_PERF_AGENT_STORM_DELAY_MS=0 \
+  VIVI_PERF_CLI_ITERATIONS=5 \
+  npm run perf:otel
+```
+
+Artifacts:
+
+- `artifacts/perf/linux-platform-watch-final2-2026-06-27.summary.json`
+- `artifacts/perf/linux-agent-storm-final-2026-06-27.summary.json`
+- `artifacts/perf/summary.json`
+- `artifacts/perf/otel.jsonl`
+
+Workspace shape remained 6,142 directories and 93,609 files. The full run took
+39.4s for `linux-platform-watch-final2-2026-06-27`; the follow-up storm run
+took 48.9s. Both reported no scenario errors.
+
+Key deltas versus `linux-baseline-2026-06-27`:
+
+| Scenario | Baseline | Platform watcher slice | Delta |
+| --- | ---: | ---: | --- |
+| `idle_watch` recursive watch scans | 2 `workspace.watch_entries` spans | 1 startup span | No recurring idle scan during the scenario. |
+| `idle_watch` steady CPU time | Not separately measured | 0 ms over 3.3s | Steady idle window showed 0.0% CPU by process CPU time. |
+| `file_change` observed latency | 3,545 ms | 1 ms | Event path is platform event + single-path stat. |
+| `file_change` server watch-loop scans | 2 full scans | 1 startup scan | The file event did not trigger a full scan. |
+| `file_change` `server.watch_event` avg duration | n/a | 27 ms | 2 events, 0 scanned files, 3.1 MB avg allocation. |
+| `change_burst` observed files | 30 / 30 | 30 / 30 | No dropped events under the measured burst. |
+| `change_burst` first / last observed latency | 3,505 / 3,513 ms | 1 / 636 ms | Concurrent SSE reading shows first event immediately and final event within the 1.5s target. |
+| `change_burst` write action duration | Not separately measured | 657 ms | Last event tracked the actual 30-file write loop rather than a later polling scan. |
+| `change_burst` `server.watch_event` avg duration | n/a | 1.8 ms | 33 platform events, 0 scanned files, 0.5 MB avg allocation. |
+| `change_burst` server max RSS | 76.8 MB | 94.6 MB | Still under the 150 MB target; added directory watches and event state raise RSS. |
+| `coding_agent_storm` expected paths | n/a | 60 / 60 | 300 immediate writes/renames/appends across 60 files observed without missing expected paths. |
+| `coding_agent_storm` first / last observed latency | n/a | 17 / 104 ms | The event stream kept up with a 17 ms write action. |
+| `coding_agent_storm` storm CPU time | n/a | 10 ms over 1.758s | Startup reconciliation excluded; process CPU time was 0.57% in the storm-and-settle window. |
+| `coding_agent_storm` server RSS | n/a | 118.6 MB max | Still under the 150 MB target during rapid writes. |
+| `cli_review_queue` total wall time | 1,703 ms | 1,500 ms | No regression on the CLI review path. |
+| `file_search` server max RSS | 105.0 MB | 101.8 MB | No watcher-related regression observed. |
+
+Operation-level comparison:
+
+| Scenario | Operation | Baseline count / avg duration / avg scanned files | Platform watcher count / avg duration / avg scanned files |
+| --- | --- | ---: | ---: |
+| `idle_watch` | `workspace.watch_entries` | 2 / 1,361.5 ms / 93,696 | 1 / 1,565 ms / 93,696 |
+| `file_change` | `server.watch_loop` | 2 / 1,336 ms / 93,696.5 | 1 / 1,309 ms / 93,696 |
+| `file_change` | `server.watch_event` | n/a | 2 / 27 ms / 0 |
+| `change_burst` | `server.watch_loop` | 2 / 1,517.5 ms / 93,726 | 2 / 680 ms / 46,848 |
+| `change_burst` | `server.watch_event` | n/a | 33 / 1.8 ms / 0 |
+| `coding_agent_storm` | `server.watch_loop` | n/a | 2 / 740 ms / 46,849.5 |
+| `coding_agent_storm` | `server.watch_event` | n/a | 135 / 1.326 ms / 0 |
+
+Interpretation:
+
+- The largest user-visible gap moved: ordinary file-change latency dropped from
+  polling-scale seconds to effectively immediate SSE delivery.
+- Idle still pays one startup reconciliation per server process. The updated
+  harness separates startup from steady idle: after watcher readiness, the
+  3.3s steady idle window consumed 0 ms of process CPU time.
+- Burst latency now meets the MVP target in the measured 30-file case: first
+  event was observed in 1 ms and final event in 636 ms. The 636 ms final latency
+  tracks the 657 ms write action rather than a later recursive polling scan.
+- Coding-agent style rapid writes are now part of the measurement model. In the
+  measured 300-operation storm, all 60 expected file paths were observed, first
+  and last event latency were 17 ms and 104 ms, and the storm-and-settle CPU
+  window consumed 10 ms of server CPU time over 1.758s. This answers the
+  previous blind spot where only idle and slower burst writes were measured.
+- The two `coding_agent_storm` `server.watch_loop` spans are startup
+  reconciliation plus the focused new-directory reconciliation. The 135
+  `server.watch_event` spans handled the rapid file events with 0 scanned
+  files, so the storm did not degrade into per-file recursive scans.
+- Watcher state updates must remain in-place. A previous draft cloned the
+  100k-entry watch map per event and pushed burst RSS above the target; the
+  measured slice keeps platform events near 0.5 MB average allocation.
+
 ### Production-readiness performance targets
 
 These targets define the line Vivi should reach before it is considered
@@ -250,6 +372,7 @@ MVP readiness targets:
 | Idle server cost | After startup reconciliation, steady idle CPU stays under 5% average and does not perform full recursive scans repeatedly. |
 | Watch event latency | File add/change/unlink event p95 under 500 ms and p99 under 1s for ordinary edits. |
 | Watch burst handling | 100 file changes observed without dropped events; first event under 500 ms, final event under 1.5s. |
+| Coding-agent write storm | 300 immediate writes/renames/appends across at least 60 paths observed without missing expected paths; first event under 500 ms, final event under 1.5s, post-readiness server CPU under 5% average over the storm-and-settle window. |
 | Server memory | Steady RSS under 150 MB while browsing and watching a linux-scale tree. |
 | Front-end memory | JS heap used under 80 MB after opening a typical source/Markdown file; under 120 MB after command palette and tab interactions. |
 | Filename search | Warm filename search p95 under 100 ms; cold index build under 1.5s and not repeated after every small edit. |
@@ -264,10 +387,14 @@ Stretch targets:
 - Content search streams or incrementally returns first results under 500 ms.
 - Front-end JS heap remains under 100 MB after opening 10 files in tabs.
 
-The next performance slice should prioritize replacing recurring recursive
-polling with platform watcher events plus explicit reconciliation scans. That
-single change is expected to move the largest gaps at once: idle CPU, event
-latency, burst latency, and repeated scan allocation.
+The platform watcher slice removed the recurring recursive polling loop from
+the default path and added measurement separation for startup, steady idle,
+burst latency, and coding-agent write storms. The current evidence reaches the
+MVP watcher targets and the new storm target on the measured linux workspace.
+More aggressive watcher targets are realistic for steady-state writes because
+the hot path is already platform event plus single-path stat; startup and search
+targets require separate architectural work. The next performance slice should
+tighten startup reconciliation cost and reduce content search allocation.
 
 ## Future behavior
 
@@ -276,5 +403,5 @@ latency, burst latency, and repeated scan allocation.
 - Replace the bounded visible-row cap with smooth virtualization for very large trees.
 - Add range controls for large-file partial loading when users need a later chunk.
 - Add text diff patching only where profiling shows it matters.
-- Replace recursive polling with platform watcher events for large trees, using
-  full scans only for startup and reconciliation.
+- Reduce startup reconciliation cost without delaying first UI usability.
+- Reduce content search allocation and CPU for common code-token queries.
