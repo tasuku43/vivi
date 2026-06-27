@@ -6,6 +6,7 @@ import { InlineCommentCard } from "./components/InlineCommentCard.js";
 import {
   manyReviewComments,
   sampleComments,
+  sampleDraftComments,
   sampleFiles,
   sampleThreadActivities,
 } from "../../storybook/fixtures/review-lab.js";
@@ -28,6 +29,9 @@ const meta = {
     onStatusFilterChange: fn(),
     onClose: fn(),
     onOpenComment: fn(),
+    onOpenDraft: fn(),
+    onDeleteDraft: fn(),
+    onPublishDrafts: fn(),
     onStatusChange: fn(),
   },
 } satisfies Meta<typeof CommentsPanel>;
@@ -103,7 +107,9 @@ export const ResolvedHistoryArchivedHidden: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Resolved feedback")).toBeInTheDocument();
-    await expect(canvas.queryByText("Archived feedback")).not.toBeInTheDocument();
+    await expect(
+      canvas.queryByText("Archived feedback"),
+    ).not.toBeInTheDocument();
     await expect(
       canvas.queryByRole("button", { name: /archived/i }),
     ).not.toBeInTheDocument();
@@ -113,6 +119,26 @@ export const ResolvedHistoryArchivedHidden: Story = {
 export const AgentActivityVisible: Story = {
   args: {
     query: "WorkbenchContainer",
+  },
+};
+
+export const PrivateDrafts: Story = {
+  tags: ["interaction"],
+  args: {
+    draftComments: sampleDraftComments,
+    statusFilter: "drafts",
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Comments Hub")).toBeInTheDocument();
+    await expect(canvas.getByText("Private drafts")).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", { name: /Publish \d+ draft comments/ }),
+    ).toBeVisible();
+    await userEvent.click(
+      canvas.getAllByRole("button", { name: /Open private draft in/ })[0]!,
+    );
+    await expect(args.onOpenDraft).toHaveBeenCalled();
   },
 };
 
@@ -143,12 +169,17 @@ export const ScopedFileSearch: Story = {
     await expect(
       canvas.getByRole("button", { name: "Clear comments search" }),
     ).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Show all 3 threads" }))
-      .toHaveTextContent("All 3");
-    await expect(canvas.getByRole("button", { name: "Show 3 open threads" }))
-      .toHaveTextContent("Open 3");
+    const filters = within(
+      canvas.getByRole("group", { name: "Comment status filters" }),
+    );
     await expect(
-      canvas.getByRole("button", { name: "Show 0 resolved threads" }),
+      filters.getByRole("button", { name: "Show all 3 threads" }),
+    ).toHaveTextContent("All 3");
+    await expect(
+      filters.getByRole("button", { name: "Show 3 open threads" }),
+    ).toHaveTextContent("Open 3");
+    await expect(
+      filters.getByRole("button", { name: "Show 0 resolved threads" }),
     ).toHaveTextContent("Resolved");
     await expect(
       canvas.getByRole("list", {
@@ -159,8 +190,9 @@ export const ScopedFileSearch: Story = {
       canvas.getByRole("button", { name: "Clear comments search" }),
     );
     await expect(canvas.getByLabelText("Search comments")).toHaveValue("");
-    await expect(canvas.getByRole("button", { name: "Show all 6 threads" }))
-      .toHaveTextContent("All 6");
+    await expect(
+      filters.getByRole("button", { name: "Show all 6 threads" }),
+    ).toHaveTextContent("All 6");
   },
 };
 

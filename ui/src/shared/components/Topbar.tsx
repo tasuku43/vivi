@@ -12,6 +12,7 @@ interface TopbarProps {
   openCommentThreadCount?: number;
   reviewOpenCommentThreadCount?: number;
   commentAttentionCount?: number;
+  draftCommentCount?: number;
   onOpenComments?: () => void;
   onOpenShortcuts: () => void;
 }
@@ -25,6 +26,7 @@ export function Topbar({
   openCommentThreadCount = 0,
   reviewOpenCommentThreadCount,
   commentAttentionCount = 0,
+  draftCommentCount = 0,
   onOpenComments,
   onOpenShortcuts,
 }: TopbarProps) {
@@ -33,6 +35,7 @@ export function Topbar({
   const themeLabel = themePreferenceLabel(themePreference);
   const commentsButton = commentsButtonState({
     attentionCount: commentAttentionCount,
+    draftCount: draftCommentCount,
     openThreadCount: openCommentThreadCount,
     reviewOpenThreadCount: reviewOpenCommentThreadCount,
   });
@@ -96,6 +99,15 @@ export function Topbar({
         >
           <span>{commentsButton.label}</span>
           <span className="comment-count-badge">{commentsButton.count}</span>
+          {draftCommentCount ? (
+            <span
+              className="comment-count-badge private"
+              aria-label={`${draftCommentCount} private draft ${draftCommentCount === 1 ? "comment" : "comments"}`}
+              title={`${draftCommentCount} private draft ${draftCommentCount === 1 ? "comment" : "comments"}`}
+            >
+              {draftCommentCount}
+            </span>
+          ) : null}
           <kbd>Cmd/Ctrl Shift C</kbd>
         </button>
         <button
@@ -117,10 +129,12 @@ export function Topbar({
 
 function commentsButtonState({
   attentionCount,
+  draftCount,
   openThreadCount,
   reviewOpenThreadCount,
 }: {
   attentionCount: number;
+  draftCount: number;
   openThreadCount: number;
   reviewOpenThreadCount?: number;
 }): {
@@ -133,10 +147,10 @@ function commentsButtonState({
     const noun = attentionCount === 1 ? "thread" : "threads";
     const verb = attentionCount === 1 ? "needs" : "need";
     return {
-      ariaLabel: `Open Attention inbox, ${attentionCount} comment ${noun} ${verb} attention`,
+      ariaLabel: `Open Comments hub, ${attentionCount} comment ${noun} ${verb} attention${draftCount ? `, ${draftSummary(draftCount)}` : ""}`,
       count: attentionCount,
       label: "Attention",
-      title: `Open Attention inbox: ${attentionCount} comment ${noun} ${verb} attention (Cmd/Ctrl+Shift+C)`,
+      title: `Open Comments hub: ${attentionCount} comment ${noun} ${verb} attention${draftCount ? `, ${draftSummary(draftCount)}` : ""} (Cmd/Ctrl+Shift+C)`,
     };
   }
 
@@ -151,11 +165,15 @@ function commentsButtonState({
       ? `, ${openReviewThreadSummary(reviewOpenThreadCount)}`
       : "";
   return {
-    ariaLabel: `Open Comments inbox, ${summary}${reviewSummary}`,
+    ariaLabel: `Open Comments hub, ${summary}${reviewSummary}${draftCount ? `, ${draftSummary(draftCount)}` : ""}`,
     count: openThreadCount,
     label: "Comments",
-    title: `Open Comments inbox: ${summary}${reviewSummary} (Cmd/Ctrl+Shift+C)`,
+    title: `Open Comments hub: ${summary}${reviewSummary}${draftCount ? `, ${draftSummary(draftCount)}` : ""} (Cmd/Ctrl+Shift+C)`,
   };
+}
+
+function draftSummary(count: number): string {
+  return `${count} private draft ${count === 1 ? "comment" : "comments"}`;
 }
 
 function openReviewThreadSummary(count: number): string {

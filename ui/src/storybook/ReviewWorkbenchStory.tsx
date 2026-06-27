@@ -8,8 +8,10 @@ import {
 } from "../domain/comments.js";
 import type { FilePayload, FsNode } from "../domain/fs-node.js";
 import { CommandPalette } from "../features/command-palette/CommandPalette.js";
-import { CommentsPanel } from "../features/comments/components/CommentsPanel.js";
-import { DraftReviewTray } from "../features/comments/components/DraftReviewTray.js";
+import {
+  CommentsPanel,
+  type CommentStatusFilter,
+} from "../features/comments/components/CommentsPanel.js";
 import { InlineCommentCard } from "../features/comments/components/InlineCommentCard.js";
 import { FileViewer } from "../features/file-context/components/FileViewer.js";
 import { Inspector } from "../features/review-queue/Inspector.js";
@@ -143,7 +145,7 @@ export function ReviewWorkbenchStory({
   const [storyCommentsPanelQuery, setStoryCommentsPanelQuery] =
     useState(commentsPanelQuery);
   const [storyCommentsPanelStatus, setStoryCommentsPanelStatus] =
-    useState(commentsPanelStatus);
+    useState<CommentStatusFilter>(commentsPanelStatus);
   const [storyCommandPaletteOpen, setStoryCommandPaletteOpen] =
     useState(commandPaletteOpen);
   const [storyShortcutHelpOpen, setStoryShortcutHelpOpen] =
@@ -278,6 +280,7 @@ export function ReviewWorkbenchStory({
       activeComment: storyActiveComment,
       activeCommentId: storyActiveCommentId,
       attentionThreadCount: storyAttentionThreadCount,
+      draftCount: draftComments.length,
       preferAttention,
       query,
     });
@@ -309,6 +312,7 @@ export function ReviewWorkbenchStory({
           ).length
         }
         commentAttentionCount={storyAttentionThreadCount}
+        draftCommentCount={draftComments.length}
         onThemeCycle={noop}
         onQuickOpen={() => setStoryCommandPaletteOpen(true)}
         onSearchText={() => setStoryCommandPaletteOpen(true)}
@@ -449,14 +453,10 @@ export function ReviewWorkbenchStory({
               className="rail-toggle inspector-rail-toggle"
               type="button"
               aria-label={
-                compactInspectorOpen
-                  ? "Collapse inspector"
-                  : "Expand inspector"
+                compactInspectorOpen ? "Collapse inspector" : "Expand inspector"
               }
               title={
-                compactInspectorOpen
-                  ? "Collapse inspector"
-                  : "Expand inspector"
+                compactInspectorOpen ? "Collapse inspector" : "Expand inspector"
               }
               onClick={() => setCompactInspectorOpen((open) => !open)}
             >
@@ -504,6 +504,7 @@ export function ReviewWorkbenchStory({
           onOpenAllChanged={noop}
           onRevealInTree={noop}
           onOpenComments={() => openStoryCommentsPanel(storyFile?.path ?? "")}
+          onOpenDraft={noop}
         />
       </div>
       <footer className="statusbar">
@@ -577,6 +578,10 @@ export function ReviewWorkbenchStory({
         comments={visibleComments}
         query={storyCommentsPanelQuery}
         statusFilter={storyCommentsPanelStatus}
+        draftComments={draftComments}
+        draftPublishing={draftPublishing}
+        draftPublishError={draftPublishError}
+        publishedBatchId={publishedBatchId}
         threadActivities={threadActivities}
         onQueryChange={setStoryCommentsPanelQuery}
         onStatusFilterChange={setStoryCommentsPanelStatus}
@@ -585,16 +590,9 @@ export function ReviewWorkbenchStory({
           setStoryActiveCommentId(comment.id);
           setStoryCommentsPanelOpen(false);
         }}
-      />
-      <DraftReviewTray
-        drafts={draftComments}
-        publishing={draftPublishing}
-        publishError={draftPublishError}
-        publishedBatchId={publishedBatchId}
         onOpenDraft={noop}
-        onUpdateDraft={noop}
         onDeleteDraft={noop}
-        onPublishAll={noop}
+        onPublishDrafts={noop}
       />
       <InlineCommentCard
         comment={inlineComment}

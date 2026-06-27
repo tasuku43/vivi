@@ -288,7 +288,7 @@ export const SourceDraftOnExistingLineStaysSeparate: Story = {
         "Private draft should become its own review thread on publish.",
       ),
     ).toBeVisible();
-    expect(canvas.getAllByText("Draft").length).toBeGreaterThan(0);
+    expect(canvas.getAllByText("Private draft").length).toBeGreaterThan(0);
   },
 };
 
@@ -342,9 +342,7 @@ export const SourceStartsSeparateDraftOnExistingLine: Story = {
       .getAllByLabelText("New line comment")
       .find(
         (composer) =>
-          !composer
-            .getAttribute("aria-describedby")
-            ?.includes("mode-thread-"),
+          !composer.getAttribute("aria-describedby")?.includes("mode-thread-"),
       );
     expect(separateComposer).toBeDefined();
     await expect(separateComposer!).toHaveFocus();
@@ -510,7 +508,7 @@ export const SavedInlineDraftRemainsVisible: Story = {
       canvas.getByText("Persist this draft in place."),
     ).toBeVisible();
     await expect(canvas.getByText("1 message")).toBeVisible();
-    expect(canvas.getAllByText("Draft").length).toBeGreaterThan(0);
+    expect(canvas.getAllByText("Private draft").length).toBeGreaterThan(0);
   },
 };
 

@@ -1,0 +1,998 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>20 Draft review flow - Vivi mock</title>
+    <style>
+      :root {
+        --bg: #0f1117;
+        --panel: #151923;
+        --panel-2: #1b2130;
+        --panel-3: #232b3d;
+        --code: #0b0e14;
+        --text: #e8ebf3;
+        --muted: #9ba5b8;
+        --subtle: #748095;
+        --line: #2a3346;
+        --soft-line: rgba(255, 255, 255, 0.07);
+        --accent: #7aa2ff;
+        --accent-soft: rgba(122, 162, 255, 0.14);
+        --comment: #c9a8ff;
+        --comment-line: rgba(180, 146, 255, 0.42);
+        --comment-soft: rgba(180, 146, 255, 0.14);
+        --good: #9ece6a;
+        --warn: #e0af68;
+        --danger: #f7768e;
+        --shadow: rgba(0, 0, 0, 0.48);
+        color-scheme: dark;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--text);
+      }
+      body {
+        overflow: hidden;
+      }
+      button {
+        font: inherit;
+      }
+      .mock {
+        display: grid;
+        grid-template-rows: 42px 1fr 30px;
+        height: 100vh;
+      }
+      .topbar {
+        display: grid;
+        grid-template-columns: max-content minmax(0, 1fr) max-content;
+        align-items: center;
+        gap: 14px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(15, 17, 23, 0.96);
+        padding: 0 12px;
+      }
+      .brand,
+      .top-actions,
+      .pathbar,
+      .statusbar,
+      .pill,
+      .kbd,
+      .mode-tabs,
+      .row-meta,
+      .composer-head,
+      .draft-tray-tab,
+      .tray-head,
+      .publish-summary,
+      .message-row-head {
+        display: flex;
+        align-items: center;
+      }
+      .brand {
+        gap: 9px;
+        font-weight: 800;
+      }
+      .logo {
+        width: 22px;
+        height: 22px;
+        border-radius: 7px;
+        background: linear-gradient(135deg, var(--accent), #c099ff);
+      }
+      .pathbar {
+        min-width: 0;
+        justify-self: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .pathbar strong {
+        color: var(--text);
+      }
+      .top-actions {
+        gap: 7px;
+      }
+      .top-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 30px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--panel);
+        color: var(--text);
+        padding: 0 9px;
+        white-space: nowrap;
+      }
+      .top-action.comments {
+        border-color: rgba(122, 162, 255, 0.34);
+      }
+      .top-action.drafts {
+        border-color: var(--comment-line);
+        background: var(--comment-soft);
+        color: var(--comment);
+      }
+      .count {
+        display: inline-grid;
+        min-width: 18px;
+        height: 18px;
+        place-items: center;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        font-size: 11px;
+        font-weight: 800;
+      }
+      .kbd {
+        gap: 2px;
+        border: 1px solid var(--line);
+        border-bottom-color: #45506a;
+        border-radius: 5px;
+        background: var(--code);
+        color: var(--muted);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 10px;
+        padding: 2px 5px;
+      }
+      .workbench {
+        display: grid;
+        grid-template-columns: 278px minmax(520px, 1fr) 348px;
+        min-height: 0;
+      }
+      .sidebar,
+      .inspector {
+        min-width: 0;
+        overflow: hidden;
+        background: var(--panel);
+      }
+      .sidebar {
+        border-right: 1px solid var(--line);
+      }
+      .inspector {
+        border-left: 1px solid var(--line);
+      }
+      .panel-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 42px;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        padding: 0 12px;
+        text-transform: uppercase;
+      }
+      .tree {
+        display: grid;
+        gap: 2px;
+        padding: 8px;
+      }
+      .node {
+        display: grid;
+        grid-template-columns: 18px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 7px;
+        min-height: 28px;
+        border-radius: 7px;
+        color: var(--muted);
+        font-size: 13px;
+        padding: 4px 8px;
+      }
+      .node strong,
+      .node span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .node.active {
+        background: var(--accent-soft);
+        color: var(--text);
+      }
+      .node.changed strong {
+        color: var(--warn);
+      }
+      .node small {
+        color: var(--warn);
+        font-size: 10px;
+        font-weight: 800;
+      }
+      .indent-1 {
+        margin-left: 16px;
+      }
+      .indent-2 {
+        margin-left: 32px;
+      }
+      .indent-3 {
+        margin-left: 48px;
+      }
+      .main {
+        display: grid;
+        grid-template-rows: 40px 1fr;
+        min-width: 0;
+        background: var(--code);
+      }
+      .tabs {
+        display: flex;
+        align-items: end;
+        gap: 2px;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel-2);
+        padding: 0 8px;
+      }
+      .tab {
+        height: 32px;
+        min-width: 0;
+        border: 1px solid transparent;
+        border-bottom: 0;
+        border-radius: 7px 7px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        padding: 7px 10px;
+      }
+      .tab.active {
+        border-color: var(--line);
+        background: var(--code);
+        color: var(--text);
+      }
+      .viewer {
+        position: relative;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .viewer-toolbar {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 42px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(11, 14, 20, 0.94);
+        color: var(--muted);
+        font-size: 12px;
+        padding: 0 14px;
+      }
+      .viewer-actions {
+        display: flex;
+        gap: 7px;
+      }
+      .viewer-actions button,
+      .pill {
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--panel);
+        color: var(--muted);
+        padding: 5px 8px;
+      }
+      .viewer-actions .active {
+        border-color: var(--comment-line);
+        background: var(--comment-soft);
+        color: var(--comment);
+      }
+      .code-area {
+        position: relative;
+        display: grid;
+        gap: 0;
+        padding: 18px 0 110px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 13px;
+        line-height: 1.58;
+      }
+      .line {
+        display: grid;
+        grid-template-columns: 54px minmax(0, 1fr);
+        min-height: 22px;
+      }
+      .line .no {
+        color: var(--subtle);
+        padding-right: 12px;
+        text-align: right;
+      }
+      .line .src {
+        color: #b7c3d7;
+        white-space: pre;
+      }
+      .line.draft-range {
+        background: rgba(180, 146, 255, 0.13);
+        box-shadow: inset 3px 0 0 var(--comment);
+      }
+      .line.thread-range {
+        background: rgba(122, 162, 255, 0.1);
+        box-shadow: inset 3px 0 0 var(--accent);
+      }
+      .keyword {
+        color: #f7768e;
+      }
+      .name {
+        color: #bb9af7;
+      }
+      .string {
+        color: #9ece6a;
+      }
+      .inline-composer {
+        position: absolute;
+        left: 354px;
+        top: 210px;
+        width: min(560px, calc(100% - 390px));
+        border: 1px solid var(--comment-line);
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--panel) 92%, var(--code));
+        box-shadow: 0 24px 80px var(--shadow);
+        overflow: hidden;
+      }
+      .composer-head {
+        justify-content: space-between;
+        border-bottom: 1px solid var(--soft-line);
+        padding: 9px 11px;
+      }
+      .composer-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+      }
+      .composer-body {
+        display: grid;
+        gap: 9px;
+        padding: 11px;
+      }
+      .saved-draft {
+        border-left: 3px solid var(--comment);
+        padding-left: 9px;
+      }
+      .saved-draft strong {
+        display: block;
+        font-size: 11px;
+        margin-bottom: 5px;
+      }
+      .saved-draft p,
+      .reply-box,
+      .hint {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .reply-box {
+        min-height: 58px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--code);
+        color: var(--subtle);
+        padding: 9px;
+      }
+      .inspector-body {
+        display: grid;
+        gap: 10px;
+        height: calc(100vh - 42px - 42px - 30px);
+        overflow: auto;
+        padding: 10px;
+      }
+      .mode-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 4px;
+        border: 1px solid var(--soft-line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.02);
+        padding: 3px;
+      }
+      .mode-tabs button {
+        min-width: 0;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--subtle);
+        font-size: 11px;
+        font-weight: 800;
+        padding: 7px 4px;
+      }
+      .mode-tabs .active {
+        background: var(--panel-3);
+        color: var(--text);
+      }
+      .mode-tabs small {
+        display: block;
+        color: var(--accent);
+        font-size: 9px;
+        margin-top: 2px;
+      }
+      .section-title {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.07em;
+        margin: 8px 0 0;
+        text-transform: uppercase;
+      }
+      .card,
+      .queue-row,
+      .draft-row,
+      .message-row,
+      .inbox-sheet,
+      .publish-tray {
+        border: 1px solid var(--soft-line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.025);
+      }
+      .card {
+        display: grid;
+        gap: 9px;
+        padding: 10px;
+      }
+      .card h3 {
+        display: flex;
+        justify-content: space-between;
+        margin: 0;
+        color: var(--text);
+        font-size: 13px;
+      }
+      .metrics {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .metrics span {
+        border: 1px solid var(--soft-line);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 11px;
+        padding: 3px 7px;
+      }
+      .metrics strong {
+        color: var(--text);
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .queue-list,
+      .thread-list {
+        display: grid;
+        gap: 6px;
+      }
+      .queue-row,
+      .draft-row,
+      .message-row {
+        display: grid;
+        gap: 5px;
+        padding: 9px;
+      }
+      .queue-row {
+        border-left: 3px solid var(--accent);
+      }
+      .draft-row {
+        border-left: 3px solid var(--comment);
+      }
+      .row-meta,
+      .message-row-head {
+        min-width: 0;
+        gap: 7px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .row-meta strong,
+      .message-row-head strong,
+      .draft-row strong,
+      .queue-row strong {
+        color: var(--text);
+      }
+      .row-preview {
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .tag {
+        border: 1px solid var(--soft-line);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 800;
+        padding: 2px 6px;
+      }
+      .tag.open {
+        border-color: rgba(122, 162, 255, 0.34);
+        color: var(--accent);
+      }
+      .tag.draft {
+        border-color: var(--comment-line);
+        background: var(--comment-soft);
+        color: var(--comment);
+      }
+      .statusbar {
+        justify-content: space-between;
+        border-top: 1px solid var(--line);
+        background: rgba(15, 17, 23, 0.96);
+        color: var(--muted);
+        font-size: 12px;
+        padding: 0 12px;
+      }
+      .draft-tray-tab {
+        position: fixed;
+        right: 28px;
+        bottom: 44px;
+        z-index: 10;
+        gap: 8px;
+        height: 34px;
+        border: 1px solid var(--comment-line);
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--panel) 92%, var(--comment-soft));
+        color: var(--comment);
+        font-size: 12px;
+        font-weight: 800;
+        padding: 0 12px;
+        box-shadow: 0 18px 60px var(--shadow);
+      }
+      .publish-tray {
+        position: fixed;
+        right: 34px;
+        top: 116px;
+        z-index: 12;
+        display: grid;
+        width: min(430px, calc(100vw - 80px));
+        max-height: calc(100vh - 176px);
+        overflow: hidden;
+        border-color: var(--comment-line);
+        background: rgba(21, 25, 35, 0.98);
+        box-shadow: 0 30px 100px var(--shadow);
+      }
+      .tray-head {
+        justify-content: space-between;
+        border-bottom: 1px solid var(--line);
+        padding: 12px;
+      }
+      .tray-head h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .tray-head p {
+        margin: 2px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .publish {
+        border: 0;
+        border-radius: 7px;
+        background: color-mix(in srgb, var(--comment) 84%, white);
+        color: #151020;
+        font-weight: 800;
+        padding: 8px 11px;
+      }
+      .tray-body {
+        display: grid;
+        gap: 8px;
+        min-height: 0;
+        overflow: auto;
+        padding: 10px 12px 12px;
+      }
+      .publish-summary {
+        justify-content: space-between;
+        gap: 12px;
+        border: 1px solid var(--comment-line);
+        border-radius: 8px;
+        background: var(--comment-soft);
+        padding: 10px;
+      }
+      .publish-summary strong {
+        font-size: 14px;
+      }
+      .publish-summary span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .mini-flow {
+        position: fixed;
+        left: 304px;
+        right: 470px;
+        bottom: 46px;
+        z-index: 11;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .flow-step {
+        border: 1px solid var(--soft-line);
+        border-radius: 8px;
+        background: rgba(15, 17, 23, 0.9);
+        padding: 8px;
+      }
+      .flow-step.active {
+        border-color: var(--comment-line);
+        background: color-mix(in srgb, var(--comment-soft) 58%, var(--panel));
+      }
+      .flow-step strong {
+        display: block;
+        font-size: 12px;
+      }
+      .flow-step span {
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.35;
+        margin-top: 3px;
+      }
+      .inbox-sheet {
+        position: fixed;
+        top: 72px;
+        right: 20px;
+        width: 338px;
+        z-index: 9;
+        border-color: rgba(122, 162, 255, 0.28);
+        background: rgba(21, 25, 35, 0.94);
+        box-shadow: 0 22px 70px var(--shadow);
+        opacity: 0.56;
+        transform: translateX(18px);
+      }
+      .inbox-sheet h2 {
+        margin: 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 14px;
+        padding: 11px;
+      }
+      .inbox-body {
+        display: grid;
+        gap: 7px;
+        padding: 10px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      @media (max-width: 1100px) {
+        .workbench {
+          grid-template-columns: 240px minmax(420px, 1fr);
+        }
+        .inspector {
+          display: none;
+        }
+        .publish-tray {
+          right: 18px;
+        }
+        .mini-flow {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mock">
+      <header class="topbar">
+        <div class="brand"><span class="logo"></span><span>Vivi</span></div>
+        <div class="pathbar">
+          <span>workspace</span><strong>vivi</strong
+          ><span>/Users/tasuku/work/github.com/tasuku43</span>
+        </div>
+        <div class="top-actions">
+          <button class="top-action comments">
+            Comments <span class="count">4</span
+            ><span class="kbd">Cmd Shift C</span>
+          </button>
+          <button class="top-action drafts">
+            Review drafts <span class="count">6</span
+            ><span class="kbd">Cmd Shift P</span>
+          </button>
+          <button class="top-action">
+            Command <span class="kbd">Cmd K</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="workbench">
+        <aside class="sidebar">
+          <div class="panel-title">
+            <span>Explorer</span><span>Live 6</span>
+          </div>
+          <div class="tree">
+            <div class="node changed"><span>▾</span><strong>docs</strong></div>
+            <div class="node active changed indent-1">
+              <span>MD</span><strong>product-review.md</strong
+              ><small>MOD</small>
+            </div>
+            <div class="node indent-1">
+              <span>MD</span><strong>review-queue.md</strong>
+            </div>
+            <div class="node changed indent-1">
+              <span>MD</span><strong>agent-handoff.md</strong><small>MOD</small>
+            </div>
+            <div class="node changed"><span>▾</span><strong>ui</strong></div>
+            <div class="node indent-1"><span>▾</span><strong>src</strong></div>
+            <div class="node indent-2">
+              <span>▾</span><strong>features</strong>
+            </div>
+            <div class="node changed indent-3">
+              <span>TS</span><strong>WorkbenchContainer.tsx</strong
+              ><small>MOD</small>
+            </div>
+            <div class="node indent-3">
+              <span>TS</span><strong>CommentsPanel.tsx</strong>
+            </div>
+            <div class="node indent-3">
+              <span>TS</span><strong>DraftReviewTray.tsx</strong>
+            </div>
+          </div>
+        </aside>
+
+        <main class="main">
+          <div class="tabs">
+            <div class="tab active">TS WorkbenchContainer.tsx</div>
+            <div class="tab">MD product-review.md</div>
+            <div class="tab">HTML review-preview.html</div>
+          </div>
+          <section class="viewer">
+            <div class="viewer-toolbar">
+              <div>
+                <strong>Current scope</strong>
+                <span class="muted"> publishDraftReviewComments · line 9</span>
+              </div>
+              <div class="viewer-actions">
+                <button>Copy ref</button><button>Copy range</button
+                ><button class="active">Drafting</button>
+              </div>
+            </div>
+            <div class="code-area">
+              <div class="line">
+                <span class="no">1</span
+                ><span class="src"
+                  ><span class="keyword">import</span> { useMemo, useState }
+                  <span class="keyword">from</span>
+                  <span class="string">"react"</span>;</span
+                >
+              </div>
+              <div class="line">
+                <span class="no">2</span
+                ><span class="src"
+                  ><span class="keyword">import</span> { FileViewer }
+                  <span class="keyword">from</span>
+                  <span class="string">"./FileViewer.js"</span>;</span
+                >
+              </div>
+              <div class="line">
+                <span class="no">3</span><span class="src"></span>
+              </div>
+              <div class="line">
+                <span class="no">4</span
+                ><span class="src"
+                  ><span class="keyword">export function</span>
+                  <span class="name">WorkbenchContainer</span>() {</span
+                >
+              </div>
+              <div class="line thread-range">
+                <span class="no">5</span
+                ><span class="src">
+                  const [commentsPanelOpen, setCommentsPanelOpen] =
+                  useState(false);</span
+                >
+              </div>
+              <div class="line draft-range">
+                <span class="no">6</span
+                ><span class="src">
+                  const [draftComments, setDraftComments] = useState([]);</span
+                >
+              </div>
+              <div class="line">
+                <span class="no">7</span><span class="src"></span>
+              </div>
+              <div class="line">
+                <span class="no">8</span
+                ><span class="src">
+                  const reviewItems = useMemo(() =&gt; buildReviewQueueItems(),
+                  []);</span
+                >
+              </div>
+              <div class="line draft-range">
+                <span class="no">9</span
+                ><span class="src">
+                  function publishDraftReviewComments() {</span
+                >
+              </div>
+              <div class="line draft-range">
+                <span class="no">10</span
+                ><span class="src">
+                  return client.publishDraftReviewComments();</span
+                >
+              </div>
+            </div>
+
+            <article class="inline-composer">
+              <header class="composer-head">
+                <div class="composer-title">
+                  <span class="tag draft">Private draft</span
+                  ><strong>Line 6</strong><span class="muted">1 saved</span>
+                </div>
+                <span class="muted">Esc closes</span>
+              </header>
+              <div class="composer-body">
+                <div class="saved-draft">
+                  <strong>Private draft</strong>
+                  <p>
+                    Type this draft state with DraftReviewComment[] before
+                    publish.
+                  </p>
+                </div>
+                <div class="reply-box">Start another note on this line...</div>
+                <p class="hint">
+                  <span class="kbd">Cmd/Ctrl Enter</span> save private draft
+                </p>
+              </div>
+            </article>
+          </section>
+        </main>
+
+        <aside class="inspector">
+          <div class="panel-title">
+            <span>Review</span><span>Read-only</span>
+          </div>
+          <div class="inspector-body">
+            <div class="mode-tabs">
+              <button class="active">A Review<small>active work</small></button>
+              <button>B Threads<small>conversation</small></button>
+              <button>C Map<small>reading</small></button>
+            </div>
+
+            <div class="section-title">Review Queue</div>
+            <div class="queue-list">
+              <div class="queue-row">
+                <div class="row-meta">
+                  <span class="tag open">Open</span
+                  ><strong>WorkbenchContainer.tsx</strong>
+                </div>
+                <div class="row-preview">
+                  3 open threads · 4 messages · changed
+                </div>
+              </div>
+              <div class="queue-row">
+                <div class="row-meta">
+                  <span class="tag open">Open</span
+                  ><strong>product-review.md</strong>
+                </div>
+                <div class="row-preview">
+                  1 open thread · agent replied 18m ago
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3><span>Active file</span><span>3 open threads</span></h3>
+              <div class="metrics">
+                <span><strong>3</strong> open</span>
+                <span><strong>2</strong> private drafts</span>
+                <span><strong>0</strong> history</span>
+              </div>
+              <p>
+                Draft count stays visible in Review mode; details move to
+                Threads or the draft tray.
+              </p>
+            </div>
+
+            <div class="section-title">This file drafts</div>
+            <div class="thread-list">
+              <div class="draft-row">
+                <div class="row-meta">
+                  <span class="tag draft">Private draft</span
+                  ><strong>Source L6</strong>
+                </div>
+                <div class="row-preview">
+                  Type this draft state with DraftReviewComment[] before
+                  publish.
+                </div>
+              </div>
+              <div class="draft-row">
+                <div class="row-meta">
+                  <span class="tag draft">Private draft</span
+                  ><strong>Diff L10</strong>
+                </div>
+                <div class="row-preview">
+                  Draft marker on an added line, ready for batch publish.
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <footer class="statusbar">
+        <span>5 root entries · 3 open tabs</span>
+        <span>6 review files · 7 comments · 6 private drafts</span>
+        <span>watching</span>
+      </footer>
+
+      <div class="mini-flow" aria-hidden="true">
+        <div class="flow-step">
+          <strong>1. Collect</strong>
+          <span>Cmd/Ctrl Enter saves private drafts in place.</span>
+        </div>
+        <div class="flow-step active">
+          <strong>2. Review drafts</strong>
+          <span>Cmd/Ctrl Shift P opens the batch before publish.</span>
+        </div>
+        <div class="flow-step">
+          <strong>3. Comments inbox</strong>
+          <span>Cmd/Ctrl Shift C is for published agent-visible work.</span>
+        </div>
+      </div>
+
+      <aside class="inbox-sheet" aria-hidden="true">
+        <h2>Comments inbox</h2>
+        <div class="inbox-body">
+          <div class="message-row">
+            <div class="message-row-head">
+              <span class="tag open">Open</span
+              ><strong>product-review.md</strong>
+            </div>
+            <div class="row-preview">Agent replied to published thread.</div>
+          </div>
+          <div class="message-row">
+            <div class="message-row-head">
+              <span class="tag open">Open</span
+              ><strong>WorkbenchContainer.tsx</strong>
+            </div>
+            <div class="row-preview">
+              Published comments appear here after batch publish.
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <aside class="publish-tray">
+        <header class="tray-head">
+          <div>
+            <h2>Draft Review</h2>
+            <p>6 unpublished comments</p>
+          </div>
+          <button class="publish">Publish review comments</button>
+        </header>
+        <div class="tray-body">
+          <div class="publish-summary">
+            <div>
+              <strong>6 open threads</strong><br />
+              <span>across 3 files</span>
+            </div>
+            <span><span class="kbd">Cmd Shift P</span></span>
+          </div>
+          <div class="draft-row">
+            <strong>ui/src/features/workbench/WorkbenchContainer.tsx</strong>
+            <div class="row-meta"><span>source · L6</span></div>
+            <div class="row-preview">
+              Type this draft state with DraftReviewComment[] before publish.
+            </div>
+          </div>
+          <div class="draft-row">
+            <strong>docs/product-review.md</strong>
+            <div class="row-meta"><span>markdown rendered · L12</span></div>
+            <div class="row-preview">
+              Explain that draft comments stay hidden from agents.
+            </div>
+          </div>
+          <div class="draft-row">
+            <strong>review-preview.html</strong>
+            <div class="row-meta"><span>html rendered · hero</span></div>
+            <div class="row-preview">
+              This preview note should publish as a new HTML thread.
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <button class="draft-tray-tab">
+        Review drafts <span class="count">6</span>
+      </button>
+    </div>
+  </body>
+</html>

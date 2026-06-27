@@ -29,7 +29,6 @@ import {
   type CommentStatusFilter,
 } from "../comments/components/CommentsPanel.js";
 import { InlineCommentCard } from "../comments/components/InlineCommentCard.js";
-import { DraftReviewTray } from "../comments/components/DraftReviewTray.js";
 import { CommandPalette } from "../command-palette/CommandPalette.js";
 import { ShortcutHelp } from "../../shared/components/ShortcutHelp.js";
 import { WorkspaceRestoreNotice } from "../../shared/components/WorkspaceRestoreNotice.js";
@@ -555,6 +554,12 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
 
   async function openCommentFromPanel(comment: ViviComment) {
     await openReviewTarget(commentNavigationTarget(comment), "normal");
+  }
+
+  async function openDraftReviewComment(draft: DraftReviewComment) {
+    const target = draftCommentNavigationTargets([draft])[0];
+    if (!target) return;
+    await openReviewTarget(target, "normal");
   }
 
   const panes = useMemo(() => flattenPanes(layout), [layout]);
@@ -1214,6 +1219,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       activeComment,
       activeCommentId,
       attentionThreadCount: attentionCommentThreadCount,
+      draftCount: draftComments.length,
       preferAttention: true,
     });
     setPaletteOpen(false);
@@ -1417,6 +1423,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       activeComment,
       activeCommentId,
       attentionThreadCount: attentionCommentThreadCount,
+      draftCount: draftComments.length,
       preferAttention: true,
     });
     setPaletteOpen(false);
@@ -1994,9 +2001,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       if (action === "toggle-diff") toggleHeadDiff();
       if (action === "toggle-source") toggleSourceRendered();
       if (action === "publish-draft-review")
-        void publishDraftReviewComments().catch((err) =>
-          setError(String(err)),
-        );
+        void publishDraftReviewComments().catch((err) => setError(String(err)));
       if (action === "open-latest-unread") openLatestUnreadReviewFile();
       if (action === "open-next-review") openReviewQueueFile("next");
       if (action === "open-previous-review") openReviewQueueFile("previous");
@@ -2112,6 +2117,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         openCommentThreadCount={openThreadTargets.length}
         reviewOpenCommentThreadCount={reviewQueueProgress.openThreads}
         commentAttentionCount={attentionCommentThreadCount}
+        draftCommentCount={draftComments.length}
         onOpenComments={openCommentInbox}
         onOpenShortcuts={openShortcutHelp}
       />
@@ -2281,6 +2287,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                   activeComment,
                   activeCommentId,
                   attentionThreadCount: attentionCommentThreadCount,
+                  draftCount: draftComments.length,
                   query: file?.path ?? "",
                 });
                 setCommentsPanelStatus(entry.status);
@@ -2289,6 +2296,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                 setCommentsPanelOpen(true);
               }}
               onOpenComment={openCommentFromPanel}
+              onOpenDraft={(draft) =>
+                void openDraftReviewComment(draft).catch((err) =>
+                  setError(String(err)),
+                )
+              }
               onCommentStatusChange={(id, status) =>
                 void updateCommentStatus(id, status).catch((err) =>
                   setError(String(err)),
@@ -2376,6 +2388,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         knownMissingPaths={knownMissingCommentPathSet}
         currentFile={file}
         activeCommentId={activeCommentId}
+        draftComments={draftComments}
+        draftPublishing={draftPublishing}
+        draftPublishError={draftPublishError}
+        publishedBatchId={lastPublishedReviewBatchId}
         onQueryChange={setCommentsPanelQuery}
         onStatusFilterChange={setCommentsPanelStatus}
         onClose={() => setCommentsPanelOpen(false)}
@@ -2389,21 +2405,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
             setError(String(err)),
           )
         }
-      />
-      <DraftReviewTray
-        drafts={draftComments}
-        publishing={draftPublishing}
-        publishError={draftPublishError}
-        publishedBatchId={lastPublishedReviewBatchId}
-        onOpenDraft={(draft) => {
-          const target = draftCommentNavigationTargets([draft])[0];
-          if (!target) return;
-          void openReviewTarget(target, "normal").catch((err) =>
-            setError(String(err)),
-          );
-        }}
-        onUpdateDraft={(id, body) =>
-          void updateDraftReviewComment(id, body).catch((err) =>
+        onOpenDraft={(draft) =>
+          void openDraftReviewComment(draft).catch((err) =>
             setError(String(err)),
           )
         }
@@ -2412,7 +2415,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
             setError(String(err)),
           )
         }
-        onPublishAll={() =>
+        onPublishDrafts={() =>
           void publishDraftReviewComments().catch((err) =>
             setError(String(err)),
           )

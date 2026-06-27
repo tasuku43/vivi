@@ -120,11 +120,14 @@ export const WorkspaceWithFileTreeAndSelectedFile: Story = {
     ).toBeInTheDocument();
     await expect(canvas.getByText("Review Queue")).toBeInTheDocument();
     const attentionButton = canvas.getByRole("button", {
-      name: /Open Attention inbox/,
+      name: /Open Comments hub/,
     });
     await userEvent.click(attentionButton);
+    const commentFilters = within(
+      canvas.getByRole("group", { name: "Comment status filters" }),
+    );
     await expect(
-      canvas.getByRole("button", { name: /Show .* attention thread/ }),
+      commentFilters.getByRole("button", { name: /Show .* attention thread/ }),
     ).toHaveAttribute("aria-pressed", "true");
   },
 };
@@ -247,9 +250,29 @@ export const FileWithOpenComments: Story = {
 };
 
 export const FileWithDraftComments: Story = {
+  tags: ["interaction"],
+  parameters: {
+    a11y: { test: "todo" },
+  },
   args: {
     file: sampleFiles.code,
     activeCommentId: "draft:draft-review-1",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole("radio", { name: "B Threads conversation" }),
+    );
+    const inspector = within(
+      canvas.getByRole("complementary", { name: "Review inspector" }),
+    );
+    await expect(
+      inspector.getByLabelText("Active file draft comments"),
+    ).toBeVisible();
+    await expect(inspector.getAllByText("Private draft")[0]).toBeVisible();
+    await expect(
+      inspector.getAllByRole("button", { name: /Open private draft in/ })[0],
+    ).toBeVisible();
   },
 };
 
@@ -270,7 +293,7 @@ export const DraftCommentsReadyToPublish: Story = {
     viewerMode: "rendered",
     draftComments: sampleDraftComments,
     inspectorTitle:
-      "Draft Review tray is open and the Publish review comments CTA is visible.",
+      "Comments hub collects private drafts and keeps the Publish review comments CTA visible.",
   },
 };
 

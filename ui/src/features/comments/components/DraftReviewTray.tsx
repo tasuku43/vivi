@@ -77,7 +77,7 @@ export function DraftReviewTray({
         title={tabSummary}
         onClick={() => setOpen((value) => !value)}
       >
-        {drafts.length ? "Private drafts" : "Drafts"}{" "}
+        {drafts.length ? "Review drafts" : "Drafts"}{" "}
         <strong>{drafts.length}</strong>
       </button>
       {open ? (
@@ -166,7 +166,7 @@ export function DraftReviewTray({
                       }}
                     >
                       <p className="sr-only" id={draftEditHintId(draft.id)}>
-                        This draft remains private until published.
+                        This draft stays private until published.
                       </p>
                       <textarea
                         autoFocus
@@ -310,7 +310,9 @@ function summarizeDraftReview(drafts: DraftReviewComment[]): {
   const surfaces = new Map<string, number>();
   for (const draft of drafts) {
     paths.add(draft.path);
-    threads.add(draft.threadId ?? commentAnchorThreadKey(draft.path, draft.anchor));
+    threads.add(
+      draft.threadId ?? commentAnchorThreadKey(draft.path, draft.anchor),
+    );
     const label = anchorSurfaceLabel(draft);
     surfaces.set(label, (surfaces.get(label) ?? 0) + 1);
   }

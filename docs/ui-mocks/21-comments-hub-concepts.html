@@ -1,0 +1,1342 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>21 Comments hub concepts - Vivi mock</title>
+    <style>
+      :root {
+        --bg: #0f1117;
+        --panel: #151923;
+        --panel-2: #1b2130;
+        --panel-3: #222a3a;
+        --code: #0b0e14;
+        --text: #e8ebf3;
+        --muted: #9ba5b8;
+        --subtle: #748095;
+        --line: #2a3346;
+        --soft-line: rgba(255, 255, 255, 0.075);
+        --accent: #7aa2ff;
+        --accent-soft: rgba(122, 162, 255, 0.14);
+        --comment: #c9a8ff;
+        --comment-line: rgba(180, 146, 255, 0.42);
+        --comment-soft: rgba(180, 146, 255, 0.14);
+        --attention: #e0af68;
+        --attention-soft: rgba(224, 175, 104, 0.14);
+        --good: #9ece6a;
+        --good-soft: rgba(158, 206, 106, 0.13);
+        --danger: #f7768e;
+        --shadow: rgba(0, 0, 0, 0.5);
+        color-scheme: dark;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--text);
+      }
+      body {
+        overflow: auto;
+      }
+      button {
+        font: inherit;
+      }
+      .page {
+        min-height: 100vh;
+        padding: 20px;
+      }
+      .header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 16px;
+        max-width: 1480px;
+        margin: 0 auto 18px;
+      }
+      .title {
+        display: grid;
+        gap: 6px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 20px;
+        font-weight: 850;
+      }
+      .logo {
+        width: 24px;
+        height: 24px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, var(--accent), #c099ff);
+      }
+      .title p,
+      .concept-copy p {
+        max-width: 760px;
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+      .stance {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid var(--comment-line);
+        border-radius: 8px;
+        background: var(--comment-soft);
+        color: var(--comment);
+        font-size: 12px;
+        font-weight: 760;
+        padding: 8px 10px;
+        white-space: nowrap;
+      }
+      .concepts {
+        display: grid;
+        gap: 18px;
+        max-width: 1480px;
+        margin: 0 auto;
+      }
+      .concept {
+        display: grid;
+        grid-template-columns: 300px minmax(0, 1fr);
+        min-height: 560px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--panel);
+        box-shadow: 0 24px 80px var(--shadow);
+      }
+      .concept-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        border-right: 1px solid var(--line);
+        background:
+          radial-gradient(
+            circle at 8% 8%,
+            rgba(122, 162, 255, 0.14),
+            transparent 34%
+          ),
+          var(--panel);
+        padding: 18px;
+      }
+      .concept-kicker {
+        color: var(--subtle);
+        font-size: 11px;
+        font-weight: 850;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+      }
+      .concept-copy h2 {
+        margin: 0;
+        font-size: 22px;
+        letter-spacing: 0;
+      }
+      .score {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+      }
+      .score span,
+      .chip,
+      .kbd,
+      .count,
+      .state-count,
+      .small-pill {
+        display: inline-flex;
+        align-items: center;
+      }
+      .score span {
+        gap: 5px;
+        border: 1px solid var(--soft-line);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 720;
+        padding: 5px 8px;
+      }
+      .tradeoff {
+        margin-top: auto;
+        border-top: 1px solid var(--soft-line);
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+        padding-top: 12px;
+      }
+      .mock {
+        display: grid;
+        grid-template-rows: 42px 1fr 28px;
+        min-width: 0;
+        background: var(--code);
+      }
+      .topbar,
+      .pathbar,
+      .top-actions,
+      .command-button,
+      .workspace,
+      .statusbar,
+      .tabs,
+      .viewer-toolbar,
+      .row-head,
+      .metric-grid,
+      .filter-rail,
+      .drawer-head,
+      .drawer-toolbar,
+      .state-strip,
+      .mini-row,
+      .inbox-row-meta,
+      .publish-row,
+      .lane-title,
+      .board-title,
+      .bottom-actions {
+        display: flex;
+        align-items: center;
+      }
+      .topbar {
+        display: grid;
+        grid-template-columns: max-content minmax(0, 1fr) max-content;
+        gap: 14px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(15, 17, 23, 0.96);
+        padding: 0 12px;
+      }
+      .pathbar {
+        justify-self: center;
+        gap: 8px;
+        min-width: 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .pathbar strong {
+        color: var(--text);
+      }
+      .top-actions {
+        gap: 7px;
+      }
+      .command-button {
+        gap: 8px;
+        height: 30px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--panel);
+        color: var(--text);
+        padding: 0 9px;
+        white-space: nowrap;
+      }
+      .command-button.comments {
+        border-color: rgba(122, 162, 255, 0.38);
+        background: color-mix(in srgb, var(--panel) 78%, var(--accent-soft));
+      }
+      .command-button.comments.active {
+        border-color: var(--comment-line);
+        background: var(--comment-soft);
+        color: var(--comment);
+      }
+      .count {
+        justify-content: center;
+        min-width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.09);
+        color: var(--text);
+        font-size: 11px;
+        font-weight: 850;
+      }
+      .count.private {
+        background: var(--comment-soft);
+        color: var(--comment);
+      }
+      .kbd {
+        gap: 2px;
+        border: 1px solid var(--line);
+        border-bottom-color: #45506a;
+        border-radius: 5px;
+        background: var(--code);
+        color: var(--muted);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 10px;
+        padding: 2px 5px;
+      }
+      .workspace {
+        align-items: stretch;
+        min-height: 0;
+      }
+      .sidebar {
+        width: 190px;
+        flex: 0 0 190px;
+        border-right: 1px solid var(--line);
+        background: var(--panel);
+      }
+      .side-head,
+      .inspector-head {
+        height: 34px;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 850;
+        letter-spacing: 0.08em;
+        padding: 11px 10px;
+        text-transform: uppercase;
+      }
+      .tree {
+        display: grid;
+        gap: 2px;
+        padding: 8px;
+      }
+      .node {
+        display: grid;
+        grid-template-columns: 16px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 6px;
+        min-height: 26px;
+        border-radius: 7px;
+        color: var(--muted);
+        font-size: 12px;
+        padding: 4px 7px;
+      }
+      .node strong,
+      .node span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .node.active {
+        background: var(--accent-soft);
+        color: var(--text);
+      }
+      .node.changed strong,
+      .node small {
+        color: var(--attention);
+      }
+      .main {
+        position: relative;
+        display: grid;
+        grid-template-rows: 34px 1fr;
+        min-width: 0;
+        flex: 1 1 auto;
+      }
+      .tabs {
+        align-items: end;
+        gap: 2px;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel-2);
+        padding: 0 8px;
+      }
+      .tab {
+        height: 27px;
+        border: 1px solid transparent;
+        border-bottom: 0;
+        border-radius: 7px 7px 0 0;
+        color: var(--muted);
+        font-size: 11px;
+        padding: 6px 9px;
+      }
+      .tab.active {
+        border-color: var(--line);
+        background: var(--code);
+        color: var(--text);
+      }
+      .viewer {
+        position: relative;
+        min-width: 0;
+        overflow: hidden;
+        background:
+          linear-gradient(
+            90deg,
+            transparent 34px,
+            rgba(255, 255, 255, 0.04) 35px
+          ),
+          var(--code);
+      }
+      .viewer-toolbar {
+        position: relative;
+        z-index: 1;
+        justify-content: space-between;
+        height: 35px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(11, 14, 20, 0.88);
+        color: var(--muted);
+        font-size: 12px;
+        padding: 0 10px;
+      }
+      .toolbar-actions {
+        display: flex;
+        gap: 6px;
+      }
+      .chip {
+        gap: 5px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--panel);
+        color: var(--muted);
+        font-size: 11px;
+        padding: 5px 8px;
+      }
+      .chip.drafting {
+        border-color: var(--comment-line);
+        background: var(--comment-soft);
+        color: var(--comment);
+      }
+      .code-lines {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr);
+        gap: 0;
+        padding: 18px 0;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.9;
+      }
+      .line-no {
+        color: var(--subtle);
+        text-align: right;
+        padding-right: 12px;
+      }
+      .line-code {
+        color: #d7deef;
+        white-space: pre;
+      }
+      .line-code.focus {
+        border-left: 3px solid var(--comment);
+        background: var(--comment-soft);
+        color: var(--text);
+        padding-left: 8px;
+      }
+      .statusbar {
+        justify-content: space-between;
+        border-top: 1px solid var(--line);
+        background: rgba(15, 17, 23, 0.96);
+        color: var(--muted);
+        font-size: 11px;
+        padding: 0 12px;
+      }
+      .drawer,
+      .right-panel,
+      .board-overlay {
+        position: absolute;
+        z-index: 4;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: color-mix(
+          in srgb,
+          var(--palette, #151923) 96%,
+          var(--panel)
+        );
+        box-shadow: 0 28px 90px var(--shadow);
+      }
+      .drawer {
+        top: 44px;
+        right: 18px;
+        bottom: 42px;
+        width: min(520px, calc(100% - 36px));
+        overflow: hidden;
+      }
+      .drawer.wide {
+        width: min(660px, calc(100% - 36px));
+      }
+      .drawer-head {
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid var(--line);
+        padding: 13px 14px;
+      }
+      .drawer-head h3 {
+        margin: 0;
+        font-size: 17px;
+      }
+      .drawer-head p {
+        margin: 3px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .drawer-body {
+        display: grid;
+        gap: 12px;
+        padding: 12px;
+      }
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .metric {
+        display: grid;
+        gap: 5px;
+        min-width: 0;
+        border: 1px solid var(--soft-line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.025);
+        padding: 10px;
+      }
+      .metric.active {
+        border-color: var(--comment-line);
+        background: var(--comment-soft);
+      }
+      .metric.attention {
+        border-color: color-mix(
+          in srgb,
+          var(--attention) 48%,
+          var(--soft-line)
+        );
+        background: var(--attention-soft);
+      }
+      .metric strong {
+        font-size: 20px;
+      }
+      .metric span {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .filter-rail {
+        gap: 6px;
+        overflow: hidden;
+      }
+      .filter-rail button {
+        border: 1px solid var(--soft-line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.025);
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 760;
+        padding: 6px 9px;
+      }
+      .filter-rail button.active {
+        border-color: var(--comment-line);
+        background: var(--comment-soft);
+        color: var(--comment);
+      }
+      .section {
+        display: grid;
+        gap: 8px;
+      }
+      .section-title,
+      .lane-title,
+      .board-title {
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 850;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+      }
+      .inbox-list {
+        display: grid;
+        gap: 7px;
+      }
+      .inbox-row,
+      .draft-card,
+      .mini-row,
+      .board-card {
+        border: 1px solid var(--soft-line);
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--panel-2) 82%, transparent);
+      }
+      .inbox-row {
+        display: grid;
+        gap: 5px;
+        border-left: 3px solid var(--accent);
+        padding: 9px 10px;
+      }
+      .inbox-row.private,
+      .draft-card {
+        border-left-color: var(--comment);
+      }
+      .inbox-row.attention {
+        border-left-color: var(--attention);
+      }
+      .row-head {
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .row-head strong {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .inbox-row p,
+      .draft-card p,
+      .board-card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .inbox-row-meta {
+        gap: 6px;
+        color: var(--subtle);
+        font-size: 11px;
+      }
+      .small-pill {
+        border: 1px solid var(--soft-line);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 800;
+        padding: 3px 6px;
+      }
+      .small-pill.private {
+        border-color: var(--comment-line);
+        background: var(--comment-soft);
+        color: var(--comment);
+      }
+      .small-pill.attention {
+        border-color: color-mix(
+          in srgb,
+          var(--attention) 45%,
+          var(--soft-line)
+        );
+        background: var(--attention-soft);
+        color: var(--attention);
+      }
+      .publish-row {
+        justify-content: space-between;
+        gap: 12px;
+        border: 1px solid var(--comment-line);
+        border-radius: 8px;
+        background: var(--comment-soft);
+        padding: 10px;
+      }
+      .publish-row div {
+        display: grid;
+        gap: 3px;
+      }
+      .publish-row strong {
+        color: var(--comment);
+      }
+      .publish-row span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .publish-row button,
+      .bottom-actions button {
+        border: 0;
+        border-radius: 7px;
+        background: color-mix(in srgb, var(--comment) 84%, white);
+        color: #1c1431;
+        font-weight: 850;
+        padding: 8px 10px;
+        white-space: nowrap;
+      }
+      .right-panel {
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 320px;
+        border-radius: 0;
+        border-top: 0;
+        border-right: 0;
+        border-bottom: 0;
+        box-shadow: none;
+      }
+      .right-panel .drawer-body {
+        padding: 10px;
+      }
+      .state-strip {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .state-count {
+        justify-content: space-between;
+        gap: 8px;
+        min-width: 0;
+        border: 1px solid var(--soft-line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.025);
+        padding: 8px;
+      }
+      .state-count.active {
+        border-color: var(--comment-line);
+        background: var(--comment-soft);
+      }
+      .state-count span {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .state-count strong {
+        font-size: 16px;
+      }
+      .mini-list {
+        display: grid;
+        gap: 7px;
+      }
+      .mini-row {
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px;
+      }
+      .mini-row div {
+        min-width: 0;
+      }
+      .mini-row strong,
+      .mini-row span {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .mini-row strong {
+        font-size: 12px;
+      }
+      .mini-row span {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .board-overlay {
+        top: 52px;
+        left: 26px;
+        right: 26px;
+        bottom: 42px;
+        overflow: hidden;
+      }
+      .board-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        padding: 12px;
+      }
+      .board-lane {
+        display: grid;
+        align-content: start;
+        gap: 8px;
+        min-width: 0;
+        border: 1px solid var(--soft-line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.02);
+        padding: 9px;
+      }
+      .lane-title {
+        min-width: 0;
+      }
+      .lane-title span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .board-card {
+        display: grid;
+        gap: 6px;
+        padding: 8px;
+      }
+      .board-card strong {
+        overflow-wrap: anywhere;
+        font-size: 13px;
+        line-height: 1.2;
+      }
+      .board-card.private {
+        border-color: var(--comment-line);
+      }
+      .split-drawer {
+        display: grid;
+        grid-template-columns: 142px minmax(0, 1fr);
+        height: calc(100% - 63px);
+      }
+      .left-states {
+        display: grid;
+        align-content: start;
+        gap: 7px;
+        border-right: 1px solid var(--line);
+        padding: 10px;
+      }
+      .left-states button {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        border: 1px solid var(--soft-line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.025);
+        color: var(--muted);
+        font-size: 12px;
+        padding: 8px;
+      }
+      .left-states button.active {
+        border-color: var(--comment-line);
+        background: var(--comment-soft);
+        color: var(--comment);
+      }
+      .split-content {
+        display: grid;
+        align-content: start;
+        gap: 10px;
+        min-width: 0;
+        padding: 10px;
+      }
+      .bottom-actions {
+        justify-content: flex-end;
+        gap: 8px;
+      }
+      .bottom-actions button.secondary {
+        border: 1px solid var(--soft-line);
+        background: var(--panel);
+        color: var(--muted);
+      }
+      @media (max-width: 980px) {
+        .page {
+          padding: 12px;
+        }
+        .header {
+          align-items: start;
+          flex-direction: column;
+        }
+        .concept {
+          grid-template-columns: 1fr;
+        }
+        .concept-copy {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        .sidebar {
+          display: none;
+        }
+        .metric-grid,
+        .board-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="header">
+        <div class="title">
+          <div class="brand"><span class="logo"></span>Vivi Comments Hub</div>
+          <p>
+            Three alternatives for putting private drafts, attention-needed
+            replies, open threads, and history under the same Cmd+Shift+C
+            comment entry point without losing the private/published boundary.
+          </p>
+        </div>
+        <div class="stance">
+          Cmd+Shift+C opens comment state, not only a flat inbox
+        </div>
+      </header>
+
+      <main class="concepts">
+        <section class="concept">
+          <aside class="concept-copy">
+            <div class="concept-kicker">Concept A</div>
+            <h2>Comments Hub</h2>
+            <p>
+              Treat Comments as the single home for all comment states. Drafts
+              are a private state inside the hub, with publish as a deliberate
+              action in that state.
+            </p>
+            <div class="score">
+              <span>Best default</span>
+              <span>One shortcut</span>
+              <span>Clear state counts</span>
+            </div>
+            <div class="tradeoff">
+              Tradeoff: the word "Comments" must comfortably include private
+              drafts. The UI handles that by labeling drafts as private and
+              unpublished everywhere.
+            </div>
+          </aside>
+          <div class="mock">
+            <div class="topbar">
+              <div class="brand"><span class="logo"></span>Vivi</div>
+              <div class="pathbar">
+                workspace <strong>vivi</strong>
+                <span>/Users/tasuku/work/github.com/tasuku43</span>
+              </div>
+              <div class="top-actions">
+                <button class="command-button comments active">
+                  <span>Comments</span><span class="count">12</span
+                  ><span class="count private">6</span
+                  ><span class="kbd">Cmd Shift C</span>
+                </button>
+                <button class="command-button">
+                  <span>Command</span><span class="kbd">Cmd K</span>
+                </button>
+              </div>
+            </div>
+            <div class="workspace">
+              <aside class="sidebar">
+                <div class="side-head">Explorer</div>
+                <div class="tree">
+                  <div class="node active">
+                    <span>MD</span><strong>product-review.md</strong
+                    ><small>2</small>
+                  </div>
+                  <div class="node changed">
+                    <span>TS</span><strong>WorkbenchContainer.tsx</strong
+                    ><small>4</small>
+                  </div>
+                  <div class="node">
+                    <span>TS</span><strong>DraftReviewTray.tsx</strong
+                    ><small>1</small>
+                  </div>
+                  <div class="node">
+                    <span>HTML</span><strong>review-preview.html</strong
+                    ><small>1</small>
+                  </div>
+                </div>
+              </aside>
+              <main class="main">
+                <div class="tabs">
+                  <div class="tab active">MD product-review.md</div>
+                  <div class="tab">TS WorkbenchContainer.tsx</div>
+                </div>
+                <div class="viewer">
+                  <div class="viewer-toolbar">
+                    <span>Rendered Markdown - section: Review flow</span>
+                    <div class="toolbar-actions">
+                      <span class="chip">Copy ref</span>
+                      <span class="chip drafting">Drafting</span>
+                    </div>
+                  </div>
+                  <div class="code-lines">
+                    <span class="line-no">1</span
+                    ><span class="line-code"># Product review flow</span>
+                    <span class="line-no">2</span
+                    ><span class="line-code"></span>
+                    <span class="line-no">3</span
+                    ><span class="line-code focus"
+                      >Draft comments stay private until published.</span
+                    >
+                    <span class="line-no">4</span
+                    ><span class="line-code"
+                      >Agents only see the published review threads.</span
+                    >
+                  </div>
+                  <aside class="drawer wide">
+                    <div class="drawer-head">
+                      <div>
+                        <h3>Comments</h3>
+                        <p>12 total - 6 private drafts - 2 need attention</p>
+                      </div>
+                      <span class="kbd">Cmd Shift C</span>
+                    </div>
+                    <div class="drawer-body">
+                      <div class="metric-grid">
+                        <div class="metric attention">
+                          <strong>2</strong><span>Attention</span>
+                        </div>
+                        <div class="metric active">
+                          <strong>6</strong><span>Private drafts</span>
+                        </div>
+                        <div class="metric">
+                          <strong>4</strong><span>Open threads</span>
+                        </div>
+                        <div class="metric">
+                          <strong>9</strong><span>History</span>
+                        </div>
+                      </div>
+                      <div class="filter-rail">
+                        <button>Attention 2</button>
+                        <button class="active">Drafts 6</button>
+                        <button>Open 4</button>
+                        <button>Resolved 9</button>
+                      </div>
+                      <div class="publish-row">
+                        <div>
+                          <strong>6 private drafts ready</strong>
+                          <span
+                            >Will publish as 4 open threads across 3
+                            files.</span
+                          >
+                        </div>
+                        <button>Publish review comments</button>
+                      </div>
+                      <div class="section">
+                        <div class="section-title">
+                          <span>Private drafts</span
+                          ><span>not agent-visible</span>
+                        </div>
+                        <div class="inbox-list">
+                          <article class="inbox-row private">
+                            <div class="row-head">
+                              <strong
+                                >ui/src/features/workbench/WorkbenchContainer.tsx</strong
+                              >
+                              <span class="small-pill private"
+                                >Private draft</span
+                              >
+                            </div>
+                            <p>
+                              Type this draft state with DraftReviewComment[]
+                              before publish.
+                            </p>
+                            <div class="inbox-row-meta">
+                              source - L6 - saved 2m ago
+                            </div>
+                          </article>
+                          <article class="inbox-row private">
+                            <div class="row-head">
+                              <strong>docs/product-review.md</strong>
+                              <span class="small-pill private"
+                                >Private draft</span
+                              >
+                            </div>
+                            <p>
+                              Explain that draft comments stay hidden from
+                              agents.
+                            </p>
+                            <div class="inbox-row-meta">
+                              rendered markdown - paragraph - saved 4m ago
+                            </div>
+                          </article>
+                        </div>
+                      </div>
+                    </div>
+                  </aside>
+                </div>
+              </main>
+            </div>
+            <footer class="statusbar">
+              <span>5 root entries - 3 open tabs</span>
+              <span>12 comments - 6 private drafts - 2 attention</span>
+            </footer>
+          </div>
+        </section>
+
+        <section class="concept">
+          <aside class="concept-copy">
+            <div class="concept-kicker">Concept B</div>
+            <h2>State Board</h2>
+            <p>
+              Cmd+Shift+C opens a compact board. This is strongest when the
+              user's first need is a clean count overview before choosing what
+              to do.
+            </p>
+            <div class="score">
+              <span>Best overview</span>
+              <span>Queue-like</span>
+              <span>Fast triage</span>
+            </div>
+            <div class="tradeoff">
+              Tradeoff: it is more dashboard-like than the current inspector. It
+              may feel heavier, but it makes every state impossible to miss.
+            </div>
+          </aside>
+          <div class="mock">
+            <div class="topbar">
+              <div class="brand"><span class="logo"></span>Vivi</div>
+              <div class="pathbar">
+                workspace <strong>vivi</strong>
+                <span>comments are grouped by lifecycle state</span>
+              </div>
+              <div class="top-actions">
+                <button class="command-button comments active">
+                  <span>Comments</span><span class="count">12</span
+                  ><span class="kbd">Cmd Shift C</span>
+                </button>
+                <button class="command-button">
+                  <span>Command</span><span class="kbd">Cmd K</span>
+                </button>
+              </div>
+            </div>
+            <div class="workspace">
+              <aside class="sidebar">
+                <div class="side-head">Explorer</div>
+                <div class="tree">
+                  <div class="node active">
+                    <span>TS</span><strong>WorkbenchContainer.tsx</strong
+                    ><small>6</small>
+                  </div>
+                  <div class="node changed">
+                    <span>MD</span><strong>product-review.md</strong
+                    ><small>2</small>
+                  </div>
+                  <div class="node">
+                    <span>HTML</span><strong>review-preview.html</strong
+                    ><small>1</small>
+                  </div>
+                </div>
+              </aside>
+              <main class="main">
+                <div class="tabs">
+                  <div class="tab active">TS WorkbenchContainer.tsx</div>
+                  <div class="tab">MD product-review.md</div>
+                </div>
+                <div class="viewer">
+                  <div class="viewer-toolbar">
+                    <span
+                      >Current scope publishDraftReviewComments - line 9</span
+                    >
+                    <div class="toolbar-actions">
+                      <span class="chip">Copy range</span>
+                      <span class="chip drafting">2 drafts here</span>
+                    </div>
+                  </div>
+                  <div class="code-lines">
+                    <span class="line-no">5</span
+                    ><span class="line-code"
+                      >const [draftComments, setDraftComments] =
+                      useState([]);</span
+                    >
+                    <span class="line-no">6</span
+                    ><span class="line-code focus"
+                      >const [draftPanelOpen, setDraftPanelOpen] =
+                      useState(false);</span
+                    >
+                    <span class="line-no">7</span
+                    ><span class="line-code"></span>
+                    <span class="line-no">8</span
+                    ><span class="line-code"
+                      >function publishDraftReviewComments() {</span
+                    >
+                  </div>
+                  <aside class="board-overlay">
+                    <div class="drawer-head">
+                      <div>
+                        <h3>Comments board</h3>
+                        <p>
+                          Pick a state, then open the exact thread or draft.
+                        </p>
+                      </div>
+                      <span class="kbd">Cmd Shift C</span>
+                    </div>
+                    <div class="board-grid">
+                      <section class="board-lane">
+                        <div class="lane-title">
+                          <span>Attention</span><strong>2</strong>
+                        </div>
+                        <article class="board-card">
+                          <span class="small-pill attention">Agent reply</span>
+                          <strong>docs/product-review.md</strong>
+                          <p>Agent asked whether to keep the private draft.</p>
+                        </article>
+                        <article class="board-card">
+                          <span class="small-pill attention">Unread</span>
+                          <strong>review-preview.html</strong>
+                          <p>New reply on the HTML preview thread.</p>
+                        </article>
+                      </section>
+                      <section class="board-lane">
+                        <div class="lane-title">
+                          <span>Private drafts</span><strong>6</strong>
+                        </div>
+                        <article class="board-card private">
+                          <span class="small-pill private">Private</span>
+                          <strong>WorkbenchContainer.tsx</strong>
+                          <p>Type draft state before publish.</p>
+                        </article>
+                        <article class="board-card private">
+                          <span class="small-pill private">Private</span>
+                          <strong>product-review.md</strong>
+                          <p>Explain draft visibility.</p>
+                        </article>
+                        <div class="bottom-actions">
+                          <button>Publish all</button>
+                        </div>
+                      </section>
+                      <section class="board-lane">
+                        <div class="lane-title">
+                          <span>Open</span><strong>4</strong>
+                        </div>
+                        <article class="board-card">
+                          <span class="small-pill">Open thread</span>
+                          <strong>DraftReviewTray.tsx</strong>
+                          <p>Keep publish failure visible.</p>
+                        </article>
+                        <article class="board-card">
+                          <span class="small-pill">Open thread</span>
+                          <strong>CommentsPanel.tsx</strong>
+                          <p>Filter row should keep focus state.</p>
+                        </article>
+                      </section>
+                      <section class="board-lane">
+                        <div class="lane-title">
+                          <span>History</span><strong>9</strong>
+                        </div>
+                        <article class="board-card">
+                          <span class="small-pill">Resolved</span>
+                          <strong>README.md</strong>
+                          <p>Resolved comments stay out of Review Queue.</p>
+                        </article>
+                        <article class="board-card">
+                          <span class="small-pill">Published batch</span>
+                          <strong>review-batch-12</strong>
+                          <p>6 drafts published as 4 threads.</p>
+                        </article>
+                      </section>
+                    </div>
+                  </aside>
+                </div>
+              </main>
+            </div>
+            <footer class="statusbar">
+              <span>comments board open</span>
+              <span>attention 2 - drafts 6 - open 4 - history 9</span>
+            </footer>
+          </div>
+        </section>
+
+        <section class="concept">
+          <aside class="concept-copy">
+            <div class="concept-kicker">Concept C</div>
+            <h2>Inbox With Draft Lane</h2>
+            <p>
+              Keep the current Comments inbox mental model, but add a persistent
+              Draft lane inside it. This is the smallest direction change.
+            </p>
+            <div class="score">
+              <span>Lowest risk</span>
+              <span>Feels familiar</span>
+              <span>Less dashboard</span>
+            </div>
+            <div class="tradeoff">
+              Tradeoff: drafts are visible, but the overview is less beautiful
+              than the board. It works best if users still think in threads, not
+              in state counters.
+            </div>
+          </aside>
+          <div class="mock">
+            <div class="topbar">
+              <div class="brand"><span class="logo"></span>Vivi</div>
+              <div class="pathbar">
+                workspace <strong>vivi</strong>
+                <span>single comments entry, threaded body</span>
+              </div>
+              <div class="top-actions">
+                <button class="command-button comments active">
+                  <span>Comments</span><span class="count">4</span
+                  ><span class="count private">6</span
+                  ><span class="kbd">Cmd Shift C</span>
+                </button>
+                <button class="command-button">
+                  <span>Command</span><span class="kbd">Cmd K</span>
+                </button>
+              </div>
+            </div>
+            <div class="workspace">
+              <aside class="sidebar">
+                <div class="side-head">Explorer</div>
+                <div class="tree">
+                  <div class="node changed">
+                    <span>MD</span><strong>product-review.md</strong
+                    ><small>MOD</small>
+                  </div>
+                  <div class="node active">
+                    <span>TS</span><strong>CommentsPanel.tsx</strong
+                    ><small>3</small>
+                  </div>
+                  <div class="node">
+                    <span>TS</span><strong>InlineCommentCard.tsx</strong
+                    ><small>1</small>
+                  </div>
+                </div>
+              </aside>
+              <main class="main">
+                <div class="tabs">
+                  <div class="tab active">TS CommentsPanel.tsx</div>
+                  <div class="tab">MD product-review.md</div>
+                </div>
+                <div class="viewer">
+                  <div class="viewer-toolbar">
+                    <span>Comments panel layout - line 12</span>
+                    <div class="toolbar-actions">
+                      <span class="chip">Copy ref</span>
+                      <span class="chip drafting">Private draft</span>
+                    </div>
+                  </div>
+                  <div class="code-lines">
+                    <span class="line-no">10</span
+                    ><span class="line-code">function CommentsPanel() {</span>
+                    <span class="line-no">11</span
+                    ><span class="line-code">
+                      return &lt;aside aria-label="Comments" /&gt;;</span
+                    >
+                    <span class="line-no">12</span
+                    ><span class="line-code focus">
+                      // state counts should stay visible while filtering</span
+                    >
+                    <span class="line-no">13</span
+                    ><span class="line-code">}</span>
+                  </div>
+                  <aside class="drawer">
+                    <div class="drawer-head">
+                      <div>
+                        <h3>Comments inbox</h3>
+                        <p>
+                          Threads first, private drafts in a dedicated lane.
+                        </p>
+                      </div>
+                      <span class="kbd">Cmd Shift C</span>
+                    </div>
+                    <div class="split-drawer">
+                      <nav class="left-states" aria-label="Comment states">
+                        <button>
+                          <span>Attention</span><strong>2</strong>
+                        </button>
+                        <button class="active">
+                          <span>Drafts</span><strong>6</strong>
+                        </button>
+                        <button><span>Open</span><strong>4</strong></button>
+                        <button><span>Resolved</span><strong>9</strong></button>
+                      </nav>
+                      <div class="split-content">
+                        <div class="publish-row">
+                          <div>
+                            <strong>Private draft lane</strong>
+                            <span>6 drafts stay hidden until publish.</span>
+                          </div>
+                          <button>Publish</button>
+                        </div>
+                        <article class="inbox-row private">
+                          <div class="row-head">
+                            <strong>CommentsPanel.tsx</strong>
+                            <span class="small-pill private"
+                              >Private draft</span
+                            >
+                          </div>
+                          <p>
+                            State counts should remain visible while filtering.
+                          </p>
+                          <div class="inbox-row-meta">
+                            source - L12 - saved now
+                          </div>
+                        </article>
+                        <article class="inbox-row private">
+                          <div class="row-head">
+                            <strong>product-review.md</strong>
+                            <span class="small-pill private"
+                              >Private draft</span
+                            >
+                          </div>
+                          <p>
+                            Drafts can live in comments, but must be clearly
+                            private.
+                          </p>
+                          <div class="inbox-row-meta">
+                            rendered markdown - H2 - saved 3m ago
+                          </div>
+                        </article>
+                        <div class="bottom-actions">
+                          <button class="secondary">Show open threads</button>
+                          <button class="secondary">Show history</button>
+                        </div>
+                      </div>
+                    </div>
+                  </aside>
+                </div>
+              </main>
+            </div>
+            <footer class="statusbar">
+              <span>threaded comments inbox</span>
+              <span>open 4 - private drafts 6 - resolved 9</span>
+            </footer>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

@@ -183,7 +183,7 @@ it("opens topbar overlays from native button clicks", () => {
 
   clickAction("Keyboard shortcuts");
   clickAction("Open command palette");
-  clickAction("Open Comments inbox, no open threads");
+  clickAction("Open Comments hub, no open threads");
   clickAction("Search workspace text");
 
   expect(actions).toEqual(["shortcuts", "quick-open", "comments", "search"]);
@@ -208,10 +208,10 @@ it("prioritizes attention-needed comments in the topbar entry point", () => {
   expect(html).toContain('class="comment-count-badge">2</span>');
   expect(html).toContain("needs-attention");
   expect(html).toContain(
-    'aria-label="Open Attention inbox, 2 comment threads need attention"',
+    'aria-label="Open Comments hub, 2 comment threads need attention"',
   );
   expect(html).toContain(
-    'title="Open Attention inbox: 2 comment threads need attention (Cmd/Ctrl+Shift+C)"',
+    'title="Open Comments hub: 2 comment threads need attention (Cmd/Ctrl+Shift+C)"',
   );
 });
 
@@ -232,9 +232,33 @@ it("keeps the comments topbar entry explicit when nothing needs attention", () =
 
   expect(html).toContain("Comments");
   expect(html).toContain('class="comment-count-badge">1</span>');
-  expect(html).toContain('aria-label="Open Comments inbox, 1 open thread"');
+  expect(html).toContain('aria-label="Open Comments hub, 1 open thread"');
   expect(html).toContain(
-    'title="Open Comments inbox: 1 open thread (Cmd/Ctrl+Shift+C)"',
+    'title="Open Comments hub: 1 open thread (Cmd/Ctrl+Shift+C)"',
+  );
+});
+
+it("shows private draft counts in the comments topbar entry", () => {
+  const html = renderToStaticMarkup(
+    <Topbar
+      root="/Users/tasuku/work/vivi"
+      themePreference="dark"
+      openCommentThreadCount={4}
+      draftCommentCount={6}
+      onThemeCycle={() => undefined}
+      onQuickOpen={() => undefined}
+      onSearchText={() => undefined}
+      onOpenComments={() => undefined}
+      onOpenShortcuts={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Comments");
+  expect(html).toContain('class="comment-count-badge">4</span>');
+  expect(html).toContain('class="comment-count-badge private"');
+  expect(html).toContain("6 private draft comments");
+  expect(html).toContain(
+    'aria-label="Open Comments hub, 4 open threads, 6 private draft comments"',
   );
 });
 
@@ -257,10 +281,10 @@ it("clarifies when fewer comments are in the review queue", () => {
   expect(html).toContain("Comments");
   expect(html).toContain('class="comment-count-badge">3</span>');
   expect(html).toContain(
-    'aria-label="Open Comments inbox, 3 open threads, 1 open review thread"',
+    'aria-label="Open Comments hub, 3 open threads, 1 open review thread"',
   );
   expect(html).toContain(
-    'title="Open Comments inbox: 3 open threads, 1 open review thread (Cmd/Ctrl+Shift+C)"',
+    'title="Open Comments hub: 3 open threads, 1 open review thread (Cmd/Ctrl+Shift+C)"',
   );
 });
 
@@ -281,7 +305,7 @@ it("does not make zero review-thread comments sound like an empty Review Queue",
   );
 
   expect(html).toContain(
-    'aria-label="Open Comments inbox, 2 open threads, no open review threads"',
+    'aria-label="Open Comments hub, 2 open threads, no open review threads"',
   );
   expect(html).not.toContain("0 in review queue");
 });
@@ -2346,7 +2370,8 @@ it("renders draft and published messages in the same inline thread", () => {
   expect(html).toContain("Check this return");
   expect(html).toContain("Still unpublished in this thread");
   expect(html).toContain('class="comment-status published">Published</span>');
-  expect(html).toContain('class="comment-status draft">Draft</span>');
+  expect(html).toContain("Private draft");
+  expect(html).toContain('class="comment-status draft">Private</span>');
   expect(html).toContain("Resolve thread");
 });
 
@@ -2397,7 +2422,7 @@ it("renders draft review tray editing, success, and publish failure states", () 
     />,
   );
   expect(editingHtml).toContain("textarea");
-  expect(editingHtml).toContain("Private drafts");
+  expect(editingHtml).toContain("Review drafts");
   expect(editingHtml).toContain(
     'aria-label="Close Draft Review tray, 2 unpublished comments kept private until publish"',
   );
@@ -2412,7 +2437,7 @@ it("renders draft review tray editing, success, and publish failure states", () 
     'title="Open private draft in src/app.ts, source, L2, kept private until publish"',
   );
   expect(editingHtml).toContain('id="draft-edit-hint-draft-1"');
-  expect(editingHtml).toContain("This draft remains private until published.");
+  expect(editingHtml).toContain("This draft stays private until published.");
   expect(editingHtml).toContain(
     'aria-label="Edit private draft comment for src/app.ts"',
   );
@@ -2511,6 +2536,49 @@ it("renders draft review items with their full surface context", () => {
   expect(html).toContain("Rendered draft");
 });
 
+it("renders private drafts inside the comments hub", () => {
+  const draft = {
+    id: "draft-1",
+    path: "src/app.ts",
+    viewerKind: "text" as const,
+    anchor: codeLineComment.anchor,
+    body: "Keep this draft private until publish",
+    source: "human" as const,
+    createdAt: "2026-06-20T00:00:00.000Z",
+    updatedAt: "2026-06-20T00:00:00.000Z",
+  };
+  const html = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={[codeLineComment]}
+      draftComments={[draft]}
+      query=""
+      statusFilter="drafts"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+      onOpenDraft={() => undefined}
+      onDeleteDraft={() => undefined}
+      onPublishDrafts={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Comments Hub");
+  expect(html).toContain("1 open · 1 private draft · 0 history");
+  expect(html).toContain("Private drafts");
+  expect(html).toContain("1 private draft ready");
+  expect(html).toContain("Publish review comments");
+  expect(html).toContain("Keep this draft private until publish");
+  expect(html).toContain("Not agent-visible");
+  expect(html).toContain(
+    'aria-label="Open private draft in src/app.ts, source, L2, not agent-visible until publish"',
+  );
+  expect(html).toContain(
+    'aria-label="Delete private draft comment for src/app.ts"',
+  );
+});
+
 it("renders comment activity in workspace comments rows", () => {
   const html = renderToStaticMarkup(
     <CommentsPanel
@@ -2561,7 +2629,7 @@ it("renders comment activity in workspace comments rows", () => {
     />,
   );
 
-  expect(html).toContain("Review Inbox");
+  expect(html).toContain("Comments Hub");
   expect(html).toContain("1 thread · 2 messages");
   expect(html).toContain('aria-label="Current review stop"');
   expect(html).toContain("Current stop");
@@ -3138,7 +3206,7 @@ it("scopes comments inbox filter counts to the current search", () => {
     />,
   );
 
-  expect(html).toContain("2 open · 1 resolved");
+  expect(html).toContain("2 open · 0 private drafts · 1 history");
   expect(html).toContain("All 1");
   expect(html).toContain("Open 1");
   expect(html).toContain('aria-label="Clear comments search"');
@@ -3349,7 +3417,7 @@ it("hides archived comment threads from the comments inbox", () => {
     />,
   );
 
-  expect(html).toContain("1 open · 0 resolved");
+  expect(html).toContain("1 open · 0 private drafts · 0 history");
   expect(html).toContain("All 1");
   expect(html).toContain("Open 1");
   expect(html).not.toContain("Archived feedback should not be visible");

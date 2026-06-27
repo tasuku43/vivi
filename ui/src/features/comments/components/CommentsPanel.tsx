@@ -2,12 +2,15 @@ import { useEffect, useRef } from "react";
 import type {
   CommentSource,
   CommentStatus,
+  DraftReviewComment,
   ViviComment,
 } from "../../../domain/comments.js";
 import type { FilePayload } from "../../../domain/fs-node.js";
 import type { CommentActivitySummary } from "../../../state/comment-activity.js";
 import { activityLabel, actorLabel } from "../../../state/comment-activity.js";
 import {
+  commentAnchorThreadKey,
+  commentLineLabelForAnchor,
   commentAnchorSourceChanged,
   commentLineLabel,
   commentLocationLabel,
@@ -17,7 +20,7 @@ import {
 } from "../../../state/comments.js";
 
 type VisibleCommentStatus = Exclude<CommentStatus, "archived">;
-type StatusFilter = "all" | "attention" | VisibleCommentStatus;
+type StatusFilter = "all" | "attention" | "drafts" | VisibleCommentStatus;
 
 export function CommentsPanel({
   open,
@@ -28,10 +31,17 @@ export function CommentsPanel({
   knownMissingPaths = emptyMissingPaths,
   currentFile = null,
   activeCommentId = null,
+  draftComments = [],
+  draftPublishing = false,
+  draftPublishError = null,
+  publishedBatchId = null,
   onQueryChange,
   onStatusFilterChange,
   onClose,
   onOpenComment,
+  onOpenDraft,
+  onDeleteDraft,
+  onPublishDrafts,
   onStatusChange,
   threadActivities = {},
 }: {
@@ -43,10 +53,17 @@ export function CommentsPanel({
   knownMissingPaths?: ReadonlySet<string>;
   currentFile?: FilePayload | null;
   activeCommentId?: string | null;
+  draftComments?: DraftReviewComment[];
+  draftPublishing?: boolean;
+  draftPublishError?: string | null;
+  publishedBatchId?: string | null;
   onQueryChange: (query: string) => void;
   onStatusFilterChange: (status: StatusFilter) => void;
   onClose: () => void;
   onOpenComment: (comment: ViviComment) => void;
+  onOpenDraft?: (draft: DraftReviewComment) => void;
+  onDeleteDraft?: (id: string) => void | Promise<void>;
+  onPublishDrafts?: () => void | Promise<void>;
   onStatusChange?: (threadId: string, status: CommentStatus) => void;
   threadActivities?: Record<string, CommentActivitySummary>;
 }) {
@@ -57,19 +74,33 @@ export function CommentsPanel({
   const matchingThreads = allThreads.filter((thread) =>
     commentThreadMatchesQuery(thread, query),
   );
+  const matchingDrafts = draftComments.filter((draft) =>
+    draftCommentMatchesQuery(draft, query),
+  );
+  const draftSummary = summarizeDraftReviewComments(draftComments);
+  const draftPublishAction = draftPublishActionState({
+    draftCount: draftComments.length,
+    publishing: draftPublishing,
+    summary: draftSummary,
+  });
+  const showingDrafts = statusFilter === "drafts";
   const matchingStats = summarizeCommentThreads(matchingThreads);
-  const visibleThreads = matchingThreads
-    .filter((thread) => {
-      if (statusFilter === "attention") return thread.needsAttention;
-      if (statusFilter !== "all" && thread.status !== statusFilter)
-        return false;
-      return true;
-    })
-    .sort(compareCommentThreads);
+  const visibleThreads = showingDrafts
+    ? []
+    : matchingThreads
+        .filter((thread) => {
+          if (statusFilter === "attention") return thread.needsAttention;
+          if (statusFilter !== "all" && thread.status !== statusFilter)
+            return false;
+          return true;
+        })
+        .sort(compareCommentThreads);
   const currentStop = currentCommentStop(allThreads, activeCommentId);
   const currentStopVisible =
     currentStop !== null &&
-    visibleThreads.some((thread) => thread.threadId === currentStop.thread.threadId);
+    visibleThreads.some(
+      (thread) => thread.threadId === currentStop.thread.threadId,
+    );
   const totalVisibleMessages = visibleThreads.reduce(
     (count, thread) => count + thread.comments.length,
     0,
@@ -81,6 +112,7 @@ export function CommentsPanel({
     statusFilter,
     query,
     matchingStats,
+    matchingDrafts.length,
   );
   const visibleResultLabel = visibleThreads.length
     ? commentResultSummaryLabel(
@@ -88,18 +120,25 @@ export function CommentsPanel({
         totalVisibleMessages,
         visibleAttentionThreads,
       )
-    : emptyState.title;
+    : showingDrafts && matchingDrafts.length
+      ? draftResultSummaryLabel(matchingDrafts.length, draftSummary)
+      : emptyState.title;
   const resultSummaryId = "comments-panel-result-summary";
   const keyboardHelpId = "comments-panel-keyboard-help";
+  const keyboardRowCount = showingDrafts
+    ? matchingDrafts.length
+    : visibleThreads.length;
 
   return (
     <aside className="global-comments-panel" aria-label="Comments">
       <div className="global-comments-head">
         <div>
-          <p className="global-comments-eyebrow">Review Inbox</p>
+          <p className="global-comments-eyebrow">Comments Hub</p>
           <h2>Comments</h2>
           <p>
-            {allStats.open} open · {allStats.resolved} resolved
+            {allStats.open} open ·{" "}
+            {countNoun(draftComments.length, "private draft")} ·{" "}
+            {allStats.resolved} history
             {allStats.needsAttention
               ? ` · ${countNoun(allStats.needsAttention, "attention thread")}`
               : ""}
@@ -109,12 +148,75 @@ export function CommentsPanel({
           ×
         </button>
       </div>
+      <div
+        className="global-comments-overview"
+        aria-label="Comment state counts"
+      >
+        <button
+          className={
+            statusFilter === "attention" ? "active attention" : "attention"
+          }
+          type="button"
+          aria-label={commentFilterAriaLabel(
+            "attention",
+            matchingStats,
+            matchingDrafts.length,
+          )}
+          aria-pressed={statusFilter === "attention"}
+          onClick={() => onStatusFilterChange("attention")}
+        >
+          <strong>{allStats.needsAttention}</strong>
+          <span>Attention</span>
+        </button>
+        <button
+          className={statusFilter === "drafts" ? "active drafts" : "drafts"}
+          type="button"
+          aria-label={commentFilterAriaLabel(
+            "drafts",
+            matchingStats,
+            matchingDrafts.length,
+          )}
+          aria-pressed={statusFilter === "drafts"}
+          onClick={() => onStatusFilterChange("drafts")}
+        >
+          <strong>{draftComments.length}</strong>
+          <span>Private drafts</span>
+        </button>
+        <button
+          className={statusFilter === "open" ? "active" : ""}
+          type="button"
+          aria-label={commentFilterAriaLabel(
+            "open",
+            matchingStats,
+            matchingDrafts.length,
+          )}
+          aria-pressed={statusFilter === "open"}
+          onClick={() => onStatusFilterChange("open")}
+        >
+          <strong>{allStats.open}</strong>
+          <span>Open threads</span>
+        </button>
+        <button
+          className={statusFilter === "resolved" ? "active" : ""}
+          type="button"
+          aria-label={commentFilterAriaLabel(
+            "resolved",
+            matchingStats,
+            matchingDrafts.length,
+          )}
+          aria-pressed={statusFilter === "resolved"}
+          onClick={() => onStatusFilterChange("resolved")}
+        >
+          <strong>{allStats.resolved}</strong>
+          <span>History</span>
+        </button>
+      </div>
       <div className="global-comments-tools">
         <CommentsSearchInput
           query={query}
           resultSummaryId={resultSummaryId}
           keyboardHelpId={keyboardHelpId}
-          visibleThreadCount={visibleThreads.length}
+          visibleThreadCount={keyboardRowCount}
           onQueryChange={onQueryChange}
         />
         <p className="sr-only" id={keyboardHelpId}>
@@ -127,26 +229,29 @@ export function CommentsPanel({
           role="group"
           aria-label="Comment status filters"
         >
-          {([
-            "attention",
-            "all",
-            "open",
-            "resolved",
-          ] as StatusFilter[]).map(
-            (status) => (
-              <button
-                className={statusFilter === status ? "active" : ""}
-                type="button"
-                aria-label={commentFilterAriaLabel(status, matchingStats)}
-                aria-pressed={statusFilter === status}
-                key={status}
-                onClick={() => onStatusFilterChange(status)}
-                title={commentFilterAriaLabel(status, matchingStats)}
-              >
-                {commentFilterLabel(status, matchingStats)}
-              </button>
-            ),
-          )}
+          {(
+            ["attention", "drafts", "all", "open", "resolved"] as StatusFilter[]
+          ).map((status) => (
+            <button
+              className={statusFilter === status ? "active" : ""}
+              type="button"
+              aria-label={commentFilterAriaLabel(
+                status,
+                matchingStats,
+                matchingDrafts.length,
+              )}
+              aria-pressed={statusFilter === status}
+              key={status}
+              onClick={() => onStatusFilterChange(status)}
+              title={commentFilterAriaLabel(
+                status,
+                matchingStats,
+                matchingDrafts.length,
+              )}
+            >
+              {commentFilterLabel(status, matchingStats, matchingDrafts.length)}
+            </button>
+          ))}
         </div>
       </div>
       <div
@@ -156,20 +261,54 @@ export function CommentsPanel({
       >
         {visibleResultLabel}
       </div>
-      {currentStop ? (
+      {showingDrafts &&
+      (draftComments.length || draftPublishError || publishedBatchId) ? (
+        <div
+          className="global-draft-publish"
+          aria-label="Draft publish summary"
+        >
+          <div>
+            <strong>{draftCountLabel(draftComments.length)}</strong>
+            <span>
+              {draftComments.length
+                ? `Will publish as ${countNoun(draftSummary.threadCount, "open thread")} across ${countNoun(draftSummary.fileCount, "file")}.`
+                : "Draft comments stay private until they are published."}
+            </span>
+          </div>
+          <button
+            type="button"
+            aria-label={draftPublishAction.description}
+            disabled={draftPublishAction.disabled}
+            title={draftPublishAction.description}
+            onClick={() => void onPublishDrafts?.()}
+          >
+            {draftPublishAction.label}
+          </button>
+          {draftPublishError ? (
+            <p className="global-draft-message error" role="alert">
+              Publish failed. Drafts were kept. {draftPublishError}
+            </p>
+          ) : null}
+          {publishedBatchId && !draftComments.length ? (
+            <p className="global-draft-message success" aria-live="polite">
+              Published review batch {publishedBatchId}. Open threads are now
+              visible to agents.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      {!showingDrafts && currentStop ? (
         <div
           className="global-comments-current-stop"
           aria-label="Current review stop"
         >
           <span className="global-comments-current-dot" aria-hidden="true" />
           <span className="global-comments-current-main">
-            <span className="global-comments-current-kicker">
-              Current stop
-            </span>
+            <span className="global-comments-current-kicker">Current stop</span>
             <strong>{currentStop.thread.path}</strong>
             <span>
-              {currentStop.thread.locationLabel} · {currentStop.thread.lineLabel} ·{" "}
-              {currentStop.thread.surfaceLabel}
+              {currentStop.thread.locationLabel} ·{" "}
+              {currentStop.thread.lineLabel} · {currentStop.thread.surfaceLabel}
             </span>
             <span>
               {currentStopVisible
@@ -196,7 +335,9 @@ export function CommentsPanel({
                   onClick={() =>
                     onStatusChange(
                       currentStop.thread.threadId,
-                      currentStop.thread.status === "open" ? "resolved" : "open",
+                      currentStop.thread.status === "open"
+                        ? "resolved"
+                        : "open",
                     )
                   }
                 >
@@ -225,9 +366,107 @@ export function CommentsPanel({
         className="global-comments-list"
         role="list"
         aria-describedby={keyboardHelpId}
-        aria-label={`Comment threads, ${visibleResultLabel}`}
+        aria-label={`${showingDrafts ? "Private draft comments" : "Comment threads"}, ${visibleResultLabel}`}
       >
-        {visibleThreads.length ? (
+        {showingDrafts ? (
+          matchingDrafts.length ? (
+            matchingDrafts.map((draft, index) => {
+              return (
+                <div
+                  className="global-comment-listitem"
+                  role="listitem"
+                  aria-posinset={index + 1}
+                  aria-setsize={matchingDrafts.length}
+                  key={draft.id}
+                >
+                  <button
+                    className="global-comment-row draft"
+                    type="button"
+                    aria-keyshortcuts="ArrowDown ArrowUp Home End"
+                    aria-label={draftOpenLabel(draft)}
+                    data-comment-id={`draft:${draft.id}`}
+                    onClick={() => onOpenDraft?.(draft)}
+                    onKeyDown={(event) => {
+                      const nextTarget = commentInboxKeyboardTarget(
+                        event.key,
+                        index,
+                        matchingDrafts.length,
+                      );
+                      if (nextTarget === null) return;
+                      event.preventDefault();
+                      focusCommentInboxTarget(nextTarget);
+                    }}
+                  >
+                    <span className="global-comment-dot" aria-hidden="true" />
+                    <span className="global-comment-main">
+                      <span className="global-comment-meta">
+                        <strong>{draft.path}</strong>
+                        <span>
+                          {commentLineLabelForAnchor(draft.anchor.canonical)}
+                        </span>
+                        <span className="global-comment-surface">
+                          {draftSurfaceLabel(draft)}
+                        </span>
+                        <span className="comment-status draft">
+                          Private draft
+                        </span>
+                        <span className="global-comment-author">
+                          Not agent-visible
+                        </span>
+                      </span>
+                      <span className="global-comment-location">
+                        {draftLocationLabel(draft)}
+                      </span>
+                      <span className="global-comment-body">
+                        {truncateCommentPreview(draft.body, 130)}
+                      </span>
+                      <span className="global-comment-thread-foot">
+                        <span className="global-comment-thread-meta">
+                          saved {formatCommentTime(draft.updatedAt)}
+                        </span>
+                        <span className="global-comment-open-hint">
+                          Open draft anchor
+                        </span>
+                      </span>
+                      {draft.anchor.canonical.quote ? (
+                        <span className="global-comment-quote">
+                          {truncateCommentPreview(
+                            draft.anchor.canonical.quote,
+                            140,
+                          )}
+                        </span>
+                      ) : null}
+                    </span>
+                  </button>
+                  <div
+                    className="global-comment-row-actions"
+                    aria-label={`Draft actions for ${draft.path}, ${commentLineLabelForAnchor(draft.anchor.canonical)}`}
+                  >
+                    <button
+                      type="button"
+                      aria-label={`Open private draft comment for ${draft.path}`}
+                      onClick={() => onOpenDraft?.(draft)}
+                    >
+                      Open
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Delete private draft comment for ${draft.path}`}
+                      onClick={() => void onDeleteDraft?.(draft.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="global-comments-empty">
+              <strong>{emptyState.title}</strong>
+              <span>{emptyState.detail}</span>
+            </div>
+          )
+        ) : visibleThreads.length ? (
           visibleThreads.map((thread, index) => {
             const activity = threadActivities[thread.threadId];
             const latest = thread.latestComment;
@@ -238,18 +477,19 @@ export function CommentsPanel({
             const sourceState = sourceMissing
               ? {
                   label: "Source missing",
-                  aria:
-                    "This comment points to a path that is not present in the current workspace tree",
+                  aria: "This comment points to a path that is not present in the current workspace tree",
                 }
               : sourceChanged
                 ? {
                     label: "Source changed",
-                    aria:
-                      "Current file content differs from this comment anchor",
+                    aria: "Current file content differs from this comment anchor",
                   }
                 : null;
             const searchMatch = commentThreadSearchMatch(thread, query);
-            const active = commentThreadContainsComment(thread, activeCommentId);
+            const active = commentThreadContainsComment(
+              thread,
+              activeCommentId,
+            );
             const toggleStatusLabel =
               thread.status === "open"
                 ? active
@@ -366,9 +606,7 @@ export function CommentsPanel({
                     <span className="global-comment-thread-foot">
                       <span className="global-comment-thread-meta">
                         {thread.comments.length}{" "}
-                        {thread.comments.length === 1
-                          ? "message"
-                          : "messages"}{" "}
+                        {thread.comments.length === 1 ? "message" : "messages"}{" "}
                         · updated {formatCommentTime(thread.updatedAt)}
                         {thread.reviewBatchId
                           ? ` · batch ${shortBatchId(thread.reviewBatchId)}`
@@ -513,10 +751,7 @@ function CommentsSearchInput({
 }) {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
-    const timeout = window.setTimeout(
-      () => searchInputRef.current?.focus(),
-      0,
-    );
+    const timeout = window.setTimeout(() => searchInputRef.current?.focus(), 0);
     return () => window.clearTimeout(timeout);
   }, []);
 
@@ -574,7 +809,8 @@ export function commentInboxKeyboardTarget(
   if (count <= 0) return null;
   if (currentIndex < 0) return key === "ArrowDown" ? 0 : null;
   if (key === "ArrowDown") return Math.min(currentIndex + 1, count - 1);
-  if (key === "ArrowUp") return currentIndex === 0 ? "search" : currentIndex - 1;
+  if (key === "ArrowUp")
+    return currentIndex === 0 ? "search" : currentIndex - 1;
   if (key === "Home") return 0;
   if (key === "End") return count - 1;
   return null;
@@ -719,21 +955,30 @@ interface CommentInboxStats extends Record<CommentStatus, number> {
   needsAttention: number;
 }
 
-function commentFilterLabel(status: StatusFilter, stats: CommentInboxStats): string {
+function commentFilterLabel(
+  status: StatusFilter,
+  stats: CommentInboxStats,
+  draftCount: number,
+): string {
   if (status === "all") return countLabel("All", stats.all);
   if (status === "attention") {
     return countLabel("Attention", stats.needsAttention);
   }
+  if (status === "drafts") return countLabel("Drafts", draftCount);
   return countLabel(statusLabel(status), stats[status]);
 }
 
 function commentFilterAriaLabel(
   status: StatusFilter,
   stats: CommentInboxStats,
+  draftCount: number,
 ): string {
   if (status === "all") return `Show all ${countNoun(stats.all, "thread")}`;
   if (status === "attention") {
     return `Show ${countNoun(stats.needsAttention, "attention thread")}`;
+  }
+  if (status === "drafts") {
+    return `Show ${countNoun(draftCount, "private draft comment")}`;
   }
   return `Show ${countNoun(stats[status], `${statusLabel(status).toLowerCase()} thread`)}`;
 }
@@ -788,6 +1033,7 @@ function commentInboxEmptyState(
   statusFilter: StatusFilter,
   query: string,
   stats: CommentInboxStats,
+  _draftCount: number,
 ): { title: string; detail: string } {
   const searching = query.trim().length > 0;
   if (searching && stats.all === 0) {
@@ -808,6 +1054,15 @@ function commentInboxEmptyState(
     };
   }
 
+  if (statusFilter === "drafts") {
+    return {
+      title: searching ? "No matching private drafts" : "No private drafts",
+      detail: searching
+        ? "Try another status filter or broaden your search."
+        : "Draft comments saved from rendered, source, or diff surfaces will collect here before publish.",
+    };
+  }
+
   if (statusFilter === "open") {
     return {
       title: searching ? "No matching open threads" : "No open threads",
@@ -821,9 +1076,7 @@ function commentInboxEmptyState(
 
   if (statusFilter === "resolved") {
     return {
-      title: searching
-        ? "No matching resolved threads"
-        : "No resolved threads",
+      title: searching ? "No matching resolved threads" : "No resolved threads",
       detail: searching
         ? "Try another status filter or broaden your search."
         : "Resolved feedback will stay here without returning to the review queue.",
@@ -832,8 +1085,128 @@ function commentInboxEmptyState(
 
   return {
     title: "No comment threads yet",
-    detail: "Comments created from rendered, source, or diff surfaces will collect here.",
+    detail:
+      "Comments created from rendered, source, or diff surfaces will collect here.",
   };
+}
+
+function draftCountLabel(count: number): string {
+  if (count === 0) return "No unpublished comments";
+  if (count === 1) return "1 private draft ready";
+  return `${count} private drafts ready`;
+}
+
+function draftResultSummaryLabel(
+  draftCount: number,
+  summary: DraftReviewSummary,
+): string {
+  return [
+    countNoun(draftCount, "private draft"),
+    countNoun(summary.threadCount, "open thread after publish"),
+    countNoun(summary.fileCount, "file"),
+  ].join(" · ");
+}
+
+interface DraftReviewSummary {
+  fileCount: number;
+  threadCount: number;
+}
+
+function summarizeDraftReviewComments(
+  drafts: DraftReviewComment[],
+): DraftReviewSummary {
+  const paths = new Set<string>();
+  const threads = new Set<string>();
+  for (const draft of drafts) {
+    paths.add(draft.path);
+    threads.add(
+      draft.threadId ?? commentAnchorThreadKey(draft.path, draft.anchor),
+    );
+  }
+  return {
+    fileCount: paths.size,
+    threadCount: threads.size,
+  };
+}
+
+function draftPublishActionState({
+  draftCount,
+  publishing,
+  summary,
+}: {
+  draftCount: number;
+  publishing: boolean;
+  summary: DraftReviewSummary;
+}): {
+  description: string;
+  disabled: boolean;
+  label: string;
+} {
+  if (publishing) {
+    return {
+      description: "Publishing draft review comments",
+      disabled: true,
+      label: "Publishing...",
+    };
+  }
+  if (!draftCount) {
+    return {
+      description: "No draft comments to publish",
+      disabled: true,
+      label: "Publish review comments",
+    };
+  }
+  return {
+    description: `Publish ${countNoun(draftCount, "draft comment")} as ${countNoun(summary.threadCount, "open thread")} across ${countNoun(summary.fileCount, "file")}`,
+    disabled: false,
+    label: "Publish review comments",
+  };
+}
+
+function draftSurfaceLabel(draft: DraftReviewComment): string {
+  if (draft.anchor.surface === "diff") return "diff";
+  if (draft.anchor.surface === "rendered") {
+    return `${draft.anchor.rendered?.kind ?? draft.viewerKind} rendered`;
+  }
+  return "source";
+}
+
+function draftLocationLabel(draft: DraftReviewComment): string {
+  if (draft.anchor.surface === "rendered") {
+    return draft.anchor.rendered?.textQuote
+      ? `Rendered text "${truncateCommentPreview(draft.anchor.rendered.textQuote, 48)}"`
+      : "Rendered surface";
+  }
+  if (draft.anchor.surface === "diff") return "Diff comment";
+  return commentLineLabelForAnchor(draft.anchor.canonical);
+}
+
+function draftOpenLabel(draft: DraftReviewComment): string {
+  return [
+    `Open private draft in ${draft.path}`,
+    draftSurfaceLabel(draft),
+    commentLineLabelForAnchor(draft.anchor.canonical),
+    "not agent-visible until publish",
+  ].join(", ");
+}
+
+function draftCommentMatchesQuery(
+  draft: DraftReviewComment,
+  query: string,
+): boolean {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return true;
+  const haystack = [
+    draft.path,
+    draft.body,
+    draftSurfaceLabel(draft),
+    draftLocationLabel(draft),
+    commentLineLabelForAnchor(draft.anchor.canonical),
+    draft.anchor.canonical.quote ?? "",
+  ]
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(normalizedQuery);
 }
 
 function surfaceLabel(comment: ViviComment): string {
@@ -904,13 +1277,7 @@ interface CommentSearchMatch {
   text: string;
 }
 
-function SearchMatchText({
-  text,
-  query,
-}: {
-  text: string;
-  query: string;
-}) {
+function SearchMatchText({ text, query }: { text: string; query: string }) {
   const normalizedQuery = query.trim().toLowerCase();
   const index = normalizedQuery
     ? text.toLowerCase().indexOf(normalizedQuery)

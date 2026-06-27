@@ -153,7 +153,7 @@ export function CodeCommentThread({
           <span>
             {thread.comments.length
               ? `${thread.comments.length} ${thread.comments.length === 1 ? "message" : "messages"}`
-              : "New draft"}
+              : "Composing"}
           </span>
           {thread.comments.length ? (
             <span className={`comment-status ${threadStatus}`}>
@@ -207,7 +207,7 @@ export function CodeCommentThread({
                 <div className="code-thread-comment-meta">
                   <strong>
                     {isDraftThreadComment(comment)
-                      ? "Draft"
+                      ? "Private draft"
                       : index === 0
                         ? "Started"
                         : "Reply"}
@@ -221,7 +221,7 @@ export function CodeCommentThread({
                     {formatCommentTime(comment.createdAt)}
                   </time>
                   {isDraftThreadComment(comment) ? (
-                    <span className="comment-status draft">Draft</span>
+                    <span className="comment-status draft">Private</span>
                   ) : (
                     <span className="comment-status published">Published</span>
                   )}

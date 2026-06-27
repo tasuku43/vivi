@@ -16,6 +16,7 @@ import {
 } from "../../state/code-viewer.js";
 import {
   commentAnchorSourceChanged,
+  commentLineLabelForAnchor,
   commentLineLabel,
   commentLocationLabel,
   statusLabel,
@@ -107,6 +108,7 @@ interface Props {
   onOutlineSelect?: (id: string) => void;
   onOpenComments?: () => void;
   onOpenComment?: (comment: ViviComment) => void;
+  onOpenDraft?: (draft: DraftReviewComment) => void;
   onCommentStatusChange?: (threadId: string, status: CommentStatus) => void;
 }
 
@@ -142,6 +144,7 @@ export function Inspector({
   onOutlineSelect,
   onOpenComments,
   onOpenComment,
+  onOpenDraft,
   onCommentStatusChange,
 }: Props) {
   const codeMetadata =
@@ -212,255 +215,260 @@ export function Inspector({
         <InspectorModeSwitch name={`inspector-mode-${activePaneId}`} />
         <div className="inspector-review-mode">
           <div className="section-title with-action primary-section">
-          <span>Review Queue</span>
-          {queueItems.length ? (
-            <span className="queue-actions">
-              {queueProgress.unread && onOpenNextUnread ? (
+            <span>Review Queue</span>
+            {queueItems.length ? (
+              <span className="queue-actions">
+                {queueProgress.unread && onOpenNextUnread ? (
+                  <button
+                    aria-keyshortcuts="Meta+Shift+U Control+Shift+U"
+                    title="Open next unseen review item (Cmd/Ctrl+Shift+U)"
+                    type="button"
+                    onClick={onOpenNextUnread}
+                  >
+                    Unseen
+                  </button>
+                ) : null}
                 <button
-                  aria-keyshortcuts="Meta+Shift+U Control+Shift+U"
-                  title="Open next unseen review item (Cmd/Ctrl+Shift+U)"
+                  aria-keyshortcuts="Meta+Shift+K Control+Shift+K"
+                  disabled={!queuePosition.reviewableTotal}
+                  title="Previous review item (Cmd/Ctrl+Shift+K)"
                   type="button"
-                  onClick={onOpenNextUnread}
+                  onClick={onOpenPreviousChanged}
                 >
-                  Unseen
+                  Previous
                 </button>
-              ) : null}
-              <button
-                aria-keyshortcuts="Meta+Shift+K Control+Shift+K"
-                disabled={!queuePosition.reviewableTotal}
-                title="Previous review item (Cmd/Ctrl+Shift+K)"
-                type="button"
-                onClick={onOpenPreviousChanged}
-              >
-                Previous
-              </button>
-              <button
-                aria-keyshortcuts="Meta+Shift+J Control+Shift+J"
-                disabled={!queuePosition.reviewableTotal}
-                title="Next review item (Cmd/Ctrl+Shift+J)"
-                type="button"
-                onClick={onOpenNextChanged}
-              >
-                Next
-              </button>
-            </span>
-          ) : null}
-        </div>
-        {queueItems.length ? (
-          <div className="review-progress" aria-label="Review queue progress">
-            <span>
-              <strong>
-                {queueProgress.seen}/{queueProgress.total}
-              </strong>{" "}
-              files seen
-              {reviewLoading
-                ? " · loading changed files"
-                : queueProgress.unread
-                  ? ` · ${queueProgress.unread} unseen`
-                  : " · all seen"}
-              {queueProgress.openThreads
-                ? ` · ${queueProgress.openThreads} open ${queueProgress.openThreads === 1 ? "thread" : "threads"}`
-                : ""}
-              {queuePosition.activeIndex >= 0
-                ? activePinned
-                  ? ` · pinned from ${queuePosition.activeIndex + 1}/${queuePosition.reviewableTotal}`
-                  : ` · viewing ${queuePosition.activeIndex + 1}/${queuePosition.reviewableTotal}`
-                : ""}
-            </span>
-            <span
-              className="review-progress-track"
-              role="progressbar"
-              aria-label={`${queueProgress.seen} of ${queueProgress.total} review files seen`}
-              aria-valuemin={0}
-              aria-valuemax={queueProgress.total}
-              aria-valuenow={queueProgress.seen}
-              aria-valuetext={queueProgressValueText}
-            >
-              <span
-                style={{
-                  width: `${queueProgress.total ? (queueProgress.seen / queueProgress.total) * 100 : 0}%`,
-                }}
-              />
-            </span>
+                <button
+                  aria-keyshortcuts="Meta+Shift+J Control+Shift+J"
+                  disabled={!queuePosition.reviewableTotal}
+                  title="Next review item (Cmd/Ctrl+Shift+J)"
+                  type="button"
+                  onClick={onOpenNextChanged}
+                >
+                  Next
+                </button>
+              </span>
+            ) : null}
           </div>
-        ) : null}
-        {queueItems.length ? (
-          <div
-            className="review-queue"
-            role="list"
-            aria-label={`Review queue, ${queueProgressValueText}`}
-            aria-describedby="review-queue-interaction-help review-queue-keyboard-help"
-          >
-            <p className="sr-only" id="review-queue-interaction-help">
-              Click or press Enter to preview a review file. Double-click to
-              keep it open as a tab.
+          {queueItems.length ? (
+            <div className="review-progress" aria-label="Review queue progress">
+              <span>
+                <strong>
+                  {queueProgress.seen}/{queueProgress.total}
+                </strong>{" "}
+                files seen
+                {reviewLoading
+                  ? " · loading changed files"
+                  : queueProgress.unread
+                    ? ` · ${queueProgress.unread} unseen`
+                    : " · all seen"}
+                {queueProgress.openThreads
+                  ? ` · ${queueProgress.openThreads} open ${queueProgress.openThreads === 1 ? "thread" : "threads"}`
+                  : ""}
+                {queuePosition.activeIndex >= 0
+                  ? activePinned
+                    ? ` · pinned from ${queuePosition.activeIndex + 1}/${queuePosition.reviewableTotal}`
+                    : ` · viewing ${queuePosition.activeIndex + 1}/${queuePosition.reviewableTotal}`
+                  : ""}
+              </span>
+              <span
+                className="review-progress-track"
+                role="progressbar"
+                aria-label={`${queueProgress.seen} of ${queueProgress.total} review files seen`}
+                aria-valuemin={0}
+                aria-valuemax={queueProgress.total}
+                aria-valuenow={queueProgress.seen}
+                aria-valuetext={queueProgressValueText}
+              >
+                <span
+                  style={{
+                    width: `${queueProgress.total ? (queueProgress.seen / queueProgress.total) * 100 : 0}%`,
+                  }}
+                />
+              </span>
+            </div>
+          ) : null}
+          {queueItems.length ? (
+            <div
+              className="review-queue"
+              role="list"
+              aria-label={`Review queue, ${queueProgressValueText}`}
+              aria-describedby="review-queue-interaction-help review-queue-keyboard-help"
+            >
+              <p className="sr-only" id="review-queue-interaction-help">
+                Click or press Enter to preview a review file. Double-click to
+                keep it open as a tab.
+              </p>
+              <p className="sr-only" id="review-queue-keyboard-help">
+                Use Down Arrow, Up Arrow, Home, and End to move between review
+                files.
+              </p>
+              {displayQueueItems.map((item, index) => {
+                const { change } = item;
+                const active = item.path === queuePosition.activePath;
+                const keyboardIndex = keyboardQueueIndexes.indexOf(index);
+                const reviewStop = reviewQueueStopForPath(
+                  item.path,
+                  reviewComments,
+                );
+                const reviewQueueItemDescriptionId = `review-queue-item-${index + 1}-description`;
+                const statusLabel = change
+                  ? changeStatusLabel(change.status, change.kind)
+                  : "comment";
+                const directoryLabel = change
+                  ? reviewDirectoryLabel(change)
+                  : directoryForPath(item.path);
+                const kindLabel = reviewQueueFileKindLabel(item.path);
+                return (
+                  <div
+                    className="review-queue-item"
+                    role="listitem"
+                    aria-posinset={index + 1}
+                    aria-setsize={displayQueueItems.length}
+                    key={`${change?.source ?? "thread"}:${item.path}`}
+                  >
+                    <button
+                      className={`change-open${item.threadCounts.open ? " has-open-threads" : ""}${active ? " active" : ""}`}
+                      disabled={!isReviewQueueItemOpenable(item)}
+                      aria-current={active ? "true" : undefined}
+                      aria-describedby={`review-queue-interaction-help review-queue-keyboard-help ${reviewQueueItemDescriptionId}`}
+                      aria-keyshortcuts="ArrowDown ArrowUp Home End"
+                      aria-label={reviewQueueItemAriaLabel(item, {
+                        active,
+                        statusLabel,
+                      })}
+                      data-review-index={index}
+                      data-review-path={item.path}
+                      data-testid="review-queue-item"
+                      onClick={() => onOpenEventPath(item.path)}
+                      onDoubleClick={() => onConfirmEventPath(item.path)}
+                      onKeyDown={(event) => {
+                        const nextKeyboardIndex = reviewQueueKeyboardTarget(
+                          event.key,
+                          keyboardIndex,
+                          keyboardQueueIndexes.length,
+                        );
+                        if (nextKeyboardIndex === null) return;
+                        event.preventDefault();
+                        focusReviewQueueTarget(
+                          keyboardQueueIndexes[nextKeyboardIndex]!,
+                        );
+                      }}
+                      title="Click to preview; double-click to keep open as a tab"
+                      type="button"
+                    >
+                      <span
+                        className="sr-only"
+                        id={reviewQueueItemDescriptionId}
+                      >
+                        {reviewQueueItemDescription(item, {
+                          active,
+                          reviewStop,
+                        })}
+                      </span>
+                      <span
+                        className={
+                          item.unread ? "unread-dot" : "unread-dot read"
+                        }
+                        aria-hidden="true"
+                      />
+                      <span className="file-icon change-icon">
+                        {iconForPath(item.path)}
+                      </span>
+                      <span className="change-main">
+                        <span className="change-heading">
+                          <span className="change-kind">{kindLabel}</span>
+                          <span
+                            className={`change-status ${change ? (change.kind ?? change.status) : "comment"}`}
+                          >
+                            {statusLabel}
+                          </span>
+                          <b>{basenameForPath(item.path)}</b>
+                        </span>
+                        <small
+                          className="change-path-line"
+                          title={change ? reviewPathLabel(change) : item.path}
+                        >
+                          <span className="change-path-text">
+                            {directoryLabel}
+                          </span>
+                          {change ? (
+                            <span className="change-source">
+                              {reviewQueueSourceLabel(change.source)}
+                            </span>
+                          ) : null}
+                        </small>
+                        {item.threadCounts.open || item.commentCount ? (
+                          <small className="review-thread-summary">
+                            {item.threadCounts.open
+                              ? `${item.threadCounts.open} open ${item.threadCounts.open === 1 ? "thread" : "threads"}`
+                              : "No open threads"}
+                            {item.commentCount
+                              ? ` · ${totalMessageCountLabel(item.commentCount)}`
+                              : ""}
+                          </small>
+                        ) : null}
+                        {reviewStop ? (
+                          <small className="review-stop-summary">
+                            <strong>{reviewQueueStopTitle(active)}</strong>
+                            <span>{reviewStop.label}</span>
+                            <span>{reviewStop.preview}</span>
+                          </small>
+                        ) : null}
+                        {item.latestActivity ? (
+                          <small className="change-activity">
+                            {activityLabel(item.latestActivity)}
+                          </small>
+                        ) : null}
+                      </span>
+                      {change ? (
+                        <DiffStatBadge
+                          loading={Boolean(loadingReviewDiffs[item.path])}
+                          stat={reviewDiffStats[item.path] ?? null}
+                        />
+                      ) : (
+                        <span className="review-next" aria-hidden="true">
+                          ›
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+          {queueItems.length && reviewUnavailableReason ? (
+            <p className="muted compact-empty">
+              Git review warning: {reviewUnavailableReason}
+              {gitReviewGuidance ? ` ${gitReviewGuidance}` : ""}
             </p>
-            <p className="sr-only" id="review-queue-keyboard-help">
-              Use Down Arrow, Up Arrow, Home, and End to move between review
+          ) : null}
+          {reviewLoading ? (
+            <p className="muted compact-empty" aria-live="polite">
+              Loading Git review; open comment threads may appear before changed
               files.
             </p>
-            {displayQueueItems.map((item, index) => {
-              const { change } = item;
-              const active = item.path === queuePosition.activePath;
-              const keyboardIndex = keyboardQueueIndexes.indexOf(index);
-              const reviewStop = reviewQueueStopForPath(
-                item.path,
-                reviewComments,
-              );
-              const reviewQueueItemDescriptionId = `review-queue-item-${index + 1}-description`;
-              const statusLabel = change
-                ? changeStatusLabel(change.status, change.kind)
-                : "comment";
-              const directoryLabel = change
-                ? reviewDirectoryLabel(change)
-                : directoryForPath(item.path);
-              const kindLabel = reviewQueueFileKindLabel(item.path);
-              return (
-                <div
-                  className="review-queue-item"
-                  role="listitem"
-                  aria-posinset={index + 1}
-                  aria-setsize={displayQueueItems.length}
-                  key={`${change?.source ?? "thread"}:${item.path}`}
-                >
-                  <button
-                    className={`change-open${item.threadCounts.open ? " has-open-threads" : ""}${active ? " active" : ""}`}
-                    disabled={!isReviewQueueItemOpenable(item)}
-                    aria-current={active ? "true" : undefined}
-                    aria-describedby={`review-queue-interaction-help review-queue-keyboard-help ${reviewQueueItemDescriptionId}`}
-                    aria-keyshortcuts="ArrowDown ArrowUp Home End"
-                    aria-label={reviewQueueItemAriaLabel(item, {
-                      active,
-                      statusLabel,
-                    })}
-                    data-review-index={index}
-                    data-review-path={item.path}
-                    data-testid="review-queue-item"
-                    onClick={() => onOpenEventPath(item.path)}
-                    onDoubleClick={() => onConfirmEventPath(item.path)}
-                    onKeyDown={(event) => {
-                      const nextKeyboardIndex = reviewQueueKeyboardTarget(
-                        event.key,
-                        keyboardIndex,
-                        keyboardQueueIndexes.length,
-                      );
-                      if (nextKeyboardIndex === null) return;
-                      event.preventDefault();
-                      focusReviewQueueTarget(
-                        keyboardQueueIndexes[nextKeyboardIndex]!,
-                      );
-                    }}
-                    title="Click to preview; double-click to keep open as a tab"
-                    type="button"
-                  >
-                    <span className="sr-only" id={reviewQueueItemDescriptionId}>
-                      {reviewQueueItemDescription(item, {
-                        active,
-                        reviewStop,
-                      })}
-                    </span>
-                    <span
-                      className={item.unread ? "unread-dot" : "unread-dot read"}
-                      aria-hidden="true"
-                    />
-                    <span className="file-icon change-icon">
-                      {iconForPath(item.path)}
-                    </span>
-                    <span className="change-main">
-                      <span className="change-heading">
-                        <span className="change-kind">{kindLabel}</span>
-                        <span
-                          className={`change-status ${change ? (change.kind ?? change.status) : "comment"}`}
-                        >
-                          {statusLabel}
-                        </span>
-                        <b>{basenameForPath(item.path)}</b>
-                      </span>
-                      <small
-                        className="change-path-line"
-                        title={change ? reviewPathLabel(change) : item.path}
-                      >
-                        <span className="change-path-text">
-                          {directoryLabel}
-                        </span>
-                        {change ? (
-                          <span className="change-source">
-                            {reviewQueueSourceLabel(change.source)}
-                          </span>
-                        ) : null}
-                      </small>
-                      {item.threadCounts.open || item.commentCount ? (
-                        <small className="review-thread-summary">
-                          {item.threadCounts.open
-                            ? `${item.threadCounts.open} open ${item.threadCounts.open === 1 ? "thread" : "threads"}`
-                            : "No open threads"}
-                          {item.commentCount
-                            ? ` · ${totalMessageCountLabel(item.commentCount)}`
-                            : ""}
-                        </small>
-                      ) : null}
-                      {reviewStop ? (
-                        <small className="review-stop-summary">
-                          <strong>{reviewQueueStopTitle(active)}</strong>
-                          <span>{reviewStop.label}</span>
-                          <span>{reviewStop.preview}</span>
-                        </small>
-                      ) : null}
-                      {item.latestActivity ? (
-                        <small className="change-activity">
-                          {activityLabel(item.latestActivity)}
-                        </small>
-                      ) : null}
-                    </span>
-                    {change ? (
-                      <DiffStatBadge
-                        loading={Boolean(loadingReviewDiffs[item.path])}
-                        stat={reviewDiffStats[item.path] ?? null}
-                      />
-                    ) : (
-                      <span className="review-next" aria-hidden="true">
-                        ›
-                      </span>
-                    )}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        ) : null}
-        {queueItems.length && reviewUnavailableReason ? (
-          <p className="muted compact-empty">
-            Git review warning: {reviewUnavailableReason}
-            {gitReviewGuidance ? ` ${gitReviewGuidance}` : ""}
-          </p>
-        ) : null}
-        {reviewLoading ? (
-          <p className="muted compact-empty" aria-live="polite">
-            Loading Git review; open comment threads may appear before changed
-            files.
-          </p>
-        ) : null}
-        {!queueItems.length && reviewUnavailableReason ? (
-          <div
-            className="review-empty-state"
-            role="status"
-            aria-label="Git review unavailable"
-          >
-            <strong>Git review unavailable</strong>
-            <span>{reviewUnavailableReason}</span>
-            {gitReviewGuidance ? <span>{gitReviewGuidance}</span> : null}
-          </div>
-        ) : null}
-        {!queueItems.length && !reviewUnavailableReason && !reviewLoading ? (
-          <div className="review-empty-state" aria-label="Review queue empty">
-            <strong>Active queue clear</strong>
-            <span>
-              No Git changes or open comment threads need review right now.
-              Resolved threads stay in Comments history; archived threads are
-              hidden from the browser UI.
-            </span>
-          </div>
-        ) : null}
+          ) : null}
+          {!queueItems.length && reviewUnavailableReason ? (
+            <div
+              className="review-empty-state"
+              role="status"
+              aria-label="Git review unavailable"
+            >
+              <strong>Git review unavailable</strong>
+              <span>{reviewUnavailableReason}</span>
+              {gitReviewGuidance ? <span>{gitReviewGuidance}</span> : null}
+            </div>
+          ) : null}
+          {!queueItems.length && !reviewUnavailableReason && !reviewLoading ? (
+            <div className="review-empty-state" aria-label="Review queue empty">
+              <strong>Active queue clear</strong>
+              <span>
+                No Git changes or open comment threads need review right now.
+                Resolved threads stay in Comments history; archived threads are
+                hidden from the browser UI.
+              </span>
+            </div>
+          ) : null}
         </div>
 
         <p className="active-file-line">
@@ -529,9 +537,7 @@ export function Inspector({
             <details className="hidden-review-history">
               <summary>
                 <span>Hidden from queue</span>
-                <small>
-                  {hiddenReviewThreadSummary(activeThreadCounts)}
-                </small>
+                <small>{hiddenReviewThreadSummary(activeThreadCounts)}</small>
               </summary>
               <div className="hidden-review-history-list">
                 {hiddenReviewThreads.slice(0, 4).map((thread) => {
@@ -570,354 +576,405 @@ export function Inspector({
 
         <div className="inspector-comments-mode">
           <h3 className="section-title">Comments</h3>
-            {commentsLoading ? (
-              <p className="muted compact-empty">Loading comments...</p>
-            ) : (
-              <div className="comment-summary">
-            <strong>
-              {activeThreadCounts.open} open{" "}
-              {activeThreadCounts.open === 1 ? "thread" : "threads"}
-            </strong>
-            <span>
-              {totalMessageCountLabel(comments.length)} in this file
-            </span>
-            {draftComments.length ? (
-              <span className="draft-comment-summary">
-                {draftComments.length} draft{" "}
-                {draftComments.length === 1 ? "comment" : "comments"} not
-                visible to agents
+          {commentsLoading ? (
+            <p className="muted compact-empty">Loading comments...</p>
+          ) : (
+            <div className="comment-summary">
+              <strong>
+                {activeThreadCounts.open} open{" "}
+                {activeThreadCounts.open === 1 ? "thread" : "threads"}
+              </strong>
+              <span>
+                {totalMessageCountLabel(comments.length)} in this file
               </span>
-            ) : null}
-            {publishedBatches.length ? (
-              <div className="published-batch-summary">
-                {publishedBatches.map((batch) => (
-                  <span key={batch.id}>
-                    Batch {shortBatchId(batch.id)} · {batch.threadCount}{" "}
-                    {batch.threadCount === 1 ? "thread" : "threads"}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-            {activeThreads.length ? (
-              <div
-                className="active-comment-threads"
-                aria-label="Active file comment threads"
-              >
-                {activeThreads.slice(0, 4).map((thread) => {
-                  const activity = threadActivities[thread.id];
-                  const primaryComment = thread.comments[0]!;
-                  const latestComment =
-                    thread.comments[thread.comments.length - 1] ??
-                    primaryComment;
-                  const latestActivity = activity?.inline[0];
-                  const locationLabel = commentLocationLabel(primaryComment);
-                  const sourceMissing = knownMissingCommentPaths.has(
-                    thread.path,
-                  );
-                  const sourceChanged = thread.comments.some((comment) =>
-                    commentAnchorSourceChanged(comment, file),
-                  );
-                  const sourceState = sourceMissing
-                    ? {
-                        label: "Source missing",
-                        aria: "This comment points to a path that is not present in the current workspace tree",
-                      }
-                    : sourceChanged
+              {draftComments.length ? (
+                <span className="draft-comment-summary">
+                  {draftComments.length} draft{" "}
+                  {draftComments.length === 1 ? "comment" : "comments"} not
+                  visible to agents
+                </span>
+              ) : null}
+              {publishedBatches.length ? (
+                <div className="published-batch-summary">
+                  {publishedBatches.map((batch) => (
+                    <span key={batch.id}>
+                      Batch {shortBatchId(batch.id)} · {batch.threadCount}{" "}
+                      {batch.threadCount === 1 ? "thread" : "threads"}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              {activeThreads.length ? (
+                <div
+                  className="active-comment-threads"
+                  aria-label="Active file comment threads"
+                >
+                  {activeThreads.slice(0, 4).map((thread) => {
+                    const activity = threadActivities[thread.id];
+                    const primaryComment = thread.comments[0]!;
+                    const latestComment =
+                      thread.comments[thread.comments.length - 1] ??
+                      primaryComment;
+                    const latestActivity = activity?.inline[0];
+                    const locationLabel = commentLocationLabel(primaryComment);
+                    const sourceMissing = knownMissingCommentPaths.has(
+                      thread.path,
+                    );
+                    const sourceChanged = thread.comments.some((comment) =>
+                      commentAnchorSourceChanged(comment, file),
+                    );
+                    const sourceState = sourceMissing
                       ? {
-                          label: "Source changed",
-                          aria: "Current file content differs from this comment anchor",
+                          label: "Source missing",
+                          aria: "This comment points to a path that is not present in the current workspace tree",
                         }
-                      : null;
-                  const latestPreview = truncateCommentPreview(
-                    latestComment.body,
-                    96,
-                  );
-                  const active = commentThreadContainsComment(
-                    thread,
-                    activeCommentId,
-                  );
-                  const toggleStatusLabel =
-                    thread.status === "open"
-                      ? active
-                        ? "Resolve current thread"
-                        : "Resolve"
-                      : active
-                        ? "Reopen current thread"
-                        : "Reopen";
-                  const archiveLabel = active
-                    ? "Archive current thread"
-                    : "Archive";
-                  const rowLabel = [
-                    `${statusLabel(thread.status)} thread in ${thread.path}`,
-                    active ? "current thread" : "",
-                    locationLabel,
-                    surfaceLabel(primaryComment),
-                    commentLineLabel(primaryComment),
-                    `latest: ${latestPreview}`,
-                  ]
-                    .filter(Boolean)
-                    .join(", ");
-                  return (
-                    <div className="active-comment-thread-item" key={thread.id}>
-                      <button
-                        className={`active-comment-thread ${thread.status}${active ? " active" : ""}`}
-                        type="button"
-                        aria-current={active ? "true" : undefined}
-                        aria-label={rowLabel}
-                        data-comment-thread-id={thread.id}
-                        data-testid="review-comment-thread"
-                        onClick={() => onOpenComment?.(primaryComment)}
+                      : sourceChanged
+                        ? {
+                            label: "Source changed",
+                            aria: "Current file content differs from this comment anchor",
+                          }
+                        : null;
+                    const latestPreview = truncateCommentPreview(
+                      latestComment.body,
+                      96,
+                    );
+                    const active = commentThreadContainsComment(
+                      thread,
+                      activeCommentId,
+                    );
+                    const toggleStatusLabel =
+                      thread.status === "open"
+                        ? active
+                          ? "Resolve current thread"
+                          : "Resolve"
+                        : active
+                          ? "Reopen current thread"
+                          : "Reopen";
+                    const archiveLabel = active
+                      ? "Archive current thread"
+                      : "Archive";
+                    const rowLabel = [
+                      `${statusLabel(thread.status)} thread in ${thread.path}`,
+                      active ? "current thread" : "",
+                      locationLabel,
+                      surfaceLabel(primaryComment),
+                      commentLineLabel(primaryComment),
+                      `latest: ${latestPreview}`,
+                    ]
+                      .filter(Boolean)
+                      .join(", ");
+                    return (
+                      <div
+                        className="active-comment-thread-item"
+                        key={thread.id}
                       >
-                        <span className="active-comment-thread-head">
-                          <span className={`comment-status ${thread.status}`}>
-                            {statusLabel(thread.status)}
-                          </span>
-                          <strong>{surfaceLabel(primaryComment)}</strong>
-                          <span>{commentLineLabel(primaryComment)}</span>
-                          {active ? (
-                            <span className="active-comment-current">
-                              Current thread
-                            </span>
-                          ) : null}
-                          {sourceState ? (
-                            <span
-                              className="comment-anchor-warning"
-                              aria-label={sourceState.aria}
-                            >
-                              {sourceState.label}
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className="active-comment-thread-location">
-                          {locationLabel}
-                        </span>
-                        <span className="active-comment-thread-preview">
-                          {latestPreview}
-                        </span>
-                        <span className="active-comment-thread-meta">
-                          {thread.comments.length}{" "}
-                          {thread.comments.length === 1
-                            ? "message"
-                            : "messages"}
-                          {" · "}
-                          updated {formatThreadTime(thread.updatedAt)}
-                        </span>
-                        {latestActivity ? (
-                          <span className="active-comment-thread-activity">
-                            {latestActivity}
-                          </span>
-                        ) : null}
-                      </button>
-                      {onCommentStatusChange ? (
-                        <div
-                          className="active-comment-thread-actions"
-                          aria-label={`Thread actions for ${thread.path}, ${commentLineLabel(primaryComment)}`}
+                        <button
+                          className={`active-comment-thread ${thread.status}${active ? " active" : ""}`}
+                          type="button"
+                          aria-current={active ? "true" : undefined}
+                          aria-label={rowLabel}
+                          data-comment-thread-id={thread.id}
+                          data-testid="review-comment-thread"
+                          onClick={() => onOpenComment?.(primaryComment)}
                         >
-                          {thread.status === "open" ? (
-                            <button
-                              type="button"
-                              aria-keyshortcuts={
-                                active
-                                  ? "Meta+Shift+Enter Control+Shift+Enter"
-                                  : undefined
-                              }
-                              title={
-                                active
-                                  ? "Resolve current thread (Cmd/Ctrl Shift Enter)"
-                                  : undefined
-                              }
-                              onClick={() =>
-                                onCommentStatusChange(thread.id, "resolved")
-                              }
-                            >
-                              {toggleStatusLabel}
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              aria-keyshortcuts={
-                                active
-                                  ? "Meta+Shift+Enter Control+Shift+Enter"
-                                  : undefined
-                              }
-                              title={
-                                active
-                                  ? "Reopen current thread (Cmd/Ctrl Shift Enter)"
-                                  : undefined
-                              }
-                              onClick={() =>
-                                onCommentStatusChange(thread.id, "open")
-                              }
-                            >
-                              {toggleStatusLabel}
-                            </button>
-                          )}
-                          {thread.status !== "archived" ? (
-                            <button
-                              type="button"
-                              aria-keyshortcuts={
-                                active
-                                  ? "Meta+Shift+Backspace Control+Shift+Backspace"
-                                  : undefined
-                              }
-                              title={
-                                active
-                                  ? "Archive current thread (Cmd/Ctrl Shift Backspace)"
-                                  : undefined
-                              }
-                              onClick={() =>
-                                onCommentStatusChange(thread.id, "archived")
-                              }
-                            >
-                              {archiveLabel}
-                            </button>
+                          <span className="active-comment-thread-head">
+                            <span className={`comment-status ${thread.status}`}>
+                              {statusLabel(thread.status)}
+                            </span>
+                            <strong>{surfaceLabel(primaryComment)}</strong>
+                            <span>{commentLineLabel(primaryComment)}</span>
+                            {active ? (
+                              <span className="active-comment-current">
+                                Current thread
+                              </span>
+                            ) : null}
+                            {sourceState ? (
+                              <span
+                                className="comment-anchor-warning"
+                                aria-label={sourceState.aria}
+                              >
+                                {sourceState.label}
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="active-comment-thread-location">
+                            {locationLabel}
+                          </span>
+                          <span className="active-comment-thread-preview">
+                            {latestPreview}
+                          </span>
+                          <span className="active-comment-thread-meta">
+                            {thread.comments.length}{" "}
+                            {thread.comments.length === 1
+                              ? "message"
+                              : "messages"}
+                            {" · "}
+                            updated {formatThreadTime(thread.updatedAt)}
+                          </span>
+                          {latestActivity ? (
+                            <span className="active-comment-thread-activity">
+                              {latestActivity}
+                            </span>
                           ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-                {activeThreads.length > 4 ? (
-                  <span className="active-comment-thread-more">
-                    {activeThreads.length - 4} more in Comments panel
-                  </span>
-                ) : null}
-              </div>
-            ) : null}
-              </div>
-            )}
-            {comments.some((comment) => {
-              const activity = threadActivities[comment.threadId ?? comment.id];
-              return activity && activity.timeline.length > activity.inline.length;
-            }) ? (
-              <details className="comment-activity-timeline inspector-timeline">
-                <summary>Activity timeline</summary>
-                <ol>
-                  {comments.flatMap((comment) => {
-                    const activity =
-                      threadActivities[comment.threadId ?? comment.id];
-                    return (activity?.timeline ?? []).map((event) => (
-                      <li key={`${comment.id}-${event.id}`}>
-                        {activityLabel(event)}
-                      </li>
-                    ));
+                        </button>
+                        {onCommentStatusChange ? (
+                          <div
+                            className="active-comment-thread-actions"
+                            aria-label={`Thread actions for ${thread.path}, ${commentLineLabel(primaryComment)}`}
+                          >
+                            {thread.status === "open" ? (
+                              <button
+                                type="button"
+                                aria-keyshortcuts={
+                                  active
+                                    ? "Meta+Shift+Enter Control+Shift+Enter"
+                                    : undefined
+                                }
+                                title={
+                                  active
+                                    ? "Resolve current thread (Cmd/Ctrl Shift Enter)"
+                                    : undefined
+                                }
+                                onClick={() =>
+                                  onCommentStatusChange(thread.id, "resolved")
+                                }
+                              >
+                                {toggleStatusLabel}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                aria-keyshortcuts={
+                                  active
+                                    ? "Meta+Shift+Enter Control+Shift+Enter"
+                                    : undefined
+                                }
+                                title={
+                                  active
+                                    ? "Reopen current thread (Cmd/Ctrl Shift Enter)"
+                                    : undefined
+                                }
+                                onClick={() =>
+                                  onCommentStatusChange(thread.id, "open")
+                                }
+                              >
+                                {toggleStatusLabel}
+                              </button>
+                            )}
+                            {thread.status !== "archived" ? (
+                              <button
+                                type="button"
+                                aria-keyshortcuts={
+                                  active
+                                    ? "Meta+Shift+Backspace Control+Shift+Backspace"
+                                    : undefined
+                                }
+                                title={
+                                  active
+                                    ? "Archive current thread (Cmd/Ctrl Shift Backspace)"
+                                    : undefined
+                                }
+                                onClick={() =>
+                                  onCommentStatusChange(thread.id, "archived")
+                                }
+                              >
+                                {archiveLabel}
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
                   })}
-                </ol>
-              </details>
-            ) : null}
+                  {activeThreads.length > 4 ? (
+                    <span className="active-comment-thread-more">
+                      {activeThreads.length - 4} more in Comments panel
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+              {draftComments.length ? (
+                <div
+                  className="active-draft-comments"
+                  aria-label="Active file draft comments"
+                >
+                  {draftComments.slice(0, 4).map((draft) => (
+                    <button
+                      className="active-draft-comment"
+                      type="button"
+                      key={draft.id}
+                      aria-label={`Open private draft in ${draft.path}, ${draftSurfaceLabel(draft)}, ${commentLineLabelForAnchor(draft.anchor.canonical)}`}
+                      onClick={() => onOpenDraft?.(draft)}
+                    >
+                      <span className="active-draft-comment-head">
+                        <span className="comment-status draft">
+                          Private draft
+                        </span>
+                        <strong>{draftSurfaceLabel(draft)}</strong>
+                        <span>
+                          {commentLineLabelForAnchor(draft.anchor.canonical)}
+                        </span>
+                      </span>
+                      <span className="active-draft-comment-preview">
+                        {truncateCommentPreview(draft.body, 104)}
+                      </span>
+                      {draft.anchor.canonical.quote ? (
+                        <span className="active-draft-comment-quote">
+                          {truncateCommentPreview(
+                            draft.anchor.canonical.quote,
+                            112,
+                          )}
+                        </span>
+                      ) : null}
+                    </button>
+                  ))}
+                  {draftComments.length > 4 ? (
+                    <span className="active-comment-thread-more">
+                      {draftComments.length - 4} more in Draft Review
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          )}
+          {comments.some((comment) => {
+            const activity = threadActivities[comment.threadId ?? comment.id];
+            return (
+              activity && activity.timeline.length > activity.inline.length
+            );
+          }) ? (
+            <details className="comment-activity-timeline inspector-timeline">
+              <summary>Activity timeline</summary>
+              <ol>
+                {comments.flatMap((comment) => {
+                  const activity =
+                    threadActivities[comment.threadId ?? comment.id];
+                  return (activity?.timeline ?? []).map((event) => (
+                    <li key={`${comment.id}-${event.id}`}>
+                      {activityLabel(event)}
+                    </li>
+                  ));
+                })}
+              </ol>
+            </details>
+          ) : null}
         </div>
 
         <div className="inspector-map-mode">
           {file ? (
-          <div className="inspector-file-outline">
-            <div className="section-title with-action file-map-title">
-              <span>In this file</span>
-              <span className="file-map-summary">{fileMapSummary}</span>
+            <div className="inspector-file-outline">
+              <div className="section-title with-action file-map-title">
+                <span>In this file</span>
+                <span className="file-map-summary">{fileMapSummary}</span>
+              </div>
+              {outline.length ? (
+                <nav
+                  className="inspector-outline-list"
+                  aria-label="Document outline"
+                >
+                  {outline.slice(0, 12).map((heading, index) => {
+                    const active = activeOutlineId
+                      ? heading.id === activeOutlineId
+                      : index === 0;
+                    return (
+                      <button
+                        className={`${heading.level === 2 ? "h2 " : ""}${active ? "active" : ""}`}
+                        key={heading.id}
+                        type="button"
+                        aria-current={active ? "location" : undefined}
+                        onClick={() => onOutlineSelect?.(heading.id)}
+                      >
+                        <span className="outline-level">H{heading.level}</span>
+                        <span className="outline-text">{heading.text}</span>
+                        {heading.lineStart ? (
+                          <span className="outline-line">
+                            L{heading.lineStart}
+                          </span>
+                        ) : null}
+                        {active ? (
+                          <span className="outline-current">
+                            Current section
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                  {outline.length > 12 ? (
+                    <span className="inspector-outline-more">
+                      {outline.length - 12} more headings
+                    </span>
+                  ) : null}
+                </nav>
+              ) : codeSymbols.length ? (
+                <CodeSymbolOutline
+                  symbols={codeSymbols}
+                  onSelect={(line) =>
+                    scrollCodeLineIntoView(activePaneId, line)
+                  }
+                />
+              ) : (
+                <p className="muted compact-empty">
+                  No document outline for this file.
+                </p>
+              )}
             </div>
-            {outline.length ? (
-              <nav
-                className="inspector-outline-list"
-                aria-label="Document outline"
-              >
-                {outline.slice(0, 12).map((heading, index) => {
-                  const active = activeOutlineId
-                    ? heading.id === activeOutlineId
-                    : index === 0;
-                  return (
-                    <button
-                      className={`${heading.level === 2 ? "h2 " : ""}${active ? "active" : ""}`}
-                      key={heading.id}
-                      type="button"
-                      aria-current={active ? "location" : undefined}
-                      onClick={() => onOutlineSelect?.(heading.id)}
-                    >
-                      <span className="outline-level">H{heading.level}</span>
-                      <span className="outline-text">{heading.text}</span>
-                      {heading.lineStart ? (
-                        <span className="outline-line">
-                          L{heading.lineStart}
-                        </span>
-                      ) : null}
-                      {active ? (
-                        <span className="outline-current">Current section</span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-                {outline.length > 12 ? (
-                  <span className="inspector-outline-more">
-                    {outline.length - 12} more headings
-                  </span>
-                ) : null}
-              </nav>
-            ) : codeSymbols.length ? (
-              <CodeSymbolOutline
-                symbols={codeSymbols}
-                onSelect={(line) => scrollCodeLineIntoView(activePaneId, line)}
-              />
-            ) : (
-              <p className="muted compact-empty">
-                No document outline for this file.
-              </p>
-            )}
-          </div>
           ) : null}
 
           <details className="file-details">
-          <summary>Details</summary>
-          <div className="kv">
-            <span>Type</span>
-            <strong>{file?.viewerKind ?? "none"}</strong>
-          </div>
-          <div className="kv">
-            <span>Path</span>
-            <strong>{file?.path ?? "No file selected"}</strong>
-          </div>
-          <div className="kv">
-            <span>Status</span>
-            <strong>{refreshedAt ? "Refreshed" : "Watching"}</strong>
-          </div>
-          <div className="kv">
-            <span>Size</span>
-            <strong>{file ? formatBytes(file.size) : "-"}</strong>
-          </div>
-          <div className="kv">
-            <span>Updated</span>
-            <strong>
-              {file ? new Date(file.mtimeMs).toLocaleTimeString() : "-"}
-            </strong>
-          </div>
-          {refreshedAt ? (
+            <summary>Details</summary>
             <div className="kv">
-              <span>Reloaded</span>
-              <strong>{new Date(refreshedAt).toLocaleTimeString()}</strong>
+              <span>Type</span>
+              <strong>{file?.viewerKind ?? "none"}</strong>
             </div>
-          ) : null}
-          {codeMetadata ? (
-            <>
+            <div className="kv">
+              <span>Path</span>
+              <strong>{file?.path ?? "No file selected"}</strong>
+            </div>
+            <div className="kv">
+              <span>Status</span>
+              <strong>{refreshedAt ? "Refreshed" : "Watching"}</strong>
+            </div>
+            <div className="kv">
+              <span>Size</span>
+              <strong>{file ? formatBytes(file.size) : "-"}</strong>
+            </div>
+            <div className="kv">
+              <span>Updated</span>
+              <strong>
+                {file ? new Date(file.mtimeMs).toLocaleTimeString() : "-"}
+              </strong>
+            </div>
+            {refreshedAt ? (
               <div className="kv">
-                <span>Language</span>
-                <strong>{codeMetadata.language}</strong>
+                <span>Reloaded</span>
+                <strong>{new Date(refreshedAt).toLocaleTimeString()}</strong>
               </div>
-              <div className="kv">
-                <span>Lines</span>
-                <strong>{codeMetadata.lineCount}</strong>
-              </div>
-              <div className="kv">
-                <span>Selection</span>
-                <strong>{codeMetadata.selectedReference ?? "None"}</strong>
-              </div>
-            </>
-          ) : null}
-          {reviewChanges.length ? (
-            <button
-              className="secondary-action"
-              type="button"
-              onClick={onOpenAllChanged}
-            >
-              Open all changed files as tabs
-            </button>
-          ) : null}
+            ) : null}
+            {codeMetadata ? (
+              <>
+                <div className="kv">
+                  <span>Language</span>
+                  <strong>{codeMetadata.language}</strong>
+                </div>
+                <div className="kv">
+                  <span>Lines</span>
+                  <strong>{codeMetadata.lineCount}</strong>
+                </div>
+                <div className="kv">
+                  <span>Selection</span>
+                  <strong>{codeMetadata.selectedReference ?? "None"}</strong>
+                </div>
+              </>
+            ) : null}
+            {reviewChanges.length ? (
+              <button
+                className="secondary-action"
+                type="button"
+                onClick={onOpenAllChanged}
+              >
+                Open all changed files as tabs
+              </button>
+            ) : null}
           </details>
         </div>
       </div>
@@ -1006,6 +1063,29 @@ function activeFileReviewLabel(openComments: number): string {
   if (openComments === 0) return "Clear";
   if (openComments === 1) return "1 open thread";
   return `${openComments} open threads`;
+}
+
+function draftSurfaceLabel(draft: DraftReviewComment): string {
+  if (draft.anchor.surface === "diff") return "Diff";
+  if (draft.anchor.surface === "rendered") {
+    const kind = draft.anchor.rendered?.kind ?? draft.viewerKind;
+    return `${commentViewerKindLabel(kind)} rendered`;
+  }
+  return "Source";
+}
+
+function commentViewerKindLabel(
+  kind: DraftReviewComment["viewerKind"],
+): string {
+  if (kind === "markdown") return "Markdown";
+  if (kind === "html") return "HTML";
+  if (kind === "json") return "JSON";
+  if (kind === "image") return "Image";
+  if (kind === "yaml") return "YAML";
+  if (kind === "csv") return "CSV";
+  if (kind === "binary") return "Binary";
+  if (kind === "unknown") return "Unknown";
+  return "Text";
 }
 
 function hiddenReviewThreadSummary(

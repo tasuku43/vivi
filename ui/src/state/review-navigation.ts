@@ -6,17 +6,15 @@ import {
   type DraftReviewComment,
   type ViviComment,
 } from "../domain/comments.js";
-import {
-  setPaneActivePath,
-  type EditorLayout,
-} from "./editor-layout.js";
+import { setPaneActivePath, type EditorLayout } from "./editor-layout.js";
 import type { ReviewQueueItem } from "./review-queue.js";
 
 export type ReviewNavigationDirection = "next" | "previous";
 export type CommentActivityStatusFilter =
   | Exclude<CommentStatus, "archived">
   | "all"
-  | "attention";
+  | "attention"
+  | "drafts";
 
 export interface CommentInboxEntryState {
   query: string;
@@ -165,16 +163,20 @@ export function countAttentionCommentThreads(
 
 export function commentInboxEntryStatus(
   attentionThreadCount: number,
+  draftCount = 0,
 ): CommentActivityStatusFilter {
-  return attentionThreadCount > 0 ? "attention" : "open";
+  if (attentionThreadCount > 0) return "attention";
+  if (draftCount > 0) return "drafts";
+  return "open";
 }
 
 export function commentInboxEntryState(
   attentionThreadCount: number,
+  draftCount = 0,
 ): CommentInboxEntryState {
   return {
     query: "",
-    status: commentInboxEntryStatus(attentionThreadCount),
+    status: commentInboxEntryStatus(attentionThreadCount, draftCount),
   };
 }
 
@@ -182,12 +184,14 @@ export function commentInboxOpenState({
   activeComment,
   activeCommentId,
   attentionThreadCount,
+  draftCount = 0,
   preferAttention = false,
   query,
 }: {
   activeComment?: ViviComment | null;
   activeCommentId: string | null;
   attentionThreadCount: number;
+  draftCount?: number;
   preferAttention?: boolean;
   query?: string;
 }): CommentInboxOpenState {
@@ -207,7 +211,7 @@ export function commentInboxOpenState({
     };
   }
 
-  const entry = commentInboxEntryState(attentionThreadCount);
+  const entry = commentInboxEntryState(attentionThreadCount, draftCount);
   const scopedQuery = query?.trim();
   return {
     ...entry,
@@ -319,7 +323,7 @@ export function commentActivityThreadTargets({
       (commentsPanelStatus === "attention"
         ? attentionTarget
         : commentsPanelStatus === "all" ||
-        thread.status === commentsPanelStatus) &&
+          thread.status === commentsPanelStatus) &&
       (!query ||
         thread.comments.some((comment) =>
           [comment.path, comment.body, comment.anchor.canonical.quote ?? ""]
