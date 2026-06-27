@@ -26,6 +26,7 @@ import {
   nextReviewQueuePath,
   parseUnifiedDiff,
   reviewQueueSourceLabel,
+  type ReviewChangeItem,
 } from "../ui/src/state/git-review.js";
 import {
   gitReviewPollMs,
@@ -132,6 +133,8 @@ import {
   reviewQueuePosition,
   summarizeReviewQueue,
 } from "../ui/src/state/review-queue.js";
+import { summarizeReviewLifecycle } from "../ui/src/state/review-lifecycle.js";
+import { buildReviewNextAction } from "../ui/src/state/review-next-action.js";
 import {
   agentReplyNavigationTargets,
   commentActivityThreadTargets,
@@ -1660,6 +1663,173 @@ it("builds an agent-aware queue from changes and authoritative open threads", ()
     unread: 1,
     openThreads: 1,
     filesWithOpenThreads: 1,
+  });
+});
+
+it("turns review queue state into a clear next sidebar action", () => {
+  const comments = [
+    {
+      ...makeReviewComment("open-1", "docs/agent.md", "open"),
+      threadId: "thread-open",
+    },
+  ];
+  const items = buildReviewQueueItems(
+    [{ path: "src/app.ts", status: "modified", source: "git" }],
+    comments,
+    {},
+    new Set(["src/app.ts"]),
+  );
+
+  expect(
+    buildReviewNextAction({
+      activePath: "docs/agent.md",
+      items,
+    }),
+  ).toMatchObject({
+    kind: "open-comments",
+    primaryLabel: "Open comments",
+    targetPath: "docs/agent.md",
+    title: "Resolve current thread",
+  });
+
+  expect(
+    buildReviewNextAction({
+      activePath: null,
+      items,
+    }),
+  ).toMatchObject({
+    kind: "open-path",
+    primaryLabel: "Open unseen change",
+    targetPath: "src/app.ts",
+    title: "Inspect an unseen change",
+  });
+
+  const seenCurrentChangeItems = buildReviewQueueItems(
+    [{ path: "src/app.ts", status: "modified", source: "git" }],
+    comments,
+    {},
+    new Set(),
+  );
+
+  expect(
+    buildReviewNextAction({
+      activePath: "src/app.ts",
+      items: seenCurrentChangeItems,
+    }),
+  ).toMatchObject({
+    kind: "open-path",
+    primaryLabel: "Review current file",
+    targetPath: "src/app.ts",
+    title: "Review the current file",
+  });
+
+  expect(
+    buildReviewNextAction({
+      activePath: null,
+      items: [],
+    }),
+  ).toMatchObject({
+    emphasis: "clear",
+    kind: "clear",
+    primaryLabel: "Queue clear",
+  });
+});
+
+it("summarizes review lifecycle without inventing accept state", () => {
+  const items = buildReviewQueueItems(
+    [
+      { path: "src/seen.ts", status: "modified", source: "git" },
+      { path: "src/unseen.ts", status: "modified", source: "git" },
+      { path: "src/reviewing.ts", status: "modified", source: "git" },
+    ],
+    [
+      {
+        ...makeReviewComment("open-review", "src/reviewing.ts", "open"),
+        threadId: "thread-reviewing",
+      },
+    ],
+    {},
+    new Set(["src/unseen.ts"]),
+  );
+
+  expect(summarizeReviewLifecycle(items, 2)).toEqual({
+    detected: 1,
+    hidden: 2,
+    reviewing: 1,
+    seen: 1,
+    visible: 3,
+  });
+});
+
+it("keeps accepted change-only files out of the review queue until a thread opens", () => {
+  const changes: ReviewChangeItem[] = [
+    { path: "src/accepted.ts", status: "modified", source: "git" },
+    { path: "src/reviewing.ts", status: "modified", source: "git" },
+  ];
+  const acceptedPaths = new Set(["src/accepted.ts"]);
+
+  expect(
+    buildReviewQueueItems(changes, [], {}, new Set(), {
+      acceptedPaths,
+    }).map((item) => item.path),
+  ).toEqual(["src/reviewing.ts"]);
+
+  const itemsWithOpenThread = buildReviewQueueItems(
+    changes,
+    [
+      {
+        ...makeReviewComment("accepted-open", "src/accepted.ts", "open"),
+        threadId: "thread-accepted-open",
+      },
+    ],
+    {},
+    new Set(),
+    { acceptedPaths },
+  );
+
+  expect(itemsWithOpenThread.map((item) => item.path)).toEqual([
+    "src/accepted.ts",
+    "src/reviewing.ts",
+  ]);
+  expect(itemsWithOpenThread[0]).toMatchObject({
+    change: changes[0],
+    threadCounts: { open: 1, resolved: 0, archived: 0 },
+  });
+});
+
+it("keeps completed thread paths out of the active review queue until reopened", () => {
+  const changes: ReviewChangeItem[] = [
+    { path: "src/resolved.ts", status: "modified", source: "git" },
+    { path: "src/candidate.ts", status: "modified", source: "git" },
+  ];
+  const completedThreadPaths = new Set(["src/resolved.ts"]);
+
+  expect(
+    buildReviewQueueItems(changes, [], {}, new Set(), {
+      completedThreadPaths,
+    }).map((item) => item.path),
+  ).toEqual(["src/candidate.ts"]);
+
+  const itemsWithReopenedThread = buildReviewQueueItems(
+    changes,
+    [
+      {
+        ...makeReviewComment("reopened-1", "src/resolved.ts", "open"),
+        threadId: "thread-reopened",
+      },
+    ],
+    {},
+    new Set(),
+    { completedThreadPaths },
+  );
+
+  expect(itemsWithReopenedThread.map((item) => item.path)).toEqual([
+    "src/resolved.ts",
+    "src/candidate.ts",
+  ]);
+  expect(itemsWithReopenedThread[0]).toMatchObject({
+    change: changes[0],
+    threadCounts: { open: 1, resolved: 0, archived: 0 },
   });
 });
 

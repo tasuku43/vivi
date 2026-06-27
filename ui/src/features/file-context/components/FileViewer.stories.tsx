@@ -76,10 +76,25 @@ export const MarkdownWithOpenLocalOutline: Story = {
 };
 
 export const CodeWithLocalOutline: Story = {
+  tags: ["interaction"],
   args: {
     file: sampleFiles.code,
     theme: "dark",
     selectedCodeRange: { start: 4, end: 4 },
+    comments: commentsForPath(sampleFiles.code.path),
+  },
+  play: async ({ canvasElement }) => {
+    await waitFor(() => {
+      const reviewSummary = canvasElement.querySelector(
+        ".file-location-review-summary",
+      );
+      expect(reviewSummary).toBeInTheDocument();
+      expect(reviewSummary).toHaveTextContent("Review 4 open");
+      expect(reviewSummary).toHaveAttribute(
+        "aria-label",
+        "Current file review: 4 open",
+      );
+    });
   },
 };
 

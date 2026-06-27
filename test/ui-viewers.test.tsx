@@ -15,6 +15,7 @@ import {
 import { DraftReviewTray } from "../ui/src/features/comments/components/DraftReviewTray.js";
 import { CommandPalette } from "../ui/src/features/command-palette/CommandPalette.js";
 import {
+  activeFileReviewSummary,
   activeFileReviewStop,
   FileOutlineControl,
   FileViewer,
@@ -1503,6 +1504,59 @@ it("surfaces the current review stop in the integrated viewer toolbar", () => {
   expect(calls).toEqual(["focus-stop"]);
 });
 
+it("keeps current-file review status compact in the viewer toolbar", () => {
+  const file = {
+    ...codeFile,
+    path: "src/app.ts",
+  };
+  const draftComment: ViviComment & { draft: true } = {
+    ...codeLineComment,
+    id: "draft:comment-1",
+    draft: true,
+    body: "Private draft note",
+    status: "open",
+  };
+  const resolvedComment: ViviComment = {
+    ...codeLineComment,
+    id: "resolved-comment",
+    threadId: "thread-resolved",
+    status: "resolved",
+  };
+  const reviewSummary = activeFileReviewSummary(file, [
+    { ...codeLineComment, threadId: "thread-open" },
+    draftComment,
+    resolvedComment,
+    { ...codeLineComment, id: "other-file", path: "docs/other.md" },
+  ]);
+  const html = renderToStaticMarkup(
+    <ViewerHeaderProvider
+      value={{
+        file,
+        reviewSummary,
+        onRevealInTree: () => undefined,
+      }}
+    >
+      <ViewerToolbar>
+        <button type="button">Diff from HEAD</button>
+      </ViewerToolbar>
+    </ViewerHeaderProvider>,
+  );
+
+  expect(reviewSummary).toEqual({
+    label: "Review 1 open · 1 draft · 1 history",
+    title: "Current file review: 1 open, 1 draft, 1 history",
+    tone: "active",
+  });
+  expect(html).toContain(
+    'class="file-location-review-summary active"',
+  );
+  expect(html).toContain(
+    'aria-label="Current file review: 1 open, 1 draft, 1 history"',
+  );
+  expect(html).toContain("Review 1 open · 1 draft · 1 history");
+  expect(html).not.toContain("Current file</span>");
+});
+
 it("keeps the HTML viewer sandboxed and exposes source mode controls", () => {
   const html = renderToStaticMarkup(
     <HtmlViewer
@@ -1842,8 +1896,10 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
   expect(html).toContain('title="src/app.ts"');
   expect(html).toContain("modified");
   expect(html).toContain("renamed");
-  expect(html).toContain("Details");
-  expect(html.indexOf("Review Queue")).toBeLessThan(html.indexOf("Details"));
+  expect(html).toContain("File details");
+  expect(html.indexOf("Review Queue")).toBeLessThan(
+    html.indexOf("File details"),
+  );
   expect(html).toContain("Open all changed files as tabs");
   expect(html).toContain("In this file");
   expect(html).toContain("export");
@@ -1868,7 +1924,7 @@ it("maps review queue arrow keys to stable review rows", () => {
   expect(reviewQueueKeyboardTarget("ArrowDown", -1, 0)).toBeNull();
 });
 
-it("summarizes active-file review focus without mixing drafts into open threads", () => {
+it("keeps active-file comment threads focused on conversation state", () => {
   const html = renderToStaticMarkup(
     <Inspector
       file={codeFile}
@@ -1919,11 +1975,6 @@ it("summarizes active-file review focus without mixing drafts into open threads"
     />,
   );
 
-  expect(html).toContain("Active File");
-  expect(html).toContain("1 open thread");
-  expect(html).toContain("<strong>1</strong> open");
-  expect(html).toContain("<strong>1</strong> drafts");
-  expect(html).toContain("<strong>1</strong> history");
   expect(html).toContain("<strong>1 open thread</strong>");
   expect(html).toContain("3 total messages in this file");
   expect(html).toContain('class="active-comment-thread open active"');
@@ -1939,12 +1990,6 @@ it("summarizes active-file review focus without mixing drafts into open threads"
   );
   expect(html).toContain("source");
   expect(html).toContain("L2");
-  expect(html).toContain(
-    '<div class="active-file-actions" aria-label="Active file actions">',
-  );
-  expect(html).toContain("Open 3 total messages in Comments panel");
-  expect(html).toContain('class="review-focus-action comments-panel-action"');
-  expect(html).toContain('data-testid="review-open-comments-panel"');
   expect(html).toContain('data-testid="review-comment-thread"');
   expect(html).toContain('data-comment-thread-id="thread-1"');
   expect(html).toContain('aria-label="Thread actions for src/app.ts, L2"');
@@ -1965,7 +2010,9 @@ it("summarizes active-file review focus without mixing drafts into open threads"
     'title="Archive current thread (Cmd/Ctrl Shift Backspace)"',
   );
   expect(html).not.toContain("2 open comments");
-  expect(html).toContain("Drafts stay private until published");
+  expect(html).not.toContain("Current file</span>");
+  expect(html).not.toContain("Open 3 total messages in Comments panel");
+  expect(html).not.toContain('data-testid="review-open-comments-panel"');
 });
 
 it("updates active-file comment thread status from the inspector", () => {
@@ -2092,7 +2139,7 @@ it("shows precise active-file comment locations in the inspector", () => {
   expect(html).toContain('class="active-comment-thread-location"');
 });
 
-it("disables the inspector comments panel action when the panel is unavailable", () => {
+it("does not render active-file comments panel actions in the inspector", () => {
   const inspector = Inspector({
     file: codeFile,
     reviewChanges: [],
@@ -2110,29 +2157,18 @@ it("disables the inspector comments panel action when the panel is unavailable",
     onRevealInTree: () => undefined,
   });
 
-  const button = findElement(inspector, (element) => {
-    const props = element.props as { children?: ReactNode };
-    return (
-      element.type === "button" &&
-      flattenText(props.children).includes("Open in Comments panel")
-    );
-  });
-  const props = button.props as {
-    "aria-label"?: string;
-    className?: string;
-    disabled?: boolean;
-    title?: string;
-  };
-
-  expect(props.disabled).toBe(true);
-  expect(props.className).toBe("review-focus-action comments-panel-action");
-  expect(props.title).toBe("Comments panel is not available in this view");
-  expect(props["aria-label"]).toBe(
-    "Comments panel is not available in this view",
-  );
+  expect(() =>
+    findElement(inspector, (element) => {
+      const props = element.props as { children?: ReactNode };
+      return (
+        element.type === "button" &&
+        flattenText(props.children).includes("Open in Comments panel")
+      );
+    }),
+  ).toThrow();
 });
 
-it("explains that the comments panel action needs a selected review file", () => {
+it("keeps the review queue usable when no review file is selected", () => {
   const queuedChange = {
     path: "src/app.ts",
     source: "git" as const,
@@ -2157,19 +2193,11 @@ it("explains that the comments panel action needs a selected review file", () =>
     onCommentStatusChange: () => undefined,
   });
 
-  const button = findElement(inspector, (element) => {
-    const props = element.props as { "data-testid"?: string };
-    return props["data-testid"] === "review-open-comments-panel";
-  });
-  const props = button.props as {
-    "aria-label"?: string;
-    disabled?: boolean;
-    title?: string;
-  };
+  const html = renderToStaticMarkup(inspector);
 
-  expect(props.disabled).toBe(true);
-  expect(props.title).toBe("Select a review file to view comments");
-  expect(props["aria-label"]).toBe("Select a review file to view comments");
+  expect(html).toContain("Review queue item, modified src/app.ts");
+  expect(html).not.toContain('data-testid="review-open-comments-panel"');
+  expect(html).not.toContain("Open in Comments panel");
 });
 
 it("renders comment activity in inline thread headers without changing lifecycle status", () => {

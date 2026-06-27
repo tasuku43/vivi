@@ -8,6 +8,7 @@ import type {
   DraftReviewComment,
   ViviComment,
 } from "../../domain/comments.js";
+import { buildCommentThreads } from "../../domain/comments.js";
 import type {
   FilePayload,
   FsEvent,
@@ -222,6 +223,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [recentEvents, setRecentEvents] = useState<ReviewEvent[]>([]);
   const [unreadReviewPaths, setUnreadReviewPaths] = useState<string[]>([]);
+  const [acceptedReviewPaths, setAcceptedReviewPaths] = useState<string[]>([]);
   const [liveMetrics, setLiveMetrics] = useState<LiveRefreshMetrics>({
     fsEventsReceived: 0,
     gitRefreshes: 0,
@@ -700,6 +702,15 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     () => new Set(unreadReviewPaths),
     [unreadReviewPaths],
   );
+  const acceptedReviewPathSet = useMemo(
+    () => new Set(acceptedReviewPaths),
+    [acceptedReviewPaths],
+  );
+  const acceptedReviewChanges = useMemo(
+    () =>
+      reviewChanges.filter((change) => acceptedReviewPathSet.has(change.path)),
+    [acceptedReviewPathSet, reviewChanges],
+  );
   const attentionCommentThreadCount = useMemo(
     () => countAttentionCommentThreads(comments, unreadReviewPathSet),
     [comments, unreadReviewPathSet],
@@ -717,6 +728,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     }
     return paths;
   }, [comments, tree]);
+  const completedThreadPathSet = useMemo(
+    () => buildCompletedThreadPathSet(comments, knownMissingCommentPathSet),
+    [comments, knownMissingCommentPathSet],
+  );
   const selectedPathSourceMissing = selectedPath
     ? knownMissingCommentPathSet.has(selectedPath)
     : false;
@@ -727,11 +742,17 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         comments,
         commentActivitySummaries,
         unreadReviewPathSet,
-        { knownMissingPaths: knownMissingCommentPathSet },
+        {
+          acceptedPaths: acceptedReviewPathSet,
+          completedThreadPaths: completedThreadPathSet,
+          knownMissingPaths: knownMissingCommentPathSet,
+        },
       ),
     [
+      acceptedReviewPathSet,
       commentActivitySummaries,
       comments,
+      completedThreadPathSet,
       knownMissingCommentPathSet,
       reviewChanges,
       unreadReviewPathSet,
@@ -741,6 +762,12 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     () => summarizeReviewQueue(reviewItems),
     [reviewItems],
   );
+  const hiddenAcceptedReviewChanges = useMemo(() => {
+    const activeQueuePaths = new Set(reviewItems.map((item) => item.path));
+    return acceptedReviewChanges.filter(
+      (change) => !activeQueuePaths.has(change.path),
+    );
+  }, [acceptedReviewChanges, reviewItems]);
   const openThreadTargets = useMemo(
     () => openThreadNavigationTargets(comments),
     [comments],
@@ -1272,6 +1299,19 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   function openLatestUnreadReviewFile() {
     const path = latestUnreadReviewItemPath(reviewItems);
     if (path) openReviewQueueItem(path, "preview");
+  }
+
+  function acceptReviewPath(path: string) {
+    setAcceptedReviewPaths((paths) =>
+      paths.includes(path) ? paths : [path, ...paths],
+    );
+    setUnreadReviewPaths((paths) => paths.filter((candidate) => candidate !== path));
+  }
+
+  function restoreAcceptedReviewPath(path: string) {
+    setAcceptedReviewPaths((paths) =>
+      paths.filter((candidate) => candidate !== path),
+    );
   }
 
   function openReviewQueueItem(path: string, mode: OpenTabMode) {
@@ -1868,6 +1908,13 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }, [paletteMode, paletteOpen, paletteQuery]);
 
   useEffect(() => {
+    const currentChangePaths = new Set(reviewChanges.map((change) => change.path));
+    setAcceptedReviewPaths((paths) =>
+      paths.filter((path) => currentChangePaths.has(path)),
+    );
+  }, [reviewChanges]);
+
+  useEffect(() => {
     const currentPaths = new Set(reviewItems.map((item) => item.path));
     const newPaths = reviewItems
       .map((item) => item.path)
@@ -2269,6 +2316,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               file={file}
               fileRemoved={activeFileRemoved}
               reviewChanges={reviewChanges}
+              acceptedReviewChanges={hiddenAcceptedReviewChanges}
               reviewItems={reviewItems}
               reviewLoading={gitReviewLoading && gitReview === null}
               reviewUnavailableReason={gitReview?.reason ?? null}
@@ -2320,6 +2368,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               onOpenNextChanged={() => openReviewQueueFile("next")}
               onOpenPreviousChanged={() => openReviewQueueFile("previous")}
               onOpenAllChanged={openAllChangedFiles}
+              onAcceptReviewPath={acceptReviewPath}
+              onRestoreAcceptedReviewPath={restoreAcceptedReviewPath}
               onRevealInTree={revealActiveFileInTree}
               onOutlineSelect={(id) => jumpToOutline(id)}
             />
@@ -2943,6 +2993,35 @@ function combinePublishedAndDraftComments(
   return visibleThreadComments([...published, ...draftMessages]).sort((a, b) =>
     a.createdAt.localeCompare(b.createdAt),
   );
+}
+
+function buildCompletedThreadPathSet(
+  comments: ViviComment[],
+  knownMissingPaths: ReadonlySet<string>,
+): Set<string> {
+  const statusByPath = new Map<
+    string,
+    { hasHiddenThread: boolean; hasOpenThread: boolean }
+  >();
+  for (const thread of buildCommentThreads(comments)) {
+    if (knownMissingPaths.has(thread.path)) continue;
+    const status = statusByPath.get(thread.path) ?? {
+      hasHiddenThread: false,
+      hasOpenThread: false,
+    };
+    if (thread.status === "open") {
+      status.hasOpenThread = true;
+    } else {
+      status.hasHiddenThread = true;
+    }
+    statusByPath.set(thread.path, status);
+  }
+
+  const paths = new Set<string>();
+  for (const [path, status] of statusByPath) {
+    if (status.hasHiddenThread && !status.hasOpenThread) paths.add(path);
+  }
+  return paths;
 }
 
 export function reviewActorForConfig(

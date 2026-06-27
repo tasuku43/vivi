@@ -31,6 +31,8 @@ export interface ReviewQueuePosition {
 }
 
 export interface ReviewQueueBuildOptions {
+  acceptedPaths?: ReadonlySet<string>;
+  completedThreadPaths?: ReadonlySet<string>;
   knownMissingPaths?: ReadonlySet<string>;
 }
 
@@ -47,7 +49,15 @@ export function buildReviewQueueItems(
   options: ReviewQueueBuildOptions = {},
 ): ReviewQueueItem[] {
   const threads = collectThreads(comments);
-  const paths = new Set(changes.map((change) => change.path));
+  const paths = new Set(
+    changes
+      .filter(
+        (change) =>
+          !options.acceptedPaths?.has(change.path) &&
+          !options.completedThreadPaths?.has(change.path),
+      )
+      .map((change) => change.path),
+  );
   for (const thread of threads.values()) {
     if (
       thread.status === "open" &&

@@ -97,6 +97,8 @@ Requirements:
 
 - The top section should be Review Queue: a deduplicated file list, primarily from Git working-tree changes against `HEAD` when Git is available.
 - The Review Queue is a file-level work queue: it is the union of Git changes and files with authoritative `open` comment threads. Files with only `resolved` threads stay out of the queue and remain available from the Comments history filter; files with only `archived` threads are hidden from the browser UI.
+- Accepting a change as-is is a local right-inspector review decision, not a Git operation. It hides a change-only candidate from the active queue for the current browser session, keeps it recoverable in hidden history, and never hides the file when an authoritative `open` comment thread exists.
+- A changed file whose review conversation has only completed threads is also hidden from the active queue until a new `open` thread appears, so resolved review work does not compete with active candidates.
 - Each row should keep change kind and diff size visible while adding only the open-thread count, message count, latest attributed activity, and an unseen marker. Agent reads are visible activity but do not create unseen work; new threads, replies, and status changes do.
 - Queue ordering should put files with open threads first, then unseen work and recent activity. The summary progress is explicitly files "seen", not a claim that review is complete.
 - Activity is observation history. The UI must refresh authoritative comments after agent replies or status changes and must never infer a thread lifecycle status from an activity event.

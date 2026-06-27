@@ -259,7 +259,8 @@ it("creates a comment from the UI anchor model and renders it after retrieval", 
   expect(html).toContain("L3");
   expect(html).toContain('class="active-comment-thread open"');
   expect(html).toContain('class="active-comment-thread-preview"');
-  expect(html).toContain("Open in Comments panel");
+  expect(html).not.toContain("Open in Comments panel");
+  expect(html).not.toContain('data-testid="review-open-comments-panel"');
   expect(html).toContain("UI-created note from selected text");
   expect(html).not.toContain("Rendered markdown text");
 

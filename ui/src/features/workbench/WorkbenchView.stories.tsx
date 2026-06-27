@@ -186,6 +186,42 @@ export const CompactInspectorCanReopenReviewQueue: Story = {
 
     expect(focusedReviewItem?.classList.contains("change-open")).toBe(true);
 
+    const modeRail = within(inspector).getByRole("group", {
+      name: "Inspector mode",
+    });
+    await expect(within(modeRail).getByText("A Review")).toBeVisible();
+    await expect(within(modeRail).getByText("B Threads")).toBeVisible();
+    await expect(within(modeRail).getByText("C Map")).toBeVisible();
+
+    await userEvent.click(
+      within(inspector).getByRole("radio", {
+        name: "B Threads conversation",
+      }),
+    );
+    await expect(within(inspector).getByText("Threads")).toBeVisible();
+    await expect(within(inspector).getByText("This file")).toBeVisible();
+    await expect(within(inspector).getByText("Queue context")).toBeVisible();
+
+    await userEvent.click(
+      within(inspector).getByRole("radio", {
+        name: "C Map reading",
+      }),
+    );
+    await expect(within(inspector).getByText("Reader")).toBeVisible();
+    const visibleReaderMap = within(inspector)
+      .getAllByText("In this file")
+      .find((element) => element.getBoundingClientRect().height > 0);
+    expect(visibleReaderMap).toBeDefined();
+    await expect(visibleReaderMap!).toBeVisible();
+    await expect(within(inspector).getByText("File details")).toBeVisible();
+
+    await userEvent.click(
+      within(inspector).getByRole("radio", {
+        name: "A Review active work",
+      }),
+    );
+    await expect(within(inspector).getByText("Queue")).toBeVisible();
+
     await userEvent.click(
       canvas.getByRole("button", { name: "Collapse inspector" }),
     );
@@ -691,7 +727,7 @@ export const CommentsPanelOpensInlineThread: Story = {
   },
 };
 
-export const InspectorOpensScopedCommentHistory: Story = {
+export const ViewerHeaderSummarizesScopedCommentHistory: Story = {
   tags: ["interaction"],
   parameters: {
     a11y: { test: "todo" },
@@ -699,6 +735,7 @@ export const InspectorOpensScopedCommentHistory: Story = {
   args: {
     file: sampleFiles.code,
     comments: [resolvedWorkbenchHistoryComment],
+    draftComments: [],
     activeCommentId: null,
   },
   play: async ({ canvasElement }) => {
@@ -707,23 +744,20 @@ export const InspectorOpensScopedCommentHistory: Story = {
       name: "Review inspector",
     });
 
-    await userEvent.click(
-      within(inspector).getByRole("button", {
-        name: "Open 1 total message in Comments panel",
-      }),
+    const reviewSummary = canvasElement.querySelector(
+      ".file-location-review-summary",
     );
-
-    const commentsPanel = canvas.getByRole("complementary", {
-      name: "Comments",
-    });
+    await expect(reviewSummary).toBeInTheDocument();
+    await expect(reviewSummary).toHaveTextContent("Review 1 history");
+    await expect(reviewSummary).toHaveAttribute(
+      "aria-label",
+      "Current file review: 1 history",
+    );
     await expect(
-      within(commentsPanel).getByRole("button", { name: "Show all 1 thread" }),
-    ).toHaveAttribute("aria-pressed", "true");
-    await expect(
-      within(commentsPanel).getByText(
-        "Resolved history should remain visible when this file's messages are opened from the inspector.",
-      ),
-    ).toBeVisible();
+      within(inspector).queryByRole("button", {
+        name: /Open .* Comments panel/,
+      }),
+    ).not.toBeInTheDocument();
   },
 };
 

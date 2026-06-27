@@ -11,6 +11,7 @@ import {
   DiffToggleButton,
   ViewerHeaderProvider,
   type ViewerHeaderReviewStop,
+  type ViewerHeaderReviewSummary,
 } from "./ViewerControlButton.js";
 import { LargeTextPreview } from "../viewers/LargeTextPreview.js";
 import {
@@ -136,9 +137,11 @@ export function FileViewer({
     comments,
     activeCommentId ?? null,
   );
+  const reviewSummary = activeFileReviewSummary(file, comments);
   const frameProps = {
     file,
     activeReviewStop,
+    reviewSummary,
     onFocusActiveComment,
     onRevealInTree,
   };
@@ -431,12 +434,14 @@ function FileViewerFrame({
   children,
   file,
   activeReviewStop,
+  reviewSummary,
   onFocusActiveComment,
   onRevealInTree,
 }: {
   children: ReactNode;
   file: FilePayload;
   activeReviewStop?: ActiveFileReviewStop | null;
+  reviewSummary?: ViewerHeaderReviewSummary | null;
   onFocusActiveComment?: () => void;
   onRevealInTree?: (path?: string) => void;
 }) {
@@ -446,6 +451,7 @@ function FileViewerFrame({
         value={{
           file,
           activeReviewStop,
+          reviewSummary,
           onFocusActiveComment,
           onRevealInTree,
         }}
@@ -457,6 +463,36 @@ function FileViewerFrame({
 }
 
 type ActiveFileReviewStop = ViewerHeaderReviewStop;
+
+export function activeFileReviewSummary(
+  file: FilePayload,
+  comments: ViviComment[],
+): ViewerHeaderReviewSummary | null {
+  const fileComments = comments.filter((comment) => comment.path === file.path);
+  if (!fileComments.length) return null;
+
+  const open = fileComments.filter(
+    (comment) => comment.status === "open" && !isDraftComment(comment),
+  ).length;
+  const drafts = fileComments.filter(isDraftComment).length;
+  const history = fileComments.filter(
+    (comment) =>
+      !isDraftComment(comment) &&
+      (comment.status === "resolved" || comment.status === "archived"),
+  ).length;
+  const parts = [
+    open ? `${open} open` : "",
+    drafts ? `${drafts} draft${drafts === 1 ? "" : "s"}` : "",
+    history ? `${history} history` : "",
+  ].filter(Boolean);
+  const label = parts.length ? `Review ${parts.join(" · ")}` : "Review clear";
+  const title = parts.length
+    ? `Current file review: ${parts.join(", ")}`
+    : "Current file review: clear";
+  const tone = open || drafts ? "active" : history ? "history" : "clear";
+
+  return { label, title, tone };
+}
 
 export function activeFileReviewStop(
   file: FilePayload,
@@ -475,6 +511,13 @@ export function activeFileReviewStop(
       .join(" · "),
     preview: truncateCommentPreview(comment.body, 72),
   };
+}
+
+function isDraftComment(comment: ViviComment): boolean {
+  return (
+    comment.id.startsWith("draft:") ||
+    (comment as ViviComment & { draft?: boolean }).draft === true
+  );
 }
 
 export function FileOutlineControl({

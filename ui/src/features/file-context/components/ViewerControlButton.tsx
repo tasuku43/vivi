@@ -8,9 +8,16 @@ export interface ViewerHeaderReviewStop {
   preview: string;
 }
 
+export interface ViewerHeaderReviewSummary {
+  label: string;
+  title: string;
+  tone: "clear" | "active" | "history";
+}
+
 interface ViewerHeaderContextValue {
   activeReviewStop?: ViewerHeaderReviewStop | null;
   file: FilePayload;
+  reviewSummary?: ViewerHeaderReviewSummary | null;
   onFocusActiveComment?: () => void;
   onRevealInTree?: (path?: string) => void;
 }
@@ -57,6 +64,7 @@ export function ViewerToolbar({
         <ViewerToolbarLocation
           file={header.file}
           activeReviewStop={header.activeReviewStop}
+          reviewSummary={header.reviewSummary}
           onFocusActiveComment={header.onFocusActiveComment}
           onRevealInTree={header.onRevealInTree}
         />
@@ -74,11 +82,13 @@ export function ViewerToolbar({
 export function ViewerToolbarLocation({
   file,
   activeReviewStop = null,
+  reviewSummary = null,
   onFocusActiveComment,
   onRevealInTree,
 }: {
   file: FilePayload;
   activeReviewStop?: ViewerHeaderReviewStop | null;
+  reviewSummary?: ViewerHeaderReviewSummary | null;
   onFocusActiveComment?: () => void;
   onRevealInTree?: (path?: string) => void;
 }) {
@@ -132,6 +142,15 @@ export function ViewerToolbarLocation({
           <span>{activeReviewStop.label}</span>
           <span>{activeReviewStop.preview}</span>
         </button>
+      ) : null}
+      {reviewSummary ? (
+        <span
+          aria-label={reviewSummary.title}
+          className={`file-location-review-summary ${reviewSummary.tone}`}
+          title={reviewSummary.title}
+        >
+          {reviewSummary.label}
+        </span>
       ) : null}
     </div>
   );

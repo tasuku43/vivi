@@ -36,6 +36,8 @@ import {
   summarizeReviewQueue,
   type ReviewQueueItem,
 } from "../../state/review-queue.js";
+import { summarizeReviewLifecycle } from "../../state/review-lifecycle.js";
+import { buildReviewNextAction } from "../../state/review-next-action.js";
 import { gitReviewUnavailableGuidance } from "../../state/git-review-refresh.js";
 import type { OutlineHeading } from "../../state/outline.js";
 
@@ -52,24 +54,24 @@ const inspectorModeOptions: Array<{
   {
     id: "review",
     key: "r",
-    label: "Review",
-    detail: "queue",
+    label: "A Review",
+    detail: "active work",
     shortcut: "Meta+Alt+R Control+Alt+R",
     title: "Switch inspector to Review mode (Cmd/Ctrl+Alt+R)",
   },
   {
     id: "threads",
     key: "t",
-    label: "Threads",
-    detail: "comments",
+    label: "B Threads",
+    detail: "conversation",
     shortcut: "Meta+Alt+T Control+Alt+T",
     title: "Switch inspector to Threads mode (Cmd/Ctrl+Alt+T)",
   },
   {
     id: "map",
     key: "m",
-    label: "Map",
-    detail: "outline",
+    label: "C Map",
+    detail: "reading",
     shortcut: "Meta+Alt+M Control+Alt+M",
     title: "Switch inspector to Map mode (Cmd/Ctrl+Alt+M)",
   },
@@ -78,6 +80,7 @@ const inspectorModeOptions: Array<{
 interface Props {
   file: FilePayload | null;
   fileRemoved?: boolean;
+  acceptedReviewChanges?: ReviewChangeItem[];
   reviewChanges: ReviewChangeItem[];
   reviewItems?: ReviewQueueItem[];
   reviewLoading?: boolean;
@@ -104,6 +107,8 @@ interface Props {
   onOpenNextChanged: () => void;
   onOpenPreviousChanged: () => void;
   onOpenAllChanged: () => void;
+  onAcceptReviewPath?: (path: string) => void;
+  onRestoreAcceptedReviewPath?: (path: string) => void;
   onRevealInTree: () => void;
   onOutlineSelect?: (id: string) => void;
   onOpenComments?: () => void;
@@ -114,7 +119,7 @@ interface Props {
 
 export function Inspector({
   file,
-  fileRemoved = false,
+  acceptedReviewChanges = [],
   reviewChanges,
   reviewItems,
   reviewLoading = false,
@@ -141,6 +146,8 @@ export function Inspector({
   onOpenNextChanged,
   onOpenPreviousChanged,
   onOpenAllChanged,
+  onAcceptReviewPath,
+  onRestoreAcceptedReviewPath,
   onOutlineSelect,
   onOpenComments,
   onOpenComment,
@@ -152,12 +159,10 @@ export function Inspector({
       ? buildCodeMetadata(file, selectedCodeRange)
       : null;
   const fileKindLabel = file ? viewerKindLabel(file.viewerKind) : "No file";
-  const activeChange = file
-    ? reviewChanges.find((change) => change.path === file.path)
-    : null;
   const activeThreads = summarizeActiveThreads(comments);
-  const hiddenReviewThreads = activeThreads.filter(
-    (thread) => thread.status !== "open",
+  const hiddenReviewThreads = summarizeActiveThreads(reviewComments).filter(
+    (thread) =>
+      thread.status !== "open" && !knownMissingCommentPaths.has(thread.path),
   );
   const activeThreadCounts = countThreadsByStatus(activeThreads);
   const queueItems: ReviewQueueItem[] =
@@ -170,7 +175,36 @@ export function Inspector({
       unread: unreadReviewPaths.has(change.path),
     }));
   const queueProgress = summarizeReviewQueue(queueItems);
+  const needActionCount = queueItems.filter(
+    (item) => item.unread || item.threadCounts.open > 0,
+  ).length;
   const queuePosition = reviewQueuePosition(queueItems, activePath);
+  const nextReviewAction = buildReviewNextAction({
+    activePath,
+    items: queueItems,
+    reviewLoading,
+  });
+  const nextReviewActionItem =
+    nextReviewAction.targetPath !== null
+      ? queueItems.find((item) => item.path === nextReviewAction.targetPath)
+      : null;
+  const canAcceptNextReviewAction = Boolean(
+    nextReviewActionItem?.change &&
+      nextReviewActionItem.threadCounts.open === 0 &&
+      onAcceptReviewPath,
+  );
+  const visibleReviewWork = queueItems.filter(isReviewQueueItemOpenable).length;
+  const hiddenReviewWork =
+    hiddenReviewThreads.length + acceptedReviewChanges.length;
+  const hiddenReviewSummary = hiddenReviewHistorySummary(hiddenReviewWork);
+  const hiddenReviewPreviewCount =
+    Math.min(acceptedReviewChanges.length, 4) +
+    Math.min(hiddenReviewThreads.length, 4);
+  const hiddenReviewMoreCount = hiddenReviewWork - hiddenReviewPreviewCount;
+  const lifecycleSummary = summarizeReviewLifecycle(
+    queueItems,
+    hiddenReviewWork,
+  );
   const queueProgressValueText = reviewQueueProgressValueText(
     queueProgress,
     reviewLoading,
@@ -192,15 +226,26 @@ export function Inspector({
     outline,
     activeOutlineId,
   );
+  const currentThread =
+    activeThreads.find(
+      (thread) =>
+        thread.status === "open" &&
+        commentThreadContainsComment(thread, activeCommentId),
+    ) ??
+    activeThreads.find((thread) => thread.status === "open") ??
+    activeThreads[0] ??
+    null;
+  const currentThreadComment = currentThread?.comments[0] ?? null;
+  const currentThreadLatestComment =
+    currentThread?.comments[currentThread.comments.length - 1] ??
+    currentThreadComment;
+  const compactQueueContext = displayQueueItems
+    .filter((item) => isReviewQueueItemOpenable(item))
+    .slice(0, 3);
   const fileMapSummary = fileMapSummaryLabel({
     outlineCount: outline.length,
     activeHeading: activeOutlineHeading,
     symbolCount: codeSymbols.length,
-  });
-  const commentsPanelAction = commentsPanelActionState({
-    canOpen: Boolean(onOpenComments),
-    hasFile: Boolean(file),
-    messageCount: comments.length,
   });
   const gitReviewGuidance = gitReviewUnavailableGuidance(
     reviewUnavailableReason,
@@ -208,14 +253,161 @@ export function Inspector({
   return (
     <aside className="inspector" aria-label="Review inspector">
       <div className="panel-title">
-        <span>Review</span>
-        <span className="pill">Read-only</span>
+        <span className="panel-mode-title review-title">Review</span>
+        <span className="panel-mode-title threads-title">Threads</span>
+        <span className="panel-mode-title map-title">Reader</span>
+        <span className="pill mode-pill review-pill">
+          <span
+            className={`panel-status-dot ${needActionCount ? "warn" : "good"}`}
+            aria-hidden="true"
+          />
+          {needActionCount
+            ? `${needActionCount} need action`
+            : reviewLoading
+              ? "loading"
+              : "clear"}
+        </span>
+        <span className="pill mode-pill threads-pill">
+          <span className="panel-status-dot comment" aria-hidden="true" />
+          {activeThreadCounts.open} open
+        </span>
+        <span className="pill mode-pill map-pill">
+          <span
+            className={`panel-status-dot ${queueProgress.openThreads ? "comment" : "good"}`}
+            aria-hidden="true"
+          />
+          {queueProgress.openThreads ? "review nearby" : "clear"}
+        </span>
       </div>
       <div className="inspect-body">
         <InspectorModeSwitch name={`inspector-mode-${activePaneId}`} />
         <div className="inspector-review-mode">
+          <section
+            className={`hero-card review-next-action ${nextReviewAction.emphasis}`}
+            aria-label="Recommended review action"
+          >
+            <div className="review-next-copy">
+              <span>Next action</span>
+              <strong>{nextReviewAction.title}</strong>
+              <p>{nextReviewAction.description}</p>
+            </div>
+            <div
+              className="review-next-controls"
+              aria-label="Recommended review controls"
+            >
+              <button
+                className="review-next-primary"
+                disabled={nextReviewAction.kind === "clear"}
+                type="button"
+                onClick={() => {
+                  if (nextReviewAction.kind === "clear") return;
+                  if (
+                    nextReviewAction.kind === "open-comments" &&
+                    onOpenComments
+                  ) {
+                    onOpenComments();
+                    return;
+                  }
+                  if (nextReviewAction.targetPath) {
+                    onOpenEventPath(nextReviewAction.targetPath);
+                  }
+                }}
+              >
+                {nextReviewAction.primaryLabel}
+              </button>
+              {canAcceptNextReviewAction && nextReviewAction.targetPath ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onAcceptReviewPath?.(nextReviewAction.targetPath!)
+                  }
+                >
+                  Accept change
+                </button>
+              ) : queueProgress.unread && onOpenNextUnread ? (
+                <button type="button" onClick={onOpenNextUnread}>
+                  Next unseen
+                </button>
+              ) : null}
+            </div>
+            <div className="review-next-metrics" aria-label="Review summary">
+              <span>
+                <strong>{queueProgress.total}</strong> files
+              </span>
+              <span>
+                <strong>{queueProgress.unread}</strong> unseen
+              </span>
+              <span>
+                <strong>{queueProgress.openThreads}</strong> open threads
+              </span>
+            </div>
+            <div
+              className="review-next-progress"
+              aria-label="Active review work"
+            >
+              <span>
+                <span>Active review work</span>
+                <strong>
+                  {visibleReviewWork} visible · {hiddenReviewWork} hidden
+                </strong>
+              </span>
+              <span className="review-next-track" aria-hidden="true">
+                <span
+                  style={{
+                    width: `${queueItems.length ? (visibleReviewWork / Math.max(queueItems.length, visibleReviewWork + hiddenReviewWork)) * 100 : 0}%`,
+                  }}
+                />
+              </span>
+            </div>
+          </section>
+          <section
+            className="review-lifecycle"
+            role="group"
+            aria-label="Review target lifecycle"
+          >
+            <div className="review-lifecycle-head">
+              <span>Lifecycle</span>
+              <small>Attention state + review state</small>
+            </div>
+            <div className="review-lifecycle-grid">
+              <span
+                className={`review-lifecycle-cell ${lifecycleSummary.detected ? "active" : ""}`}
+              >
+                <strong>{lifecycleSummary.detected}</strong>
+                <span>Detected</span>
+                <small>unseen candidates</small>
+              </span>
+              <span
+                className={`review-lifecycle-cell ${lifecycleSummary.seen ? "active" : ""}`}
+              >
+                <strong>{lifecycleSummary.seen}</strong>
+                <span>Seen</span>
+                <small>needs decision</small>
+              </span>
+              <span
+                className={`review-lifecycle-cell ${lifecycleSummary.reviewing ? "reviewing" : ""}`}
+              >
+                <strong>{lifecycleSummary.reviewing}</strong>
+                <span>In review</span>
+                <small>open threads</small>
+              </span>
+              <span
+                className={`review-lifecycle-cell ${lifecycleSummary.hidden ? "done" : ""}`}
+              >
+                <strong>{lifecycleSummary.hidden}</strong>
+                <span>Done history</span>
+                <small>hidden from queue</small>
+              </span>
+            </div>
+          </section>
           <div className="section-title with-action primary-section">
-            <span>Review Queue</span>
+            <span>
+              <span aria-hidden="true">Queue</span>
+              <span className="sr-only">Review Queue</span>
+            </span>
+            <small className="section-title-detail">
+              Unread, then reviewing, then candidates
+            </small>
             {queueItems.length ? (
               <span className="queue-actions">
                 {queueProgress.unread && onOpenNextUnread ? (
@@ -471,75 +663,28 @@ export function Inspector({
           ) : null}
         </div>
 
-        <p className="active-file-line">
-          {file ? (
-            <>
-              <span>{file.path}</span> · {fileKindLabel}
-              {fileRemoved ? " · removed from disk" : ""}
-              {activeChange ? " · in review queue" : ""}
-            </>
-          ) : (
-            "No file selected"
-          )}
-        </p>
-        <div className="active-file-actions" aria-label="Active file actions">
-          <button
-            aria-label={commentsPanelAction.description}
-            className="review-focus-action comments-panel-action"
-            data-testid="review-open-comments-panel"
-            disabled={commentsPanelAction.disabled}
-            title={commentsPanelAction.description}
-            type="button"
-            onClick={onOpenComments}
-          >
-            {commentsPanelAction.label}
-          </button>
-        </div>
-        {file ? (
-          <div className="review-focus-card" aria-label="Active file review">
-            <div className="review-focus-head">
-              <span>Active File</span>
-              <strong>{activeFileReviewLabel(activeThreadCounts.open)}</strong>
-            </div>
-            <div className="review-focus-metrics">
-              <span>
-                <strong>{activeThreadCounts.open}</strong> open
-              </span>
-              <span>
-                <strong>{draftComments.length}</strong> drafts
-              </span>
-              <span>
-                <strong>
-                  {activeThreadCounts.resolved + activeThreadCounts.archived}
-                </strong>{" "}
-                history
-              </span>
-            </div>
-            {draftComments.length ? (
-              <p>
-                Drafts stay private until published; agents only see open
-                threads.
-              </p>
-            ) : activeThreadCounts.open ? (
-              <p>Open threads are agent-visible review work.</p>
-            ) : activeThreadCounts.resolved || activeThreadCounts.archived ? (
-              <p>Only history remains for this file.</p>
-            ) : (
-              <p>
-                No comments yet. Select rendered text or source lines to draft
-                feedback.
-              </p>
-            )}
-          </div>
-        ) : null}
-        {hiddenReviewThreads.length ? (
+        {hiddenReviewWork ? (
           <div className="inspector-review-mode">
             <details className="hidden-review-history">
               <summary>
                 <span>Hidden from queue</span>
-                <small>{hiddenReviewThreadSummary(activeThreadCounts)}</small>
+                <small>{hiddenReviewSummary}</small>
               </summary>
               <div className="hidden-review-history-list">
+                {acceptedReviewChanges.slice(0, 4).map((change) => (
+                  <button
+                    className="hidden-review-history-item accepted"
+                    key={`accepted:${change.path}`}
+                    type="button"
+                    aria-label={`Restore accepted change ${change.path} to the review queue`}
+                    onClick={() => onRestoreAcceptedReviewPath?.(change.path)}
+                  >
+                    <span className="comment-status accepted">Accepted</span>
+                    <strong>{basenameForPath(change.path)}</strong>
+                    <span>accepted as-is</span>
+                    <small>{reviewPathLabel(change)}</small>
+                  </button>
+                ))}
                 {hiddenReviewThreads.slice(0, 4).map((thread) => {
                   const primaryComment = thread.comments[0]!;
                   const latestComment =
@@ -564,9 +709,9 @@ export function Inspector({
                     </button>
                   );
                 })}
-                {hiddenReviewThreads.length > 4 ? (
+                {hiddenReviewMoreCount ? (
                   <span className="hidden-review-history-more">
-                    {hiddenReviewThreads.length - 4} more in Comments history
+                    {hiddenReviewMoreCount} more in history
                   </span>
                 ) : null}
               </div>
@@ -575,7 +720,67 @@ export function Inspector({
         ) : null}
 
         <div className="inspector-comments-mode">
-          <h3 className="section-title">Comments</h3>
+          {currentThread && currentThreadComment ? (
+            <section className="hero-card thread-hero-card">
+              <span className={`comment-status ${currentThread.status}`}>
+                {statusLabel(currentThread.status)}
+              </span>
+              <strong>
+                Current thread: {surfaceLabel(currentThreadComment)}{" "}
+                {commentLineLabel(currentThreadComment)}
+              </strong>
+              <p>
+                {truncateCommentPreview(
+                  currentThreadLatestComment?.body ?? currentThreadComment.body,
+                  116,
+                )}
+              </p>
+              <div className="hero-actions">
+                <button
+                  className="primary"
+                  type="button"
+                  onClick={() => onOpenComment?.(currentThreadComment)}
+                >
+                  Reply
+                </button>
+                {onCommentStatusChange ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onCommentStatusChange(
+                        currentThread.id,
+                        currentThread.status === "open" ? "resolved" : "open",
+                      )
+                    }
+                  >
+                    {currentThread.status === "open" ? "Resolve" : "Reopen"}
+                  </button>
+                ) : null}
+              </div>
+            </section>
+          ) : (
+            <section className="hero-card thread-hero-card calm">
+              <strong>No active thread</strong>
+              <p>Open comments and drafts for this file will appear here.</p>
+            </section>
+          )}
+          <div className="split-tabs" role="tablist" aria-label="Thread scope">
+            <button type="button" role="tab" aria-selected="true">
+              Open
+            </button>
+            <button type="button" role="tab" aria-selected="false">
+              Drafts
+            </button>
+            <button type="button" role="tab" aria-selected="false">
+              History
+            </button>
+          </div>
+          <h3 className="section-title with-action thread-file-title">
+            <span>
+              This file <span className="sr-only">Comments</span>
+            </span>
+            <small>{file ? basenameForPath(file.path) : "No file"}</small>
+          </h3>
           {commentsLoading ? (
             <p className="muted compact-empty">Loading comments...</p>
           ) : (
@@ -837,6 +1042,49 @@ export function Inspector({
               ) : null}
             </div>
           )}
+          {compactQueueContext.length ? (
+            <section className="section thread-queue-context">
+              <div className="section-title with-action">
+                <span>Queue context</span>
+                <small>
+                  {reviewLoading
+                    ? "loading changed files"
+                    : queueProgress.unread
+                      ? `${queueProgress.unread} unseen`
+                      : "all seen"}
+                </small>
+              </div>
+              <div className="compact-queue-list">
+                {compactQueueContext.map((item) => (
+                  <button
+                    className={`compact-queue-item${item.path === activePath ? " active" : ""}`}
+                    key={item.path}
+                    type="button"
+                    onClick={() => onOpenEventPath(item.path)}
+                  >
+                    <span
+                      className={item.unread ? "unread-dot" : "unread-dot read"}
+                      aria-hidden="true"
+                    />
+                    <span className="compact-queue-main">
+                      <strong>{basenameForPath(item.path)}</strong>
+                      <small>
+                        {item.threadCounts.open
+                          ? `${item.threadCounts.open} open`
+                          : item.change
+                            ? changeStatusLabel(
+                                item.change.status,
+                                item.change.kind,
+                              )
+                            : "comment"}
+                        {item.path === activePath ? " · current" : ""}
+                      </small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          ) : null}
           {comments.some((comment) => {
             const activity = threadActivities[comment.threadId ?? comment.id];
             return (
@@ -862,66 +1110,51 @@ export function Inspector({
 
         <div className="inspector-map-mode">
           {file ? (
-            <div className="inspector-file-outline">
-              <div className="section-title with-action file-map-title">
-                <span>In this file</span>
-                <span className="file-map-summary">{fileMapSummary}</span>
-              </div>
-              {outline.length ? (
-                <nav
-                  className="inspector-outline-list"
-                  aria-label="Document outline"
-                >
-                  {outline.slice(0, 12).map((heading, index) => {
-                    const active = activeOutlineId
-                      ? heading.id === activeOutlineId
-                      : index === 0;
-                    return (
-                      <button
-                        className={`${heading.level === 2 ? "h2 " : ""}${active ? "active" : ""}`}
-                        key={heading.id}
-                        type="button"
-                        aria-current={active ? "location" : undefined}
-                        onClick={() => onOutlineSelect?.(heading.id)}
-                      >
-                        <span className="outline-level">H{heading.level}</span>
-                        <span className="outline-text">{heading.text}</span>
-                        {heading.lineStart ? (
-                          <span className="outline-line">
-                            L{heading.lineStart}
-                          </span>
-                        ) : null}
-                        {active ? (
-                          <span className="outline-current">
-                            Current section
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                  {outline.length > 12 ? (
-                    <span className="inspector-outline-more">
-                      {outline.length - 12} more headings
-                    </span>
-                  ) : null}
-                </nav>
-              ) : codeSymbols.length ? (
-                <CodeSymbolOutline
-                  symbols={codeSymbols}
-                  onSelect={(line) =>
-                    scrollCodeLineIntoView(activePaneId, line)
-                  }
-                />
-              ) : (
-                <p className="muted compact-empty">
-                  No document outline for this file.
-                </p>
-              )}
+            <div className="reader-mini">
+              <span className="file-icon">{iconForPath(file.path)}</span>
+              <span className="reader-mini-main">
+                <strong>{basenameForPath(file.path)}</strong>
+                <small>
+                  {fileKindLabel} · {outline.length || codeSymbols.length}{" "}
+                  {outline.length ? "headings" : "symbols"}
+                </small>
+              </span>
+              <span className="badge live">live</span>
             </div>
           ) : null}
+          {file ? (
+            <FileOutlinePanel
+              activeOutlineId={activeOutlineId}
+              codeSymbols={codeSymbols}
+              fileMapSummary={fileMapSummary}
+              onCodeSymbolSelect={(line) =>
+                scrollCodeLineIntoView(activePaneId, line)
+              }
+              onOutlineSelect={onOutlineSelect}
+              outline={outline}
+            />
+          ) : null}
 
+          <section className="section reader-review-summary">
+            <div className="section-title with-action">
+              <span>Review</span>
+              <small>
+                {queueProgress.openThreads
+                  ? `${queueProgress.openThreads} open threads`
+                  : "No active work"}
+              </small>
+            </div>
+            <div className="review-focus-metrics reader-metrics">
+              <span>
+                <strong>{queueProgress.total}</strong> queue files
+              </span>
+              <span>
+                <strong>{queueProgress.openThreads}</strong> open threads
+              </span>
+            </div>
+          </section>
           <details className="file-details">
-            <summary>Details</summary>
+            <summary>File details</summary>
             <div className="kv">
               <span>Type</span>
               <strong>{file?.viewerKind ?? "none"}</strong>
@@ -982,17 +1215,14 @@ export function Inspector({
   );
 }
 
-function InspectorModeSwitch({
-  name,
-}: {
-  name: string;
-}) {
+function InspectorModeSwitch({ name }: { name: string }) {
   return (
     <fieldset className="inspector-mode-switch" aria-label="Inspector mode">
       <InspectorModeShortcuts name={name} />
       {inspectorModeOptions.map((item) => (
         <label key={item.id}>
           <input
+            aria-label={`${item.label} ${item.detail}`}
             aria-keyshortcuts={item.shortcut}
             defaultChecked={item.id === "review"}
             name={name}
@@ -1000,8 +1230,8 @@ function InspectorModeSwitch({
             type="radio"
             value={item.id}
           />
-          <span>{item.label}</span>
-          <small>{item.detail}</small>
+          <span className="mode-full-label">{item.label}</span>
+          <small className="mode-detail">{item.detail}</small>
         </label>
       ))}
     </fieldset>
@@ -1059,12 +1289,6 @@ function isTextEntryTarget(target: EventTarget | null): boolean {
   );
 }
 
-function activeFileReviewLabel(openComments: number): string {
-  if (openComments === 0) return "Clear";
-  if (openComments === 1) return "1 open thread";
-  return `${openComments} open threads`;
-}
-
 function draftSurfaceLabel(draft: DraftReviewComment): string {
   if (draft.anchor.surface === "diff") return "Diff";
   if (draft.anchor.surface === "rendered") {
@@ -1088,19 +1312,8 @@ function commentViewerKindLabel(
   return "Text";
 }
 
-function hiddenReviewThreadSummary(
-  counts: Record<CommentStatus, number>,
-): string {
-  return [
-    counts.resolved
-      ? `${counts.resolved} resolved ${counts.resolved === 1 ? "thread" : "threads"}`
-      : "",
-    counts.archived
-      ? `${counts.archived} archived ${counts.archived === 1 ? "thread" : "threads"}`
-      : "",
-  ]
-    .filter(Boolean)
-    .join(" · ");
+function hiddenReviewHistorySummary(count: number): string {
+  return `${count} done`;
 }
 
 function reviewQueueProgressValueText(
@@ -1220,47 +1433,6 @@ function focusReviewQueueTarget(index: number) {
     ?.focus();
 }
 
-function commentsPanelActionState({
-  canOpen,
-  hasFile,
-  messageCount,
-}: {
-  canOpen: boolean;
-  hasFile: boolean;
-  messageCount: number;
-}): {
-  description: string;
-  disabled: boolean;
-  label: string;
-} {
-  if (!hasFile) {
-    return {
-      description: "Select a review file to view comments",
-      disabled: true,
-      label: "Open in Comments panel",
-    };
-  }
-  if (!messageCount) {
-    return {
-      description: "No comments in this file yet",
-      disabled: true,
-      label: "Open in Comments panel",
-    };
-  }
-  if (!canOpen) {
-    return {
-      description: "Comments panel is not available in this view",
-      disabled: true,
-      label: "Open in Comments panel",
-    };
-  }
-  return {
-    description: `Open ${totalMessageCountLabel(messageCount)} in Comments panel`,
-    disabled: false,
-    label: `Open ${totalMessageCountLabel(messageCount)} in Comments panel`,
-  };
-}
-
 function totalMessageCountLabel(count: number): string {
   return `${count} total ${count === 1 ? "message" : "messages"}`;
 }
@@ -1320,6 +1492,76 @@ function CodeSymbolOutline({
         </button>
       ))}
     </nav>
+  );
+}
+
+function FileOutlinePanel({
+  activeOutlineId,
+  className,
+  codeSymbols,
+  fileMapSummary,
+  onCodeSymbolSelect,
+  onOutlineSelect,
+  outline,
+}: {
+  activeOutlineId: string | null;
+  className?: string;
+  codeSymbols: CodeSymbol[];
+  fileMapSummary: string;
+  onCodeSymbolSelect: (line: number) => void;
+  onOutlineSelect?: (id: string) => void;
+  outline: OutlineHeading[];
+}) {
+  return (
+    <div
+      className={`inspector-file-outline${className ? ` ${className}` : ""}`}
+    >
+      <div className="section-title with-action file-map-title">
+        <span>In this file</span>
+        <span className="file-map-summary">{fileMapSummary}</span>
+      </div>
+      {outline.length ? (
+        <nav className="inspector-outline-list" aria-label="Document outline">
+          {outline.slice(0, 12).map((heading, index) => {
+            const active = activeOutlineId
+              ? heading.id === activeOutlineId
+              : index === 0;
+            return (
+              <button
+                className={`${heading.level === 2 ? "h2 " : ""}${active ? "active" : ""}`}
+                key={heading.id}
+                type="button"
+                aria-current={active ? "location" : undefined}
+                onClick={() => onOutlineSelect?.(heading.id)}
+              >
+                <span className="outline-level">H{heading.level}</span>
+                <span className="outline-text">{heading.text}</span>
+                {heading.lineStart ? (
+                  <span className="outline-line">L{heading.lineStart}</span>
+                ) : null}
+                {active ? (
+                  <span className="outline-current">Current section</span>
+                ) : null}
+              </button>
+            );
+          })}
+          {outline.length > 12 ? (
+            <span className="inspector-outline-more">
+              {outline.length - 12} more headings
+            </span>
+          ) : null}
+        </nav>
+      ) : codeSymbols.length ? (
+        <CodeSymbolOutline
+          symbols={codeSymbols}
+          onSelect={onCodeSymbolSelect}
+        />
+      ) : (
+        <p className="muted compact-empty">
+          No document outline for this file.
+        </p>
+      )}
+    </div>
   );
 }
 

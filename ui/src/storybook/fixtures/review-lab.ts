@@ -745,12 +745,17 @@ export const sampleUnreadReviewPaths = new Set<string>([
   sampleCodeFile.path,
   sampleMarkdownFile.path,
 ]);
+export const sampleCompletedThreadPaths = new Set<string>([
+  "docs/agent-handoff.md",
+  "server/comments/comments.go",
+]);
 
 export const sampleReviewQueueItems: ReviewQueueItem[] = buildReviewQueueItems(
   sampleReviewChanges,
   sampleComments,
   sampleThreadActivities,
   sampleUnreadReviewPaths,
+  { completedThreadPaths: sampleCompletedThreadPaths },
 );
 
 export const sampleTabs: OpenTab[] = [
