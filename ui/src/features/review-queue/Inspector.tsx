@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   buildCommentThreads,
   type CommentStatus,
@@ -38,6 +39,40 @@ import { gitReviewUnavailableGuidance } from "../../state/git-review-refresh.js"
 import type { OutlineHeading } from "../../state/outline.js";
 
 type InspectorMode = "review" | "threads" | "map";
+
+const inspectorModeOptions: Array<{
+  detail: string;
+  id: InspectorMode;
+  key: string;
+  label: string;
+  shortcut: string;
+  title: string;
+}> = [
+  {
+    id: "review",
+    key: "r",
+    label: "Review",
+    detail: "queue",
+    shortcut: "Meta+Alt+R Control+Alt+R",
+    title: "Switch inspector to Review mode (Cmd/Ctrl+Alt+R)",
+  },
+  {
+    id: "threads",
+    key: "t",
+    label: "Threads",
+    detail: "comments",
+    shortcut: "Meta+Alt+T Control+Alt+T",
+    title: "Switch inspector to Threads mode (Cmd/Ctrl+Alt+T)",
+  },
+  {
+    id: "map",
+    key: "m",
+    label: "Map",
+    detail: "outline",
+    shortcut: "Meta+Alt+M Control+Alt+M",
+    title: "Switch inspector to Map mode (Cmd/Ctrl+Alt+M)",
+  },
+];
 
 interface Props {
   file: FilePayload | null;
@@ -895,22 +930,16 @@ function InspectorModeSwitch({
 }: {
   name: string;
 }) {
-  const modes: Array<{
-    detail: string;
-    id: InspectorMode;
-    label: string;
-  }> = [
-    { id: "review", label: "A Review", detail: "active work" },
-    { id: "threads", label: "B Threads", detail: "conversation" },
-    { id: "map", label: "C Map", detail: "reading" },
-  ];
   return (
     <fieldset className="inspector-mode-switch" aria-label="Inspector mode">
-      {modes.map((item) => (
+      <InspectorModeShortcuts name={name} />
+      {inspectorModeOptions.map((item) => (
         <label key={item.id}>
           <input
+            aria-keyshortcuts={item.shortcut}
             defaultChecked={item.id === "review"}
             name={name}
+            title={item.title}
             type="radio"
             value={item.id}
           />
@@ -919,6 +948,57 @@ function InspectorModeSwitch({
         </label>
       ))}
     </fieldset>
+  );
+}
+
+function InspectorModeShortcuts({ name }: { name: string }) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        !(event.metaKey || event.ctrlKey) ||
+        !event.altKey ||
+        event.shiftKey ||
+        isTextEntryTarget(event.target)
+      ) {
+        return;
+      }
+
+      const mode = inspectorModeOptions.find(
+        (item) => item.key === event.key.toLowerCase(),
+      );
+      if (!mode) return;
+
+      const target = Array.from(
+        document.querySelectorAll<HTMLInputElement>(
+          'input[type="radio"][name]',
+        ),
+      ).find((input) => input.name === name && input.value === mode.id);
+      if (!target || target.checked) return;
+
+      event.preventDefault();
+      target.checked = true;
+      target.dispatchEvent(new Event("input", { bubbles: true }));
+      target.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [name]);
+
+  return null;
+}
+
+function isTextEntryTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+
+  const entry = target.closest("input, textarea, select");
+  if (!(entry instanceof HTMLElement)) return false;
+  if (entry.tagName === "TEXTAREA" || entry.tagName === "SELECT") return true;
+  if (!(entry instanceof HTMLInputElement)) return false;
+
+  return !["button", "checkbox", "radio", "reset", "submit"].includes(
+    entry.type,
   );
 }
 

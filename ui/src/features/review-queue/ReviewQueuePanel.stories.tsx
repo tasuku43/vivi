@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, fireEvent, userEvent, within } from "storybook/test";
 import { summarizeThreadActivity } from "../../state/comment-activity.js";
 import {
   gitReviewTimeoutGuidance,
@@ -113,24 +113,34 @@ export const InspectorModeSwitching: Story = {
   tags: ["interaction"],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    const storyWindow = canvasElement.ownerDocument.defaultView ?? window;
 
     await expect(canvas.getByText("Review Queue")).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("radio", { name: "Review queue" }),
+    ).toHaveAttribute("aria-keyshortcuts", "Meta+Alt+R Control+Alt+R");
 
     await userEvent.click(
-      canvas.getByRole("radio", { name: "B Threads conversation" }),
+      canvas.getByRole("radio", { name: "Threads comments" }),
     );
     await expect(canvas.getByText("Comments")).toBeVisible();
     await expect(canvas.getByText("Review Queue")).not.toBeVisible();
     await expect(canvas.getByText("In this file")).not.toBeVisible();
 
-    await userEvent.click(canvas.getByRole("radio", { name: "C Map reading" }));
+    fireEvent.keyDown(storyWindow, {
+      altKey: true,
+      key: "m",
+      metaKey: true,
+    });
     await expect(canvas.getByText("In this file")).toBeVisible();
     await expect(canvas.getByText("Comments")).not.toBeVisible();
     await expect(canvas.getByText("Review Queue")).not.toBeVisible();
 
-    await userEvent.click(
-      canvas.getByRole("radio", { name: "A Review active work" }),
-    );
+    fireEvent.keyDown(storyWindow, {
+      altKey: true,
+      key: "r",
+      metaKey: true,
+    });
     await expect(canvas.getByText("Review Queue")).toBeVisible();
   },
 };
