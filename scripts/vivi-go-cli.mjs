@@ -9,17 +9,19 @@ const localBinary = path.join(
   root,
   process.platform === "win32" ? "vivi.exe" : "vivi",
 );
+const useLocalBinary =
+  process.env.VIVI_GO_CLI_FORCE_GO_RUN !== "1" && existsSync(localBinary);
 
-const command = existsSync(localBinary)
+const command = useLocalBinary
   ? localBinary
   : process.platform === "win32"
     ? "go.exe"
     : "go";
-const args = existsSync(localBinary)
+const args = useLocalBinary
   ? process.argv.slice(2)
   : ["run", "./cli", ...process.argv.slice(2)];
 
-if (!existsSync(localBinary)) {
+if (!useLocalBinary) {
   const prepare = spawnSync(
     process.execPath,
     ["scripts/prepare-go-workspace.mjs"],

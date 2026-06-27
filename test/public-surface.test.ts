@@ -2,6 +2,8 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
 
+const goCliHelpTimeoutMs = 30_000;
+
 it("uses Vivi as the public package and CLI surface without a legacy alias", () => {
   const pkg = JSON.parse(readFileSync("package.json", "utf8")) as {
     name: string;
@@ -28,6 +30,7 @@ it("routes the repository npm bin to the canonical Go CLI help surface", () => {
         GOCACHE: process.env.GOCACHE ?? `${process.cwd()}/.tmp-go-build-cache`,
         GOMODCACHE:
           process.env.GOMODCACHE ?? `${process.cwd()}/.tmp-go-mod-cache`,
+        VIVI_GO_CLI_FORCE_GO_RUN: "1",
       },
     },
   );
@@ -41,7 +44,7 @@ it("routes the repository npm bin to the canonical Go CLI help surface", () => {
   expect(result.stdout).toContain("emitted primary comments work command");
   expect(result.stdout).toContain("--ready-json");
   expect(result.stdout).not.toMatch(/^vivi \[root\].*Options:/s);
-});
+}, goCliHelpTimeoutMs);
 
 it("keeps review and comments help reachable through the default bin", () => {
   for (const args of [
