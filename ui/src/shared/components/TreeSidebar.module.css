@@ -1,0 +1,219 @@
+.tree {
+  padding: 8px;
+}
+
+.compactEmpty {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+.perfNote {
+  margin: 6px 8px 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  padding: 7px 9px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  box-sizing: border-box;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
+  padding: 5px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.row:hover,
+.selected {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.selected {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.containsSelection:not(.selected) {
+  background: color-mix(in srgb, var(--accent-soft) 56%, transparent);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--accent) 58%, transparent);
+  color: var(--text);
+}
+
+.containsCurrentStop:not(.selected),
+.currentReviewStop:not(.selected) {
+  background: color-mix(in srgb, var(--accent-soft) 42%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
+  color: var(--text);
+}
+
+.changed {
+  color: var(--warn);
+}
+
+.hasReviewWork {
+  color: var(--text);
+}
+
+.hasUnreadWork {
+  font-weight: 650;
+}
+
+.openInTab .label::after {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 7px;
+  border-radius: 999px;
+  background: var(--accent);
+  vertical-align: middle;
+}
+
+.removed {
+  opacity: 0.56;
+  text-decoration: line-through;
+}
+
+.main {
+  flex: 1 1 auto;
+  display: inline-grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.labelLine {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.label,
+.reason {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reason {
+  color: var(--subtle);
+  font-size: 10.5px;
+  font-weight: 560;
+  line-height: 1.1;
+}
+
+.hasUnreadWork .reason {
+  color: var(--comment-text);
+}
+
+.currentReviewStop .reason,
+.containsCurrentStop .reason {
+  color: var(--accent);
+}
+
+.changed .reason {
+  color: var(--warn);
+}
+
+.reviewStateLabel {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--soft-line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-2) 72%, transparent);
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 840;
+  line-height: 1;
+  padding: 3px 6px;
+  text-transform: uppercase;
+}
+
+.reviewStateLabel::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.queued {
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
+
+.reviewing {
+  border-color: var(--comment-line);
+  color: var(--comment-text);
+}
+
+.reviewed {
+  border-color: color-mix(in srgb, var(--good) 46%, transparent);
+  color: color-mix(in srgb, var(--good) 84%, white);
+}
+
+.badges {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 42%;
+  margin-left: auto;
+  overflow: hidden;
+}
+
+.badge {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.review,
+.open,
+.current {
+  color: var(--accent);
+}
+
+.attention {
+  color: var(--comment-text);
+}
+
+.changedBadge,
+.loading {
+  color: var(--warn);
+}
+
+.unreadDot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 999px;
+  background: var(--comment-text);
+  box-shadow: 0 0 0 3px var(--comment-tint);
+}
+
+.twisty {
+  width: 12px;
+  flex: 0 0 12px;
+  color: var(--subtle);
+}

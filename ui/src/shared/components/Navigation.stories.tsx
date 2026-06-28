@@ -12,6 +12,8 @@ import { OpenTabs } from "./OpenTabs.js";
 import { ShortcutHelp } from "./ShortcutHelp.js";
 import { Topbar } from "./Topbar.js";
 import { TreeSidebar } from "./TreeSidebar.js";
+import { WorkspaceStatusbar } from "./WorkspaceStatusbar.js";
+import sharedUiStyles from "../styles/SharedUi.module.css";
 
 const meta = {
   title: "Workspace/Navigation Chrome",
@@ -78,13 +80,13 @@ export const SidebarFileTree: Story = {
   name: "Live file tree keeps selected and changed paths visible",
   render: () => (
     <aside
-      className="sidebar"
+      className={`${sharedUiStyles.sidebar} sidebar`}
       aria-label="File explorer"
       style={{ width: 320, height: "100vh" }}
     >
-      <div className="panel-title">
+      <div className={`${sharedUiStyles.panelTitle} panel-title`}>
         <span>Explorer</span>
-        <span className="pill">live</span>
+        <span className={`${sharedUiStyles.pill} pill`}>live</span>
       </div>
       <TreeSidebar
         nodes={sampleWorkspaceTree.nodes}
@@ -172,13 +174,13 @@ function SidebarLazyBreadcrumbRevealDemo() {
 
   return (
     <aside
-      className="sidebar"
+      className={`${sharedUiStyles.sidebar} sidebar`}
       aria-label="File explorer"
       style={{ width: 320, height: 240 }}
     >
-      <div className="panel-title">
+      <div className={`${sharedUiStyles.panelTitle} panel-title`}>
         <span>Explorer</span>
-        <span className="pill">live</span>
+        <span className={`${sharedUiStyles.pill} pill`}>live</span>
       </div>
       <TreeSidebar
         nodes={nodes}
@@ -290,20 +292,20 @@ export const ShortcutHelpOverlay: Story = {
 export const Statusbar: Story = {
   name: "Statusbar summarizes watchers, tabs, and server state",
   render: () => (
-    <div className="app-shell" style={{ minHeight: 120 }}>
-      <footer className="statusbar">
-        <span className="statusbar-group">
-          <span className="status-dot live" aria-hidden="true" />5 watched
-          files · 3 open tabs
-        </span>
-        <span className="statusbar-group">
-          6 review files · 7 comments · 3 drafts
-        </span>
-        <span className="statusbar-group">
-          <span className="status-dot live" aria-hidden="true" />
-          Server live · waiting for changes
-        </span>
-      </footer>
+    <div
+      className={`${sharedUiStyles.appShell} app-shell`}
+      style={{ minHeight: 120 }}
+    >
+      <WorkspaceStatusbar
+        status={{
+          workspace: "5 watched files · 3 open tabs",
+          activeFile: "README.md · rendered",
+          review: "6 review files · 7 comments · 3 drafts",
+          server: "Server live · waiting for changes",
+          serverTone: "live",
+          detail: "",
+        }}
+      />
     </div>
   ),
 };

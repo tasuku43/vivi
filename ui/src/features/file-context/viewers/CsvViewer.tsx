@@ -19,6 +19,7 @@ import {
   ViewerModeButton,
 } from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
+import surfaceStyles from "./ViewerSurface.module.css";
 
 export interface ParsedDelimitedText {
   headers: string[];
@@ -76,7 +77,7 @@ export function CsvViewer({
   };
 
   return (
-    <section className="csv-viewer">
+    <section className={`${surfaceStyles.csvViewer} csv-viewer`}>
       <ViewerToolbar
         status={
           <>
@@ -85,7 +86,10 @@ export function CsvViewer({
           </>
         }
       >
-        <div className="segmented-control" aria-label="CSV view mode">
+        <div
+          className={`${surfaceStyles.segmentedControl} segmented-control`}
+          aria-label="CSV view mode"
+        >
           <ViewerModeButton
             active={mode === "table"}
             mode="table"
@@ -123,8 +127,8 @@ export function CsvViewer({
           onOpenComment={onOpenComment}
         />
       ) : mode === "table" ? (
-        <div className="csv-table-wrap">
-          <table className="csv-table">
+        <div className={`${surfaceStyles.csvTableWrap} csv-table-wrap`}>
+          <table className={`${surfaceStyles.csvTable} csv-table`}>
             <thead>
               <tr>
                 {parsed.headers.map((header, index) => (
@@ -148,7 +152,7 @@ export function CsvViewer({
       ) : (
         <CommentedSourceLines
           content={file.content}
-          className="markdown-source"
+          className={`markdown-source ${surfaceStyles.markdownSource}`}
           containerRef={sourceRef}
           comments={comments}
           activeCommentId={activeCommentId}

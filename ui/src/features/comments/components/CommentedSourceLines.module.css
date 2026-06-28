@@ -1,0 +1,74 @@
+.lines {
+  min-width: max-content;
+  padding: 10px 0 18px;
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.62;
+  tab-size: 2;
+}
+
+.lines :global(.commented-source-line) {
+  position: relative;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  min-height: 23px;
+  color: var(--text);
+}
+
+.lines :global(.commented-source-line:hover) {
+  background: var(--soft-line);
+}
+
+.lines :global(.commented-source-line.search-focus) {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent-soft) 82%, transparent),
+    transparent 72%
+  );
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.lines :global(.commented-source-line.has-comment) {
+  background: linear-gradient(
+    90deg,
+    var(--comment-tint-active),
+    color-mix(in srgb, var(--comment-tint) 52%, transparent) 56%,
+    transparent
+  );
+  box-shadow: inset 2px 0 0 var(--comment-line);
+}
+
+.lines :global(.commented-source-line code) {
+  display: block;
+  min-width: 0;
+  padding: 0 18px;
+  white-space: pre;
+}
+
+.lines:global(.wrap) :global(.commented-source-line code) {
+  white-space: pre-wrap;
+}
+
+.lines :global(.commented-source-gutter) {
+  position: relative;
+  border-right: 1px solid var(--soft-line);
+  color: var(--subtle);
+  font-size: 12px;
+  text-align: right;
+  user-select: none;
+  padding: 0 12px 0 8px;
+}
+
+.lines :global(.commented-source-line.has-comment .commented-source-gutter) {
+  color: var(--comment-text);
+}
+
+.lines :global(.commented-source-gutter > span) {
+  display: block;
+}
+
+.lines :global(.commented-source-gutter .comment-gutter-marker) {
+  left: 9px;
+  top: 7px;
+}

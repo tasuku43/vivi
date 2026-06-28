@@ -18,6 +18,10 @@ import {
   truncateCommentPreview,
   visibleThreadComments,
 } from "../../../state/comments.js";
+import activityStyles from "./CommentActivity.module.css";
+import { CommentStatusBadge } from "./CommentStatusBadge.js";
+import sharedUiStyles from "../../../shared/styles/SharedUi.module.css";
+import styles from "./CommentsPanel.module.css";
 
 type VisibleCommentStatus = Exclude<CommentStatus, "archived">;
 type StatusFilter = "all" | "attention" | "drafts" | VisibleCommentStatus;
@@ -130,7 +134,10 @@ export function CommentsPanel({
     : visibleThreads.length;
 
   return (
-    <aside className="global-comments-panel" aria-label="Comments">
+    <aside
+      className={`${styles.panelRoot} ${activityStyles.activityStyles} global-comments-panel`}
+      aria-label="Comments"
+    >
       <div className="global-comments-head">
         <div>
           <p className="global-comments-eyebrow">Comments Hub</p>
@@ -219,7 +226,7 @@ export function CommentsPanel({
           visibleThreadCount={keyboardRowCount}
           onQueryChange={onQueryChange}
         />
-        <p className="sr-only" id={keyboardHelpId}>
+        <p className={`${sharedUiStyles.srOnly} sr-only`} id={keyboardHelpId}>
           Press Down Arrow from search to move into visible comment threads. Use
           Up Arrow from the first thread to return to search. Use Down Arrow,
           Home, and End to move between threads.
@@ -407,9 +414,9 @@ export function CommentsPanel({
                         <span className="global-comment-surface">
                           {draftSurfaceLabel(draft)}
                         </span>
-                        <span className="comment-status draft">
+                        <CommentStatusBadge status="draft">
                           Private draft
-                        </span>
+                        </CommentStatusBadge>
                         <span className="global-comment-author">
                           Not agent-visible
                         </span>
@@ -557,9 +564,9 @@ export function CommentsPanel({
                           {thread.anchorDetailLabel}
                         </span>
                       ) : null}
-                      <span className={`comment-status ${thread.status}`}>
+                      <CommentStatusBadge status={thread.status}>
                         {statusLabel(thread.status)}
-                      </span>
+                      </CommentStatusBadge>
                       {thread.needsAttention ? (
                         <span className="global-comment-attention">
                           Needs attention
@@ -567,7 +574,7 @@ export function CommentsPanel({
                       ) : null}
                       {sourceState ? (
                         <span
-                          className="comment-anchor-warning"
+                          className={`${styles.anchorWarning} comment-anchor-warning`}
                           aria-label={sourceState.aria}
                         >
                           {sourceState.label}

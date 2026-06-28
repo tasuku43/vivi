@@ -1,3 +1,6 @@
+import styles from "./ShortcutHelp.module.css";
+import sharedUiStyles from "../styles/SharedUi.module.css";
+
 type ShortcutItem = readonly [label: string, shortcut: string];
 
 const shortcutGroups: readonly {
@@ -75,9 +78,9 @@ export function ShortcutHelp({ open, onClose }: ShortcutHelpProps) {
   if (!open) return null;
 
   return (
-    <div className="shortcut-overlay" role="presentation" onClick={onClose}>
+    <div className={styles.overlay} role="presentation" onClick={onClose}>
       <section
-        className="shortcut-panel"
+        className={styles.panel}
         role="dialog"
         aria-modal="true"
         aria-label="Keyboard shortcuts"
@@ -85,18 +88,21 @@ export function ShortcutHelp({ open, onClose }: ShortcutHelpProps) {
         aria-describedby="shortcut-help-description"
         onClick={(event) => event.stopPropagation()}
       >
-        <header className="shortcut-panel-header">
+        <header className={styles.header}>
           <div>
             <p>Keyboard</p>
             <h2 id="shortcut-help-title">Shortcuts</h2>
-            <p className="sr-only" id="shortcut-help-description">
+            <p
+              className={`${sharedUiStyles.srOnly} sr-only`}
+              id="shortcut-help-description"
+            >
               A bundled reference for search, review, viewer, layout, tab, and
               palette keyboard shortcuts.
             </p>
           </div>
           <button
             type="button"
-            className="shortcut-close"
+            className={styles.close}
             aria-label="Close keyboard shortcuts"
             title="Close keyboard shortcuts"
             onClick={onClose}
@@ -126,14 +132,19 @@ function ShortcutGroup({
   const titleId = `shortcut-group-${title.toLowerCase()}`;
 
   return (
-    <section className="shortcut-group" aria-labelledby={titleId}>
+    <section className={styles.group} aria-labelledby={titleId}>
       <h3 id={titleId}>{title}</h3>
-      <dl className="shortcut-list">
+      <dl className={styles.list}>
         {items.map(([label, shortcut]) => (
-          <div className="shortcut-row" key={label}>
+          <div className={styles.row} key={label}>
             <dt>{label}</dt>
             <dd>
-              <kbd aria-label={shortcutA11yLabel(shortcut)}>{shortcut}</kbd>
+              <kbd
+                className={sharedUiStyles.keycap}
+                aria-label={shortcutA11yLabel(shortcut)}
+              >
+                {shortcut}
+              </kbd>
             </dd>
           </div>
         ))}

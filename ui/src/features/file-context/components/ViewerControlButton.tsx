@@ -7,6 +7,8 @@ import {
   reviewFileStateTone,
   type ReviewFileState,
 } from "../../../state/review-state.js";
+import styles from "./ViewerControlButton.module.css";
+import surfaceStyles from "../viewers/ViewerSurface.module.css";
 
 export interface ViewerHeaderReviewStop {
   label: string;
@@ -32,6 +34,10 @@ interface ViewerHeaderContextValue {
 const ViewerHeaderContext = createContext<ViewerHeaderContextValue | null>(
   null,
 );
+
+function cx(...classNames: Array<string | false | null | undefined>): string {
+  return classNames.filter(Boolean).join(" ");
+}
 
 export function ViewerHeaderProvider({
   children,
@@ -63,7 +69,11 @@ export function ViewerToolbar({
   const header = useContext(ViewerHeaderContext);
   return (
     <div
-      className={`viewer-toolbar${actionsOnly ? " viewer-toolbar-actions-only" : ""}`}
+      className={cx(
+        styles.toolbar,
+        "viewer-toolbar",
+        actionsOnly && "viewer-toolbar-actions-only",
+      )}
       aria-label={ariaLabel}
       data-viewer-header="unified"
     >
@@ -76,13 +86,17 @@ export function ViewerToolbar({
           onRevealInTree={header.onRevealInTree}
         />
       ) : null}
-      {status ? <span className="sandbox-status">{status}</span> : null}
+      {status ? (
+        <span className={cx(styles.sandboxStatus, "sandbox-status")}>
+          {status}
+        </span>
+      ) : null}
       <div
-        className={`viewer-toolbar-actions${actionsClassName ? ` ${actionsClassName}` : ""}`}
+        className={cx(styles.actions, "viewer-toolbar-actions", actionsClassName)}
       >
         {header?.reviewState?.state === "queued" && header.onMarkReviewed ? (
           <button
-            className="mark-reviewed-button"
+            className={cx(styles.markReviewedButton, "mark-reviewed-button")}
             type="button"
             onClick={header.onMarkReviewed}
           >
@@ -112,11 +126,11 @@ export function ViewerToolbarLocation({
   if (!segments.length) return null;
   return (
     <div
-      className="viewer-toolbar-location"
+      className={cx(styles.location, "viewer-toolbar-location")}
       aria-label={fileLocationBarLabel(file.path)}
     >
       <nav
-        className="file-location-crumbs"
+        className={cx(styles.crumbs, "file-location-crumbs")}
         aria-label={`Location: ${file.path}`}
       >
         {segments.map((segment, index) => {
@@ -126,15 +140,24 @@ export function ViewerToolbarLocation({
             segments.length,
           );
           return (
-            <span className="file-location-segment" key={segment.path}>
+            <span
+              className={cx(styles.segment, "file-location-segment")}
+              key={segment.path}
+            >
               {index > 0 ? (
-                <span className="file-location-separator">/</span>
+                <span className={cx(styles.separator, "file-location-separator")}>
+                  /
+                </span>
               ) : null}
               <button
                 aria-current={segment.kind === "file" ? "page" : undefined}
                 aria-label={segmentLabel}
                 type="button"
-                className={segment.kind}
+                className={cx(
+                  styles.segmentButton,
+                  segment.kind === "file" && styles.fileSegment,
+                  segment.kind,
+                )}
                 title={segmentLabel}
                 onClick={() => onRevealInTree?.(segment.path)}
               >
@@ -143,7 +166,12 @@ export function ViewerToolbarLocation({
               {segment.kind === "file" && reviewState ? (
                 <span
                   aria-label={reviewState.title}
-                  className={`review-state-label ${reviewState.tone}`}
+                  className={cx(
+                    styles.reviewStateLabel,
+                    styles[reviewState.tone],
+                    "review-state-label",
+                    reviewState.tone,
+                  )}
                   title={reviewState.title}
                 >
                   {reviewState.label}
@@ -157,7 +185,7 @@ export function ViewerToolbarLocation({
         <button
           aria-keyshortcuts="Meta+I Control+I"
           aria-label={`Focus current review stop, ${activeReviewStop.label}, ${activeReviewStop.preview}`}
-          className="file-location-review-stop"
+          className={cx(styles.reviewStop, "file-location-review-stop")}
           disabled={!onFocusActiveComment}
           type="button"
           onClick={onFocusActiveComment}
@@ -211,7 +239,12 @@ export function DiffToggleButton({
   return (
     <button
       aria-pressed={Boolean(enabled)}
-      className={`diff-toggle${enabled ? " active" : ""}`}
+      className={cx(
+        surfaceStyles.diffToggle,
+        "diff-toggle",
+        enabled && surfaceStyles.diffToggleActive,
+        enabled && "active",
+      )}
       data-diff-enabled={String(Boolean(enabled))}
       data-testid="viewer-diff-toggle"
       data-viewer-path={path}

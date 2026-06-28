@@ -10,6 +10,7 @@ import {
   ViewerModeButton,
 } from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
+import surfaceStyles from "./ViewerSurface.module.css";
 
 export function ImageViewer({
   file,
@@ -41,14 +42,14 @@ export function ImageViewer({
       : "";
   if (!src) {
     return (
-      <div className="unsupported">
+      <div className={`${surfaceStyles.unsupported} unsupported`}>
         <h2>{file.path}</h2>
         <p>This image could not be previewed.</p>
       </div>
     );
   }
   return (
-    <section className="image-viewer">
+    <section className={`${surfaceStyles.viewer} image-viewer`}>
       <ViewerToolbar
         status={
           <>
@@ -59,7 +60,10 @@ export function ImageViewer({
           </>
         }
       >
-        <div className="segmented-control" aria-label="Image size mode">
+        <div
+          className={`${surfaceStyles.segmentedControl} segmented-control`}
+          aria-label="Image size mode"
+        >
           <ViewerModeButton
             active={fit === "fit"}
             mode="fit"
@@ -98,9 +102,17 @@ export function ImageViewer({
         />
       ) : (
         <div
-          className={fit === "fit" ? "image-stage fit" : "image-stage actual"}
+          className={
+            fit === "fit"
+              ? `${surfaceStyles.imageStage} ${surfaceStyles.imageStageFit} image-stage fit`
+              : `${surfaceStyles.imageStage} ${surfaceStyles.imageStageActual} image-stage actual`
+          }
         >
-          <img className="image-preview" src={src} alt={file.path} />
+          <img
+            className={`${surfaceStyles.imagePreview} image-preview`}
+            src={src}
+            alt={file.path}
+          />
         </div>
       )}
     </section>

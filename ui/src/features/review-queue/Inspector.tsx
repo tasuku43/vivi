@@ -5,6 +5,7 @@ import {
   type DraftReviewComment,
   type ViviComment,
 } from "../../domain/comments.js";
+import styles from "./Inspector.module.css";
 import type { FilePayload } from "../../domain/fs-node.js";
 import type { CommentActivitySummary } from "../../state/comment-activity.js";
 import { activityLabel } from "../../state/comment-activity.js";
@@ -34,6 +35,9 @@ import {
 } from "../../state/review-state.js";
 import { gitReviewUnavailableGuidance } from "../../state/git-review-refresh.js";
 import type { OutlineHeading } from "../../state/outline.js";
+import { CommentStatusBadge } from "../comments/components/CommentStatusBadge.js";
+import fileIconStyles from "../../shared/components/FileIcon.module.css";
+import sharedUiStyles from "../../shared/styles/SharedUi.module.css";
 
 interface Props {
   file: FilePayload | null;
@@ -210,14 +214,19 @@ export function Inspector({
           title="Click to preview; double-click to keep open as a tab"
           type="button"
         >
-          <span className="sr-only" id={reviewQueueItemDescriptionId}>
+          <span
+            className={`${sharedUiStyles.srOnly} sr-only`}
+            id={reviewQueueItemDescriptionId}
+          >
             {reviewQueueItemDescription(item, {
               active,
               reviewStop,
             })}
           </span>
           <span className={reviewQueueItemDotClass(item)} aria-hidden="true" />
-          <span className="file-icon change-icon">{iconForPath(item.path)}</span>
+          <span className={`${fileIconStyles.icon} file-icon change-icon`}>
+            {iconForPath(item.path)}
+          </span>
           <span className="change-main">
             <span className="change-heading">
               <span className="change-kind">{kindLabel}</span>
@@ -256,7 +265,7 @@ export function Inspector({
         {itemThreads.length ? (
           <>
             <input
-              className="sr-only review-thread-toggle-control"
+              className={`${sharedUiStyles.srOnly} sr-only review-thread-toggle-control`}
               id={threadToggleId}
               type="checkbox"
               aria-controls={threadListId}
@@ -321,8 +330,13 @@ export function Inspector({
   }
 
   return (
-    <aside className="inspector" aria-label="Review inspector">
-      <div className="panel-title review-panel-title">
+    <aside
+      className={`${styles.inspectorRoot} ${sharedUiStyles.inspector} inspector`}
+      aria-label="Review inspector"
+    >
+      <div
+        className={`${sharedUiStyles.panelTitle} panel-title review-panel-title`}
+      >
         <span className="review-panel-heading">
           <span>Review</span>
           <strong>
@@ -335,7 +349,7 @@ export function Inspector({
         </span>
         {queueItems.length ? (
           <button
-            className="command-button command-button-secondary review-next-action"
+            className={`${sharedUiStyles.commandButton} ${sharedUiStyles.commandButtonSecondary} command-button command-button-secondary review-next-action`}
             type="button"
             onClick={onOpenNextChanged}
           >
@@ -363,11 +377,17 @@ export function Inspector({
               aria-label={`Review queue, ${queuedItems.length} queued, ${reviewingItems.length} in review, ${reviewedCount} reviewed`}
               aria-describedby="review-queue-interaction-help review-queue-keyboard-help"
             >
-              <p className="sr-only" id="review-queue-interaction-help">
+              <p
+                className={`${sharedUiStyles.srOnly} sr-only`}
+                id="review-queue-interaction-help"
+              >
                 Click or press Enter to preview a review file. Double-click to
                 keep it open as a tab.
               </p>
-              <p className="sr-only" id="review-queue-keyboard-help">
+              <p
+                className={`${sharedUiStyles.srOnly} sr-only`}
+                id="review-queue-keyboard-help"
+              >
                 Use Down Arrow, Up Arrow, Home, and End to move between review
                 files.
               </p>
@@ -411,7 +431,9 @@ export function Inspector({
                       aria-label={`Move reviewed change ${change.path} back to the review queue`}
                       onClick={() => onRestoreAcceptedReviewPath?.(change.path)}
                     >
-                      <span className="comment-status reviewed">Reviewed</span>
+                      <CommentStatusBadge status="reviewed">
+                        Reviewed
+                      </CommentStatusBadge>
                       <strong>{basenameForPath(change.path)}</strong>
                       <span>marked reviewed</span>
                       <small>{reviewPathLabel(change)}</small>
@@ -430,9 +452,9 @@ export function Inspector({
                         aria-label={`Open reviewed ${statusLabel(thread.status)} thread in ${thread.path}, ${commentLineLabel(primaryComment)}`}
                         onClick={() => onOpenComment?.(primaryComment)}
                       >
-                        <span className={`comment-status ${thread.status}`}>
+                        <CommentStatusBadge status={thread.status}>
                           {statusLabel(thread.status)}
-                        </span>
+                        </CommentStatusBadge>
                         <strong>{surfaceLabel(primaryComment)}</strong>
                         <span>{commentLineLabel(primaryComment)}</span>
                         <small>
@@ -447,20 +469,29 @@ export function Inspector({
                     </span>
                   ) : null}
                   {!hiddenReviewWork ? (
-                    <p className="muted compact-empty">No reviewed files yet.</p>
+                    <p
+                      className={`${styles.compactEmpty} ${sharedUiStyles.muted} muted compact-empty`}
+                    >
+                      No reviewed files yet.
+                    </p>
                   ) : null}
                 </div>
               </details>
             </div>
           ) : null}
           {queueItems.length && reviewUnavailableReason ? (
-            <p className="muted compact-empty">
+            <p
+              className={`${styles.compactEmpty} ${sharedUiStyles.muted} muted compact-empty`}
+            >
               Git review warning: {reviewUnavailableReason}
               {gitReviewGuidance ? ` ${gitReviewGuidance}` : ""}
             </p>
           ) : null}
           {reviewLoading ? (
-            <p className="muted compact-empty" aria-live="polite">
+            <p
+              className={`${styles.compactEmpty} ${sharedUiStyles.muted} muted compact-empty`}
+              aria-live="polite"
+            >
               Loading Git review; open comment threads may appear before changed
               files.
             </p>
@@ -563,7 +594,10 @@ function ReviewStateEmptyRow({
       : "Agent replies and open threads will rise here.";
   return (
     <div className={`review-state-empty-row ${state}`} role="note">
-      <span className="unread-dot muted" aria-hidden="true" />
+      <span
+        className={`${sharedUiStyles.muted} unread-dot muted`}
+        aria-hidden="true"
+      />
       <span className="review-state-empty-copy">
         <strong>{title}</strong>
         <span>{detail}</span>
@@ -697,11 +731,16 @@ function DiffStatBadge({
   loading: boolean;
   stat: DiffStat | null;
 }) {
-  if (loading && !stat) return <span className="diff-stat muted">...</span>;
-  if (!stat) return <span className="diff-stat muted">-</span>;
+  if (loading && !stat)
+    return <span className={`${sharedUiStyles.muted} diff-stat muted`}>...</span>;
+  if (!stat)
+    return <span className={`${sharedUiStyles.muted} diff-stat muted`}>-</span>;
   if (stat.metadataOnly) {
     return (
-      <span className="diff-stat muted" aria-label="Metadata-only change">
+      <span
+        className={`${sharedUiStyles.muted} diff-stat muted`}
+        aria-label="Metadata-only change"
+      >
         metadata
       </span>
     );

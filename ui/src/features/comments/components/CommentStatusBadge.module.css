@@ -1,0 +1,38 @@
+.status {
+  border-radius: 999px;
+  border: 1px solid var(--soft-line);
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 720;
+}
+
+.open {
+  border-color: var(--comment-line);
+  background: var(--comment-tint);
+  color: var(--comment-text);
+}
+
+.resolved {
+  color: var(--warn);
+}
+
+.archived {
+  color: var(--muted);
+}
+
+.draft {
+  border-color: color-mix(in srgb, var(--comment-line) 62%, var(--soft-line));
+  background: color-mix(in srgb, var(--comment-tint) 46%, var(--panel));
+  color: var(--comment-text);
+}
+
+.published {
+  color: var(--muted);
+}
+
+.accepted,
+.reviewed {
+  border-color: color-mix(in srgb, var(--good) 52%, var(--soft-line));
+  background: color-mix(in srgb, var(--good) 10%, transparent);
+  color: var(--good);
+}

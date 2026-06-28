@@ -7,6 +7,7 @@ import type { CommentActivitySummary } from "../../../state/comment-activity.js"
 import { CsvViewer, isDelimitedPath } from "../viewers/CsvViewer.js";
 import { DiffViewer } from "../viewers/DiffViewer.js";
 import { BinaryMetadataViewer } from "../viewers/BinaryMetadataViewer.js";
+import surfaceStyles from "../viewers/ViewerSurface.module.css";
 import {
   DiffToggleButton,
   ViewerHeaderProvider,
@@ -32,6 +33,8 @@ import type { OutlineHeading } from "../../../state/outline.js";
 import type { ResolvedTheme } from "../../../state/theme.js";
 import type { ViewerMode } from "../../../state/viewer-mode.js";
 import type { ReviewFileState } from "../../../state/review-state.js";
+import styles from "./FileViewer.module.css";
+import viewerMessageStyles from "../../../shared/components/ViewerMessage.module.css";
 
 const MarkdownViewer = lazy(() =>
   import("../viewers/MarkdownViewer.js").then((module) => ({
@@ -138,7 +141,11 @@ export function FileViewer({
   onCloseRemoved?: () => void;
 }) {
   if (!file)
-    return <div className="empty-viewer">Select a file from the tree.</div>;
+    return (
+      <div className={`${viewerMessageStyles.empty} empty-viewer`}>
+        Select a file from the tree.
+      </div>
+    );
 
   const activeReviewStop = activeFileReviewStop(
     file,
@@ -167,14 +174,16 @@ export function FileViewer({
   if (removed) {
     return (
       <FileViewerFrame {...frameProps}>
-        <div className="removed-viewer" aria-live="polite">
-          <p className="removed-eyebrow">Removed from disk</p>
+        <div className={`${styles.removed} removed-viewer`} aria-live="polite">
+          <p className={`${styles.removedEyebrow} removed-eyebrow`}>
+            Removed from disk
+          </p>
           <h2>{file.path}</h2>
           <p>
             This tab is showing the last loaded content for a file that no
             longer exists in the watched directory.
           </p>
-          <div className="removed-actions">
+          <div className={`${styles.removedActions} removed-actions`}>
             <button type="button" onClick={onCloseRemoved}>
               Close tab
             </button>
@@ -414,7 +423,7 @@ export function FileViewer({
 
   return (
     <FileViewerFrame {...frameProps}>
-      <div className="unsupported">
+      <div className={`${surfaceStyles.unsupported} unsupported`}>
         <h2>{file.path}</h2>
         <DiffToggleButton
           enabled={diffEnabled}
@@ -461,7 +470,7 @@ function FileViewerFrame({
   onRevealInTree?: (path?: string) => void;
 }) {
   return (
-    <div className="file-viewer-frame">
+    <div className={`${styles.frame} file-viewer-frame`}>
       <ViewerHeaderProvider
         value={{
           file,
@@ -557,13 +566,16 @@ export function FileOutlineControl({
   if (!hasItems) return null;
 
   return (
-    <div className="local-outline-control" ref={controlRef}>
+    <div
+      className={`${styles.localOutlineControl} local-outline-control`}
+      ref={controlRef}
+    >
       <button
         aria-controls={open ? panelId : undefined}
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-label={outlineLabel}
-        className="local-outline-button"
+        className={`${styles.localOutlineButton} local-outline-button`}
         type="button"
         title={outlineLabel}
         onClick={() => setOpen((value) => !value)}
@@ -574,11 +586,11 @@ export function FileOutlineControl({
       {open ? (
         <div
           aria-label="In this file"
-          className="local-outline-popover"
+          className={`${styles.localOutlinePopover} local-outline-popover`}
           id={panelId}
           role="dialog"
         >
-          <div className="local-outline-header">
+          <div className={`${styles.localOutlineHeader} local-outline-header`}>
             <strong>In this file</strong>
             <button
               aria-label="Close file outline"
@@ -593,7 +605,7 @@ export function FileOutlineControl({
               symbols={codeSymbols}
               onSelect={(line) => {
                 controlRef.current
-                  ?.closest(".viewer-pane")
+                  ?.closest("[data-viewer-pane]")
                   ?.querySelector<HTMLElement>(
                     `.code-line[data-line="${line}"]`,
                   )
@@ -658,7 +670,10 @@ function CodeSymbolList({
   onSelect: (line: number) => void;
 }) {
   return (
-    <nav className="local-symbol-list" aria-label="Code symbols">
+    <nav
+      className={`${styles.localSymbolList} local-symbol-list`}
+      aria-label="Code symbols"
+    >
       {symbols.map((symbol) => (
         <a
           href={`#L${symbol.line}`}
@@ -685,7 +700,10 @@ function HeadingOutlineList({
   onSelect: (id: string) => void;
 }) {
   return (
-    <nav className="local-outline-list" aria-label="Document outline">
+    <nav
+      className={`${styles.localOutlineList} local-outline-list`}
+      aria-label="Document outline"
+    >
       {outline.map((heading, index) => (
         <a
           key={heading.id}
@@ -696,10 +714,16 @@ function HeadingOutlineList({
             onSelect(heading.id);
           }}
         >
-          <span className="outline-level">H{heading.level}</span>
-          <span className="outline-text">{heading.text}</span>
+          <span className={`${styles.outlineLevel} outline-level`}>
+            H{heading.level}
+          </span>
+          <span className={`${styles.outlineText} outline-text`}>
+            {heading.text}
+          </span>
           {heading.lineStart ? (
-            <span className="outline-line">L{heading.lineStart}</span>
+            <span className={`${styles.outlineLine} outline-line`}>
+              L{heading.lineStart}
+            </span>
           ) : null}
         </a>
       ))}
@@ -724,7 +748,10 @@ function LazyViewerFallback({
   return (
     <Suspense
       fallback={
-        <div className="empty-viewer" aria-live="polite">
+        <div
+          className={`${viewerMessageStyles.empty} empty-viewer`}
+          aria-live="polite"
+        >
           Loading preview for {path}...
         </div>
       }

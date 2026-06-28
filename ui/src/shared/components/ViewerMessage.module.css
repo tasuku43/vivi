@@ -1,0 +1,26 @@
+.empty {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.error {
+  display: grid;
+  max-width: 620px;
+  gap: 6px;
+  margin: 0 auto;
+  padding: 18px;
+  border: 1px solid var(--soft-line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+}
+
+.error strong {
+  color: var(--error);
+  font-size: 13px;
+}
+
+.error span {
+  font-size: 13px;
+  line-height: 1.5;
+}

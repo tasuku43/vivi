@@ -1,0 +1,346 @@
+.unsupported {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.plainText {
+  width: 100%;
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--code);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.plainTextBlock {
+  padding: 16px;
+}
+
+.plainTextNoWrap {
+  white-space: pre;
+  overflow-x: auto;
+  overflow-wrap: normal;
+}
+
+.markdownSource {
+  margin: 0;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--code);
+  color: var(--text);
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.72;
+  padding: 16px;
+  white-space: pre;
+}
+
+.viewer,
+.textViewer,
+.csvViewer,
+.jsonViewer,
+.mermaidViewer {
+  display: grid;
+}
+
+.viewer,
+.csvViewer,
+.jsonViewer,
+.mermaidViewer {
+  gap: 14px;
+}
+
+.textViewer {
+  gap: 10px;
+}
+
+.viewer > :not(:global(.viewer-toolbar)),
+.textViewer > :not(:global(.viewer-toolbar)),
+.csvViewer > :not(:global(.viewer-toolbar)),
+.jsonViewer > :not(:global(.viewer-toolbar)),
+.mermaidViewer > :not(:global(.viewer-toolbar)) {
+  margin-inline: 24px;
+}
+
+.viewer > :last-child,
+.textViewer > :last-child,
+.csvViewer > :last-child,
+.jsonViewer > :last-child,
+.mermaidViewer > :last-child {
+  margin-bottom: 24px;
+}
+
+.viewer > :global(.diff-viewer) :global(.diff-viewer-status),
+.textViewer > :global(.diff-viewer) :global(.diff-viewer-status),
+.csvViewer > :global(.diff-viewer) :global(.diff-viewer-status),
+.jsonViewer > :global(.diff-viewer) :global(.diff-viewer-status),
+.mermaidViewer > :global(.diff-viewer) :global(.diff-viewer-status) {
+  top: 54px;
+}
+
+.diffToggle {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 5px 8px;
+}
+
+.diffToggleActive,
+.diffToggle[aria-pressed="true"] {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.segmentedControl {
+  display: inline-flex;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+
+.segmentedControl button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 5px 8px;
+}
+
+.segmentedControl button:global(.active) {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.largePreviewNote {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  padding: 9px 11px;
+  font-size: 12px;
+}
+
+.binaryMetadataPanel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  padding: 16px;
+}
+
+.binaryMetadataPanel p {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.binaryMetadataPanel dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.binaryMetadataPanel div {
+  min-width: 0;
+}
+
+.binaryMetadataPanel dt {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.binaryMetadataPanel dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.htmlFrame {
+  width: 100%;
+  height: calc(100vh - 140px);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+}
+
+.htmlPreviewStage {
+  position: relative;
+}
+
+.htmlRenderedCommentThreadHost {
+  position: fixed;
+  z-index: 70;
+  overflow: auto;
+  width: min(680px, calc(100vw - 24px));
+  line-height: normal;
+}
+
+.htmlRenderedCommentThreadHost > :global(.rendered-comment-thread) {
+  width: 100%;
+}
+
+.imagePreview {
+  display: block;
+  height: auto;
+}
+
+.imageStage {
+  min-height: 280px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  padding: 18px;
+}
+
+.imageStageFit {
+  display: grid;
+  place-items: center;
+}
+
+.imageStageFit .imagePreview {
+  max-width: 100%;
+  max-height: calc(100vh - 190px);
+  object-fit: contain;
+}
+
+.imageStageActual .imagePreview {
+  max-width: none;
+}
+
+.csvTableWrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.csvTable {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.csvTable th,
+.csvTable td {
+  max-width: 360px;
+  overflow: hidden;
+  border-right: 1px solid var(--soft-line);
+  border-bottom: 1px solid var(--soft-line);
+  padding: 9px 11px;
+  text-align: left;
+  text-overflow: ellipsis;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.csvTable th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.jsonTree {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--code);
+  padding: 12px;
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+
+.jsonNode {
+  color: var(--text);
+  line-height: 1.7;
+}
+
+.jsonNode summary {
+  cursor: pointer;
+}
+
+.jsonChildren {
+  margin-left: 18px;
+  padding-left: 12px;
+  border-left: 1px solid var(--soft-line);
+}
+
+.jsonKey {
+  color: var(--accent);
+  margin-right: 8px;
+}
+
+.jsonValue {
+  color: var(--muted);
+}
+
+.jsonValueString {
+  color: #9ece6a;
+}
+
+.jsonValueNumber {
+  color: #ff9e64;
+}
+
+.jsonValueBoolean {
+  color: #bb9af7;
+}
+
+.jsonValueNull {
+  color: var(--subtle);
+}
+
+.mermaidRenderSurface {
+  display: grid;
+  gap: 10px;
+}
+
+.mermaidRenderTargetRendered {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 14px;
+}
+
+.mermaidRenderTarget svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+@media (max-width: 720px) {
+  .viewer > :not(:global(.viewer-toolbar)),
+  .textViewer > :not(:global(.viewer-toolbar)),
+  .csvViewer > :not(:global(.viewer-toolbar)),
+  .jsonViewer > :not(:global(.viewer-toolbar)),
+  .mermaidViewer > :not(:global(.viewer-toolbar)) {
+    margin-inline: 14px;
+  }
+
+  .viewer > :last-child,
+  .textViewer > :last-child,
+  .csvViewer > :last-child,
+  .jsonViewer > :last-child,
+  .mermaidViewer > :last-child {
+    margin-bottom: 14px;
+  }
+}

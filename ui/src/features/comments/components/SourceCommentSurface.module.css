@@ -1,0 +1,131 @@
+.sourceCommentSurfaceStyles {
+  --source-comment-surface-module: 1;
+}
+
+:global(.code-lines) {
+  min-width: max-content;
+  padding: 10px 0 18px;
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.62;
+  tab-size: 2;
+}
+
+:global(.code-line) {
+  position: relative;
+  display: grid;
+  grid-template-columns: 64px max-content minmax(0, 1fr);
+  min-height: 23px;
+  color: var(--text);
+}
+
+:global(.code-line:hover) {
+  background: var(--soft-line);
+}
+
+:global(.code-line.selected) {
+  background: var(--accent-faint);
+}
+
+:global(.code-line.search-focus) {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent-soft) 82%, transparent),
+    transparent 72%
+  );
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+:global(.code-line.has-comment),
+:global(.code-line.drafting-comment) {
+  background: linear-gradient(
+    90deg,
+    var(--comment-tint-active),
+    color-mix(in srgb, var(--comment-tint) 52%, transparent) 56%,
+    transparent
+  );
+  box-shadow: inset 2px 0 0 var(--comment-line);
+}
+
+:global(.code-line.active-comment) {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--comment-tint-active) 88%, var(--accent-faint)),
+    color-mix(in srgb, var(--comment-tint-active) 72%, transparent) 66%,
+    transparent
+  );
+  box-shadow:
+    inset 2px 0 0 var(--comment-text),
+    inset 0 0 0 1px color-mix(in srgb, var(--comment-line) 52%, transparent);
+}
+
+:global(.code-line.has-comment .line-number),
+:global(.code-line.drafting-comment .line-number) {
+  color: var(--comment-text);
+}
+
+:global(.line-number) {
+  position: relative;
+  border: 0;
+  border-right: 1px solid var(--soft-line);
+  background: transparent;
+  color: var(--subtle);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 0 12px 0 8px;
+  text-align: right;
+  user-select: none;
+}
+
+:global(.code-line.selected .line-number::after) {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  right: -2px;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent);
+}
+
+:global(.code-line.selection-start .line-number::after) {
+  top: 3px;
+  border-radius: 3px 3px 0 0;
+}
+
+:global(.code-line.selection-end .line-number::after) {
+  bottom: 3px;
+  border-radius: 0 0 3px 3px;
+}
+
+:global(.code-line.selection-start.selection-end .line-number::after) {
+  border-radius: 3px;
+}
+
+:global(.code-line.drafting-comment .line-number::after) {
+  background: var(--comment-text);
+}
+
+:global(.line-number:hover),
+:global(.code-line.selected .line-number) {
+  color: var(--accent);
+}
+
+:global(.line-code) {
+  display: block;
+  min-width: 0;
+  padding: 0 10px 0 18px;
+  white-space: pre;
+}
+
+@media (max-width: 720px) {
+  :global(.code-line) {
+    grid-template-columns: 48px max-content minmax(0, 1fr);
+  }
+
+  :global(.line-code) {
+    padding: 0 12px;
+  }
+}

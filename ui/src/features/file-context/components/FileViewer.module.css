@@ -1,0 +1,270 @@
+.frame {
+  position: relative;
+  min-width: 0;
+}
+
+.toolbarStickyMatrix {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  padding: 16px;
+  background: var(--bg);
+}
+
+.toolbarStickyCase {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.toolbarStickyCase > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  padding: 8px 10px;
+}
+
+.toolbarStickyCase > header span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolbarStickyCase > header strong {
+  color: var(--text);
+}
+
+.toolbarStickyScroll {
+  height: 180px;
+  overflow: auto;
+  background: var(--bg);
+}
+
+.localOutlineControl {
+  position: relative;
+  z-index: 9;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.localOutlineButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 5px 8px;
+}
+
+.localOutlineButton:hover,
+.localOutlineButton:focus-visible,
+.localOutlineButton[aria-expanded="true"] {
+  border-color: var(--accent-line);
+  outline: none;
+  background: var(--panel);
+  color: var(--accent);
+}
+
+.localOutlineButton small {
+  min-width: 20px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 0 6px;
+  text-align: center;
+}
+
+.localOutlinePopover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(340px, calc(100vw - 48px));
+  max-height: min(420px, calc(100vh - 190px));
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 22px 70px var(--shadow);
+  padding: 10px;
+}
+
+.localOutlineHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--soft-line);
+  padding: 0 0 8px;
+}
+
+.localOutlineHeader strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.localOutlineHeader button {
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 4px 6px;
+}
+
+.localOutlineHeader button:hover,
+.localOutlineHeader button:focus-visible {
+  border-color: var(--line);
+  outline: none;
+  color: var(--text);
+}
+
+.localOutlineList,
+.localSymbolList {
+  display: grid;
+  gap: 3px;
+  padding-top: 8px;
+}
+
+.localOutlineList a,
+.localSymbolList a {
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.localOutlineList a {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  border-left: 2px solid transparent;
+  overflow: hidden;
+  padding: 7px 8px 7px 10px;
+  white-space: nowrap;
+}
+
+.localOutlineList a.h2 {
+  padding-left: 22px;
+  font-size: 12.5px;
+}
+
+.localOutlineList a.active {
+  border-left-color: var(--accent);
+  background: linear-gradient(90deg, var(--accent-soft), transparent);
+  color: var(--accent);
+}
+
+.localOutlineList a.active .outlineLevel {
+  border-color: var(--accent-line);
+  background: var(--panel);
+  color: var(--accent);
+}
+
+.localSymbolList a {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+}
+
+.localOutlineList a:hover,
+.localOutlineList a:focus-visible,
+.localSymbolList a:hover,
+.localSymbolList a:focus-visible {
+  border-color: var(--line);
+  outline: none;
+  background: var(--accent-faint);
+  color: var(--text);
+}
+
+.localSymbolList span,
+.localSymbolList small {
+  color: var(--subtle);
+  font-size: 11px;
+}
+
+.localSymbolList strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outlineLevel {
+  flex: 0 0 auto;
+  border: 1px solid var(--soft-line);
+  border-radius: 999px;
+  color: var(--subtle);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 3px 6px;
+}
+
+.outlineText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.outlineLine {
+  color: var(--subtle);
+  font-size: 10.5px;
+  font-weight: 720;
+}
+
+.removed {
+  max-width: 680px;
+  margin: 64px auto;
+  border: 1px solid color-mix(in srgb, var(--error) 32%, var(--line));
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 22px;
+  color: var(--muted);
+}
+
+.removed h2 {
+  margin: 4px 0 10px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.removedEyebrow {
+  margin: 0;
+  color: var(--error);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.removedActions {
+  margin-top: 16px;
+}
+
+.removedActions button {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+  padding: 7px 10px;
+}

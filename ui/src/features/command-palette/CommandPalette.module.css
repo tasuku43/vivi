@@ -1,0 +1,149 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 86px;
+  background: var(--overlay);
+  backdrop-filter: blur(8px);
+}
+
+.palette {
+  width: min(760px, calc(100vw - 40px));
+  border: 1px solid var(--accent-line);
+  border-radius: 18px;
+  background: var(--palette);
+  box-shadow: 0 30px 110px var(--shadow);
+  overflow: hidden;
+}
+
+.top {
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.modeBar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.modeButton {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 5px 10px;
+}
+
+.activeMode {
+  border-color: var(--accent-line);
+  background: var(--accent-faint);
+  color: var(--accent);
+}
+
+.input {
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: var(--code);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 13px 14px;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.body {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  min-height: 320px;
+}
+
+.results {
+  padding: 8px;
+  border-right: 1px solid var(--line);
+}
+
+.result {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+}
+
+.resultMain {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.result strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activeResult {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.result:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.result small {
+  display: block;
+  color: var(--subtle);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linePrefix {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.searchMatch {
+  border-radius: 4px;
+  background: var(--comment-tint);
+  color: var(--comment-text);
+  padding: 0 2px;
+}
+
+.type {
+  justify-self: end;
+  border: 1px solid var(--soft-line);
+  border-radius: 999px;
+  padding: 3px 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.help {
+  padding: 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.help div {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--soft-line);
+  padding: 8px 0;
+}

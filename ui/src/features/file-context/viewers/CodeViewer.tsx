@@ -25,6 +25,7 @@ import {
   ViewerToolbar,
 } from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
+import styles from "./CodeViewer.module.css";
 
 export function CodeViewer({
   file,
@@ -129,22 +130,27 @@ export function CodeViewer({
   }
 
   return (
-    <section className="code-pro" aria-label={`Code viewer for ${file.path}`}>
+    <section
+      className={`${styles.codePro} code-pro`}
+      aria-label={`Code viewer for ${file.path}`}
+    >
       <ViewerToolbar
-        actionsClassName="code-pro-actions"
+        actionsClassName={`${styles.actions} code-pro-actions`}
         ariaLabel={`Code viewer controls for ${file.path}`}
         status={
           refreshedAt || selected || copyStatus ? (
             <>
               {refreshedAt ? (
-                <span className="refresh-pill">
+                <span className={`${styles.refreshPill} refresh-pill`}>
                   refreshed {new Date(refreshedAt).toLocaleTimeString()}
                 </span>
               ) : selected ? (
                 `Lines ${selected.start}-${selected.end} selected`
               ) : null}
               {copyStatus ? (
-                <span className="copy-status">{copyStatus}</span>
+                <span className={`${styles.copyStatus} copy-status`}>
+                  {copyStatus}
+                </span>
               ) : null}
             </>
           ) : undefined
@@ -196,7 +202,7 @@ export function CodeViewer({
           onToggle={onDiffToggle}
         />
       </ViewerToolbar>
-      <div className="code-scope-bar">
+      <div className={`${styles.scopeBar} code-scope-bar`}>
         <span>Current scope</span>
         <strong>
           {currentScope

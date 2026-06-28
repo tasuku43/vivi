@@ -15,6 +15,9 @@ import {
   reviewFileStateTone,
   type ReviewFileState,
 } from "../../state/review-state.js";
+import fileIconStyles from "./FileIcon.module.css";
+import sharedUiStyles from "../styles/SharedUi.module.css";
+import styles from "./TreeSidebar.module.css";
 
 interface Props {
   nodes: FsNode[];
@@ -204,26 +207,29 @@ export function TreeSidebar({
   return (
     <>
       {totalRows > boundedRows.totalVisibleRows ? (
-        <div className="tree-perf-note">
+        <div className={styles.perfNote}>
           Showing {boundedRows.totalVisibleRows} of {totalRows} rows. Expand
           folders as needed.
         </div>
       ) : null}
       {boundedRows.omittedRows > 0 ? (
-        <div className="tree-perf-note">
+        <div className={styles.perfNote}>
           Rendering {boundedRows.rows.length} of {boundedRows.totalVisibleRows}{" "}
           visible rows. Narrow with changed-only view or collapse a folder to
           see more.
         </div>
       ) : null}
       <div
-        className="tree"
+        className={styles.tree}
         role="tree"
         aria-label={workspaceTreeAriaLabel(treeSummary)}
         aria-describedby="workspace-tree-interaction-help"
         onKeyDown={handleTreeKeyDown}
       >
-        <p className="sr-only" id="workspace-tree-interaction-help">
+        <p
+          className={`${sharedUiStyles.srOnly} sr-only`}
+          id="workspace-tree-interaction-help"
+        >
           Click a file to preview it. Double-click or press Enter to keep it
           open as a tab.
         </p>
@@ -326,12 +332,13 @@ function TreeRow({
     return (
       <button
         className={[
-          "tree-row dir",
-          summary.reviewFiles ? "has-review-work" : "",
-          summary.unreadFiles ? "has-unread-work" : "",
-          summary.openFiles ? "open-in-tab" : "",
-          containsSelection ? "contains-selection" : "",
-          containsCurrentStop ? "contains-current-stop" : "",
+          styles.row,
+          styles.dir,
+          summary.reviewFiles ? styles.hasReviewWork : "",
+          summary.unreadFiles ? styles.hasUnreadWork : "",
+          summary.openFiles ? styles.openInTab : "",
+          containsSelection ? styles.containsSelection : "",
+          containsCurrentStop ? styles.containsCurrentStop : "",
         ]
           .filter(Boolean)
           .join(" ")}
@@ -355,12 +362,12 @@ function TreeRow({
         }}
         style={indent}
       >
-        <span className="tree-twisty">{expanded ? "▾" : "▸"}</span>
-        <span className="file-icon">📁</span>
-        <span className="tree-main">
-          <span className="tree-label">{node.name}</span>
+        <span className={styles.twisty}>{expanded ? "▾" : "▸"}</span>
+        <span className={`${fileIconStyles.icon} file-icon`}>📁</span>
+        <span className={styles.main}>
+          <span className={styles.label}>{node.name}</span>
           {reviewReason ? (
-            <span className="tree-review-reason" aria-hidden="true">
+            <span className={styles.reason} aria-hidden="true">
               {reviewReason}
             </span>
           ) : null}
@@ -420,14 +427,15 @@ function TreeRow({
       aria-selected={selected}
       tabIndex={active ? 0 : -1}
       className={[
-        "tree-row file",
-        selected ? "selected" : "",
-        changed ? "changed" : "",
-        review ? "has-review-work" : "",
-        unread ? "has-unread-work" : "",
-        open ? "open-in-tab" : "",
-        removed ? "removed" : "",
-        currentStop ? "current-review-stop" : "",
+        styles.row,
+        styles.file,
+        selected ? styles.selected : "",
+        changed ? styles.changed : "",
+        review ? styles.hasReviewWork : "",
+        unread ? styles.hasUnreadWork : "",
+        open ? styles.openInTab : "",
+        removed ? styles.removed : "",
+        currentStop ? styles.currentReviewStop : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -436,16 +444,21 @@ function TreeRow({
       onFocus={() => onFocusPath(node.path)}
       style={indent}
     >
-      <span className="tree-twisty" />
-      <span className="file-icon">
+      <span className={styles.twisty} />
+      <span className={`${fileIconStyles.icon} file-icon`}>
         {iconForPath(node.path, node.viewerKind)}
       </span>
-      <span className="tree-main">
-        <span className="tree-label-line">
-          <span className="tree-label">{node.name}</span>
+      <span className={styles.main}>
+        <span className={styles.labelLine}>
+          <span className={styles.label}>{node.name}</span>
           {reviewState ? (
             <span
-              className={`review-state-label ${reviewFileStateTone(reviewState)}`}
+              className={[
+                styles.reviewStateLabel,
+                styles[reviewFileStateTone(reviewState)],
+                "review-state-label",
+                reviewFileStateTone(reviewState),
+              ].join(" ")}
               title={`Review state: ${reviewFileStateLabel(reviewState)}`}
             >
               {reviewFileStateLabel(reviewState)}
@@ -453,7 +466,7 @@ function TreeRow({
           ) : null}
         </span>
         {reviewReason ? (
-          <span className="tree-review-reason" aria-hidden="true">
+          <span className={styles.reason} aria-hidden="true">
             {reviewReason}
           </span>
         ) : null}
@@ -714,12 +727,12 @@ function TreeBadges({
   )
     return null;
   return (
-    <span className="tree-badges">
+    <span className={styles.badges}>
       {unreadFiles ? (
         <>
-          <span className="tree-unread-dot" aria-hidden="true" />
+          <span className={styles.unreadDot} aria-hidden="true" />
           <span
-            className="tree-badge attention"
+            className={`${styles.badge} ${styles.attention}`}
             title={countPhrase(unreadFiles, "attention item")}
           >
             {unreadFiles > 1 ? unreadFiles : "!"}
@@ -727,13 +740,13 @@ function TreeBadges({
         </>
       ) : null}
       {currentStop ? (
-        <span className="tree-badge current" title="Current review stop">
+        <span className={`${styles.badge} ${styles.current}`} title="Current review stop">
           now
         </span>
       ) : null}
       {open ? (
         <span
-          className="tree-badge open"
+          className={`${styles.badge} ${styles.open}`}
           title={countPhrase(openFiles || 1, "open tab")}
         >
           open{openFiles > 1 ? ` ${openFiles}` : ""}
@@ -741,19 +754,19 @@ function TreeBadges({
       ) : null}
       {reviewFiles ? (
         <span
-          className="tree-badge review"
+          className={`${styles.badge} ${styles.review}`}
           title={countPhrase(reviewFiles, "review file")}
         >
           rev{reviewFiles > 1 ? ` ${reviewFiles}` : ""}
         </span>
       ) : null}
       {changed && showChangedBadge ? (
-        <span className="tree-badge changed" title="Changed">
+        <span className={`${styles.badge} ${styles.changedBadge}`} title="Changed">
           mod
         </span>
       ) : null}
       {loading ? (
-        <span className="tree-badge loading" title="Loading">
+        <span className={`${styles.badge} ${styles.loading}`} title="Loading">
           ...
         </span>
       ) : null}

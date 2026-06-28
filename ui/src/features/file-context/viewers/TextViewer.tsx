@@ -18,6 +18,7 @@ import {
   ViewerToolbar,
 } from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
+import surfaceStyles from "./ViewerSurface.module.css";
 
 export function TextViewer({
   file,
@@ -68,7 +69,7 @@ export function TextViewer({
     });
   };
   return (
-    <section className="text-viewer">
+    <section className={`${surfaceStyles.textViewer} text-viewer`}>
       <ViewerToolbar
         ariaLabel={`Text viewer controls for ${file.path}`}
         status="Plain text"
@@ -98,7 +99,11 @@ export function TextViewer({
       ) : (
         <CommentedSourceLines
           content={file.content}
-          className={wrap ? "plain-text wrap" : "plain-text no-wrap"}
+          className={
+            wrap
+              ? `${surfaceStyles.plainText} plain-text wrap`
+              : `${surfaceStyles.plainText} ${surfaceStyles.plainTextNoWrap} plain-text no-wrap`
+          }
           containerRef={sourceRef}
           focusLineNumber={focusLineNumber}
           focusRevision={focusRevision}

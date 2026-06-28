@@ -1,0 +1,42 @@
+.notice {
+  position: fixed;
+  right: 16px;
+  bottom: 42px;
+  z-index: 20;
+  max-width: min(420px, calc(100vw - 32px));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--palette);
+  box-shadow: 0 18px 40px var(--shadow);
+  color: var(--muted);
+  padding: 10px;
+  font-size: 12px;
+}
+
+.copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.copy strong {
+  color: var(--text);
+}
+
+.notice button {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+  padding: 6px 8px;
+}
+
+.dismiss {
+  width: 28px;
+  padding-inline: 0;
+}

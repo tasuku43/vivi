@@ -7,6 +7,8 @@ import {
   storyNow,
 } from "../../storybook/fixtures/review-lab.js";
 import { CommentsPanel } from "./components/CommentsPanel.js";
+import activityStyles from "./components/CommentActivity.module.css";
+import sharedUiStyles from "../../shared/styles/SharedUi.module.css";
 
 const meta = {
   title: "Review/Activity States",
@@ -21,10 +23,14 @@ type Story = StoryObj<typeof meta>;
 
 export const ActivityIndicatorList: Story = {
   render: () => (
-    <section style={{ padding: 24 }}>
-      <div className="panel-title">
+    <section className={activityStyles.activityStyles} style={{ padding: 24 }}>
+      <div className={`${sharedUiStyles.panelTitle} panel-title`}>
         <span>Activity</span>
-        <span className="pill active">watch</span>
+        <span
+          className={`${sharedUiStyles.pill} ${sharedUiStyles.pillActive} pill active`}
+        >
+          watch
+        </span>
       </div>
       <div className="comment-activity-timeline inspector-timeline">
         <ol>
@@ -56,11 +62,17 @@ export const UnreadActivityPresent: Story = {
 export const CommentsWatchDisconnected: Story = {
   render: () => (
     <section style={{ padding: 24 }}>
-      <div className="panel-title">
+      <div className={`${sharedUiStyles.panelTitle} panel-title`}>
         <span>Activity</span>
-        <span className="pill active">offline</span>
+        <span
+          className={`${sharedUiStyles.pill} ${sharedUiStyles.pillActive} pill active`}
+        >
+          offline
+        </span>
       </div>
-      <p className="muted compact-empty">
+      <p
+        className={`${activityStyles.compactEmpty} ${sharedUiStyles.muted} muted compact-empty`}
+      >
         Comment activity subscription disconnected; showing last known thread
         states.
       </p>

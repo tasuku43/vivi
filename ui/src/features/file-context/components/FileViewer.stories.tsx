@@ -10,6 +10,7 @@ import {
   extractMarkdownOutline,
 } from "../../../state/outline.js";
 import { FileViewer } from "./FileViewer.js";
+import styles from "./FileViewer.module.css";
 
 const meta = {
   title: "Files/Viewer Coverage States",
@@ -266,11 +267,11 @@ export const ViewerToolbarChromeConsistency: Story = {
 export const ViewerToolbarStickyByExtension: Story = {
   tags: ["interaction"],
   render: (args) => (
-    <div className="toolbar-sticky-matrix">
+    <div className={`${styles.toolbarStickyMatrix} toolbar-sticky-matrix`}>
       {toolbarStickyCases.map((item) => (
         <section
           aria-label={`${item.extension} sticky toolbar case`}
-          className="toolbar-sticky-case"
+          className={`${styles.toolbarStickyCase} toolbar-sticky-case`}
           data-toolbar-sticky-case={item.extension}
           key={item.extension}
         >
@@ -278,7 +279,7 @@ export const ViewerToolbarStickyByExtension: Story = {
             <strong>{item.extension}</strong>
             <span>{item.file.path}</span>
           </header>
-          <div className="toolbar-sticky-scroll">
+          <div className={`${styles.toolbarStickyScroll} toolbar-sticky-scroll`}>
             <FileViewer
               {...args}
               file={item.file}

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import sharedUiStyles from "../../shared/styles/SharedUi.module.css";
 
 export interface WorkbenchViewProps {
   sidebar: ReactNode;
@@ -13,12 +14,18 @@ export function WorkbenchView({
   inspector,
 }: WorkbenchViewProps) {
   return (
-    <div className="workbench-shell">
-      <aside className="sidebar" aria-label="File explorer">
+    <div className={`${sharedUiStyles.sharedUiStyles} workbench-shell`}>
+      <aside
+        className={`${sharedUiStyles.sidebar} sidebar`}
+        aria-label="File explorer"
+      >
         {sidebar}
       </aside>
       <main className="viewer-shell">{viewer}</main>
-      <aside className="inspector" aria-label="Review inspector">
+      <aside
+        className={`${sharedUiStyles.inspector} inspector`}
+        aria-label="Review inspector"
+      >
         {inspector}
       </aside>
     </div>

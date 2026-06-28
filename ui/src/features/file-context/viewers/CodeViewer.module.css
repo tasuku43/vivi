@@ -1,0 +1,81 @@
+.codePro {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: var(--code);
+}
+
+.actions {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.actions > button {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 5px 8px;
+}
+
+.copyStatus,
+.refreshPill {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.copyStatus {
+  margin-left: 8px;
+}
+
+.refreshPill {
+  border: 1px solid rgba(224, 175, 104, 0.34);
+  border-radius: 999px;
+  background: rgba(224, 175, 104, 0.1);
+  color: var(--warn);
+  padding: 4px 7px;
+}
+
+.scopeBar {
+  position: sticky;
+  top: 42px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--soft-line);
+  background: color-mix(in srgb, var(--code) 92%, var(--panel));
+  color: var(--muted);
+  font-size: 12px;
+  padding: 8px 14px;
+}
+
+.scopeBar strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codePro :global(.diff-viewer) {
+  min-height: 0;
+}
+
+.codePro :global(.diff-viewer .diff-preview) {
+  margin: 0;
+  border-radius: 0;
+  border-top: 1px solid var(--soft-line);
+}
+
+.codePro :global(.diff-viewer .diff-viewer-status) {
+  top: 77px;
+  z-index: 3;
+  border-inline: 0;
+  border-radius: 0;
+}

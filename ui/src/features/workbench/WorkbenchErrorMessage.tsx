@@ -1,3 +1,5 @@
+import viewerMessageStyles from "../../shared/components/ViewerMessage.module.css";
+
 export interface WorkbenchErrorMessageProps {
   error: string;
   path?: string | null;
@@ -11,7 +13,10 @@ export function WorkbenchErrorMessage({
 }: WorkbenchErrorMessageProps) {
   const content = workbenchErrorContent(error, { path, sourceMissing });
   return (
-    <div className="viewer-error" role="alert">
+    <div
+      className={`${viewerMessageStyles.error} viewer-error`}
+      role="alert"
+    >
       <strong>{content.title}</strong>
       <span>{content.detail}</span>
     </div>

@@ -15,9 +15,9 @@ it("keeps the classic sidebar, viewer, and inspector regions decomposed", () => 
     />,
   );
 
-  expect(html).toContain('class="sidebar"');
+  expect(html).toMatch(/class="[^"]*\bsidebar\b[^"]*"/);
   expect(html).toContain('class="viewer-shell"');
-  expect(html).toContain('class="inspector"');
+  expect(html).toMatch(/class="[^"]*\binspector\b[^"]*"/);
   expect(html).toContain("File tree");
   expect(html).toContain("Active file");
   expect(html).toContain("Review queue");
@@ -28,13 +28,42 @@ it("keeps viewer headers sticky while file content scrolls", () => {
     new URL("../ui/src/styles.css", import.meta.url),
     "utf8",
   );
-
-  expect(css).toMatch(
-    /\.viewer-toolbar\s*\{[^}]*position:\s*sticky;[^}]*top:\s*0;/s,
+  const viewerToolbarCss = readFileSync(
+    new URL(
+      "../ui/src/features/file-context/components/ViewerControlButton.module.css",
+      import.meta.url,
+    ),
+    "utf8",
   );
-  expect(css).toMatch(/\.text-viewer > :not\(\.viewer-toolbar\)/);
+  const viewerSurfaceCss = readFileSync(
+    new URL(
+      "../ui/src/features/file-context/viewers/ViewerSurface.module.css",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const diffViewerCss = readFileSync(
+    new URL(
+      "../ui/src/features/file-context/viewers/DiffViewer.module.css",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  expect(viewerToolbarCss).toMatch(
+    /\.toolbar\s*\{[^}]*position:\s*sticky;[^}]*top:\s*0;/s,
+  );
+  expect(viewerSurfaceCss).toMatch(
+    /\.textViewer > :not\(:global\(\.viewer-toolbar\)\)/,
+  );
   expect(css).not.toMatch(/\.text-toolbar,\s*\n\.code-pro-header/);
-  expect(css).toMatch(/\.diff-viewer-status\s*\{[^}]*position:\s*sticky;/s);
+  expect(css).not.toMatch(/\.diff-viewer-status\s*\{[^}]*position:\s*sticky;/s);
+  expect(diffViewerCss).toMatch(
+    /:global\(\.diff-viewer-status\)\s*\{[^}]*position:\s*sticky;/s,
+  );
+  expect(viewerSurfaceCss).toMatch(
+    /\.textViewer > :global\(\.diff-viewer\) :global\(\.diff-viewer-status\),[\s\S]*?\{[^}]*top:\s*54px;/,
+  );
 });
 
 it("keeps inspector header focused on status instead of duplicate collapse controls", () => {

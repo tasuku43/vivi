@@ -6,6 +6,8 @@ import {
   statusLabel,
   truncateCommentPreview,
 } from "../../../state/comments.js";
+import { CommentStatusBadge } from "./CommentStatusBadge.js";
+import styles from "./InlineCommentCard.module.css";
 
 export function InlineCommentCard({
   comment,
@@ -62,11 +64,12 @@ export function InlineCommentCard({
     { width: 340, height: 220 },
   );
   const placed = position ?? fallback;
+  const arrowClass = arrowClassNames[placed.arrow];
 
   return (
     <article
       ref={cardRef}
-      className={`inline-comment-card points-${placed.arrow}`}
+      className={`${styles.card} ${arrowClass} inline-comment-card points-${placed.arrow}`}
       style={
         {
           left: placed.left,
@@ -79,25 +82,30 @@ export function InlineCommentCard({
       aria-label="Comment"
       tabIndex={-1}
     >
-      <div className="inline-comment-top">
-        <div>
-          <strong>{comment.path}</strong>
-          <span>{commentLineLabel(comment)}</span>
+      <div className={`${styles.top} inline-comment-top`}>
+        <div className={styles.topContent}>
+          <strong className={styles.path}>{comment.path}</strong>
+          <span className={styles.lineLabel}>{commentLineLabel(comment)}</span>
         </div>
-        <button type="button" aria-label="Close comment" onClick={onClose}>
+        <button
+          className={styles.closeButton}
+          type="button"
+          aria-label="Close comment"
+          onClick={onClose}
+        >
           ×
         </button>
       </div>
-      <span className={`comment-status ${comment.status}`}>
+      <CommentStatusBadge status={comment.status}>
         {statusLabel(comment.status)}
-      </span>
-      <p>{comment.body}</p>
+      </CommentStatusBadge>
+      <p className={styles.body}>{comment.body}</p>
       {comment.anchor.canonical.quote ? (
-        <blockquote>
+        <blockquote className={styles.quote}>
           {truncateCommentPreview(comment.anchor.canonical.quote, 180)}
         </blockquote>
       ) : null}
-      <div className="inline-comment-actions">
+      <div className={`${styles.actions} inline-comment-actions`}>
         <button
           disabled={comment.status === "open"}
           type="button"
@@ -123,6 +131,13 @@ export function InlineCommentCard({
     </article>
   );
 }
+
+const arrowClassNames: Record<InlineCommentCardPosition["arrow"], string> = {
+  left: styles.pointsLeft,
+  right: styles.pointsRight,
+  top: styles.pointsTop,
+  bottom: styles.pointsBottom,
+};
 
 function isTopbarTarget(target: Node | null): boolean {
   return target instanceof Element && Boolean(target.closest(".topbar"));

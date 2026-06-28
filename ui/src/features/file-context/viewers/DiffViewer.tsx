@@ -26,8 +26,12 @@ import {
 import { languageForPath } from "../../../state/file-icons.js";
 import type { ResolvedTheme } from "../../../state/theme.js";
 import { CodeCommentThread } from "../../comments/components/CodeCommentThread.js";
+import railStyles from "../../comments/components/LineCommentRail.module.css";
 import { SelectionCommentComposer } from "../../comments/components/SelectionCommentComposer.js";
+import sharedUiStyles from "../../../shared/styles/SharedUi.module.css";
 import { renderMarkdownDocumentHtml } from "../rendering/markdown-rendering.js";
+import styles from "./DiffViewer.module.css";
+import "./RenderedMarkdown.module.css";
 
 type RenderKind = "source" | "markdown" | "html";
 type VisibleDiffLine = ParsedDiffLine & {
@@ -75,14 +79,19 @@ export function DiffViewer({
   threadActivities?: Record<string, CommentActivitySummary>;
 }) {
   return (
-    <section className="diff-viewer" aria-label={`Diff from HEAD for ${path}`}>
+    <section
+      className={`${styles.diffViewer} ${railStyles.lineCommentRailStyles} diff-viewer`}
+      aria-label={`Diff from HEAD for ${path}`}
+    >
       <div className="diff-viewer-status">
         <div className="diff-viewer-status-main">
           <span>Status</span>
           <strong>{loading ? "Loading diff..." : diffStatusLabel(diff)}</strong>
         </div>
       </div>
-      {diff?.reason ? <p className="muted">{diff.reason}</p> : null}
+      {diff?.reason ? (
+        <p className={`${sharedUiStyles.muted} muted`}>{diff.reason}</p>
+      ) : null}
       {diff?.status === "available" ? (
         renderKind === "source" ? (
           <SourceDiff
@@ -560,7 +569,11 @@ function RenderedDiff({
   );
   const displayRows = buildFocusedRenderedDiffRows(rows);
   if (!rows.some((line) => line.kind === "add" || line.kind === "remove")) {
-    return <p className="muted">No rendered changes are available.</p>;
+    return (
+      <p className={`${sharedUiStyles.muted} muted`}>
+        No rendered changes are available.
+      </p>
+    );
   }
 
   if (renderKind === "markdown") {

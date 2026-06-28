@@ -9,6 +9,7 @@ ui/public/vivi/vendor/mermaid.min.js
 ui/storybook-static/
 coverage/
 artifacts/perf/
+artifacts/storybook-snapshots/
 .vite/
 .DS_Store
 *.log

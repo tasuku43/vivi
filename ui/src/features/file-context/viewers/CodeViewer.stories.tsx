@@ -10,6 +10,7 @@ import {
   sampleFiles,
   sampleThreadActivities,
 } from "../../../storybook/fixtures/review-lab.js";
+import workbenchStyles from "../../workbench/WorkbenchContainer.module.css";
 import { CodeViewer } from "./CodeViewer.js";
 
 const meta = {
@@ -381,7 +382,8 @@ export const NarrowInlineCommentDraft: Story = {
   },
   render: (args) => (
     <div
-      className="viewer-pane"
+      className={workbenchStyles.viewerPane}
+      data-viewer-pane
       style={{
         width: 520,
         height: 620,
@@ -406,7 +408,8 @@ export const NarrowInlineCommentDraft: Story = {
     await userEvent.click(lineAction!);
     await expect(canvas.getByLabelText("New line comment")).toBeVisible();
 
-    const viewerPane = canvasElement.querySelector<HTMLElement>(".viewer-pane");
+    const viewerPane =
+      canvasElement.querySelector<HTMLElement>("[data-viewer-pane]");
     const thread = canvasElement.querySelector<HTMLElement>(
       ".code-comment-thread",
     );

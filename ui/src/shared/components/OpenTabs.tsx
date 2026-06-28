@@ -2,6 +2,8 @@ import type { KeyboardEvent } from "react";
 import type { OpenTab } from "../../state/tabs.js";
 import { iconForPath } from "../../state/file-icons.js";
 import { tabKeyboardAction } from "../../state/tab-navigation.js";
+import fileIconStyles from "./FileIcon.module.css";
+import styles from "./OpenTabs.module.css";
 
 export type { OpenTab };
 export interface DraggedTabPayload {
@@ -89,7 +91,7 @@ export function OpenTabs({
 
   return (
     <div
-      className="tabs"
+      className={styles.tabs}
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
         event.preventDefault();
@@ -98,7 +100,7 @@ export function OpenTabs({
       }}
     >
       <div
-        className="tab-strip"
+        className={styles.strip}
         role="tablist"
         aria-label={tabListLabel}
         onKeyDown={handleTabKeyDown}
@@ -112,12 +114,12 @@ export function OpenTabs({
             <div
               key={tab.path}
               className={[
-                "tab-shell",
-                tab.path === activePath ? "active" : "",
-                tab.changed ? "changed" : "",
-                tab.removed ? "removed" : "",
-                tab.isPreview ? "preview" : "",
-                context ? "duplicate-name" : "",
+                styles.shell,
+                tab.path === activePath ? styles.active : "",
+                tab.changed ? styles.changed : "",
+                tab.removed ? styles.removed : "",
+                tab.isPreview ? styles.preview : "",
+                context ? styles.duplicateName : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
@@ -132,7 +134,7 @@ export function OpenTabs({
               }}
             >
               <button
-                className="tab"
+                className={styles.tab}
                 type="button"
                 role="tab"
                 aria-selected={tab.path === activePath}
@@ -157,32 +159,32 @@ export function OpenTabs({
                 }}
                 onDragEnd={() => onDragStateChange(false)}
               >
-                <span className="tab-main" aria-hidden="true">
-                  <span className="file-icon">
+                <span className={styles.main} aria-hidden="true">
+                  <span className={`${fileIconStyles.icon} file-icon`}>
                     {iconForPath(tab.path, tab.viewerKind)}
                   </span>
-                  <span className="tab-title-stack">
-                    <span className="tab-title">{title}</span>
+                  <span className={styles.titleStack}>
+                    <span className={styles.title}>{title}</span>
                     {context ? (
-                      <span className="tab-context" aria-hidden="true">
+                      <span className={styles.context} aria-hidden="true">
                         {context}
                       </span>
                     ) : null}
                   </span>
                   {tab.isPreview ? (
-                    <span className="tab-preview-mark" title="Preview tab">
+                    <span className={styles.previewMark} title="Preview tab">
                       preview
                     </span>
                   ) : null}
                   {tab.removed ? (
-                    <span className="tab-removed-mark" title="Removed from disk">
+                    <span className={styles.removedMark} title="Removed from disk">
                       removed
                     </span>
                   ) : null}
                 </span>
               </button>
               <button
-                className="tab-close"
+                className={styles.close}
                 type="button"
                 aria-label={`Close ${tab.path}`}
                 onClick={(event) => {
@@ -196,7 +198,7 @@ export function OpenTabs({
           );
         })}
       </div>
-      <div className="tab-actions" aria-label="Tab management">
+      <div className={styles.actions} aria-label="Tab management">
         <button
           aria-label={tabActionLabels.keep.description}
           disabled={!activeTab?.isPreview}

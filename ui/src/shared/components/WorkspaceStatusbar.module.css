@@ -1,0 +1,64 @@
+.statusbar {
+  display: grid;
+  grid-template-columns:
+    minmax(130px, 1fr) minmax(130px, 1.05fr) minmax(130px, 1fr)
+    minmax(160px, 1.1fr);
+  align-items: center;
+  gap: 12px;
+  background: var(--chrome);
+  padding: 0 14px;
+  border-top: 1px solid var(--line);
+  border-bottom: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.group {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group:nth-child(2) {
+  justify-content: center;
+}
+
+.group:last-child {
+  justify-content: flex-end;
+}
+
+.label {
+  flex: 0 0 auto;
+  color: var(--subtle);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.live {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.pending {
+  background: var(--warn);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 18%, transparent);
+}
+
+.offline {
+  background: var(--error);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--error) 18%, transparent);
+}

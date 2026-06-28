@@ -23,7 +23,9 @@ import {
   ViewerToolbar,
   ViewerModeButton,
 } from "../components/ViewerControlButton.js";
+import sharedUiStyles from "../../../shared/styles/SharedUi.module.css";
 import { DiffViewer } from "./DiffViewer.js";
+import surfaceStyles from "./ViewerSurface.module.css";
 
 export { hasCustomMermaidStyle } from "../../../domain/mermaid-preview.js";
 export {
@@ -84,9 +86,12 @@ export function MermaidViewer({
   };
 
   return (
-    <section className="mermaid-viewer">
+    <section className={`${surfaceStyles.mermaidViewer} mermaid-viewer`}>
       <ViewerToolbar status="Mermaid preview · strict security">
-        <div className="segmented-control" aria-label="Mermaid view mode">
+        <div
+          className={`${surfaceStyles.segmentedControl} segmented-control`}
+          aria-label="Mermaid view mode"
+        >
           <ViewerModeButton
             active={mode === "preview"}
             mode="preview"
@@ -124,22 +129,30 @@ export function MermaidViewer({
           onOpenComment={onOpenComment}
         />
       ) : mode === "preview" ? (
-        <div className="mermaid-render-surface">
+        <div
+          className={`${surfaceStyles.mermaidRenderSurface} mermaid-render-surface`}
+        >
           <div
-            className={`mermaid-render-target ${status}`}
+            className={`mermaid-render-target ${status} ${surfaceStyles.mermaidRenderTarget} ${
+              status === "rendered"
+                ? surfaceStyles.mermaidRenderTargetRendered
+                : ""
+            }`}
             ref={containerRef}
           />
           {status === "loading" ? (
-            <p className="muted">Rendering Mermaid diagram...</p>
+            <p className={`${sharedUiStyles.muted} muted`}>
+              Rendering Mermaid diagram...
+            </p>
           ) : null}
           {status === "error" ? (
-            <div className="unsupported">
+            <div className={`${surfaceStyles.unsupported} unsupported`}>
               <h2>{file.path}</h2>
               <p>{error ?? "Mermaid could not render this diagram."}</p>
             </div>
           ) : null}
           {status === "fallback" ? (
-            <div className="unsupported">
+            <div className={`${surfaceStyles.unsupported} unsupported`}>
               <h2>{file.path}</h2>
               <p>
                 Mermaid could not render this diagram. The source view is still
@@ -151,7 +164,7 @@ export function MermaidViewer({
       ) : (
         <CommentedSourceLines
           content={file.content}
-          className="markdown-source"
+          className={`markdown-source ${surfaceStyles.markdownSource}`}
           containerRef={sourceRef}
           comments={comments}
           activeCommentId={activeCommentId}

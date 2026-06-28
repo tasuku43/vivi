@@ -1,0 +1,9 @@
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+}

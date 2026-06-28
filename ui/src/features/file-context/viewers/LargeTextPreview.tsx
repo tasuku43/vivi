@@ -1,11 +1,14 @@
 import { useState } from "react";
 import type { FilePayload } from "../../../domain/fs-node.js";
 import { ViewerToolbar } from "../components/ViewerControlButton.js";
+import surfaceStyles from "./ViewerSurface.module.css";
 
 export function LargeTextPreview({ file }: { file: FilePayload }) {
   const [wrap, setWrap] = useState(true);
   return (
-    <section className="text-viewer large-text-preview">
+    <section
+      className={`${surfaceStyles.textViewer} text-viewer large-text-preview`}
+    >
       <ViewerToolbar
         ariaLabel={`Large text viewer controls for ${file.path}`}
         status={
@@ -19,11 +22,17 @@ export function LargeTextPreview({ file }: { file: FilePayload }) {
           {wrap ? "No wrap" : "Wrap"}
         </button>
       </ViewerToolbar>
-      <div className="large-preview-note">
+      <div className={`${surfaceStyles.largePreviewNote} large-preview-note`}>
         This file is larger than the {formatBytes(file.maxSizeBytes ?? 0)} rich
         preview limit, so Vivi is showing the first readable chunk only.
       </div>
-      <pre className={wrap ? "plain-text wrap" : "plain-text no-wrap"}>
+      <pre
+        className={
+          wrap
+            ? `${surfaceStyles.plainText} ${surfaceStyles.plainTextBlock} plain-text wrap`
+            : `${surfaceStyles.plainText} ${surfaceStyles.plainTextBlock} ${surfaceStyles.plainTextNoWrap} plain-text no-wrap`
+        }
+      >
         {file.content}
       </pre>
     </section>

@@ -21,6 +21,7 @@ import {
   storyNow,
   unknownCodingAgent,
 } from "../../storybook/fixtures/review-lab.js";
+import sharedUiStyles from "../../shared/styles/SharedUi.module.css";
 import { Inspector } from "./Inspector.js";
 
 const noop = () => undefined;
@@ -780,14 +781,19 @@ function InReviewThreadExpansionFacade() {
   ];
 
   return (
-    <aside className="inspector" aria-label="Review inspector">
-      <div className="panel-title review-panel-title">
+    <aside
+      className={`${sharedUiStyles.inspector} inspector`}
+      aria-label="Review inspector"
+    >
+      <div
+        className={`${sharedUiStyles.panelTitle} panel-title review-panel-title`}
+      >
         <span className="review-panel-heading">
           <span>Review</span>
           <strong>2 need action</strong>
         </span>
         <button
-          className="command-button command-button-secondary review-next-action"
+          className={`${sharedUiStyles.commandButton} ${sharedUiStyles.commandButtonSecondary} command-button command-button-secondary review-next-action`}
           type="button"
         >
           Next
@@ -825,7 +831,10 @@ function InReviewThreadExpansionFacade() {
                   type="button"
                   aria-label="Review queue item, modified README.md"
                 >
-                  <span className="unread-dot muted" aria-hidden="true" />
+                  <span
+                    className={`${sharedUiStyles.muted} unread-dot muted`}
+                    aria-hidden="true"
+                  />
                   <span className="change-main">
                     <span className="change-heading">
                       <span className="change-kind">MD</span>
@@ -857,7 +866,10 @@ function InReviewThreadExpansionFacade() {
                     aria-label="Review queue item, modified docs/product-review.md, current review file"
                     onClick={() => setOpenedFile("docs/product-review.md")}
                   >
-                    <span className="unread-dot muted" aria-hidden="true" />
+                    <span
+                      className={`${sharedUiStyles.muted} unread-dot muted`}
+                      aria-hidden="true"
+                    />
                     <span className="change-main">
                       <span className="change-heading">
                         <span className="change-kind">MD</span>
@@ -978,10 +990,18 @@ function InReviewThreadExpansionFacade() {
               </summary>
             </details>
           </div>
-          <p className="sr-only" role="status" aria-label="Opened file">
+          <p
+            className={`${sharedUiStyles.srOnly} sr-only`}
+            role="status"
+            aria-label="Opened file"
+          >
             {openedFile ?? "No file opened"}
           </p>
-          <p className="sr-only" role="status" aria-label="Opened thread">
+          <p
+            className={`${sharedUiStyles.srOnly} sr-only`}
+            role="status"
+            aria-label="Opened thread"
+          >
             {openedThread ?? "No thread opened"}
           </p>
         </div>

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { CommentDraft } from "../../../state/comments.js";
 import { commentLineLabelForAnchor } from "../../../state/comments.js";
+import styles from "./SelectionCommentComposer.module.css";
 
 const composerWidth = 384;
 const composerMargin = 12;
@@ -120,6 +121,7 @@ export function SelectionCommentComposer({
   }, [draft, onDismiss]);
 
   if (!draft || !rect || !onSave) return null;
+  const placement = position?.placement ?? "below";
 
   const save = () => {
     const trimmed = body.trim();
@@ -130,7 +132,7 @@ export function SelectionCommentComposer({
   return (
     <form
       ref={composerRef}
-      className={`selection-comment-composer ${position?.placement ?? "below"}`}
+      className={`${styles.composer} selection-comment-composer ${styles[placement]} ${placement}`}
       aria-label="New comment"
       style={
         {
@@ -145,7 +147,7 @@ export function SelectionCommentComposer({
         save();
       }}
     >
-      <div className="selection-comment-meta">
+      <div className={`${styles.meta} selection-comment-meta`}>
         <strong>{draft.path}</strong>
         <span>{commentLineLabelForAnchor(draft.anchor.canonical)}</span>
       </div>
@@ -164,7 +166,7 @@ export function SelectionCommentComposer({
           }
         }}
       />
-      <div className="selection-comment-footer">
+      <div className={`${styles.footer} selection-comment-footer`}>
         <span>Shift+Enter to save draft</span>
         <div>
           <button type="button" onClick={onDismiss}>

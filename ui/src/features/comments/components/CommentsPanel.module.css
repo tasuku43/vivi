@@ -1,0 +1,618 @@
+:local(.panelRoot) {
+    --comments-panel-module: 1;
+}
+
+:global(.global-comments-head button) {
+    width: 30px;
+    height: 28px;
+    border: 1px solid var(--soft-line);
+    border-radius: 7px;
+    background: var(--panel);
+    color: var(--muted);
+    cursor: pointer;
+    font: inherit;
+}
+
+:global(.global-comment-quote) {
+    border-left: 2px solid var(--line);
+    color: var(--muted);
+}
+
+.anchorWarning {
+    flex: 0 0 auto;
+    border: 1px solid color-mix(in srgb, var(--warn) 56%, var(--soft-line));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--warn) 12%, transparent);
+    color: var(--warn);
+    font-size: 11px;
+    font-weight: 760;
+    padding: 2px 7px;
+    white-space: nowrap;
+}
+
+:global(.global-comments-panel) {
+    position: fixed;
+    z-index: 70;
+    top: 56px;
+    right: 18px;
+    width: min(560px, calc(100vw - 36px));
+    max-height: calc(100vh - 92px);
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--line) 78%, white);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--palette) 94%, var(--panel));
+    box-shadow: 0 34px 90px var(--shadow);
+}
+
+:global(.global-comments-head) {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--line);
+    padding: 15px 16px 12px;
+}
+
+:global(.global-comments-head h2) {
+    margin: 0 0 3px;
+    font-size: 16px;
+}
+
+:global(.global-comments-eyebrow) {
+    margin: 0 0 4px;
+    color: var(--comment-text);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+:global(.global-comments-head p) {
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+:global(.global-comments-overview) {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    border-bottom: 1px solid var(--soft-line);
+    padding: 10px 16px;
+}
+
+:global(.global-comments-overview button) {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    border: 1px solid var(--soft-line);
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--panel) 82%, transparent);
+    color: var(--muted);
+    cursor: pointer;
+    font: inherit;
+    padding: 9px 10px;
+    text-align: left;
+}
+
+:global(.global-comments-overview button strong) {
+    color: var(--text);
+    font-size: 18px;
+    line-height: 1;
+}
+
+:global(.global-comments-overview button span) {
+    overflow: hidden;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+:global(.global-comments-overview button.active),
+:global(.global-comments-overview button:hover),
+:global(.global-comments-overview button:focus-visible) {
+    border-color: var(--comment-line);
+    background: var(--comment-tint);
+    color: var(--comment-text);
+    outline: 0;
+}
+
+:global(.global-comments-overview button.attention.active),
+:global(.global-comments-overview button.attention:hover),
+:global(.global-comments-overview button.attention:focus-visible) {
+    border-color: color-mix(in srgb, var(--warn) 54%, var(--soft-line));
+    background: color-mix(in srgb, var(--warn) 14%, transparent);
+    color: var(--warn);
+}
+
+:global(.global-comments-tools) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 9px;
+    border-bottom: 1px solid var(--soft-line);
+    background: color-mix(in srgb, var(--panel) 54%, transparent);
+    padding: 10px 16px;
+}
+
+:global(.global-comments-search-control) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px;
+    min-width: 0;
+}
+
+:global(.global-comments-search-control input) {
+    min-width: 0;
+    height: 34px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--code);
+    color: var(--text);
+    outline: 0;
+    padding: 0 10px;
+}
+
+:global(.global-comments-clear-search) {
+    height: 34px;
+    border: 1px solid var(--soft-line);
+    border-radius: 8px;
+    background: var(--panel);
+    color: var(--muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 760;
+    padding: 0 10px;
+}
+
+:global(.global-comments-clear-search:hover),
+:global(.global-comments-clear-search:focus-visible) {
+    border-color: var(--comment-line);
+    background: var(--comment-tint);
+    color: var(--comment-text);
+    outline: 0;
+}
+
+:global(.global-comments-results) {
+    border-bottom: 1px solid var(--soft-line);
+    color: var(--muted);
+    font-size: 11px;
+    padding: 7px 16px;
+}
+
+:global(.global-draft-publish) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 12px;
+    align-items: center;
+    border-bottom: 1px solid var(--soft-line);
+    background: var(--comment-tint);
+    padding: 10px 16px;
+}
+
+:global(.global-draft-publish div) {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+:global(.global-draft-publish strong) {
+    color: var(--comment-text);
+}
+
+:global(.global-draft-publish span),
+:global(.global-draft-message) {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+:global(.global-draft-publish button) {
+    border: 0;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--comment-text) 84%, white);
+    color: #11091c;
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 820;
+    padding: 8px 10px;
+}
+
+:global(.global-draft-publish button:disabled) {
+    cursor: default;
+    opacity: 0.58;
+}
+
+:global(.global-draft-message) {
+    grid-column: 1 / -1;
+    margin: 0;
+}
+
+:global(.global-draft-message.error) {
+    color: var(--error);
+}
+
+:global(.global-draft-message.success) {
+    color: var(--accent);
+}
+
+:global(.global-comments-current-stop) {
+    display: grid;
+    grid-template-columns: 10px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--soft-line);
+    background: color-mix(in srgb, var(--accent-faint) 54%, var(--panel));
+    padding: 10px 16px;
+}
+
+:global(.global-comments-current-dot) {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+:global(.global-comments-current-main) {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+:global(.global-comments-current-main strong),
+:global(.global-comments-current-main span) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+:global(.global-comments-current-main strong) {
+    color: var(--text);
+    font-size: 13px;
+}
+
+:global(.global-comments-current-main span) {
+    color: var(--muted);
+    font-size: 11px;
+}
+
+:global(.global-comments-current-kicker) {
+    color: var(--accent);
+    font-weight: 820;
+    text-transform: uppercase;
+}
+
+:global(.global-comments-current-actions) {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+    min-width: 0;
+}
+
+:global(.global-comments-current-stop button) {
+    border: 1px solid var(--accent-line);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--accent-soft) 72%, var(--panel));
+    color: var(--accent);
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 760;
+    padding: 7px 10px;
+}
+
+:global(.global-comments-current-stop button:hover),
+:global(.global-comments-current-stop button:focus-visible) {
+    background: var(--accent-soft);
+    outline: 0;
+}
+
+:global(.global-comment-filters) {
+    display: flex;
+    gap: 6px;
+}
+
+:global(.global-comment-filters button) {
+    border: 1px solid var(--soft-line);
+    border-radius: 8px;
+    background: var(--panel);
+    color: var(--muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    padding: 0 9px;
+}
+
+:global(.global-comment-filters button.active) {
+    border-color: var(--comment-line);
+    background: var(--comment-tint);
+    color: var(--comment-text);
+}
+
+:global(.global-comments-list) {
+    display: grid;
+    gap: 8px;
+    max-height: min(520px, calc(100vh - 230px));
+    overflow: auto;
+    padding: 12px 16px 14px;
+}
+
+:global(.global-comment-listitem) {
+    min-width: 0;
+}
+
+:global(.global-comment-row-actions) {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 5px;
+}
+
+:global(.global-comment-row-actions button) {
+    border: 1px solid var(--soft-line);
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--panel) 78%, transparent);
+    color: var(--muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 720;
+    padding: 5px 8px;
+}
+
+:global(.global-comment-row-actions button:hover),
+:global(.global-comment-row-actions button:focus-visible) {
+    border-color: var(--comment-line);
+    background: var(--comment-tint);
+    color: var(--comment-text);
+    outline: 0;
+}
+
+:global(.global-comment-row.draft) {
+    border-left-color: var(--comment-line);
+}
+
+:global(.global-comment-row) {
+    display: grid;
+    grid-template-columns: 13px minmax(0, 1fr);
+    gap: 10px;
+    width: 100%;
+    border: 1px solid var(--soft-line);
+    border-radius: 11px;
+    background: color-mix(in srgb, var(--panel-2) 64%, transparent);
+    color: var(--text);
+    cursor: pointer;
+    font: inherit;
+    padding: 11px 10px;
+    text-align: left;
+}
+
+:global(.global-comment-row:hover) {
+    border-color: var(--comment-line);
+    background: var(--comment-tint);
+}
+
+:global(.global-comment-row.active) {
+    border-color: var(--accent-line);
+    background: color-mix(in srgb, var(--accent-faint) 64%, var(--panel));
+    box-shadow: inset 3px 0 0 var(--accent);
+}
+
+:global(.global-comment-row.needs-attention) {
+    border-color: var(--comment-line);
+    background: color-mix(in srgb, var(--comment-tint) 76%, var(--panel));
+}
+
+:global(.global-comment-row.resolved),
+:global(.global-comment-row.archived) {
+    background: color-mix(in srgb, var(--panel) 58%, transparent);
+}
+
+:global(.global-comment-row.resolved .global-comment-dot),
+:global(.global-comment-row.archived .global-comment-dot) {
+    background: var(--muted);
+    box-shadow: 0 0 0 4px var(--soft-line);
+}
+
+:global(.global-comments-empty) {
+    display: grid;
+    gap: 5px;
+    border: 1px dashed var(--soft-line);
+    border-radius: 11px;
+    background: color-mix(in srgb, var(--panel-2) 54%, transparent);
+    color: var(--muted);
+    line-height: 1.45;
+    padding: 14px 12px;
+}
+
+:global(.global-comments-empty strong) {
+    color: var(--text);
+    font-size: 13px;
+}
+
+:global(.global-comments-empty span) {
+    font-size: 12px;
+}
+
+:global(.global-comment-dot) {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: var(--comment-text);
+    box-shadow: 0 0 0 4px var(--comment-tint);
+    margin-top: 6px;
+}
+
+:global(.global-comment-main) {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+}
+
+:global(.global-comment-meta) {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+    min-width: 0;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+:global(.global-comment-meta strong) {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text);
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+:global(.global-comment-body) {
+    color: var(--text);
+    font-weight: 680;
+    line-height: 1.45;
+}
+
+:global(.global-comment-location) {
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+:global(.global-comment-review-stop) {
+    display: flex;
+    width: fit-content;
+    max-width: 100%;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    border: 1px solid var(--comment-line);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--comment-tint) 76%, transparent);
+    color: var(--comment-text);
+    font-size: 11px;
+    line-height: 1.35;
+    padding: 5px 7px;
+}
+
+:global(.global-comment-review-stop strong) {
+    color: var(--text);
+    font-size: 11px;
+}
+
+:global(.global-comment-review-stop span) {
+    color: var(--comment-text);
+}
+
+:global(.global-comment-search-match) {
+    display: grid;
+    gap: 3px;
+    border-left: 2px solid var(--accent);
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.45;
+    padding-left: 9px;
+}
+
+:global(.global-comment-search-match span) {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 760;
+    text-transform: uppercase;
+}
+
+:global(.global-comment-search-hit) {
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+    color: var(--text);
+    font-weight: 760;
+    padding: 0 2px;
+}
+
+:global(.global-comment-thread-foot) {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+:global(.global-comment-thread-meta),
+:global(.global-comment-surface),
+:global(.global-comment-anchor) {
+    color: var(--muted);
+    font-size: 11px;
+}
+
+:global(.global-comment-thread-meta) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+:global(.global-comment-open-hint) {
+    flex: 0 0 auto;
+    border: 1px solid var(--soft-line);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 760;
+    padding: 2px 7px;
+}
+
+:global(.global-comment-row:hover .global-comment-open-hint),
+:global(.global-comment-row:focus-visible .global-comment-open-hint) {
+    border-color: var(--comment-line);
+    background: var(--panel);
+    color: var(--comment-text);
+}
+
+:global(.global-comment-surface) {
+    border: 1px solid var(--soft-line);
+    border-radius: 999px;
+    padding: 2px 6px;
+}
+
+:global(.global-comment-anchor) {
+    border: 1px solid
+      color-mix(in srgb, var(--comment-line) 60%, var(--soft-line));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--comment-tint) 54%, transparent);
+    color: var(--comment-text);
+    padding: 2px 7px;
+}
+
+:global(.global-comment-attention) {
+    border: 1px solid var(--comment-line);
+    border-radius: 999px;
+    background: var(--comment-tint);
+    color: var(--comment-text);
+    font-size: 11px;
+    font-weight: 760;
+    padding: 2px 7px;
+}
+
+:global(.global-comment-current) {
+    border: 1px solid var(--accent-line);
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 760;
+    padding: 2px 7px;
+}
+
+:global(.global-comment-quote) {
+    overflow: hidden;
+    padding-left: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+}

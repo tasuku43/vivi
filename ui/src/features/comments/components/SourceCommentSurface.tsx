@@ -31,6 +31,8 @@ import {
   type CommentStatusChangeHandler,
 } from "../../../state/comments.js";
 import { CodeCommentThread } from "./CodeCommentThread.js";
+import railStyles from "./LineCommentRail.module.css";
+import styles from "./SourceCommentSurface.module.css";
 
 type SourceDraftThread = {
   thread: CodeCommentThreadModel;
@@ -314,7 +316,7 @@ export function SourceCommentSurface({
 
   return (
     <div
-      className={`code-lines source-comment-surface${lineDragging ? " is-line-dragging" : ""}${className ? ` ${className}` : ""}`}
+      className={`${styles.sourceCommentSurfaceStyles} ${railStyles.lineCommentRailStyles} code-lines source-comment-surface${lineDragging ? " is-line-dragging" : ""}${className ? ` ${className}` : ""}`}
       role="list"
       ref={linesRef}
       onMouseUp={() => scheduleSelectionCommentUpdate(updateSelectionComment)}

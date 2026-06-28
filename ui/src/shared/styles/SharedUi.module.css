@@ -1,0 +1,159 @@
+.sharedUiStyles {
+  --shared-ui-module: 1;
+  display: contents;
+}
+
+.srOnly {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  padding: 0;
+}
+
+.appShell {
+  display: grid;
+  grid-template-rows: 44px 1fr 28px;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.pill,
+.commandButton {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 12px;
+}
+
+.commandButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 28px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  padding: 5px 9px 5px 10px;
+}
+
+.commandButton kbd {
+  border: 1px solid var(--soft-line);
+  border-radius: 5px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 10px;
+  padding: 1px 4px;
+}
+
+.commandButtonPrimary {
+  min-width: 138px;
+  justify-content: space-between;
+  border-color: var(--accent-line);
+  background: var(--accent-faint);
+}
+
+.commandButtonSecondary {
+  background: transparent;
+  color: var(--muted);
+}
+
+.commandButtonSecondaryAttention {
+  border-color: var(--comment-line);
+  background: var(--comment-tint);
+  color: var(--comment-text);
+}
+
+.commandButtonSecondary:hover {
+  border-color: var(--line);
+  background: var(--accent-faint);
+  color: var(--text);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: default;
+  padding: 5px 10px;
+}
+
+.filterPill {
+  max-width: 128px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.pill {
+  cursor: pointer;
+}
+
+.pillActive {
+  border-color: var(--accent-line);
+  background: var(--accent-faint);
+  color: var(--accent);
+}
+
+.sidebar,
+.inspector {
+  min-width: 0;
+  overflow: auto;
+  background: var(--panel);
+}
+
+.sidebar {
+  border-right: 1px solid var(--line);
+}
+
+.inspector {
+  border-left: 1px solid var(--line);
+}
+
+.panelTitle {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  flex: 0 0 42px;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  padding: 0 12px;
+  text-transform: uppercase;
+}
+
+.error {
+  color: var(--error);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.keycap {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--code);
+  color: var(--text);
+  padding: 2px 7px;
+}
+
+@media (max-width: 720px) {
+  .commandButtonSecondary {
+    display: none;
+  }
+}

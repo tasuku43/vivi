@@ -1,0 +1,123 @@
+.card {
+  position: fixed;
+  z-index: 75;
+  width: min(340px, calc(100vw - 24px));
+  overflow: auto;
+  border: 1px solid var(--comment-line);
+  border-radius: 12px;
+  background: var(--palette);
+  box-shadow: 0 24px 68px var(--shadow);
+  padding: 12px;
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: var(--palette);
+  transform: rotate(45deg);
+}
+
+.pointsLeft::before {
+  left: -7px;
+  top: var(--comment-card-arrow-y, 22px);
+  border-left: 1px solid var(--comment-line);
+  border-bottom: 1px solid var(--comment-line);
+}
+
+.pointsRight::before {
+  right: -7px;
+  top: var(--comment-card-arrow-y, 22px);
+  border-right: 1px solid var(--comment-line);
+  border-top: 1px solid var(--comment-line);
+}
+
+.pointsTop::before {
+  left: var(--comment-card-arrow-x, 24px);
+  top: -7px;
+  border-left: 1px solid var(--comment-line);
+  border-top: 1px solid var(--comment-line);
+}
+
+.pointsBottom::before {
+  left: var(--comment-card-arrow-x, 24px);
+  bottom: -7px;
+  border-right: 1px solid var(--comment-line);
+  border-bottom: 1px solid var(--comment-line);
+}
+
+.top {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.topContent {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.path {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lineLabel {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.closeButton {
+  width: 30px;
+  height: 28px;
+  border: 1px solid var(--soft-line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+}
+
+.body {
+  margin: 9px 0;
+  color: var(--text);
+  line-height: 1.55;
+}
+
+.quote {
+  border-left: 2px solid var(--line);
+  color: var(--muted);
+  margin: 9px 0 10px;
+  padding-left: 9px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  gap: 7px;
+}
+
+.actions button {
+  border: 1px solid var(--soft-line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 9px;
+}
+
+.actions button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}

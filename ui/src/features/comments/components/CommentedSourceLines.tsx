@@ -5,6 +5,8 @@ import {
   commentsForLine,
   rectLikeFromElement,
 } from "../../../state/comments.js";
+import styles from "./CommentedSourceLines.module.css";
+import railStyles from "./LineCommentRail.module.css";
 
 export function CommentedSourceLines({
   content,
@@ -62,7 +64,7 @@ export function CommentedSourceLines({
   return (
     <div
       ref={containerRef}
-      className={`commented-source-lines ${className ?? ""}`}
+      className={`${styles.lines} ${railStyles.lineCommentRailStyles} commented-source-lines ${className ?? ""}`}
       onMouseUp={onMouseUp}
       onKeyUp={onKeyUp}
       role="list"

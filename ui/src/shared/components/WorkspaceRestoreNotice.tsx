@@ -1,3 +1,5 @@
+import styles from "./WorkspaceRestoreNotice.module.css";
+
 interface WorkspaceRestoreNoticeProps {
   tabCount: number;
   onDismiss: () => void;
@@ -10,8 +12,8 @@ export function WorkspaceRestoreNotice({
   onStartFresh,
 }: WorkspaceRestoreNoticeProps) {
   return (
-    <section className="restore-notice" aria-live="polite">
-      <div>
+    <section className={styles.notice} aria-live="polite">
+      <div className={styles.copy}>
         <strong>
           Restored {tabCount} {tabCount === 1 ? "tab" : "tabs"}
         </strong>
@@ -22,7 +24,7 @@ export function WorkspaceRestoreNotice({
       </button>
       <button
         type="button"
-        className="restore-notice-dismiss"
+        className={styles.dismiss}
         aria-label="Dismiss restored tabs notice"
         onClick={onDismiss}
       >

@@ -53,6 +53,9 @@ import {
 } from "../rendering/markdown-rendering.js";
 import { renderMermaidBlocks } from "../rendering/mermaid-rendering.js";
 import { DiffViewer } from "./DiffViewer.js";
+import surfaceStyles from "./ViewerSurface.module.css";
+import styles from "./MarkdownViewer.module.css";
+import "./RenderedMarkdown.module.css";
 
 export {
   injectMermaidPreviewBlocks,
@@ -387,12 +390,15 @@ export function MarkdownViewer({
   });
 
   return (
-    <section className="document-viewer">
+    <section className={`${surfaceStyles.viewer} document-viewer`}>
       <ViewerToolbar
         actionsOnly
         ariaLabel={`Markdown viewer controls for ${file.path}`}
       >
-        <div className="segmented-control" aria-label="Markdown view mode">
+        <div
+          className={`${surfaceStyles.segmentedControl} segmented-control`}
+          aria-label="Markdown view mode"
+        >
           <ViewerModeButton
             active={mode === "rendered"}
             mode="rendered"
@@ -435,7 +441,7 @@ export function MarkdownViewer({
         />
       ) : mode === "rendered" ? (
         <article
-          className="markdown markdown-document"
+          className={`${styles.document} markdown markdown-document`}
           ref={markdownRef}
           onMouseUp={() =>
             scheduleSelectionCommentUpdate(updateRenderedSelectionComment)
@@ -446,7 +452,7 @@ export function MarkdownViewer({
       ) : (
         <SourceCommentSurface
           file={file}
-          className="markdown-source"
+          className={`markdown-source ${surfaceStyles.markdownSource}`}
           selectedRange={sourceSelectedRange}
           focusLineNumber={focusLineNumber}
           focusRevision={focusRevision}

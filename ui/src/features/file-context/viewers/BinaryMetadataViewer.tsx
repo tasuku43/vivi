@@ -8,6 +8,7 @@ import {
   ViewerToolbar,
 } from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
+import surfaceStyles from "./ViewerSurface.module.css";
 
 export function BinaryMetadataViewer({
   file,
@@ -33,7 +34,7 @@ export function BinaryMetadataViewer({
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
   return (
-    <section className="binary-metadata-viewer">
+    <section className={`${surfaceStyles.viewer} binary-metadata-viewer`}>
       <ViewerToolbar status={metadataSummary(file)}>
         <DiffToggleButton
           enabled={diffEnabled}
@@ -55,7 +56,9 @@ export function BinaryMetadataViewer({
           onOpenComment={onOpenComment}
         />
       ) : (
-        <div className="binary-metadata-panel">
+        <div
+          className={`${surfaceStyles.binaryMetadataPanel} binary-metadata-panel`}
+        >
           <p>
             Vivi did not load file contents for this payload. Metadata is shown
             so review can continue without decoding binary or unsafe bytes.

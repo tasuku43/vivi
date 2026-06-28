@@ -34,6 +34,8 @@ import { CommandPalette } from "../command-palette/CommandPalette.js";
 import { ShortcutHelp } from "../../shared/components/ShortcutHelp.js";
 import { WorkspaceRestoreNotice } from "../../shared/components/WorkspaceRestoreNotice.js";
 import { WorkspaceStatusbar } from "../../shared/components/WorkspaceStatusbar.js";
+import sharedUiStyles from "../../shared/styles/SharedUi.module.css";
+import styles from "./WorkbenchContainer.module.css";
 import {
   extractHtmlOutline,
   extractMarkdownOutline,
@@ -675,9 +677,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     viewportWidth,
   );
   const workbenchClassName = [
-    "workbench",
-    effectiveSidebarVisible ? "" : "sidebar-hidden",
-    effectiveInspectorVisible ? "" : "inspector-hidden",
+    styles.workbench,
+    effectiveSidebarVisible ? "" : styles.sidebarHidden,
+    effectiveInspectorVisible ? "" : styles.inspectorHidden,
   ]
     .filter(Boolean)
     .join(" ");
@@ -1370,7 +1372,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       entry,
       ...entries.filter((candidate) => candidate.path !== path),
     ]);
-    setUnreadReviewPaths((paths) => paths.filter((candidate) => candidate !== path));
+    setUnreadReviewPaths((paths) =>
+      paths.filter((candidate) => candidate !== path),
+    );
   }
 
   function restoreAcceptedReviewPath(path: string) {
@@ -1683,7 +1687,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     const pane = document.querySelector<HTMLElement>(
       `[data-pane-id="${paneId}"]`,
     );
-    const viewer = pane?.querySelector<HTMLElement>(".viewer-pane");
+    const viewer = pane?.querySelector<HTMLElement>("[data-viewer-pane]");
     if (!viewer) return;
     const viewerTop = viewer.getBoundingClientRect().top;
     const positions = outline
@@ -1711,7 +1715,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     const pane = document.querySelector<HTMLElement>(
       `[data-pane-id="${paneId}"]`,
     );
-    const viewer = pane?.querySelector<HTMLElement>(".viewer-pane");
+    const viewer = pane?.querySelector<HTMLElement>("[data-viewer-pane]");
     if (!viewer) return;
 
     const markdownTarget = Array.from(
@@ -1932,13 +1936,13 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     window.addEventListener("pointermove", resize);
     window.addEventListener("pointerup", stopResize);
     window.addEventListener("pointercancel", stopResize);
-    document.body.classList.add("resizing-workbench-pane");
+    document.body.classList.add(styles.resizingWorkbenchPane);
 
     return () => {
       window.removeEventListener("pointermove", resize);
       window.removeEventListener("pointerup", stopResize);
       window.removeEventListener("pointercancel", stopResize);
-      document.body.classList.remove("resizing-workbench-pane");
+      document.body.classList.remove(styles.resizingWorkbenchPane);
     };
   }, [resizingWorkbenchPane]);
 
@@ -1976,7 +1980,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }, [paletteMode, paletteOpen, paletteQuery]);
 
   useEffect(() => {
-    const currentChangePaths = new Set(reviewChanges.map((change) => change.path));
+    const currentChangePaths = new Set(
+      reviewChanges.map((change) => change.path),
+    );
     setAcceptedReviewEntries((entries) =>
       entries.filter((entry) => currentChangePaths.has(entry.path)),
     );
@@ -2223,7 +2229,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }, [manualDraggedTab]);
 
   return (
-    <div className="app-shell">
+    <div
+      className={`${sharedUiStyles.sharedUiStyles} ${sharedUiStyles.appShell} app-shell`}
+    >
       <Topbar
         root={config?.root ?? null}
         themePreference={themePreference}
@@ -2252,7 +2260,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         {effectiveSidebarVisible ? (
           <>
             <button
-              className="workbench-resizer sidebar-resizer"
+              className={`${styles.resizer} ${styles.sidebarResizer}`}
               type="button"
               aria-label="Resize sidebar"
               title="Resize sidebar"
@@ -2262,15 +2270,18 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               }}
               onDoubleClick={() => setSidebarWidth(defaultSidebarWidth)}
             />
-            <aside className="sidebar" aria-label="File explorer">
-              <div className="panel-title">
+            <aside
+              className={`${sharedUiStyles.sidebar} sidebar`}
+              aria-label="File explorer"
+            >
+              <div className={`${sharedUiStyles.panelTitle} panel-title`}>
                 <span>Explorer</span>
                 <button
                   aria-label={explorerFilterLabel(explorerFilterSummary)}
                   className={
                     treeChangedOnly
-                      ? "pill filter-pill active"
-                      : "pill filter-pill"
+                      ? `${sharedUiStyles.pill} ${sharedUiStyles.filterPill} ${sharedUiStyles.pillActive} pill filter-pill active`
+                      : `${sharedUiStyles.pill} ${sharedUiStyles.filterPill} pill filter-pill`
                   }
                   title={explorerFilterLabel(explorerFilterSummary)}
                   type="button"
@@ -2308,13 +2319,15 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                   }
                 />
               ) : (
-                <p className="muted">Loading tree...</p>
+                <p className={`${sharedUiStyles.muted} muted`}>
+                  Loading tree...
+                </p>
               )}
             </aside>
           </>
         ) : null}
         <button
-          className="rail-toggle sidebar-rail-toggle"
+          className={`${styles.railToggle} ${styles.sidebarRailToggle}`}
           type="button"
           aria-label={
             effectiveSidebarVisible ? "Collapse sidebar" : "Expand sidebar"
@@ -2328,20 +2341,22 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
           <span
             className={
               effectiveSidebarVisible
-                ? "collapse-icon collapse-left"
-                : "collapse-icon collapse-right"
+                ? `${styles.collapseIcon} ${styles.collapseLeft}`
+                : `${styles.collapseIcon} ${styles.collapseRight}`
             }
           />
         </button>
 
-        <main className="main">
-          <div className={`editor-grid ${draggingTab ? "dragging-tab" : ""}`}>
+        <main className={styles.main}>
+          <div
+            className={`${styles.editorGrid}${draggingTab ? ` ${styles.draggingTab}` : ""}`}
+          >
             {renderLayoutNode(layout.root)}
           </div>
         </main>
 
         <button
-          className="rail-toggle inspector-rail-toggle"
+          className={`${styles.railToggle} ${styles.inspectorRailToggle}`}
           type="button"
           aria-label={
             effectiveInspectorVisible
@@ -2365,8 +2380,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
           <span
             className={
               effectiveInspectorVisible
-                ? "collapse-icon collapse-right"
-                : "collapse-icon collapse-left"
+                ? `${styles.collapseIcon} ${styles.collapseRight}`
+                : `${styles.collapseIcon} ${styles.collapseLeft}`
             }
           />
         </button>
@@ -2374,7 +2389,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         {effectiveInspectorVisible ? (
           <>
             <button
-              className="workbench-resizer inspector-resizer"
+              className={`${styles.resizer} ${styles.inspectorResizer}`}
               type="button"
               aria-label="Resize inspector"
               title="Resize inspector"
@@ -2589,7 +2604,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   function renderLayoutNode(node: EditorLayoutNode): ReactNode {
     if (node.kind === "split") {
       return (
-        <div className={`editor-split ${node.direction}`} key={node.id}>
+        <div
+          className={`${styles.editorSplit} ${styles[node.direction]}`}
+          key={node.id}
+        >
           {renderLayoutNode(node.first)}
           {renderLayoutNode(node.second)}
         </div>
@@ -2624,7 +2642,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     return (
       <section
         className={
-          pane.id === layout.activePaneId ? "editor-pane active" : "editor-pane"
+          pane.id === layout.activePaneId
+            ? `${styles.editorPane} ${styles.activePane}`
+            : styles.editorPane
         }
         data-pane-id={pane.id}
         key={pane.id}
@@ -2677,7 +2697,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
           }}
         />
         <div
-          className="viewer-pane"
+          className={styles.viewerPane}
+          data-viewer-pane
           onScroll={() => updateActiveOutlineForPane(pane.id, paneFile)}
         >
           {error && pane.id === layout.activePaneId ? (
@@ -2768,7 +2789,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                     paneFile?.path ? reviewStateForPath(paneFile.path) : null
                   }
                   onMarkReviewed={
-                    paneFile?.path && reviewStateForPath(paneFile.path) === "queued"
+                    paneFile?.path &&
+                    reviewStateForPath(paneFile.path) === "queued"
                       ? () => acceptReviewPath(paneFile.path)
                       : undefined
                   }
@@ -2816,7 +2838,15 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         </div>
         <div
           aria-label="Split pane"
-          className={`split-drop-zone ${dropTarget?.paneId === pane.id ? `active ${dropTarget.edge}` : ""}`}
+          className={[
+            styles.splitDropZone,
+            dropTarget?.paneId === pane.id ? styles.splitDropZoneActive : "",
+            dropTarget?.paneId === pane.id
+              ? dropEdgeClass(dropTarget.edge)
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
           onDragOver={(event) => {
             event.preventDefault();
             event.dataTransfer.dropEffect = "move";
@@ -2880,19 +2910,29 @@ export function TextSearchNavigationBar({
   onClose: () => void;
 }) {
   return (
-    <div className="text-search-nav" aria-label="Text search navigation">
-      <div className="text-search-nav-main">
-        <span className="text-search-nav-query">"{query}"</span>
+    <div
+      className={`${styles.textSearchNav} text-search-nav`}
+      aria-label="Text search navigation"
+    >
+      <div className={`${styles.textSearchNavMain} text-search-nav-main`}>
+        <span className={`${styles.textSearchNavQuery} text-search-nav-query`}>
+          "{query}"
+        </span>
         <span>{position}</span>
         <span>Line {result.lineNumber}</span>
-        <code className="text-search-nav-preview">
+        <code
+          className={`${styles.textSearchNavPreview} text-search-nav-preview`}
+        >
           {textSearchPreviewSegments(
             result.lineText,
             result.matchStart,
             result.matchLength,
           ).map((segment, index) =>
             segment.match ? (
-              <mark className="text-search-nav-match" key={index}>
+              <mark
+                className={`${styles.textSearchNavMatch} text-search-nav-match`}
+                key={index}
+              >
                 {segment.text}
               </mark>
             ) : (
@@ -2901,7 +2941,7 @@ export function TextSearchNavigationBar({
           )}
         </code>
       </div>
-      <div className="text-search-nav-actions">
+      <div className={`${styles.textSearchNavActions} text-search-nav-actions`}>
         <button type="button" onClick={onPrevious} title="Previous match">
           Previous
         </button>
@@ -2928,10 +2968,10 @@ function RestoreSessionPrompt({
   onSkip: () => void;
 }) {
   return (
-    <div className="restore-overlay" role="presentation">
+    <div className={styles.restoreOverlay} role="presentation">
       <section
         aria-label="Restore previous tabs"
-        className="restore-prompt"
+        className={styles.restorePrompt}
         role="dialog"
       >
         <strong>Restore previous tabs?</strong>
@@ -2939,7 +2979,7 @@ function RestoreSessionPrompt({
           The last session had {tabCount} tabs. Choose how much of that
           workspace to bring back.
         </p>
-        <div className="restore-actions">
+        <div className={styles.restoreActions}>
           <button onClick={onRestoreAll} type="button">
             Restore all tabs
           </button>
@@ -3074,6 +3114,13 @@ function combinePublishedAndDraftComments(
   return visibleThreadComments([...published, ...draftMessages]).sort((a, b) =>
     a.createdAt.localeCompare(b.createdAt),
   );
+}
+
+function dropEdgeClass(edge: SplitEdge): string {
+  if (edge === "left") return styles.dropLeft;
+  if (edge === "right") return styles.dropRight;
+  if (edge === "top") return styles.dropTop;
+  return styles.dropBottom;
 }
 
 function buildCompletedThreadPathSet(

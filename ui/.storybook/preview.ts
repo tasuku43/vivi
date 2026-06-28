@@ -1,7 +1,17 @@
+import { createElement } from "react";
 import type { Preview } from "@storybook/react-vite";
 import "../src/styles.css";
+import sharedUiStyles from "../src/shared/styles/SharedUi.module.css";
 
 const preview: Preview = {
+  decorators: [
+    (Story) =>
+      createElement(
+        "div",
+        { className: sharedUiStyles.sharedUiStyles },
+        createElement(Story),
+      ),
+  ],
   parameters: {
     layout: "fullscreen",
     a11y: { test: "todo" },

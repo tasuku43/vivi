@@ -5,6 +5,8 @@ import {
   commentLineLabelForAnchor,
   truncateCommentPreview,
 } from "../../../state/comments.js";
+import sharedUiStyles from "../../../shared/styles/SharedUi.module.css";
+import styles from "./DraftReviewTray.module.css";
 
 export function DraftReviewTray({
   drafts,
@@ -66,7 +68,7 @@ export function DraftReviewTray({
 
   return (
     <aside
-      className={`draft-review-tray${open ? " open" : ""}`}
+      className={`${styles.tray} draft-review-tray${open ? " open" : ""}`}
       aria-label="Draft review tray"
     >
       <button
@@ -165,7 +167,10 @@ export function DraftReviewTray({
                         });
                       }}
                     >
-                      <p className="sr-only" id={draftEditHintId(draft.id)}>
+                      <p
+                        className={`${sharedUiStyles.srOnly} sr-only`}
+                        id={draftEditHintId(draft.id)}
+                      >
                         This draft stays private until published.
                       </p>
                       <textarea
@@ -224,7 +229,11 @@ export function DraftReviewTray({
               ))}
             </div>
           ) : (
-            <p className="muted compact-empty">No draft comments.</p>
+            <p
+              className={`${styles.compactEmpty} ${sharedUiStyles.muted} muted compact-empty`}
+            >
+              No draft comments.
+            </p>
           )}
         </div>
       ) : null}

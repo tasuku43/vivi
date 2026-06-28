@@ -2,6 +2,8 @@ import {
   themePreferenceLabel,
   type ThemePreference,
 } from "../../state/theme.js";
+import sharedUiStyles from "../styles/SharedUi.module.css";
+import styles from "./Topbar.module.css";
 
 interface TopbarProps {
   root: string | null;
@@ -41,24 +43,24 @@ export function Topbar({
   });
 
   return (
-    <header className="topbar">
-      <div className="topbar-brand" aria-label="Vivi">
-        <span className="logo" aria-hidden="true" />
-        <span className="brand-wordmark">Vivi</span>
+    <header className={styles.topbar}>
+      <div className={styles.brand} aria-label="Vivi">
+        <span className={styles.logo} aria-hidden="true" />
+        <span className={styles.brandWordmark}>Vivi</span>
       </div>
 
-      <div className="workspace-strip" aria-label="Current workspace">
-        <span className="workspace-label">Workspace</span>
-        <span className="workspace-name">{workspaceName}</span>
+      <div className={styles.workspace} aria-label="Current workspace">
+        <span className={styles.workspaceLabel}>Workspace</span>
+        <span className={styles.workspaceName}>{workspaceName}</span>
         {workspaceParent ? (
-          <span className="workspace-parent">{workspaceParent}</span>
+          <span className={styles.workspaceParent}>{workspaceParent}</span>
         ) : null}
       </div>
 
-      <div className="topbar-actions" aria-label="Workspace actions">
+      <div className={styles.actions} aria-label="Workspace actions">
         <button
           type="button"
-          className="shortcut-button"
+          className={styles.shortcutButton}
           aria-label="Keyboard shortcuts"
           title="Keyboard shortcuts (Cmd/Ctrl+/)"
           data-topbar-action="shortcuts"
@@ -68,17 +70,17 @@ export function Topbar({
         </button>
         <button
           type="button"
-          className="theme-button"
+          className={styles.themeButton}
           aria-label={`Theme: ${themeLabel}`}
           title={`Theme: ${themeLabel}`}
           onClick={onThemeCycle}
         >
-          <span className="action-eyebrow">Theme</span>
+          <span className={styles.actionEyebrow}>Theme</span>
           <span>{themeLabel}</span>
         </button>
         <button
           type="button"
-          className="command-button command-button-primary"
+          className={`${styles.commandButton} ${styles.commandButtonPrimary}`}
           aria-label="Open command palette"
           aria-keyshortcuts="Meta+K Control+K"
           title="Open command palette"
@@ -86,11 +88,17 @@ export function Topbar({
           onClick={onQuickOpen}
         >
           <span>Command</span>
-          <kbd>Cmd/Ctrl K</kbd>
+          <kbd className={sharedUiStyles.keycap}>Cmd/Ctrl K</kbd>
         </button>
         <button
           type="button"
-          className={`command-button command-button-secondary${commentAttentionCount ? " needs-attention" : ""}`}
+          className={[
+            styles.commandButton,
+            styles.commandButtonSecondary,
+            commentAttentionCount ? styles.needsAttention : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
           aria-label={commentsButton.ariaLabel}
           aria-keyshortcuts="Meta+Shift+C Control+Shift+C"
           title={commentsButton.title}
@@ -98,21 +106,23 @@ export function Topbar({
           onClick={onOpenComments}
         >
           <span>{commentsButton.label}</span>
-          <span className="comment-count-badge">{commentsButton.count}</span>
+          <span className={styles.commentCountBadge}>
+            {commentsButton.count}
+          </span>
           {draftCommentCount ? (
             <span
-              className="comment-count-badge private"
+              className={`${styles.commentCountBadge} ${styles.privateBadge}`}
               aria-label={`${draftCommentCount} private draft ${draftCommentCount === 1 ? "comment" : "comments"}`}
               title={`${draftCommentCount} private draft ${draftCommentCount === 1 ? "comment" : "comments"}`}
             >
               {draftCommentCount}
             </span>
           ) : null}
-          <kbd>Cmd/Ctrl Shift C</kbd>
+          <kbd className={sharedUiStyles.keycap}>Cmd/Ctrl Shift C</kbd>
         </button>
         <button
           type="button"
-          className="command-button command-button-secondary"
+          className={`${styles.commandButton} ${styles.commandButtonSecondary}`}
           aria-label="Search workspace text"
           aria-keyshortcuts="Meta+Shift+F Control+Shift+F"
           title="Search workspace text (Cmd/Ctrl+Shift+F)"
@@ -120,7 +130,7 @@ export function Topbar({
           onClick={onSearchText}
         >
           <span>Search</span>
-          <kbd>Cmd/Ctrl Shift F</kbd>
+          <kbd className={sharedUiStyles.keycap}>Cmd/Ctrl Shift F</kbd>
         </button>
       </div>
     </header>

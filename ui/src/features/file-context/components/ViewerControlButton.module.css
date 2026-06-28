@@ -1,0 +1,256 @@
+.toolbar {
+  --viewer-toolbar-height: 42px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: grid;
+  min-height: var(--viewer-toolbar-height);
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto) max-content;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 12px;
+  padding: 6px 24px;
+}
+
+.toolbar strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.actions > button {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 5px 8px;
+}
+
+.actions > button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.location {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+  color: var(--subtle);
+  font-size: 12px;
+}
+
+.crumbs {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  overflow: hidden;
+}
+
+.segment {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.segmentButton,
+.reviewStop,
+.reviewSummary {
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 6px;
+}
+
+.segmentButton,
+.reviewStop {
+  cursor: pointer;
+}
+
+.segmentButton {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileSegment {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.segmentButton:hover,
+.segmentButton:focus-visible,
+.reviewStop:hover:not(:disabled),
+.reviewStop:focus-visible {
+  border-color: var(--line);
+  outline: none;
+  background: var(--accent-faint);
+  color: var(--accent);
+}
+
+.reviewStop {
+  display: inline-flex;
+  min-width: 0;
+  max-width: min(360px, 34vw);
+  align-items: center;
+  gap: 6px;
+  border-color: var(--comment-line);
+  background: color-mix(in srgb, var(--comment-tint) 48%, transparent);
+  color: var(--comment-text);
+}
+
+.reviewStop:disabled {
+  cursor: default;
+  opacity: 0.64;
+}
+
+.reviewStop strong,
+.reviewStop span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reviewStop strong {
+  flex: 0 0 auto;
+  color: var(--comment-text);
+  font-size: 11px;
+}
+
+.reviewStop span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.reviewStop span:last-child {
+  color: var(--subtle);
+}
+
+.reviewSummary {
+  display: inline-flex;
+  min-width: 0;
+  max-width: min(220px, 24vw);
+  align-items: center;
+  overflow: hidden;
+  border-color: var(--soft-line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-2) 72%, transparent);
+  color: var(--subtle);
+  font-size: 11px;
+  font-weight: 720;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reviewSummaryActive {
+  border-color: color-mix(in srgb, var(--comment-line) 70%, var(--soft-line));
+  background: color-mix(in srgb, var(--comment-tint) 36%, transparent);
+  color: var(--comment-text);
+}
+
+.reviewSummaryHistory {
+  color: var(--muted);
+}
+
+.reviewStateLabel {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--soft-line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-2) 72%, transparent);
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 840;
+  line-height: 1;
+  padding: 3px 6px;
+  text-transform: uppercase;
+}
+
+.reviewStateLabel::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.queued {
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
+
+.reviewing {
+  border-color: var(--comment-line);
+  color: var(--comment-text);
+}
+
+.reviewed {
+  border-color: color-mix(in srgb, var(--good) 46%, transparent);
+  color: color-mix(in srgb, var(--good) 84%, white);
+}
+
+.markReviewedButton {
+  border-color: color-mix(
+    in srgb,
+    var(--good) 54%,
+    var(--soft-line)
+  ) !important;
+  background: color-mix(in srgb, var(--good) 15%, var(--panel-2)) !important;
+  color: color-mix(in srgb, var(--good) 88%, white) !important;
+}
+
+.separator {
+  color: var(--subtle);
+  font-size: 12px;
+}
+
+.sandboxStatus {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .toolbar {
+    grid-template-columns: minmax(0, 1fr) max-content;
+    padding-inline: 14px;
+  }
+
+  .reviewStop,
+  .reviewSummary {
+    max-width: none;
+  }
+
+  .sandboxStatus,
+  :global(.refresh-pill) {
+    display: none;
+  }
+}

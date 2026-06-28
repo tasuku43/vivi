@@ -19,8 +19,13 @@ import { ShortcutHelp } from "../shared/components/ShortcutHelp.js";
 import { OpenTabs } from "../shared/components/OpenTabs.js";
 import { Topbar } from "../shared/components/Topbar.js";
 import { TreeSidebar } from "../shared/components/TreeSidebar.js";
+import { WorkspaceStatusbar } from "../shared/components/WorkspaceStatusbar.js";
 import { WorkbenchErrorMessage } from "../features/workbench/WorkbenchErrorMessage.js";
 import { WorkbenchPendingFileMessage } from "../features/workbench/WorkbenchPendingFileMessage.js";
+import workbenchStyles from "../features/workbench/WorkbenchContainer.module.css";
+import viewerMessageStyles from "../shared/components/ViewerMessage.module.css";
+import treeSidebarStyles from "../shared/components/TreeSidebar.module.css";
+import sharedUiStyles from "../shared/styles/SharedUi.module.css";
 import { extractMarkdownOutline } from "../state/outline.js";
 import {
   draftReviewCommentAsViviComment,
@@ -307,9 +312,10 @@ export function ReviewWorkbenchStory({
     <div
       className={[
         "app-shell",
+        sharedUiStyles.appShell,
+        sharedUiStyles.sharedUiStyles,
         "story-workbench",
         `story-workbench-${storyState}`,
-        compactInspector ? "story-workbench-compact-inspector" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -332,8 +338,11 @@ export function ReviewWorkbenchStory({
       />
       <div
         className={[
-          "workbench",
-          compactInspector && !compactInspectorOpen ? "inspector-hidden" : "",
+          workbenchStyles.workbench,
+          compactInspector ? workbenchStyles.storyWorkbenchCompactInspector : "",
+          compactInspector && !compactInspectorOpen
+            ? workbenchStyles.inspectorHidden
+            : "",
         ]
           .filter(Boolean)
           .join(" ")}
@@ -344,8 +353,11 @@ export function ReviewWorkbenchStory({
           } as CSSProperties
         }
       >
-        <aside className="sidebar" aria-label="File explorer">
-          <div className="panel-title">
+        <aside
+          className={`${sharedUiStyles.sidebar} sidebar`}
+          aria-label="File explorer"
+        >
+          <div className={`${sharedUiStyles.panelTitle} panel-title`}>
             <span>Explorer</span>
             <span
               aria-label={
@@ -355,8 +367,8 @@ export function ReviewWorkbenchStory({
               }
               className={
                 storyState === "disconnected" || treeChangedOnly
-                  ? "pill active"
-                  : "pill"
+                  ? `${sharedUiStyles.pill} ${sharedUiStyles.pillActive} pill active`
+                  : `${sharedUiStyles.pill} pill`
               }
               title={
                 storyState === "disconnected"
@@ -370,9 +382,13 @@ export function ReviewWorkbenchStory({
             </span>
           </div>
           {storyState === "loading" ? (
-            <p className="muted">Loading tree...</p>
+            <p className={`${sharedUiStyles.muted} muted`}>Loading tree...</p>
           ) : storyState === "empty" ? (
-            <p className="muted compact-empty">No workspace selected.</p>
+            <p
+              className={`${treeSidebarStyles.compactEmpty} ${sharedUiStyles.muted} muted compact-empty`}
+            >
+              No workspace selected.
+            </p>
           ) : (
             <TreeSidebar
               nodes={nodes}
@@ -393,8 +409,11 @@ export function ReviewWorkbenchStory({
             />
           )}
         </aside>
-        <main className="main">
-          <section className="editor-pane active" data-pane-id="main">
+        <main className={workbenchStyles.main}>
+          <section
+            className={`${workbenchStyles.editorPane} ${workbenchStyles.activePane}`}
+            data-pane-id="main"
+          >
             <OpenTabs
               tabs={activeTabs}
               activePath={selectedPath}
@@ -410,7 +429,7 @@ export function ReviewWorkbenchStory({
               onDragStateChange={noop}
               onManualDragStart={noop}
             />
-            <div className="viewer-pane">
+            <div className={workbenchStyles.viewerPane} data-viewer-pane>
               {storyState === "error" ? (
                 <WorkbenchErrorMessage
                   error={storyViewerError}
@@ -420,7 +439,10 @@ export function ReviewWorkbenchStory({
               ) : pendingFilePath && !storyFile ? (
                 <WorkbenchPendingFileMessage path={pendingFilePath} />
               ) : storyState === "loading" ? (
-                <div className="empty-viewer" aria-live="polite">
+                <div
+                  className={`${viewerMessageStyles.empty} empty-viewer`}
+                  aria-live="polite"
+                >
                   Loading preview...
                 </div>
               ) : (
@@ -461,14 +483,14 @@ export function ReviewWorkbenchStory({
         {compactInspector ? (
           <>
             <button
-              className="story-focus-review-queue"
+              className={workbenchStyles.storyFocusReviewQueue}
               type="button"
               onClick={focusCompactReviewQueue}
             >
               Focus Review Queue
             </button>
             <button
-              className="rail-toggle inspector-rail-toggle"
+              className={`${workbenchStyles.railToggle} ${workbenchStyles.inspectorRailToggle}`}
               type="button"
               aria-label={
                 compactInspectorOpen ? "Collapse inspector" : "Expand inspector"
@@ -481,8 +503,8 @@ export function ReviewWorkbenchStory({
               <span
                 className={
                   compactInspectorOpen
-                    ? "collapse-icon collapse-right"
-                    : "collapse-icon collapse-left"
+                    ? `${workbenchStyles.collapseIcon} ${workbenchStyles.collapseRight}`
+                    : `${workbenchStyles.collapseIcon} ${workbenchStyles.collapseLeft}`
                 }
               />
             </button>
@@ -525,23 +547,16 @@ export function ReviewWorkbenchStory({
           onOpenDraft={noop}
         />
       </div>
-      <footer className="statusbar">
-        <span className="statusbar-group">
-          <span className="status-dot live" aria-hidden="true" />
-          {nodes.length} root entries · {activeTabs.length} open tabs
-        </span>
-        <span className="statusbar-group">
-          {reviewStatusLabel} · {visibleComments.length} comments ·{" "}
-          {draftComments.length} drafts
-        </span>
-        <span className="statusbar-group">
-          <span
-            className={`status-dot ${storyState === "loading" ? "pending" : "live"}`}
-            aria-hidden="true"
-          />
-          {statusLabel}
-        </span>
-      </footer>
+      <WorkspaceStatusbar
+        status={{
+          workspace: `${nodes.length} root entries · ${activeTabs.length} open tabs`,
+          activeFile: storyFile?.path ?? "No active file",
+          review: `${reviewStatusLabel} · ${visibleComments.length} comments · ${draftComments.length} drafts`,
+          server: statusLabel,
+          serverTone: storyState === "loading" ? "pending" : "live",
+          detail: "",
+        }}
+      />
       {inspectorTitle ? (
         <div className="story-state-note">{inspectorTitle}</div>
       ) : null}

@@ -1,0 +1,398 @@
+.diffViewer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 100%;
+}
+
+.diffViewer :global(.diff-preview) {
+  flex: 1;
+  min-width: 0;
+  max-height: none;
+  min-height: 360px;
+  overflow: auto;
+  margin: 8px 0 0;
+  border-radius: 7px;
+  background: var(--code);
+  color: var(--text);
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.diffViewer :global(.diff-inline) {
+  min-width: 0;
+  padding: 10px 0 18px;
+  tab-size: 2;
+}
+
+.diffViewer :global(.diff-inline-row) {
+  position: relative;
+  display: grid;
+  grid-template-columns: 64px minmax(max-content, 1fr);
+  width: fit-content;
+  min-width: 100%;
+  min-height: 23px;
+  border-left: 3px solid transparent;
+  color: var(--text);
+}
+
+.diffViewer :global(.diff-inline-row > code) {
+  display: block;
+  min-width: 0;
+  overflow: visible;
+  padding: 0 18px;
+  white-space: pre;
+}
+
+.diffViewer :global(.diff-comment-marker) {
+  left: 9px;
+  top: 7px;
+}
+
+.diffViewer :global(.rendered-markdown-diff-block),
+.diffViewer :global(.rendered-html-diff-block) {
+  position: relative;
+}
+
+.diffViewer :global(.rendered-diff-comment-marker) {
+  left: 9px;
+  top: 9px;
+}
+
+.diffViewer :global(.diff-inline-row .diff-line-no) {
+  border-right: 1px solid var(--soft-line);
+  color: var(--subtle);
+  font-size: 12px;
+  padding: 0 12px 0 8px;
+  text-align: right;
+  user-select: none;
+}
+
+.diffViewer :global(.diff-inline-row.context:hover) {
+  background: var(--soft-line);
+}
+
+.diffViewer :global(.diff-inline-row.has-comment),
+.diffViewer :global(.diff-inline-row.drafting-comment),
+.diffViewer :global(.rendered-markdown-diff-block.has-comment),
+.diffViewer :global(.rendered-html-diff-block.has-comment) {
+  background: linear-gradient(
+    90deg,
+    var(--comment-tint-active),
+    color-mix(in srgb, var(--comment-tint) 52%, transparent) 56%,
+    transparent
+  );
+  box-shadow: inset 2px 0 0 var(--comment-line);
+}
+
+.diffViewer :global(.diff-inline-row.active-comment) {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--comment-tint-active) 88%, var(--accent-faint)),
+    color-mix(in srgb, var(--comment-tint-active) 72%, transparent) 66%,
+    transparent
+  );
+  box-shadow:
+    inset 2px 0 0 var(--comment-text),
+    inset 0 0 0 1px color-mix(in srgb, var(--comment-line) 52%, transparent);
+}
+
+.diffViewer :global(.diff-inline-row.has-comment .diff-line-no),
+.diffViewer :global(.diff-inline-row.drafting-comment .diff-line-no) {
+  color: var(--comment-text);
+}
+
+.diffViewer :global(.diff-inline-row.add) {
+  border-left-color: #43d9a3;
+  background: color-mix(in srgb, #43d9a3 18%, transparent);
+}
+
+.diffViewer :global(.diff-inline-row.remove) {
+  border-left-color: #f7768e;
+  background: color-mix(in srgb, #f7768e 18%, transparent);
+}
+
+.diffViewer :global(.diff-inline-row.add > code) {
+  color: #9ece6a;
+}
+
+.diffViewer :global(.diff-inline-row.remove > code) {
+  color: #f7768e;
+}
+
+.diffViewer :global(.diff-inline-row.meta),
+.diffViewer :global(.diff-inline-row.hunk) {
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.diffViewer :global(.diff-inline-row.meta > code),
+.diffViewer :global(.diff-inline-row.hunk > code) {
+  color: var(--muted);
+}
+
+.diffViewer :global(.diff-viewer-status) {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 12px;
+  padding: 8px 10px;
+}
+
+.diffViewer :global(.diff-viewer-status-main) {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.diffViewer :global(.diff-viewer-status-main strong) {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diffViewer :global(.diff-inline-row.gap) {
+  min-height: 32px;
+  align-items: center;
+  background: var(--panel);
+  border-left-color: transparent;
+}
+
+.diffViewer :global(.diff-inline-row.gap > code) {
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 0 18px;
+  white-space: normal;
+}
+
+.diffViewer :global(.diff-gap) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.diffViewer :global(.diff-gap::before),
+.diffViewer :global(.diff-gap::after) {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--soft-line);
+}
+
+.diffViewer :global(.rendered-diff-frame) {
+  width: 100%;
+  height: 220px;
+}
+
+.diffViewer :global(.rendered-markdown-diff) {
+  min-width: 0;
+  overflow: visible;
+  padding: 0;
+}
+
+.diffViewer :global(.rendered-markdown-diff-block) {
+  position: relative;
+  margin: 0;
+  padding: 0;
+}
+
+.diffViewer
+  :global(.rendered-markdown-diff > .rendered-markdown-diff-block:first-child > :first-child) {
+  margin-top: 0;
+}
+
+.diffViewer
+  :global(.rendered-markdown-diff > .rendered-markdown-diff-block:last-child > :last-child) {
+  margin-bottom: 0;
+}
+
+.diffViewer
+  :global(.rendered-markdown-diff-block.add > :is(blockquote, .markdown-callout, .markdown-table-wrap)),
+.diffViewer :global(.rendered-markdown-diff-block.add li) {
+  background: color-mix(in srgb, #43d9a3 18%, transparent);
+}
+
+.diffViewer
+  :global(.rendered-markdown-diff-block.remove > :is(blockquote, .markdown-callout, .markdown-table-wrap)),
+.diffViewer :global(.rendered-markdown-diff-block.remove li) {
+  background: color-mix(in srgb, #f7768e 18%, transparent);
+}
+
+.diffViewer :global(.rendered-markdown-diff-block.add.markdown-block-flow),
+.diffViewer :global(.rendered-markdown-diff-block.remove.markdown-block-flow) {
+  margin: 14px 0;
+}
+
+.diffViewer :global(.rendered-markdown-diff-block.add.markdown-block-heading),
+.diffViewer
+  :global(.rendered-markdown-diff-block.remove.markdown-block-heading) {
+  margin: 30px 0 14px;
+}
+
+.diffViewer :global(.rendered-markdown-diff-block.add.markdown-block-flow > p),
+.diffViewer
+  :global(.rendered-markdown-diff-block.remove.markdown-block-flow > p),
+.diffViewer
+  :global(.rendered-markdown-diff-block.add.markdown-block-heading > :is(h1, h2, h3, h4)),
+.diffViewer
+  :global(.rendered-markdown-diff-block.remove.markdown-block-heading > :is(h1, h2, h3, h4)) {
+  display: inline;
+  margin: 0;
+  padding: 0.08em 0.18em;
+  border-radius: 6px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.diffViewer :global(.rendered-markdown-diff-block.add.markdown-block-flow > p),
+.diffViewer
+  :global(.rendered-markdown-diff-block.add.markdown-block-heading > :is(h1, h2, h3, h4)) {
+  background: color-mix(in srgb, #43d9a3 18%, transparent);
+}
+
+.diffViewer
+  :global(.rendered-markdown-diff-block.remove.markdown-block-flow > p),
+.diffViewer
+  :global(.rendered-markdown-diff-block.remove.markdown-block-heading > :is(h1, h2, h3, h4)) {
+  background: color-mix(in srgb, #f7768e 18%, transparent);
+}
+
+.diffViewer :global(.rendered-markdown-code-line) {
+  border-radius: 4px;
+  padding: 0 0.35em;
+}
+
+.diffViewer :global(.rendered-markdown-code-line.add) {
+  background: color-mix(in srgb, #43d9a3 18%, transparent);
+}
+
+.diffViewer :global(.rendered-markdown-code-line.remove) {
+  background: color-mix(in srgb, #f7768e 18%, transparent);
+}
+
+.diffViewer :global(.rendered-markdown-diff-block.add li),
+.diffViewer :global(.rendered-markdown-diff-block.remove li) {
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 5px;
+  padding-right: 0.35em;
+}
+
+.diffViewer :global(.rendered-inline-diff .diff-inline-row) {
+  align-items: stretch;
+  grid-template-columns: 64px minmax(0, 1fr);
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+}
+
+.diffViewer :global(.rendered-diff-line) {
+  min-width: 0;
+  overflow: visible;
+  padding: 7px 16px;
+}
+
+.diffViewer :global(.rendered-diff-line.empty) {
+  min-height: 20px;
+}
+
+.diffViewer :global(.rendered-inline-diff .markdown-document) {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.diffViewer :global(.rendered-inline-diff .markdown-document > :first-child) {
+  margin-top: 0;
+}
+
+.diffViewer :global(.rendered-inline-diff .markdown-document > :last-child) {
+  margin-bottom: 0;
+}
+
+.diffViewer :global(.rendered-inline-diff .markdown-document h1) {
+  font-size: 20px;
+}
+
+.diffViewer :global(.rendered-inline-diff .markdown-document h2) {
+  font-size: 17px;
+}
+
+.diffViewer :global(.rendered-inline-diff .markdown-document p),
+.diffViewer :global(.rendered-inline-diff .markdown-document ul),
+.diffViewer :global(.rendered-inline-diff .markdown-document ol) {
+  margin: 0;
+}
+
+.diffViewer :global(.rendered-inline-diff .markdown-document ul),
+.diffViewer :global(.rendered-inline-diff .markdown-document ol) {
+  padding-left: 18px;
+}
+
+.diffViewer :global(.rendered-inline-diff .markdown-document li + li) {
+  margin-top: 4px;
+}
+
+.diffViewer :global(.rendered-inline-diff .markdown-document code:not(pre code)) {
+  white-space: normal;
+}
+
+.diffViewer :global(.rendered-inline-diff .markdown-document pre) {
+  max-width: 100%;
+  overflow: auto;
+}
+
+.diffViewer :global(.rendered-inline-diff .rendered-diff-frame) {
+  display: block;
+  height: 44px;
+  border: 0;
+  background: transparent;
+}
+
+.diffViewer :global(.rendered-html-diff) {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.diffViewer :global(.rendered-html-diff-block) {
+  border-radius: 8px;
+  padding: 0;
+}
+
+.diffViewer :global(.rendered-html-diff-block.add) {
+  background: color-mix(in srgb, #43d9a3 14%, transparent);
+}
+
+.diffViewer :global(.rendered-html-diff-block.remove) {
+  background: color-mix(in srgb, #f7768e 14%, transparent);
+}
+
+.diffViewer :global(.rendered-html-diff-frame) {
+  display: block;
+  width: 100%;
+  min-height: 140px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+}

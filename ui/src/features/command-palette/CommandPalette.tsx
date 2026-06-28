@@ -22,6 +22,9 @@ import type {
   FileSearchResult,
   TextSearchResult,
 } from "../../domain/search.js";
+import fileIconStyles from "../../shared/components/FileIcon.module.css";
+import sharedUiStyles from "../../shared/styles/SharedUi.module.css";
+import styles from "./CommandPalette.module.css";
 
 interface Props {
   open: boolean;
@@ -106,41 +109,35 @@ export function CommandPalette({
     onModeChange(nextMode);
     window.requestAnimationFrame(() => {
       document
-        .querySelector<HTMLButtonElement>(
-          `.palette-mode-bar [data-palette-mode="${nextMode}"]`,
-        )
+        .querySelector<HTMLButtonElement>(`[data-palette-mode="${nextMode}"]`)
         ?.focus();
     });
   }
 
   function handleModeKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    const nextMode = paletteModeKeyboardAction(
-      availableModes,
-      mode,
-      event.key,
-    );
+    const nextMode = paletteModeKeyboardAction(availableModes, mode, event.key);
     if (!nextMode || nextMode === mode) return;
     event.preventDefault();
     switchMode(nextMode);
   }
 
   return (
-    <div className="palette-overlay" role="presentation" onClick={onClose}>
+    <div className={styles.overlay} role="presentation" onClick={onClose}>
       <section
-        className="palette"
+        className={styles.palette}
         role="dialog"
         aria-label={title}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="palette-top">
+        <div className={styles.top}>
           <div
-            className="palette-mode-bar"
+            className={styles.modeBar}
             role="tablist"
             aria-label="Search mode"
             onKeyDown={handleModeKeyDown}
           >
             <button
-              className={mode === "file" ? "active" : ""}
+              className={`${styles.modeButton}${mode === "file" ? ` ${styles.activeMode}` : ""}`}
               role="tab"
               aria-selected={mode === "file"}
               tabIndex={mode === "file" ? 0 : -1}
@@ -150,7 +147,7 @@ export function CommandPalette({
               Files
             </button>
             <button
-              className={mode === "text" ? "active" : ""}
+              className={`${styles.modeButton}${mode === "text" ? ` ${styles.activeMode}` : ""}`}
               role="tab"
               aria-selected={mode === "text"}
               tabIndex={mode === "text" ? 0 : -1}
@@ -161,7 +158,7 @@ export function CommandPalette({
             </button>
             {hasActionMode ? (
               <button
-                className={mode === "action" ? "active" : ""}
+                className={`${styles.modeButton}${mode === "action" ? ` ${styles.activeMode}` : ""}`}
                 role="tab"
                 aria-selected={mode === "action"}
                 tabIndex={mode === "action" ? 0 : -1}
@@ -174,7 +171,7 @@ export function CommandPalette({
           </div>
           <input
             autoFocus
-            className="palette-input"
+            className={styles.input}
             placeholder={placeholder}
             value={query}
             aria-label={`${title} query`}
@@ -219,9 +216,9 @@ export function CommandPalette({
             }}
           />
         </div>
-        <div className="palette-body">
+        <div className={styles.body}>
           <div
-            className="palette-results"
+            className={styles.results}
             role="listbox"
             aria-label={`${title} results`}
           >
@@ -239,8 +236,8 @@ export function CommandPalette({
                 }`}
                 className={
                   index === activeVisibleIndex
-                    ? "palette-result active"
-                    : "palette-result"
+                    ? `${styles.result} ${styles.activeResult}`
+                    : styles.result
                 }
                 aria-selected={index === activeVisibleIndex}
                 disabled={item.kind === "action" && item.disabled}
@@ -257,12 +254,12 @@ export function CommandPalette({
                 }}
                 onMouseEnter={() => setSelectedIndex(index)}
               >
-                <span className="file-icon">
+                <span className={`${fileIconStyles.icon} file-icon`}>
                   {item.kind === "action"
                     ? "⌘"
                     : iconForPath(item.path, item.viewerKind)}
                 </span>
-                <span className="palette-result-main">
+                <span className={styles.resultMain}>
                   <strong>{item.label}</strong>
                   <small>
                     {item.kind === "text" ? (
@@ -272,7 +269,7 @@ export function CommandPalette({
                     )}
                   </small>
                 </span>
-                <span className="palette-type">
+                <span className={styles.type}>
                   {item.kind === "file"
                     ? filePaletteType(item.source)
                     : item.kind === "text"
@@ -282,17 +279,17 @@ export function CommandPalette({
               </button>
             ))}
             {textLoading && mode === "text" ? (
-              <p className="muted palette-empty" aria-live="polite">
+              <p className={`${sharedUiStyles.muted} muted`} aria-live="polite">
                 Searching workspace text...
               </p>
             ) : null}
             {fileLoading && mode === "file" ? (
-              <p className="muted palette-empty" aria-live="polite">
+              <p className={`${sharedUiStyles.muted} muted`} aria-live="polite">
                 Searching file names...
               </p>
             ) : null}
             {!visibleResults.length && !textLoading && !fileLoading && (
-              <p className="muted palette-empty">
+              <p className={`${sharedUiStyles.muted} muted`}>
                 {mode === "file"
                   ? query.trim()
                     ? "No matching files."
@@ -303,55 +300,59 @@ export function CommandPalette({
               </p>
             )}
           </div>
-          <aside className="palette-help">
+          <aside className={styles.help}>
             {mode === "action" ? (
               <>
                 <div>
                   <span>Run action</span>
-                  <kbd>Enter</kbd>
+                  <kbd className={sharedUiStyles.keycap}>Enter</kbd>
                 </div>
                 <div>
                   <span>Filter actions</span>
-                  <kbd>Type</kbd>
+                  <kbd className={sharedUiStyles.keycap}>Type</kbd>
                 </div>
                 <div>
                   <span>Command palette</span>
-                  <kbd>Cmd/Ctrl K</kbd>
+                  <kbd className={sharedUiStyles.keycap}>Cmd/Ctrl K</kbd>
                 </div>
                 <div>
                   <span>Search text</span>
-                  <kbd>Cmd/Ctrl Shift F</kbd>
+                  <kbd className={sharedUiStyles.keycap}>
+                    Cmd/Ctrl Shift F
+                  </kbd>
                 </div>
               </>
             ) : (
               <>
                 <div>
                   <span>Preview</span>
-                  <kbd>Enter</kbd>
+                  <kbd className={sharedUiStyles.keycap}>Enter</kbd>
                 </div>
                 <div>
                   <span>Keep open</span>
-                  <kbd>Cmd/Ctrl Enter</kbd>
+                  <kbd className={sharedUiStyles.keycap}>Cmd/Ctrl Enter</kbd>
                 </div>
                 <div>
                   <span>Command palette</span>
-                  <kbd>Cmd/Ctrl K</kbd>
+                  <kbd className={sharedUiStyles.keycap}>Cmd/Ctrl K</kbd>
                 </div>
                 <div>
                   <span>Search text</span>
-                  <kbd>Cmd/Ctrl Shift F</kbd>
+                  <kbd className={sharedUiStyles.keycap}>
+                    Cmd/Ctrl Shift F
+                  </kbd>
                 </div>
               </>
             )}
             {hasActionMode ? (
               <div>
                 <span>Switch mode</span>
-                <kbd>Tab</kbd>
+                <kbd className={sharedUiStyles.keycap}>Tab</kbd>
               </div>
             ) : null}
             <div>
               <span>Close</span>
-              <kbd>Esc</kbd>
+              <kbd className={sharedUiStyles.keycap}>Esc</kbd>
             </div>
           </aside>
         </div>
@@ -378,14 +379,14 @@ function TextSearchPreview({
 }) {
   return (
     <>
-      <span className="palette-line-prefix">L{item.lineNumber}</span>{" "}
+      <span className={styles.linePrefix}>L{item.lineNumber}</span>{" "}
       {textSearchPreviewSegments(
         item.lineText,
         item.matchStart,
         item.matchLength,
       ).map((segment, index) =>
         segment.match ? (
-          <mark className="palette-search-match" key={index}>
+          <mark className={styles.searchMatch} key={index}>
             {segment.text}
           </mark>
         ) : (

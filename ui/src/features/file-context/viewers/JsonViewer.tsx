@@ -18,7 +18,9 @@ import {
   ViewerToolbar,
   ViewerModeButton,
 } from "../components/ViewerControlButton.js";
+import sharedUiStyles from "../../../shared/styles/SharedUi.module.css";
 import { DiffViewer } from "./DiffViewer.js";
+import surfaceStyles from "./ViewerSurface.module.css";
 
 export function JsonViewer({
   file,
@@ -70,11 +72,14 @@ export function JsonViewer({
   };
 
   return (
-    <section className="json-viewer">
+    <section className={`${surfaceStyles.jsonViewer} json-viewer`}>
       <ViewerToolbar
         status={parsed.ok ? "JSON tree" : "Invalid JSON, source shown"}
       >
-        <div className="segmented-control" aria-label="JSON view mode">
+        <div
+          className={`${surfaceStyles.segmentedControl} segmented-control`}
+          aria-label="JSON view mode"
+        >
           <ViewerModeButton
             active={mode === "tree"}
             mode="tree"
@@ -112,13 +117,13 @@ export function JsonViewer({
           onOpenComment={onOpenComment}
         />
       ) : mode === "tree" && parsed.ok ? (
-        <div className="json-tree">
+        <div className={`${surfaceStyles.jsonTree} json-tree`}>
           <JsonNode name={file.path} value={parsed.value} depth={0} />
         </div>
       ) : (
         <CommentedSourceLines
           content={source}
-          className="markdown-source"
+          className={`markdown-source ${surfaceStyles.markdownSource}`}
           containerRef={sourceRef}
           comments={comments}
           activeCommentId={activeCommentId}
@@ -157,21 +162,27 @@ function JsonNode({
 }) {
   if (depth > 8) {
     return (
-      <div className="json-node">
-        <span className="json-key">{name}</span>
-        <span className="json-value muted">Depth limit</span>
+      <div className={`${surfaceStyles.jsonNode} json-node`}>
+        <span className={`${surfaceStyles.jsonKey} json-key`}>{name}</span>
+        <span
+          className={`${surfaceStyles.jsonValue} ${sharedUiStyles.muted} json-value muted`}
+        >
+          Depth limit
+        </span>
       </div>
     );
   }
 
   if (Array.isArray(value)) {
     return (
-      <details className="json-node" open={depth < 2}>
+      <details className={`${surfaceStyles.jsonNode} json-node`} open={depth < 2}>
         <summary>
-          <span className="json-key">{name}</span>
-          <span className="json-value">Array({value.length})</span>
+          <span className={`${surfaceStyles.jsonKey} json-key`}>{name}</span>
+          <span className={`${surfaceStyles.jsonValue} json-value`}>
+            Array({value.length})
+          </span>
         </summary>
-        <div className="json-children">
+        <div className={`${surfaceStyles.jsonChildren} json-children`}>
           {value.map((item, index) => (
             <JsonNode
               key={index}
@@ -188,12 +199,14 @@ function JsonNode({
   if (value && typeof value === "object") {
     const entries = Object.entries(value as Record<string, unknown>);
     return (
-      <details className="json-node" open={depth < 2}>
+      <details className={`${surfaceStyles.jsonNode} json-node`} open={depth < 2}>
         <summary>
-          <span className="json-key">{name}</span>
-          <span className="json-value">Object({entries.length})</span>
+          <span className={`${surfaceStyles.jsonKey} json-key`}>{name}</span>
+          <span className={`${surfaceStyles.jsonValue} json-value`}>
+            Object({entries.length})
+          </span>
         </summary>
-        <div className="json-children">
+        <div className={`${surfaceStyles.jsonChildren} json-children`}>
           {entries.map(([key, item]) => (
             <JsonNode key={key} name={key} value={item} depth={depth + 1} />
           ))}
@@ -203,9 +216,11 @@ function JsonNode({
   }
 
   return (
-    <div className="json-node leaf">
-      <span className="json-key">{name}</span>
-      <span className={`json-value ${jsonValueClass(value)}`}>
+    <div className={`${surfaceStyles.jsonNode} json-node leaf`}>
+      <span className={`${surfaceStyles.jsonKey} json-key`}>{name}</span>
+      <span
+        className={`${surfaceStyles.jsonValue} json-value ${jsonValueClassName(value)}`}
+      >
         {formatJsonScalar(value)}
       </span>
     </div>
@@ -228,10 +243,11 @@ function formatJsonScalar(value: unknown): string {
   return String(value);
 }
 
-function jsonValueClass(value: unknown): string {
-  if (typeof value === "string") return "string";
-  if (typeof value === "number") return "number";
-  if (typeof value === "boolean") return "boolean";
-  if (value === null) return "null";
+function jsonValueClassName(value: unknown): string {
+  if (typeof value === "string") return `${surfaceStyles.jsonValueString} string`;
+  if (typeof value === "number") return `${surfaceStyles.jsonValueNumber} number`;
+  if (typeof value === "boolean")
+    return `${surfaceStyles.jsonValueBoolean} boolean`;
+  if (value === null) return `${surfaceStyles.jsonValueNull} null`;
   return "";
 }

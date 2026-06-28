@@ -15,6 +15,10 @@ import {
   statusLabel,
 } from "../../../state/comments.js";
 import { commentAgentIdentity } from "../comment-agent-identity.js";
+import sharedUiStyles from "../../../shared/styles/SharedUi.module.css";
+import activityStyles from "./CommentActivity.module.css";
+import { CommentStatusBadge } from "./CommentStatusBadge.js";
+import styles from "./CodeCommentThread.module.css";
 
 export function CodeCommentThread({
   thread,
@@ -147,7 +151,7 @@ export function CodeCommentThread({
   return (
     <article
       ref={threadRef}
-      className={`code-comment-thread${className ? ` ${className}` : ""}`}
+      className={`${styles.threadRoot} ${activityStyles.activityStyles} code-comment-thread${className ? ` ${className}` : ""}`}
       aria-label={`Comment thread for ${lineLabel.toLowerCase()}`}
       onClick={(event) => event.stopPropagation()}
       onMouseUp={(event) => event.stopPropagation()}
@@ -163,9 +167,9 @@ export function CodeCommentThread({
               : "Composing"}
           </span>
           {thread.comments.length ? (
-            <span className={`comment-status ${threadStatus}`}>
+            <CommentStatusBadge status={threadStatus}>
               {statusLabel(threadStatus)}
-            </span>
+            </CommentStatusBadge>
           ) : null}
         </div>
         <button
@@ -241,9 +245,13 @@ export function CodeCommentThread({
                     <span className="code-thread-self-chip">You</span>
                   ) : null}
                   {draftComment ? (
-                    <span className="comment-status draft">Private</span>
+                    <CommentStatusBadge status="draft">
+                      Private
+                    </CommentStatusBadge>
                   ) : (
-                    <span className="comment-status published">Published</span>
+                    <CommentStatusBadge status="published">
+                      Published
+                    </CommentStatusBadge>
                   )}
                   {!draftComment && comment.status !== "open" ? (
                     <span>{statusLabel(comment.status)}</span>
@@ -325,7 +333,8 @@ export function CodeCommentThread({
           }}
         />
         <p className="code-comment-thread-hint" id={replyHintId}>
-          <kbd>Cmd/Ctrl Enter</kbd> {submitHint} <span>Esc closes</span>
+          <kbd className={sharedUiStyles.keycap}>Cmd/Ctrl Enter</kbd>{" "}
+          {submitHint} <span>Esc closes</span>
         </p>
         <div className="code-comment-thread-footer">
           <div>

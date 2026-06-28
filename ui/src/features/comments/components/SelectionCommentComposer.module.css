@@ -1,0 +1,115 @@
+.composer {
+  position: fixed;
+  z-index: 80;
+  width: min(384px, calc(100vw - 24px));
+  border: 1px solid var(--comment-line);
+  border-radius: 11px;
+  background: var(--palette);
+  box-shadow: 0 24px 68px var(--shadow);
+  padding: 9px;
+}
+
+.composer::before {
+  content: "";
+  position: absolute;
+  left: var(--comment-arrow-left, 24px);
+  width: 12px;
+  height: 12px;
+  background: var(--palette);
+  border-color: var(--comment-line);
+  transform: rotate(45deg);
+}
+
+.below::before {
+  top: -7px;
+  border-left: 1px solid var(--comment-line);
+  border-top: 1px solid var(--comment-line);
+}
+
+.above::before {
+  bottom: -7px;
+  border-right: 1px solid var(--comment-line);
+  border-bottom: 1px solid var(--comment-line);
+}
+
+.side::before {
+  left: -7px;
+  top: var(--comment-arrow-top, 24px);
+  border-left: 1px solid var(--comment-line);
+  border-bottom: 1px solid var(--comment-line);
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 0 2px 7px;
+}
+
+.meta strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer textarea {
+  width: 100%;
+  min-height: 86px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--code);
+  color: var(--text);
+  font: inherit;
+  line-height: 1.55;
+  outline: 0;
+  padding: 10px;
+}
+
+.composer textarea:focus {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 2px var(--accent-faint);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--subtle);
+  font-size: 11px;
+  margin-top: 8px;
+}
+
+.footer div {
+  display: flex;
+  gap: 7px;
+}
+
+.footer button {
+  border: 1px solid var(--soft-line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 9px;
+}
+
+.footer button[type="submit"] {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--comment-text) 84%, white);
+  color: #11091c;
+  font-weight: 760;
+}
+
+.footer button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}

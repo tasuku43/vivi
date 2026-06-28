@@ -31,6 +31,7 @@ import {
   ViewerModeButton,
 } from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
+import surfaceStyles from "./ViewerSurface.module.css";
 
 type HtmlRenderedThreadTarget = {
   blockId: string;
@@ -308,11 +309,14 @@ export function HtmlViewer({
   });
 
   return (
-    <section className="html-viewer">
+    <section className={`${surfaceStyles.viewer} html-viewer`}>
       <ViewerToolbar
         status={`sandboxed · scripts ${allowHtmlScripts ? "on" : "off"}`}
       >
-        <div className="segmented-control" aria-label="HTML view mode">
+        <div
+          className={`${surfaceStyles.segmentedControl} segmented-control`}
+          aria-label="HTML view mode"
+        >
           <ViewerModeButton
             active={mode === "preview"}
             mode="preview"
@@ -354,10 +358,10 @@ export function HtmlViewer({
           threadActivities={threadActivities}
         />
       ) : mode === "preview" ? (
-        <div className="html-preview-stage">
+        <div className={`${surfaceStyles.htmlPreviewStage} html-preview-stage`}>
           <iframe
             ref={iframeRef}
-            className="html-frame"
+            className={`${surfaceStyles.htmlFrame} html-frame`}
             key={file.etag}
             title={file.path}
             sandbox="allow-scripts"
@@ -373,7 +377,7 @@ export function HtmlViewer({
       ) : (
         <SourceCommentSurface
           file={file}
-          className="markdown-source"
+          className={`markdown-source ${surfaceStyles.markdownSource}`}
           selectedRange={sourceSelectedRange}
           focusLineNumber={focusLineNumber}
           focusRevision={focusRevision}
@@ -392,7 +396,7 @@ export function HtmlViewer({
         entry.position ? (
           <div
             key={entry.key}
-            className="html-rendered-comment-thread-host"
+            className={`${surfaceStyles.htmlRenderedCommentThreadHost} html-rendered-comment-thread-host`}
             style={
               {
                 left: entry.position.left,

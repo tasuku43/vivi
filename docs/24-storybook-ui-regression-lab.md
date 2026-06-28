@@ -95,11 +95,46 @@ Run the lightweight Storybook build with:
 task storybook:build
 ```
 
+Capture or verify Storybook visual baselines with:
+
+```bash
+npm run storybook:snapshots:update
+npm run storybook:snapshots:verify
+```
+
+The snapshot target list comes from `ui/src/storybook/storybook-lab.manifest.json`:
+`requiredStories` and `interactionStories` entries are captured through the
+running Storybook `iframe.html` surface. This keeps post-interaction focus,
+hover, click, and form states in the visual baseline. To run a smaller
+required-only visual check locally, set `VIVI_STORYBOOK_SNAPSHOT_INTERACTIONS=0`.
+
+Baselines live under `test/golden/storybook/`, while verification failures write
+actual/expected/diff artifacts to `artifacts/storybook-snapshots/`.
+
+The current verifier uses Playwright screenshots and a dependency-light Canvas
+pixel comparison. It allows a tiny anti-aliasing tolerance by default while
+still reporting visible style refactors. Tune local diagnostics with
+`VIVI_STORYBOOK_SNAPSHOT_CHANNEL_TOLERANCE`,
+`VIVI_STORYBOOK_SNAPSHOT_MAX_DIFF_RATIO`, and
+`VIVI_STORYBOOK_SNAPSHOT_VIEWPORTS`.
+
 The full repository gate still runs:
 
 ```bash
 task check
 ```
+
+## Styling Contract
+
+New and migrated UI styles should use CSS Modules by default. `ui/src/styles.css`
+is reserved for root theme tokens and document-level base rules. Shared chrome
+utilities live in `ui/src/shared/styles/SharedUi.module.css` and should be
+applied through imported module classes.
+
+Stable global class names may remain in markup as Storybook, test, and product
+inspection hooks, but the visual styling should live in a feature module or a
+shared module. When moving a visible style, capture or verify the affected
+Storybook snapshot set before treating the migration as complete.
 
 Representative stories opt into `@storybook/addon-a11y` with
 `parameters.a11y.test = "error"`. Interaction smoke checks live in Storybook

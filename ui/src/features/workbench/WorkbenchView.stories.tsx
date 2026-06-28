@@ -617,11 +617,15 @@ export const ReviewQueueOpenKeepsWorkspaceChrome: Story = {
       requestAnimationFrame(() => resolve()),
     );
 
-    const topbar = canvasElement.querySelector<HTMLElement>(".topbar");
+    const topbar = canvas
+      .getByLabelText("Vivi")
+      .closest<HTMLElement>("header");
     const explorerTitle = canvas
       .getByText("Explorer")
       .closest<HTMLElement>(".panel-title");
-    const tabs = canvasElement.querySelector<HTMLElement>(".tabs");
+    const tabs = canvas
+      .getByRole("tablist", { name: /Open file tabs/ })
+      .closest<HTMLElement>("div");
 
     expect(topbar).not.toBeNull();
     expect(explorerTitle).not.toBeNull();
