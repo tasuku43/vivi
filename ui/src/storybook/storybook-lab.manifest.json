@@ -88,13 +88,17 @@
       ],
       "requiredStories": [
         "Review/Queue States/ReviewQueueItemWithOpenThreads",
+        "Review/Queue States/InReviewFileThreadExpansion",
         "Review/Queue States/ReviewQueueItemWithLatestAgentActivity",
         "Review/Queue States/GitReviewUnavailable",
         "Review/Comments Inbox States/WorkspaceComments",
         "Review/Comments Inbox States/AgentActivityVisible",
         "Review/Activity States/CommentsWatchDisconnected"
       ],
-      "interactionStories": ["Review/Comments Inbox States/WorkspaceComments"]
+      "interactionStories": [
+        "Review/Queue States/InReviewFileThreadExpansionInteraction",
+        "Review/Comments Inbox States/WorkspaceComments"
+      ]
     },
     {
       "id": "comment-lifecycle",

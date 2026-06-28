@@ -144,6 +144,52 @@ export const ReviewQueueItemWithOpenThreads: Story = {
   },
 };
 
+export const InReviewFileThreadExpansion: Story = {
+  render: () => <InReviewThreadExpansionFacade />,
+};
+
+export const InReviewFileThreadExpansionInteraction: Story = {
+  tags: ["interaction"],
+  render: () => <InReviewThreadExpansionFacade />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("region", { name: "Review states" }),
+    ).toHaveTextContent("Queued");
+    await expect(
+      canvas.getByText("In Review", { selector: "summary span" }),
+    ).toBeVisible();
+    await expect(
+      canvas.getByText("Reviewed", { selector: "summary span" }),
+    ).toBeVisible();
+
+    await expect(
+      canvas.queryByRole("button", {
+        name: /Open thread source, docs\/product-review\.md, L7/i,
+      }),
+    ).not.toBeInTheDocument();
+
+    await userEvent.click(
+      canvas.getByRole("button", {
+        name: "Show 2 open threads for docs/product-review.md",
+      }),
+    );
+
+    const firstThread = canvas.getByRole("button", {
+      name: /Open thread source, docs\/product-review\.md, L7/i,
+    });
+    await expect(firstThread).toBeVisible();
+    await expect(firstThread).toHaveTextContent(
+      "Keep this feedback layer visible in the inspector outline story.",
+    );
+
+    await userEvent.click(firstThread);
+    await expect(
+      canvas.getByRole("status", { name: "Opened thread source" }),
+    ).toHaveTextContent("docs/product-review.md · L7");
+  },
+};
+
 export const ReviewQueueItemWithLatestAgentActivity: Story = {
   name: "Queue item shows latest agent activity",
   args: {
@@ -660,5 +706,209 @@ function ReviewedChangeInspector(args: Story["args"]) {
         })
       }
     />
+  );
+}
+
+function InReviewThreadExpansionFacade() {
+  const [expanded, setExpanded] = useState(false);
+  const [openedThread, setOpenedThread] = useState<string | null>(null);
+
+  return (
+    <aside className="inspector" aria-label="Review inspector">
+      <div className="panel-title review-panel-title">
+        <span className="review-panel-heading">
+          <span>Review</span>
+          <strong>2 need action</strong>
+        </span>
+        <button
+          className="command-button command-button-secondary review-next-action"
+          type="button"
+        >
+          Next
+        </button>
+      </div>
+      <div className="inspect-body">
+        <div className="inspector-review-mode">
+          <section className="review-state-summary" aria-label="Review states">
+            <span className="review-state-card queued">
+              <strong>3</strong>
+              <span>Queued</span>
+            </span>
+            <span className="review-state-card reviewing">
+              <strong>2</strong>
+              <span>In Review</span>
+            </span>
+            <span className="review-state-card reviewed">
+              <strong>5</strong>
+              <span>Reviewed</span>
+            </span>
+          </section>
+          <div
+            className="review-queue"
+            role="group"
+            aria-label="Review queue, 3 queued, 2 in review, 5 reviewed"
+          >
+            <details className="review-state-section queued" open>
+              <summary>
+                <span>Queued</span>
+                <small>3 files waiting for review</small>
+              </summary>
+              <div className="review-state-section-list">
+                <button
+                  className="change-open"
+                  type="button"
+                  aria-label="Review queue item, modified README.md"
+                >
+                  <span className="unread-dot muted" aria-hidden="true" />
+                  <span className="change-main">
+                    <span className="change-heading">
+                      <span className="change-kind">MD</span>
+                      <b>README.md</b>
+                    </span>
+                    <small className="review-thread-summary">
+                      read git · no open threads
+                    </small>
+                  </span>
+                  <span className="diff-stat">
+                    <span className="diff-add">+8</span>
+                    <span className="diff-remove">-2</span>
+                  </span>
+                </button>
+              </div>
+            </details>
+
+            <details className="review-state-section reviewing" open>
+              <summary>
+                <span>In Review</span>
+                <small>2 files open threads</small>
+              </summary>
+              <div className="review-state-section-list">
+                <div className="review-thread-expand-file active">
+                  <button
+                    className="change-open active has-open-threads"
+                    type="button"
+                    aria-current="true"
+                    aria-label="Review queue item, modified docs/product-review.md, current review file"
+                  >
+                    <span className="unread-dot muted" aria-hidden="true" />
+                    <span className="change-main">
+                      <span className="change-heading">
+                        <span className="change-kind">MD</span>
+                        <b>product-review.md</b>
+                      </span>
+                      <small className="review-thread-summary">
+                        2 open threads · latest by Tasuku
+                      </small>
+                    </span>
+                  </button>
+                  <button
+                    className="review-thread-count-toggle"
+                    type="button"
+                    aria-expanded={expanded}
+                    aria-controls="storybook-in-review-thread-list"
+                    aria-label="Show 2 open threads for docs/product-review.md"
+                    onClick={() => setExpanded((current) => !current)}
+                  >
+                    2 threads
+                  </button>
+                </div>
+
+                {expanded ? (
+                  <div
+                    className="review-thread-hairline-list"
+                    id="storybook-in-review-thread-list"
+                    aria-label="Open threads for docs/product-review.md"
+                  >
+                    <button
+                      className="review-thread-hairline-row active"
+                      type="button"
+                      aria-label="Open thread source, docs/product-review.md, L7, rendered Markdown"
+                      onClick={() =>
+                        setOpenedThread("docs/product-review.md · L7")
+                      }
+                    >
+                      <span className="review-thread-hairline-main">
+                        <span className="review-thread-hairline-title">
+                          L7 · Rendered Markdown
+                        </span>
+                        <span className="review-thread-hairline-preview">
+                          Keep this feedback layer visible in the inspector
+                          outline story.
+                        </span>
+                        <span className="review-thread-hairline-meta">
+                          1 message · updated 18:14
+                        </span>
+                      </span>
+                    </button>
+                    <button
+                      className="review-thread-hairline-row"
+                      type="button"
+                      aria-label="Open thread source, docs/product-review.md, L18, source"
+                      onClick={() =>
+                        setOpenedThread("docs/product-review.md · L18")
+                      }
+                    >
+                      <span className="review-thread-hairline-main">
+                        <span className="review-thread-hairline-title">
+                          L18 · Source
+                        </span>
+                        <span className="review-thread-hairline-preview">
+                          Mention the agent-readable contract before the diff
+                          example.
+                        </span>
+                        <span className="review-thread-hairline-meta">
+                          2 messages · agent read
+                        </span>
+                      </span>
+                    </button>
+                  </div>
+                ) : null}
+
+                <div className="review-thread-expand-file">
+                  <button
+                    className="change-open has-open-threads"
+                    type="button"
+                    aria-label="Review queue item, modified WorkbenchContainer.tsx"
+                  >
+                    <span className="unread-dot agent-reply" aria-hidden="true" />
+                    <span className="change-main">
+                      <span className="change-heading">
+                        <span className="change-kind">TS</span>
+                        <b>WorkbenchContainer.tsx</b>
+                      </span>
+                      <small className="review-thread-summary">
+                        Agent replied · needs decision
+                      </small>
+                    </span>
+                  </button>
+                  <button
+                    className="review-thread-count-toggle"
+                    type="button"
+                    aria-expanded="false"
+                    aria-label="Show 1 open thread for WorkbenchContainer.tsx"
+                  >
+                    1 thread
+                  </button>
+                </div>
+              </div>
+            </details>
+
+            <details className="review-state-section reviewed">
+              <summary>
+                <span>Reviewed</span>
+                <small>5 reviewed</small>
+              </summary>
+            </details>
+          </div>
+          <p
+            className="sr-only"
+            role="status"
+            aria-label="Opened thread source"
+          >
+            {openedThread ?? "No thread opened"}
+          </p>
+        </div>
+      </div>
+    </aside>
   );
 }
