@@ -83,6 +83,7 @@ export function MarkdownViewer({
   comments = [],
   activeCommentId,
   expandActiveCommentThread = true,
+  currentActorId,
   onOpenComment,
   onCloseComment,
   onCommentStatusChange,
@@ -104,6 +105,7 @@ export function MarkdownViewer({
   comments?: ViviComment[];
   activeCommentId?: string | null;
   expandActiveCommentThread?: boolean;
+  currentActorId?: string;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onCloseComment?: () => void;
   onCommentStatusChange?: CommentStatusChangeHandler;
@@ -427,6 +429,7 @@ export function MarkdownViewer({
           comments={comments}
           activeCommentId={activeCommentId}
           expandActiveCommentThread={expandActiveCommentThread}
+          currentActorId={currentActorId}
           onOpenComment={onOpenComment}
           threadActivities={threadActivities}
         />
@@ -450,6 +453,7 @@ export function MarkdownViewer({
           comments={comments}
           activeCommentId={activeCommentId}
           expandActiveCommentThread={expandActiveCommentThread}
+          currentActorId={currentActorId}
           onSelectionChange={setSourceSelectedRange}
           onCreateComment={onCreateComment}
           onOpenComment={onOpenComment}
@@ -468,6 +472,7 @@ export function MarkdownViewer({
               entry.threadId ? threadActivities[entry.threadId] : undefined
             }
             activeCommentId={activeCommentId}
+            currentActorId={currentActorId}
             onCreateComment={onCreateComment}
             onStatusChange={onCommentStatusChange}
             onStartNewThread={() => startSeparateRenderedThread(entry.target)}

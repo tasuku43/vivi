@@ -300,6 +300,7 @@ func (store *Store) PublishDrafts(ids []string, actor map[string]any) (map[strin
 	published := make([]map[string]any, 0, len(selected))
 	batchActor := normalizeActor(actor)
 	threadCreatedInBatch := map[string]bool{}
+	newThreadIDByDraftGroup := map[string]string{}
 	impactedThreadIDs := map[string]struct{}{}
 	for _, draft := range selected {
 		threadID := strings.TrimSpace(stringValue(draft["threadId"]))
@@ -312,8 +313,16 @@ func (store *Store) PublishDrafts(ids []string, actor map[string]any) (map[strin
 				return nil, errors.New("draft target thread must be open")
 			}
 		} else {
-			threadID = randomID()
-			threadCreatedInBatch[threadID] = true
+			groupKey, err := draftPublishThreadGroupKey(draft)
+			if err != nil {
+				return nil, err
+			}
+			threadID = newThreadIDByDraftGroup[groupKey]
+			if threadID == "" {
+				threadID = randomID()
+				newThreadIDByDraftGroup[groupKey] = threadID
+				threadCreatedInBatch[threadID] = true
+			}
 			draft = copyMap(draft)
 			draft["threadId"] = threadID
 		}
@@ -879,6 +888,18 @@ func selectDrafts(drafts []map[string]any, ids []string) ([]map[string]any, []ma
 		}
 	}
 	return selected, remaining
+}
+
+func draftPublishThreadGroupKey(draft map[string]any) (string, error) {
+	value := map[string]any{
+		"path":   stringValue(draft["path"]),
+		"anchor": draft["anchor"],
+	}
+	bytes, err := json.Marshal(value)
+	if err != nil {
+		return "", err
+	}
+	return string(bytes), nil
 }
 
 func actorForDraft(draft map[string]any, fallback map[string]any) map[string]any {

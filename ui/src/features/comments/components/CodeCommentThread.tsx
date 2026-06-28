@@ -14,6 +14,7 @@ import {
   isDraftThreadComment,
   statusLabel,
 } from "../../../state/comments.js";
+import { commentAgentIdentity } from "../comment-agent-identity.js";
 
 export function CodeCommentThread({
   thread,
@@ -25,6 +26,7 @@ export function CodeCommentThread({
   onClose,
   activity,
   activeCommentId = null,
+  currentActorId,
 }: {
   thread: CodeCommentThreadModel;
   draft: CommentDraft;
@@ -35,6 +37,7 @@ export function CodeCommentThread({
   onClose: () => void;
   activity?: CommentActivitySummary;
   activeCommentId?: string | null;
+  currentActorId?: string;
 }) {
   const [body, setBody] = useState("");
   const [composerIntent, setComposerIntent] =
@@ -193,40 +196,52 @@ export function CodeCommentThread({
       ) : null}
 
       {thread.comments.length ? (
-        <div className="code-comment-thread-messages">
+        <div
+          className="code-comment-thread-messages"
+          aria-label="Thread messages"
+          tabIndex={0}
+        >
           {thread.comments.map((comment, index) => {
             const active = comment.id === activeCommentId;
+            const agent = commentAgentIdentity(comment);
+            const draftComment = isDraftThreadComment(comment);
+            const currentUserComment =
+              Boolean(currentActorId) && comment.createdBy?.id === currentActorId;
             return (
               <div
-                className={`code-thread-comment ${comment.status}${isDraftThreadComment(comment) ? " draft" : ""}${active ? " active" : ""}`}
+                className={`code-thread-comment ${comment.status}${draftComment ? " draft" : ""}${active ? " active" : ""}${currentUserComment ? " current-user" : ""}`}
                 data-comment-id={comment.id}
                 aria-current={active ? "true" : undefined}
                 tabIndex={active ? -1 : undefined}
                 key={comment.id}
               >
                 <div className="code-thread-comment-meta">
+                  <img
+                    className={`code-thread-comment-avatar ${agent.key}`}
+                    src={agent.avatarSrc}
+                    alt=""
+                    aria-hidden="true"
+                    loading="lazy"
+                  />
                   <strong>
-                    {isDraftThreadComment(comment)
+                    {draftComment
                       ? "Private draft"
                       : index === 0
-                        ? "Started"
-                        : "Reply"}
-                    {comment.author
-                      ? ` by ${comment.author}`
-                      : comment.source && comment.source !== "human"
-                        ? ` by ${comment.source}`
-                        : ""}
+                        ? `Started by ${agent.label}`
+                        : `Reply by ${agent.label}`}
                   </strong>
                   <time dateTime={comment.createdAt}>
                     {formatCommentTime(comment.createdAt)}
                   </time>
-                  {isDraftThreadComment(comment) ? (
+                  {currentUserComment ? (
+                    <span className="code-thread-self-chip">You</span>
+                  ) : null}
+                  {draftComment ? (
                     <span className="comment-status draft">Private</span>
                   ) : (
                     <span className="comment-status published">Published</span>
                   )}
-                  {!isDraftThreadComment(comment) &&
-                  comment.status !== "open" ? (
+                  {!draftComment && comment.status !== "open" ? (
                     <span>{statusLabel(comment.status)}</span>
                   ) : null}
                   {active ? (

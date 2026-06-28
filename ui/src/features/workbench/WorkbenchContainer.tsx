@@ -2744,6 +2744,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                   diffEnabled={
                     paneFile ? diffEnabled && supportsDiffMode(paneFile) : false
                   }
+                  currentActorId={reviewActorForConfig(config)?.id}
                   outline={outlineForFile(paneFile)}
                   refreshedAt={
                     paneFile?.path ? refreshedFiles[paneFile.path] : undefined

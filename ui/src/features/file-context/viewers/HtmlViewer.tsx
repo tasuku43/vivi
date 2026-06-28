@@ -55,6 +55,7 @@ export function HtmlViewer({
   onCreateComment,
   comments = [],
   activeCommentId,
+  currentActorId,
   onOpenComment,
   onCloseComment,
   onCommentStatusChange,
@@ -77,6 +78,7 @@ export function HtmlViewer({
   onCreateComment?: CommentCreateHandler;
   comments?: ViviComment[];
   activeCommentId?: string | null;
+  currentActorId?: string;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onCloseComment?: () => void;
   onCommentStatusChange?: CommentStatusChangeHandler;
@@ -346,6 +348,7 @@ export function HtmlViewer({
           file={file}
           comments={comments}
           activeCommentId={activeCommentId}
+          currentActorId={currentActorId}
           onOpenComment={onOpenComment}
           onCommentStatusChange={onCommentStatusChange}
           threadActivities={threadActivities}
@@ -376,6 +379,7 @@ export function HtmlViewer({
           focusRevision={focusRevision}
           comments={comments}
           activeCommentId={activeCommentId}
+          currentActorId={currentActorId}
           onSelectionChange={setSourceSelectedRange}
           onCreateComment={onCreateComment}
           onOpenComment={onOpenComment}
@@ -405,6 +409,8 @@ export function HtmlViewer({
               activity={
                 entry.threadId ? threadActivities[entry.threadId] : undefined
               }
+              activeCommentId={activeCommentId}
+              currentActorId={currentActorId}
               onCreateComment={onCreateComment}
               onStatusChange={onCommentStatusChange}
               onStartNewThread={() => startSeparateRenderedThread(entry.target)}

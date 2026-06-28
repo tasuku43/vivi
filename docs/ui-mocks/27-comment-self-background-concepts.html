@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Comment self background concepts - Vivi</title>
+    <style>
+      :root {
+        --bg: #0a0f16;
+        --panel: #141923;
+        --line: #2a3344;
+        --line-soft: #202838;
+        --text: #f1f5f9;
+        --muted: #a6b0c1;
+        --soft: #7d889a;
+        --accent: #a58bff;
+        --accent-soft: rgba(165, 139, 255, 0.18);
+        --input: #090d14;
+        --shadow: rgba(0, 0, 0, 0.34);
+        color-scheme: dark;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at top left, rgba(116, 169, 255, 0.08), transparent 30%),
+          var(--bg);
+        color: var(--text);
+      }
+
+      button,
+      textarea {
+        font: inherit;
+      }
+
+      .page {
+        display: grid;
+        gap: 22px;
+        padding: 26px;
+      }
+
+      header {
+        display: grid;
+        gap: 8px;
+        max-width: 980px;
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 24px;
+        line-height: 1.2;
+      }
+
+      header p {
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .swatches {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .swatch {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 28px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--muted);
+        font-size: 12px;
+        padding: 4px 9px;
+      }
+
+      .swatch::before {
+        content: "";
+        width: 14px;
+        height: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 4px;
+        background: var(--chip);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(330px, 1fr));
+        gap: 18px;
+        align-items: start;
+        overflow-x: auto;
+        padding-bottom: 10px;
+      }
+
+      .concept {
+        min-width: 330px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        box-shadow: 0 18px 38px var(--shadow);
+        overflow: hidden;
+      }
+
+      .concept-head {
+        display: grid;
+        gap: 5px;
+        min-height: 84px;
+        border-bottom: 1px solid var(--line);
+        padding: 13px 14px;
+      }
+
+      .concept-head h2 {
+        font-size: 14px;
+        line-height: 1.25;
+      }
+
+      .concept-head p {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .thread {
+        background: #151a24;
+      }
+
+      .thread-top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 40px;
+        border-bottom: 1px solid var(--line);
+        padding: 8px 12px;
+      }
+
+      .bubble-icon {
+        width: 15px;
+        height: 15px;
+        border: 1.5px solid #d6ccff;
+        border-radius: 5px;
+      }
+
+      .thread-top strong {
+        font-size: 13px;
+      }
+
+      .thread-top small {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .status {
+        margin-left: auto;
+        border: 1px solid rgba(194, 167, 255, 0.58);
+        border-radius: 999px;
+        background: rgba(165, 139, 255, 0.18);
+        color: #ddccff;
+        font-size: 11px;
+        font-weight: 760;
+        padding: 2px 8px;
+      }
+
+      .message {
+        position: relative;
+        display: grid;
+        grid-template-columns: 28px minmax(0, 1fr);
+        column-gap: 9px;
+        border-bottom: 1px solid var(--line-soft);
+        padding: 10px 12px 11px;
+      }
+
+      .message.mine {
+        background:
+          linear-gradient(90deg, var(--mine-rail), transparent 5px),
+          var(--mine-bg);
+        box-shadow:
+          inset 0 1px 0 var(--mine-top),
+          inset 0 -1px 0 var(--mine-bottom);
+      }
+
+      .avatar {
+        width: 28px;
+        height: 28px;
+        border: 1px solid rgba(226, 232, 240, 0.25);
+        border-radius: 8px;
+        background: #202938;
+        object-fit: contain;
+        padding: 1px;
+      }
+
+      .meta {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        min-width: 0;
+        min-height: 28px;
+      }
+
+      .meta strong {
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 760;
+      }
+
+      .meta time {
+        color: var(--soft);
+        font-size: 11px;
+      }
+
+      .published,
+      .you {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 760;
+        padding: 2px 7px;
+      }
+
+      .you {
+        border-color: var(--mine-chip-border);
+        background: var(--mine-chip-bg);
+        color: var(--mine-chip-text);
+      }
+
+      .body {
+        grid-column: 2;
+        color: var(--text);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .composer {
+        padding: 9px 12px 13px;
+      }
+
+      .mode {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 7px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 680;
+      }
+
+      .mode::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: #7aa2ff;
+        box-shadow: 0 0 0 2px rgba(122, 162, 255, 0.22);
+      }
+
+      .toggle {
+        display: inline-flex;
+        margin-left: 7px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        overflow: hidden;
+        vertical-align: middle;
+      }
+
+      .toggle span {
+        background: transparent;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 760;
+        padding: 5px 8px;
+      }
+
+      .toggle span:first-child {
+        background: var(--accent-soft);
+        color: #e6dcff;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 58px;
+        resize: none;
+        border: 1px solid #3a4659;
+        border-radius: 7px;
+        background: var(--input);
+        color: var(--text);
+        font-size: 12px;
+        padding: 10px;
+      }
+
+      .hint {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .concept-a {
+        --chip: #1c2a3b;
+        --mine-bg: rgba(69, 97, 132, 0.26);
+        --mine-rail: rgba(116, 169, 255, 0.55);
+        --mine-top: rgba(186, 216, 255, 0.06);
+        --mine-bottom: rgba(0, 0, 0, 0.08);
+        --mine-chip-bg: rgba(116, 169, 255, 0.13);
+        --mine-chip-border: rgba(116, 169, 255, 0.34);
+        --mine-chip-text: #b9d6ff;
+      }
+
+      .concept-b {
+        --chip: #142d2a;
+        --mine-bg: rgba(29, 82, 75, 0.23);
+        --mine-rail: rgba(74, 201, 178, 0.5);
+        --mine-top: rgba(169, 255, 238, 0.05);
+        --mine-bottom: rgba(0, 0, 0, 0.08);
+        --mine-chip-bg: rgba(74, 201, 178, 0.12);
+        --mine-chip-border: rgba(74, 201, 178, 0.32);
+        --mine-chip-text: #a8eee2;
+      }
+
+      .concept-c {
+        --chip: #2b2034;
+        --mine-bg: rgba(97, 67, 132, 0.24);
+        --mine-rail: rgba(190, 157, 255, 0.46);
+        --mine-top: rgba(229, 214, 255, 0.05);
+        --mine-bottom: rgba(0, 0, 0, 0.08);
+        --mine-chip-bg: rgba(190, 157, 255, 0.12);
+        --mine-chip-border: rgba(190, 157, 255, 0.3);
+        --mine-chip-text: #ddccff;
+      }
+
+      .concept-d {
+        --chip: #2d261c;
+        --mine-bg: rgba(91, 71, 42, 0.24);
+        --mine-rail: rgba(224, 175, 104, 0.44);
+        --mine-top: rgba(255, 225, 179, 0.05);
+        --mine-bottom: rgba(0, 0, 0, 0.08);
+        --mine-chip-bg: rgba(224, 175, 104, 0.11);
+        --mine-chip-border: rgba(224, 175, 104, 0.28);
+        --mine-chip-text: #f1d0a1;
+      }
+
+      @media (max-width: 760px) {
+        .page {
+          padding: 16px;
+        }
+
+        .grid {
+          grid-template-columns: minmax(320px, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <h1>Self comment background concepts</h1>
+        <p>
+          Same thread, four low-contrast treatments for comments authored by the current human.
+          The goal is to make "mine" visible without competing with open/current/resolved review state.
+        </p>
+        <div class="swatches" aria-label="Concept color swatches">
+          <span class="swatch concept-a">A Steel blue, recommended</span>
+          <span class="swatch concept-b">B Quiet teal</span>
+          <span class="swatch concept-c">C Muted violet</span>
+          <span class="swatch concept-d">D Warm amber</span>
+        </div>
+      </header>
+
+      <section class="grid" id="concepts" aria-label="Self comment color alternatives"></section>
+    </main>
+
+    <script>
+      const iconBase = "../../ui/public/vivi/agent-icons";
+      const concepts = [
+        {
+          className: "concept-a",
+          title: "A. Steel blue ownership",
+          summary:
+            "Best default: cool and readable, distinct from agent replies, does not look like success or warning.",
+        },
+        {
+          className: "concept-b",
+          title: "B. Quiet teal ownership",
+          summary:
+            "Good if blue already means selection elsewhere. It reads calm, but can drift toward success/resolved.",
+        },
+        {
+          className: "concept-c",
+          title: "C. Muted violet ownership",
+          summary:
+            "Feels native to the current theme, but may compete with Open/current state and action affordances.",
+        },
+        {
+          className: "concept-d",
+          title: "D. Warm amber ownership",
+          summary:
+            "Very easy to spot in dark UI. The risk is that it can read as caution or review warning.",
+        },
+      ];
+
+      const messages = [
+        {
+          mine: true,
+          icon: "human.svg",
+          meta: "Started by Tasuku",
+          time: "6/20 18:00",
+          body: "Can everyone check the comment-thread experience from their side?",
+        },
+        {
+          icon: "codex.svg",
+          meta: "Reply by Codex",
+          time: "6/20 18:01",
+          body: "I see the source projection and will keep the current stop anchored.",
+        },
+        {
+          icon: "claude-code.svg",
+          meta: "Reply by Claude Code",
+          time: "6/20 18:02",
+          body: "I can verify the failing fixture and report whether this should be a reply or a follow-up.",
+        },
+        {
+          mine: true,
+          icon: "human.svg",
+          meta: "Reply by Tasuku",
+          time: "6/20 18:07",
+          body: "This separation is helpful. I want my own comments to scan as a stable reference point.",
+        },
+      ];
+
+      function renderMessage(message) {
+        const you = message.mine ? '<span class="you">You</span>' : "";
+        return `
+          <div class="message${message.mine ? " mine" : ""}">
+            <img class="avatar" src="${iconBase}/${message.icon}" alt="" />
+            <div class="meta">
+              <strong>${message.meta}</strong>
+              <time>${message.time}</time>
+              ${you}
+              <span class="published">Published</span>
+            </div>
+            <p class="body">${message.body}</p>
+          </div>
+        `;
+      }
+
+      function renderConcept(concept) {
+        return `
+          <article class="concept ${concept.className}">
+            <div class="concept-head">
+              <h2>${concept.title}</h2>
+              <p>${concept.summary}</p>
+            </div>
+            <div class="thread">
+              <div class="thread-top">
+                <span class="bubble-icon"></span>
+                <strong>Lines 9-12</strong>
+                <small>8 messages</small>
+                <span class="status">Open</span>
+              </div>
+              ${messages.map(renderMessage).join("")}
+              <div class="composer">
+                <div class="mode">New thread on Lines 9-12 <span class="toggle"><span>New thread</span><span>Reply</span></span></div>
+                <textarea placeholder="Start a new thread"></textarea>
+                <div class="hint">Cmd/Ctrl Enter to save private draft</div>
+              </div>
+            </div>
+          </article>
+        `;
+      }
+
+      document.getElementById("concepts").innerHTML = concepts
+        .map(renderConcept)
+        .join("");
+    </script>
+  </body>
+</html>

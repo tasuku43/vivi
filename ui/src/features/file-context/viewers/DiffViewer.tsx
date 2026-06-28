@@ -54,6 +54,7 @@ export function DiffViewer({
   comments = [],
   activeCommentId,
   expandActiveCommentThread = true,
+  currentActorId,
   onOpenComment,
   onCommentStatusChange,
   threadActivities = {},
@@ -68,6 +69,7 @@ export function DiffViewer({
   comments?: ViviComment[];
   activeCommentId?: string | null;
   expandActiveCommentThread?: boolean;
+  currentActorId?: string;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities?: Record<string, CommentActivitySummary>;
@@ -91,6 +93,7 @@ export function DiffViewer({
             comments={comments}
             activeCommentId={activeCommentId}
             expandActiveCommentThread={expandActiveCommentThread}
+            currentActorId={currentActorId}
             onCommentStatusChange={onCommentStatusChange}
             threadActivities={threadActivities}
           />
@@ -118,6 +121,7 @@ function SourceDiff({
   comments,
   activeCommentId,
   expandActiveCommentThread,
+  currentActorId,
   onCommentStatusChange,
   threadActivities,
 }: {
@@ -128,6 +132,7 @@ function SourceDiff({
   comments: ViviComment[];
   activeCommentId?: string | null;
   expandActiveCommentThread: boolean;
+  currentActorId?: string;
   onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities: Record<string, CommentActivitySummary>;
 }) {
@@ -411,6 +416,7 @@ function SourceDiff({
                       : undefined
                   }
                   activeCommentId={activeCommentId}
+                  currentActorId={currentActorId}
                   onCreateComment={onCreateComment}
                   onStatusChange={onCommentStatusChange}
                   onStartNewThread={() =>

@@ -943,6 +943,39 @@ it("renders code line comments as an inline thread with replies", () => {
   expect(html).not.toContain(">Comment<");
 });
 
+it("renders a published review batch as one inline thread with all messages", () => {
+  const batchComments = Array.from({ length: 5 }, (_, index) => ({
+    ...codeLineComment,
+    id: `batch-comment-${index + 1}`,
+    threadId: "thread-review-batch",
+    body: `Published batch message ${index + 1}`,
+    createdAt: `2026-01-01T00:0${index}:00.000Z`,
+    updatedAt: `2026-01-01T00:0${index}:00.000Z`,
+  }));
+
+  const html = renderToStaticMarkup(
+    <CodeViewer
+      file={codeFile}
+      theme="dark"
+      selectedRange={null}
+      comments={batchComments}
+      activeCommentId="batch-comment-1"
+      onSelectionChange={() => undefined}
+      onOpenComment={() => undefined}
+      onCreateComment={() => undefined}
+    />,
+  );
+
+  expect(html).toContain(
+    'aria-label="Open comment thread on line 2 with 5 messages; choose new thread or reply"',
+  );
+  expect(html).toContain("5 messages");
+  expect(html.match(/aria-label="Comment thread for line 2"/g)).toHaveLength(1);
+  for (const comment of batchComments) {
+    expect(html).toContain(comment.body);
+  }
+});
+
 it("hides archived code comment threads from inline source markers", () => {
   const archivedComment: ViviComment = {
     ...codeLineComment,
@@ -1153,6 +1186,58 @@ it("renders a range comment thread after the final selected code line", () => {
   expect(
     html.indexOf('aria-label="Comment thread for lines 1-2"'),
   ).toBeLessThan(html.indexOf('data-line="3"'));
+});
+
+it("marks the configured actor's inline comments as current user", () => {
+  const humanComment: ViviComment = {
+    ...codeLineComment,
+    id: "human-comment",
+    threadId: "thread-1",
+    createdBy: {
+      id: "human:tasuku",
+      kind: "human",
+      displayName: "Tasuku",
+    },
+    author: "Tasuku",
+    source: "human",
+  };
+  const agentComment: ViviComment = {
+    ...codeLineComment,
+    id: "agent-comment",
+    threadId: "thread-1",
+    body: "Agent follow-up",
+    createdBy: {
+      id: "codex:run-1",
+      kind: "codex",
+      displayName: "Codex",
+    },
+    author: "Codex",
+    source: "codex",
+    createdAt: "2026-01-01T00:01:00.000Z",
+    updatedAt: "2026-01-01T00:01:00.000Z",
+  };
+  const html = renderToStaticMarkup(
+    <CodeViewer
+      file={codeFile}
+      theme="dark"
+      selectedRange={null}
+      comments={[humanComment, agentComment]}
+      activeCommentId={agentComment.id}
+      currentActorId="human:tasuku"
+      onSelectionChange={() => undefined}
+      onOpenComment={() => undefined}
+      onCreateComment={() => undefined}
+    />,
+  );
+
+  expect(html).toContain('data-comment-id="human-comment"');
+  expect(html).toContain(
+    'class="code-thread-comment open current-user" data-comment-id="human-comment"',
+  );
+  expect(html).toContain("You</span>");
+  expect(html).toContain(
+    'class="code-thread-comment open active" data-comment-id="agent-comment"',
+  );
 });
 
 it("uses the inline source thread experience for Markdown source mode", () => {

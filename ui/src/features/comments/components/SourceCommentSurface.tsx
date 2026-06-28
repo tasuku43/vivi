@@ -47,6 +47,7 @@ export function SourceCommentSurface({
   comments = [],
   activeCommentId,
   expandActiveCommentThread = true,
+  currentActorId,
   onSelectionChange,
   onCreateComment,
   onOpenComment,
@@ -63,6 +64,7 @@ export function SourceCommentSurface({
   comments?: ViviComment[];
   activeCommentId?: string | null;
   expandActiveCommentThread?: boolean;
+  currentActorId?: string;
   onSelectionChange: (range: LineRange | null) => void;
   onCreateComment?: CommentCreateHandler;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
@@ -519,6 +521,7 @@ export function SourceCommentSurface({
                       : undefined
                   }
                   activeCommentId={activeCommentId}
+                  currentActorId={currentActorId}
                   onCreateComment={onCreateComment}
                   onStatusChange={onCommentStatusChange}
                   onStartNewThread={() =>

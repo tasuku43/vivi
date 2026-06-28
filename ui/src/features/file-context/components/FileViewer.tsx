@@ -80,6 +80,7 @@ export function FileViewer({
   diff,
   diffLoading,
   diffEnabled,
+  currentActorId,
   defaultOutlineOpen,
   outline = [],
   refreshedAt,
@@ -113,6 +114,7 @@ export function FileViewer({
   diff?: TextDiff | null;
   diffLoading?: boolean;
   diffEnabled?: boolean;
+  currentActorId?: string;
   defaultOutlineOpen?: boolean;
   outline?: OutlineHeading[];
   refreshedAt?: number;
@@ -227,6 +229,7 @@ export function FileViewer({
             comments={comments}
             activeCommentId={activeCommentId}
             expandActiveCommentThread={expandActiveCommentThread}
+            currentActorId={currentActorId}
             onOpenComment={onOpenComment}
             onCloseComment={onCloseComment}
             onCommentStatusChange={onCommentStatusChange}
@@ -256,6 +259,7 @@ export function FileViewer({
             onCreateComment={onCreateComment}
             comments={comments}
             activeCommentId={activeCommentId}
+            currentActorId={currentActorId}
             onOpenComment={onOpenComment}
             onCloseComment={onCloseComment}
             onCommentStatusChange={onCommentStatusChange}
@@ -324,6 +328,7 @@ export function FileViewer({
             comments={comments}
             activeCommentId={activeCommentId}
             expandActiveCommentThread={expandActiveCommentThread}
+            currentActorId={currentActorId}
             onOpenComment={onOpenComment}
             onCloseComment={onCloseComment}
             onCommentStatusChange={onCommentStatusChange}
@@ -427,6 +432,7 @@ export function FileViewer({
             file={file}
             comments={comments}
             activeCommentId={activeCommentId}
+            currentActorId={currentActorId}
             onOpenComment={onOpenComment}
           />
         ) : (

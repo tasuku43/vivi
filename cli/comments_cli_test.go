@@ -128,15 +128,15 @@ func TestCommentsCLIShowsPublishedReviewBatchAndHidesDrafts(t *testing.T) {
 		Count   int                   `json:"count"`
 	}
 	decodeCLIJSON(t, after, &afterPayload)
-	if afterPayload.Count != 2 {
+	if afterPayload.Count != 1 {
 		t.Fatalf("active after publish = %s", after.String())
 	}
 	for _, thread := range afterPayload.Threads {
 		if thread.ReviewBatchID != reviewBatchID || thread.Comments[0].ReviewBatchID != reviewBatchID {
 			t.Fatalf("thread missing batch id: %#v", thread)
 		}
-		if len(thread.Comments) != 1 {
-			t.Fatalf("published draft should be its own thread: %#v", thread)
+		if len(thread.Comments) != 2 {
+			t.Fatalf("published same-anchor drafts should share one thread: %#v", thread)
 		}
 	}
 
@@ -149,10 +149,10 @@ func TestCommentsCLIShowsPublishedReviewBatchAndHidesDrafts(t *testing.T) {
 		Items   []commentWorkItemOutput `json:"items"`
 	}
 	decodeCLIJSON(t, batchOnly, &batchPayload)
-	if batchPayload.Count != 2 || len(batchPayload.Threads) != 2 || !containsCommentThread(batchPayload.Threads, batchedThreadID) {
+	if batchPayload.Count != 1 || len(batchPayload.Threads) != 1 || !containsCommentThread(batchPayload.Threads, batchedThreadID) {
 		t.Fatalf("batch-filtered active payload = %s", batchOnly.String())
 	}
-	if len(batchPayload.Items) != 2 || !containsWorkItemThread(batchPayload.Items, batchedThreadID) {
+	if len(batchPayload.Items) != 1 || !containsWorkItemThread(batchPayload.Items, batchedThreadID) {
 		t.Fatalf("batch-filtered active items = %s", batchOnly.String())
 	}
 	if !containsWorkItemActivity(batchPayload.Items, "thread_read", "batch-filter-read") {
@@ -177,7 +177,7 @@ func TestCommentsCLIShowsPublishedReviewBatchAndHidesDrafts(t *testing.T) {
 		Count  int                  `json:"count"`
 	}
 	decodeCLIJSON(t, nextBatch, &nextBatchPayload)
-	if nextBatchPayload.Count != 2 || nextBatchPayload.Thread == nil || !containsCommentThread(afterPayload.Threads, nextBatchPayload.Thread.ID) {
+	if nextBatchPayload.Count != 1 || nextBatchPayload.Thread == nil || !containsCommentThread(afterPayload.Threads, nextBatchPayload.Thread.ID) {
 		t.Fatalf("batch-filtered next payload = %s", nextBatch.String())
 	}
 }

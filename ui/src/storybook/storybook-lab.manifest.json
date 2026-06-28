@@ -112,6 +112,7 @@
         "Review/Inline Comment States/Resolved",
         "Review/Inline Comment States/AgentHasReadThread",
         "Review/Inline Comment States/AgentHasReplied",
+        "Review/Inline Comment States/SelfCommentOwnership",
         "Review/Draft Review States/PublishCtaEnabled",
         "Review/Draft Review States/PublishFailure",
         "Review/Draft Review States/PublishedStateWithOpenThreads"
@@ -119,6 +120,7 @@
       "interactionStories": [
         "Review/Inline Comment States/Open",
         "Review/Inline Comment States/NewLineComment",
+        "Review/Inline Comment States/SelfCommentOwnership",
         "Review/Draft Review States/PublishCtaEnabled"
       ]
     },

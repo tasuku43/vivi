@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Comment human icon concepts - Vivi</title>
+    <style>
+      :root {
+        --bg: #0a0f16;
+        --panel: #141923;
+        --panel-2: #171d29;
+        --line: #2a3344;
+        --line-soft: #202838;
+        --text: #f1f5f9;
+        --muted: #a6b0c1;
+        --soft: #7d889a;
+        --accent: #7aa2ff;
+        --purple: #a58bff;
+        --input: #090d14;
+        --mine-bg: color-mix(in srgb, #456184 26%, transparent);
+        --mine-rail: color-mix(in srgb, #7aa2ff 55%, transparent);
+        color-scheme: dark;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      button,
+      textarea {
+        font: inherit;
+      }
+
+      .page {
+        display: grid;
+        gap: 22px;
+        padding: 26px;
+      }
+
+      header {
+        display: grid;
+        gap: 8px;
+        max-width: 960px;
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 24px;
+        line-height: 1.2;
+      }
+
+      header p {
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .summary span {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.03);
+        padding: 4px 9px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(308px, 1fr));
+        gap: 16px;
+        align-items: start;
+        overflow-x: auto;
+        padding-bottom: 10px;
+      }
+
+      .concept {
+        min-width: 308px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        overflow: hidden;
+      }
+
+      .concept-head {
+        display: grid;
+        gap: 5px;
+        min-height: 102px;
+        border-bottom: 1px solid var(--line);
+        padding: 13px 14px;
+      }
+
+      .concept-head h2 {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        line-height: 1.25;
+      }
+
+      .recommended {
+        border: 1px solid rgba(122, 162, 255, 0.4);
+        border-radius: 999px;
+        background: rgba(122, 162, 255, 0.14);
+        color: #c9d9ff;
+        font-size: 10px;
+        font-weight: 780;
+        padding: 2px 7px;
+      }
+
+      .concept-head p {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .thread {
+        background: #151a24;
+      }
+
+      .thread-top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 40px;
+        border-bottom: 1px solid var(--line);
+        padding: 8px 12px;
+      }
+
+      .bubble-icon {
+        position: relative;
+        width: 15px;
+        height: 12px;
+        border: 1.5px solid #d6ccff;
+        border-radius: 5px;
+      }
+
+      .bubble-icon::after {
+        content: "";
+        position: absolute;
+        left: 3px;
+        bottom: -4px;
+        width: 4px;
+        height: 4px;
+        border-left: 1.5px solid #d6ccff;
+        transform: skew(-25deg);
+      }
+
+      .thread-top strong {
+        font-size: 13px;
+      }
+
+      .thread-top small {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .status {
+        margin-left: auto;
+        border: 1px solid rgba(194, 167, 255, 0.58);
+        border-radius: 999px;
+        background: rgba(165, 139, 255, 0.18);
+        color: #ddccff;
+        font-size: 11px;
+        font-weight: 760;
+        padding: 2px 8px;
+      }
+
+      .message {
+        display: grid;
+        grid-template-columns: 28px minmax(0, 1fr);
+        column-gap: 9px;
+        border-bottom: 1px solid var(--line-soft);
+        padding: 10px 12px 11px;
+      }
+
+      .message.mine {
+        background:
+          linear-gradient(90deg, var(--mine-rail), transparent 5px),
+          var(--mine-bg);
+        box-shadow:
+          inset 0 1px 0 rgb(186 216 255 / 0.06),
+          inset 0 -1px 0 rgb(0 0 0 / 0.08);
+      }
+
+      .avatar {
+        position: relative;
+        display: grid;
+        width: 28px;
+        height: 28px;
+        place-items: center;
+        border: 1px solid rgba(226, 232, 240, 0.25);
+        border-radius: 8px;
+        background: #202938;
+        color: #e7eefb;
+        box-shadow: 0 1px 0 rgb(255 255 255 / 0.04);
+      }
+
+      .avatar svg {
+        display: block;
+      }
+
+      .avatar.initial {
+        border-color: rgba(122, 162, 255, 0.48);
+        background:
+          linear-gradient(145deg, rgba(95, 130, 176, 0.92), rgba(36, 51, 71, 0.98));
+        color: #f7fbff;
+        font-size: 12px;
+        font-weight: 830;
+        letter-spacing: 0;
+      }
+
+      .avatar.person {
+        border-color: rgba(139, 163, 196, 0.48);
+        background: linear-gradient(180deg, #31415a, #202a3a);
+      }
+
+      .avatar.person svg {
+        width: 19px;
+        height: 19px;
+      }
+
+      .avatar.self-dot {
+        border-color: rgba(122, 162, 255, 0.55);
+        background: #202a3a;
+      }
+
+      .avatar.self-dot::after {
+        content: "";
+        position: absolute;
+        right: -2px;
+        bottom: -2px;
+        width: 9px;
+        height: 9px;
+        border: 2px solid #151a24;
+        border-radius: 999px;
+        background: #7aa2ff;
+      }
+
+      .avatar.workspace {
+        border-color: rgba(122, 162, 255, 0.52);
+        background:
+          linear-gradient(135deg, rgba(122, 162, 255, 0.18), transparent 48%),
+          #1e2a3d;
+      }
+
+      .avatar.workspace svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .avatar.monogram-ring {
+        border-color: rgba(226, 232, 240, 0.34);
+        background: #151b27;
+        color: #dfe7f4;
+        font-size: 11px;
+        font-weight: 820;
+      }
+
+      .avatar.monogram-ring::before {
+        content: "";
+        position: absolute;
+        inset: 3px;
+        border: 1.5px solid rgba(122, 162, 255, 0.62);
+        border-radius: 6px;
+      }
+
+      .agent {
+        width: 28px;
+        height: 28px;
+        border: 1px solid rgba(226, 232, 240, 0.22);
+        border-radius: 8px;
+        background: #0d111a;
+        object-fit: contain;
+        padding: 2px;
+      }
+
+      .meta {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        min-width: 0;
+        min-height: 28px;
+      }
+
+      .meta strong {
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 760;
+      }
+
+      .meta time {
+        color: var(--soft);
+        font-size: 11px;
+      }
+
+      .chip {
+        border: 1px solid rgba(122, 162, 255, 0.35);
+        border-radius: 999px;
+        background: rgba(122, 162, 255, 0.13);
+        color: #c9d9ff;
+        font-size: 10px;
+        font-weight: 760;
+        padding: 1px 6px;
+      }
+
+      .published {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.035);
+        color: #bdc7d8;
+        font-size: 10px;
+        font-weight: 760;
+        padding: 1px 6px;
+      }
+
+      .body {
+        grid-column: 2;
+        color: #f4f7fb;
+        font-size: 12px;
+        line-height: 1.55;
+        margin-top: 4px;
+      }
+
+      .composer {
+        display: grid;
+        gap: 8px;
+        padding: 9px 12px 11px;
+      }
+
+      .mode {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 760;
+      }
+
+      .mode::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: var(--accent);
+        box-shadow: 0 0 0 3px rgba(122, 162, 255, 0.14);
+      }
+
+      textarea {
+        min-height: 54px;
+        resize: vertical;
+        border: 1px solid #33405a;
+        border-radius: 6px;
+        background: var(--input);
+        color: var(--text);
+        padding: 9px 10px;
+      }
+
+      .notes {
+        display: grid;
+        gap: 10px;
+        max-width: 980px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .notes strong {
+        color: var(--text);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <h1>Human avatar concepts for comment threads</h1>
+        <p>
+          Same Steel blue self-comment treatment, different local badge styles.
+          The goal is to make the current human feel intentional rather than
+          like a missing avatar, while keeping agent logos visually dominant.
+        </p>
+        <div class="summary">
+          <span>Recommended: A Initial badge</span>
+          <span>No external brand asset needed</span>
+          <span>28px thread avatar target</span>
+        </div>
+      </header>
+
+      <section class="grid" aria-label="Human avatar concepts">
+        <article class="concept">
+          <div class="concept-head">
+            <h2>A Initial badge <span class="recommended">Recommended</span></h2>
+            <p>
+              Uses the user's display-name initial. It reads as a real local
+              identity and avoids the generic empty-profile signal.
+            </p>
+          </div>
+          <div class="thread">
+            <div class="thread-top">
+              <span class="bubble-icon" aria-hidden="true"></span>
+              <strong>Lines 9-12</strong>
+              <small>4 messages</small>
+              <span class="status">Open</span>
+            </div>
+            <div class="message mine">
+              <div class="avatar initial">T</div>
+              <div class="meta">
+                <strong>Started by Tasuku</strong>
+                <time>Jun 20 18:00</time>
+                <span class="chip">You</span>
+                <span class="published">Published</span>
+              </div>
+              <p class="body">Can everyone check the comment-thread experience from their side?</p>
+            </div>
+            <div class="message">
+              <img class="agent" src="../../ui/public/vivi/agent-icons/codex.svg" alt="" />
+              <div class="meta">
+                <strong>Reply by Codex</strong>
+                <time>Jun 20 18:01</time>
+                <span class="published">Published</span>
+              </div>
+              <p class="body">I see the source projection and will keep the current stop anchored.</p>
+            </div>
+            <div class="message mine">
+              <div class="avatar initial">T</div>
+              <div class="meta">
+                <strong>Reply by Tasuku</strong>
+                <time>Jun 20 18:07</time>
+                <span class="chip">You</span>
+                <span class="published">Published</span>
+              </div>
+              <p class="body">This separation is helpful. I want my own comments to scan quickly.</p>
+            </div>
+            <div class="composer">
+              <div class="mode">New thread on Lines 9-12</div>
+              <textarea placeholder="Start a new thread"></textarea>
+            </div>
+          </div>
+        </article>
+
+        <article class="concept">
+          <div class="concept-head">
+            <h2>B Person silhouette</h2>
+            <p>
+              Keeps the current semantic shape but upgrades the rendering with
+              a cleaner body mark and less default-avatar flatness.
+            </p>
+          </div>
+          <div class="thread">
+            <div class="thread-top">
+              <span class="bubble-icon" aria-hidden="true"></span>
+              <strong>Lines 9-12</strong>
+              <small>4 messages</small>
+              <span class="status">Open</span>
+            </div>
+            <div class="message mine">
+              <div class="avatar person">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="8.2" r="4.4" fill="#e7eefb" />
+                  <path d="M5.7 20.2c.8-4.2 3.1-6.2 6.3-6.2s5.5 2 6.3 6.2" fill="none" stroke="#e7eefb" stroke-width="2.4" stroke-linecap="round" />
+                </svg>
+              </div>
+              <div class="meta">
+                <strong>Started by Tasuku</strong>
+                <time>Jun 20 18:00</time>
+                <span class="chip">You</span>
+                <span class="published">Published</span>
+              </div>
+              <p class="body">Can everyone check the comment-thread experience from their side?</p>
+            </div>
+            <div class="message">
+              <img class="agent" src="../../ui/public/vivi/agent-icons/claude-code.svg" alt="" />
+              <div class="meta">
+                <strong>Reply by Claude Code</strong>
+                <time>Jun 20 18:02</time>
+                <span class="published">Published</span>
+              </div>
+              <p class="body">I can verify the fixture and report back on the thread behavior.</p>
+            </div>
+            <div class="message mine">
+              <div class="avatar person">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="8.2" r="4.4" fill="#e7eefb" />
+                  <path d="M5.7 20.2c.8-4.2 3.1-6.2 6.3-6.2s5.5 2 6.3 6.2" fill="none" stroke="#e7eefb" stroke-width="2.4" stroke-linecap="round" />
+                </svg>
+              </div>
+              <div class="meta">
+                <strong>Reply by Tasuku</strong>
+                <time>Jun 20 18:07</time>
+                <span class="chip">You</span>
+                <span class="published">Published</span>
+              </div>
+              <p class="body">This separation is helpful. I want my own comments to scan quickly.</p>
+            </div>
+            <div class="composer">
+              <div class="mode">New thread on Lines 9-12</div>
+              <textarea placeholder="Start a new thread"></textarea>
+            </div>
+          </div>
+        </article>
+
+        <article class="concept">
+          <div class="concept-head">
+            <h2>C Person + self dot</h2>
+            <p>
+              Adds a small blue ownership marker to the human shape. It is very
+              clear, but slightly busier beside the You chip.
+            </p>
+          </div>
+          <div class="thread">
+            <div class="thread-top">
+              <span class="bubble-icon" aria-hidden="true"></span>
+              <strong>Lines 9-12</strong>
+              <small>4 messages</small>
+              <span class="status">Open</span>
+            </div>
+            <div class="message mine">
+              <div class="avatar self-dot">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <circle cx="12" cy="8.2" r="4.1" fill="#e7eefb" />
+                  <path d="M6.2 19.5c.9-3.8 3-5.6 5.8-5.6s4.9 1.8 5.8 5.6" fill="none" stroke="#e7eefb" stroke-width="2.4" stroke-linecap="round" />
+                </svg>
+              </div>
+              <div class="meta">
+                <strong>Started by Tasuku</strong>
+                <time>Jun 20 18:00</time>
+                <span class="chip">You</span>
+                <span class="published">Published</span>
+              </div>
+              <p class="body">Can everyone check the comment-thread experience from their side?</p>
+            </div>
+            <div class="message">
+              <img class="agent" src="../../ui/public/vivi/agent-icons/cursor.svg" alt="" />
+              <div class="meta">
+                <strong>Reply by Cursor</strong>
+                <time>Jun 20 18:03</time>
+                <span class="published">Published</span>
+              </div>
+              <p class="body">I will check the editor handoff and keep the inline marker readable.</p>
+            </div>
+            <div class="message mine">
+              <div class="avatar self-dot">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <circle cx="12" cy="8.2" r="4.1" fill="#e7eefb" />
+                  <path d="M6.2 19.5c.9-3.8 3-5.6 5.8-5.6s4.9 1.8 5.8 5.6" fill="none" stroke="#e7eefb" stroke-width="2.4" stroke-linecap="round" />
+                </svg>
+              </div>
+              <div class="meta">
+                <strong>Reply by Tasuku</strong>
+                <time>Jun 20 18:07</time>
+                <span class="chip">You</span>
+                <span class="published">Published</span>
+              </div>
+              <p class="body">This separation is helpful. I want my own comments to scan quickly.</p>
+            </div>
+            <div class="composer">
+              <div class="mode">New thread on Lines 9-12</div>
+              <textarea placeholder="Start a new thread"></textarea>
+            </div>
+          </div>
+        </article>
+
+        <article class="concept">
+          <div class="concept-head">
+            <h2>D Workspace badge</h2>
+            <p>
+              Represents "local reviewer in this workspace" rather than a
+              person. It feels product-specific, but less immediately human.
+            </p>
+          </div>
+          <div class="thread">
+            <div class="thread-top">
+              <span class="bubble-icon" aria-hidden="true"></span>
+              <strong>Lines 9-12</strong>
+              <small>4 messages</small>
+              <span class="status">Open</span>
+            </div>
+            <div class="message mine">
+              <div class="avatar workspace">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 7.2 12 4l6 3.2v6.6L12 17l-6-3.2Z" fill="none" stroke="#dce9ff" stroke-width="2" stroke-linejoin="round" />
+                  <path d="M12 17v3" stroke="#7aa2ff" stroke-width="2" stroke-linecap="round" />
+                </svg>
+              </div>
+              <div class="meta">
+                <strong>Started by Tasuku</strong>
+                <time>Jun 20 18:00</time>
+                <span class="chip">You</span>
+                <span class="published">Published</span>
+              </div>
+              <p class="body">Can everyone check the comment-thread experience from their side?</p>
+            </div>
+            <div class="message">
+              <img class="agent" src="../../ui/public/vivi/agent-icons/windsurf.svg" alt="" />
+              <div class="meta">
+                <strong>Reply by Windsurf</strong>
+                <time>Jun 20 18:04</time>
+                <span class="published">Published</span>
+              </div>
+              <p class="body">I can verify the workspace-level labels stay readable in dense mode.</p>
+            </div>
+            <div class="message mine">
+              <div class="avatar workspace">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 7.2 12 4l6 3.2v6.6L12 17l-6-3.2Z" fill="none" stroke="#dce9ff" stroke-width="2" stroke-linejoin="round" />
+                  <path d="M12 17v3" stroke="#7aa2ff" stroke-width="2" stroke-linecap="round" />
+                </svg>
+              </div>
+              <div class="meta">
+                <strong>Reply by Tasuku</strong>
+                <time>Jun 20 18:07</time>
+                <span class="chip">You</span>
+                <span class="published">Published</span>
+              </div>
+              <p class="body">This separation is helpful. I want my own comments to scan quickly.</p>
+            </div>
+            <div class="composer">
+              <div class="mode">New thread on Lines 9-12</div>
+              <textarea placeholder="Start a new thread"></textarea>
+            </div>
+          </div>
+        </article>
+
+        <article class="concept">
+          <div class="concept-head">
+            <h2>E Quiet monogram ring</h2>
+            <p>
+              More restrained than A. It is tidy in dense threads, though the
+              letter can feel less personal because the color is quieter.
+            </p>
+          </div>
+          <div class="thread">
+            <div class="thread-top">
+              <span class="bubble-icon" aria-hidden="true"></span>
+              <strong>Lines 9-12</strong>
+              <small>4 messages</small>
+              <span class="status">Open</span>
+            </div>
+            <div class="message mine">
+              <div class="avatar monogram-ring">T</div>
+              <div class="meta">
+                <strong>Started by Tasuku</strong>
+                <time>Jun 20 18:00</time>
+                <span class="chip">You</span>
+                <span class="published">Published</span>
+              </div>
+              <p class="body">Can everyone check the comment-thread experience from their side?</p>
+            </div>
+            <div class="message">
+              <img class="agent" src="../../ui/public/vivi/agent-icons/github-copilot.svg" alt="" />
+              <div class="meta">
+                <strong>Reply by GitHub Copilot</strong>
+                <time>Jun 20 18:05</time>
+                <span class="published">Published</span>
+              </div>
+              <p class="body">I will compare this against the pull request conversation view.</p>
+            </div>
+            <div class="message mine">
+              <div class="avatar monogram-ring">T</div>
+              <div class="meta">
+                <strong>Reply by Tasuku</strong>
+                <time>Jun 20 18:07</time>
+                <span class="chip">You</span>
+                <span class="published">Published</span>
+              </div>
+              <p class="body">This separation is helpful. I want my own comments to scan quickly.</p>
+            </div>
+            <div class="composer">
+              <div class="mode">New thread on Lines 9-12</div>
+              <textarea placeholder="Start a new thread"></textarea>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="notes">
+        <p>
+          <strong>Decision lens:</strong> choose A if the avatar should feel
+          like the user's local identity; choose C if the ownership marker must
+          be unmistakable even when the name is clipped. B is the safest
+          semantic fallback, D is the most Vivi-specific, and E is the quietest.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

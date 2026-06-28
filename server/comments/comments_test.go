@@ -361,7 +361,7 @@ func TestStoreKeepsDraftReviewCommentsHiddenUntilBatchPublish(t *testing.T) {
 	}
 }
 
-func TestStorePublishesSameAnchorDraftsAsSeparateThreads(t *testing.T) {
+func TestStorePublishesSameAnchorDraftsAsOneThread(t *testing.T) {
 	store, err := NewStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -389,43 +389,43 @@ func TestStorePublishesSameAnchorDraftsAsSeparateThreads(t *testing.T) {
 	}
 	reviewBatchID := batch["reviewBatchId"].(string)
 	threads := batch["threads"].([]map[string]any)
-	if len(threads) != 2 {
+	if len(threads) != 1 {
 		t.Fatalf("published threads = %#v", threads)
 	}
-	threadIDs := map[string]bool{}
-	for _, thread := range threads {
-		if thread["reviewBatchId"] != reviewBatchID {
-			t.Fatalf("thread missing batch id: %#v", thread)
-		}
-		messages := thread["comments"].([]map[string]any)
-		if len(messages) != 1 {
-			t.Fatalf("published thread messages = %#v", messages)
-		}
-		message := messages[0]
+	thread := threads[0]
+	if thread["reviewBatchId"] != reviewBatchID {
+		t.Fatalf("thread missing batch id: %#v", thread)
+	}
+	messages := thread["comments"].([]map[string]any)
+	if len(messages) != 2 {
+		t.Fatalf("published thread messages = %#v", messages)
+	}
+	threadID := stringValue(thread["id"])
+	for _, message := range messages {
 		threadID := stringValue(message["threadId"])
 		if threadID == "" {
 			t.Fatalf("message missing thread id: %#v", message)
 		}
-		if threadIDs[threadID] {
-			t.Fatalf("independent drafts shared thread id %s: %#v", threadID, threads)
+		if threadID != stringValue(thread["id"]) {
+			t.Fatalf("message thread id %s did not match thread %s: %#v", threadID, thread["id"], message)
 		}
-		threadIDs[threadID] = true
 		if message["reviewBatchId"] != reviewBatchID {
 			t.Fatalf("message missing batch id: %#v", message)
 		}
+	}
+	if threadID == "" {
+		t.Fatalf("thread missing id: %#v", thread)
 	}
 
 	listed, err := store.ListThreads(Filters{Status: "open"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(listed) != 2 {
+	if len(listed) != 1 {
 		t.Fatalf("listed threads = %#v", listed)
 	}
-	for _, thread := range listed {
-		if len(thread["comments"].([]map[string]any)) != 1 {
-			t.Fatalf("listed thread messages = %#v", thread)
-		}
+	if len(listed[0]["comments"].([]map[string]any)) != 2 {
+		t.Fatalf("listed thread messages = %#v", listed[0])
 	}
 }
 

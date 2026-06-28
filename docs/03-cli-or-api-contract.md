@@ -1720,9 +1720,10 @@ for the UI. `createDraftReviewComment`, `updateDraftReviewComment`, and
 `deleteDraftReviewComment` manage that draft set. `publishDraftReviewComments`
 converts all drafts, or the supplied `draftIds`, into `open` `CommentThread`
 objects in one review batch and returns `{ reviewBatchId, publishedAt,
-threads }`. A draft with no `threadId` becomes a new review thread even when
-another draft uses the same anchor; a draft with an explicit `threadId` is
-published as a reply to that open thread. Before publish, drafts are
+threads }`. Drafts with no `threadId` are grouped by path and anchor during
+publish, so multiple drafts on the same anchor become comments in one new review
+thread. A draft with an explicit `threadId` is published as a reply to that open
+thread. Before publish, drafts are
 intentionally absent from `comments`, `commentThreads(status: open)`, and the
 agent comments CLI.
 
