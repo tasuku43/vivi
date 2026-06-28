@@ -62,7 +62,8 @@ it("groups pending draft replies under the existing Review Queue thread", async 
   const rowText = (await rows.first().textContent()) ?? "";
   expect(rowText).toContain("Open");
   expect(rowText).toContain("2 pending");
-  expect(rowText).toContain("Second pending follow-up.");
+  expect(rowText).toContain("L1");
+  expect(rowText).not.toContain("Second pending follow-up.");
   expect(
     await readmeFileRow
       .getByRole("button", {
@@ -112,7 +113,8 @@ it("groups pending draft-only thread messages under one Review Queue row", async
   expect(await rows.count()).toBe(1);
   const rowText = (await rows.first().textContent()) ?? "";
   expect(rowText).toContain("3 pending");
-  expect(rowText).toContain("Third pending draft.");
+  expect(rowText).toContain("L1");
+  expect(rowText).not.toContain("Third pending draft.");
   expect(
     await readmeFileRow
       .locator(
@@ -169,8 +171,11 @@ it("publishes separate draft-only threads on the same file from the Review Queue
   await rows.first().waitFor({ state: "attached" });
   expect(await rows.count()).toBe(2);
   const rowText = await rows.allTextContents();
-  expect(rowText.join("\n")).toContain("First draft-only thread reply.");
-  expect(rowText.join("\n")).toContain("Second draft-only thread reply.");
+  expect(rowText.join("\n")).toContain("L1");
+  expect(rowText.join("\n")).toContain("L3");
+  expect(rowText.join("\n")).toContain("2 pending");
+  expect(rowText.join("\n")).not.toContain("First draft-only thread reply.");
+  expect(rowText.join("\n")).not.toContain("Second draft-only thread reply.");
 
   await page.getByRole("button", { name: "Publish all 4 pending" }).click();
 
@@ -222,7 +227,7 @@ it("keeps an open pending source thread expanded after publishing it", async () 
     .locator("label.review-thread-count-toggle", { hasText: "3 pending" })
     .click();
   const pendingRow = page.locator(".review-thread-hairline-row", {
-    hasText: "Third pending source draft.",
+    hasText: "export const value = 2;",
   });
   await pendingRow.waitFor({ state: "visible" });
   const pendingRowText = (await pendingRow.textContent()) ?? "";
