@@ -148,10 +148,8 @@ it("renders the topbar as brand, workspace identity, and distinct actions", () =
   expect(html).toContain('aria-label="Open command palette"');
   expect(html).toContain("Command");
   expect(html).toContain("Cmd/Ctrl K");
-  expect(html).toContain("Cmd/Ctrl Shift C");
   expect(html).toContain("Cmd/Ctrl Shift F");
   expect(html).toContain('aria-keyshortcuts="Meta+K Control+K"');
-  expect(html).toContain('aria-keyshortcuts="Meta+Shift+C Control+Shift+C"');
   expect(html).toContain('aria-keyshortcuts="Meta+Shift+F Control+Shift+F"');
   expect(html).toContain('aria-label="Keyboard shortcuts"');
   expect(html).toContain('aria-label="Search workspace text"');
@@ -209,7 +207,7 @@ it("prioritizes attention-needed comments in the topbar entry point", () => {
     'aria-label="Open Comments hub, 2 comment threads need attention"',
   );
   expect(html).toContain(
-    'title="Open Comments hub: 2 comment threads need attention (Cmd/Ctrl+Shift+C)"',
+    'title="Open Comments hub: 2 comment threads need attention"',
   );
 });
 
@@ -231,32 +229,7 @@ it("keeps the comments topbar entry explicit when nothing needs attention", () =
   expect(html).toContain("Comments");
   expect(html).toContain(">1</span>");
   expect(html).toContain('aria-label="Open Comments hub, 1 open thread"');
-  expect(html).toContain(
-    'title="Open Comments hub: 1 open thread (Cmd/Ctrl+Shift+C)"',
-  );
-});
-
-it("shows private draft counts in the comments topbar entry", () => {
-  const html = renderToStaticMarkup(
-    <Topbar
-      root="/Users/tasuku/work/vivi"
-      themePreference="dark"
-      openCommentThreadCount={4}
-      draftCommentCount={6}
-      onThemeCycle={() => undefined}
-      onQuickOpen={() => undefined}
-      onSearchText={() => undefined}
-      onOpenComments={() => undefined}
-      onOpenShortcuts={() => undefined}
-    />,
-  );
-
-  expect(html).toContain("Comments");
-  expect(html).toContain(">4</span>");
-  expect(html).toContain("6 private draft comments");
-  expect(html).toContain(
-    'aria-label="Open Comments hub, 4 open threads, 6 private draft comments"',
-  );
+  expect(html).toContain('title="Open Comments hub: 1 open thread"');
 });
 
 it("clarifies when fewer comments are in the review queue", () => {
@@ -281,7 +254,7 @@ it("clarifies when fewer comments are in the review queue", () => {
     'aria-label="Open Comments hub, 3 open threads, 1 open review thread"',
   );
   expect(html).toContain(
-    'title="Open Comments hub: 3 open threads, 1 open review thread (Cmd/Ctrl+Shift+C)"',
+    'title="Open Comments hub: 3 open threads, 1 open review thread"',
   );
 });
 
@@ -470,10 +443,10 @@ it("renders the shortcut guide as one bundled reference", () => {
   expect(html).toContain("Cmd/Ctrl Shift J");
   expect(html).toContain("Cmd/Ctrl Shift K");
   expect(html).not.toContain("Cmd/Ctrl Shift R");
-  expect(html).toContain("Cmd/Ctrl Shift C");
-  expect(html).toContain("Open Attention / Comments");
-  expect(html).toContain("Cmd/Ctrl Shift P");
-  expect(html).toContain("Publish draft review comments");
+  expect(html).not.toContain("Cmd/Ctrl Shift C");
+  expect(html).not.toContain("Open Attention / Comments");
+  expect(html).not.toContain("Cmd/Ctrl Shift P");
+  expect(html).not.toContain("Publish draft review comments");
   expect(html).toContain("Cmd/Ctrl G");
   expect(html).toContain("Cmd/Ctrl Shift G");
   expect(html).toContain("Cmd/Ctrl /");
@@ -2507,10 +2480,7 @@ it("renders draft review tray editing, success, and publish failure states", () 
   expect(editingHtml).toContain('aria-describedby="draft-edit-hint-draft-1"');
   expect(editingHtml).toContain("Publish review comments");
   expect(editingHtml).toContain(
-    'aria-keyshortcuts="Meta+Shift+P Control+Shift+P"',
-  );
-  expect(editingHtml).toContain(
-    'title="Publish 2 draft comments as 2 open threads across 2 files (Cmd/Ctrl Shift P)"',
+    'title="Publish 2 draft comments as 2 open threads across 2 files"',
   );
   expect(editingHtml).toContain(
     "Publish 2 draft comments as 2 open threads across 2 files",
@@ -3627,7 +3597,7 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
   expect(queueHtml.indexOf('data-review-path="src/app.ts"')).toBeLessThan(
     queueHtml.indexOf('data-review-path="docs/agent-handoff.md"'),
   );
-  expect(html).toContain("2 open threads");
+  expect(html).toContain("2 open");
   expect(html).toContain("3 total messages");
   expect(html).not.toContain('class="review-stop-summary"');
   expect(html).toContain("Queue stop");
@@ -3643,11 +3613,11 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
     'aria-describedby="review-queue-interaction-help review-queue-keyboard-help review-queue-item-2-description"',
   );
   expect(html).toContain(
-    "unread review activity, 2 open threads, 3 total messages, Queue stop diff · L7: Agent reply needs a human decision before this file is clear.",
+    "unread review activity, 2 open, 3 total messages, Queue stop diff · L7: Agent reply needs a human decision before this file is clear.",
   );
   expect(html).toContain('class="review-state-card queued"');
   expect(html).toContain('class="review-state-card reviewing"');
-  expect(html).toContain("2 open threads");
+  expect(html).toContain("2 open");
   expect(html).not.toContain('class="active-comment-thread"');
 });
 
@@ -3772,7 +3742,7 @@ it("keeps resolved-only Review Queue files out of next-stop guidance", () => {
     />,
   );
 
-  expect(html).toContain("No open threads · 1 total message");
+  expect(html).toContain("No open · 1 total message");
   expect(html).toContain("Resolved after the DSCP paths were checked.");
   expect(html).not.toContain('class="review-stop-summary"');
   expect(html).not.toContain("Queue stop");
@@ -3906,25 +3876,25 @@ it("expands Review Queue thread lists from the thread badge only", () => {
     const props = element.props as { className?: string; children?: ReactNode };
     return (
       props.className === "review-thread-count-toggle" &&
-      flattenText(props.children) === "3 threads"
+      flattenText(props.children) === "1 open"
     );
   });
-  const resolvedThread = findElement(inspector, (element) => {
+  const openThread = findElement(inspector, (element) => {
     const props = element.props as {
       className?: string;
       "aria-label"?: string;
     };
     return (
       props.className?.split(" ").includes("review-thread-hairline-row") &&
-      props["aria-label"]?.includes("Open Resolved thread")
+      props["aria-label"]?.includes("Open Open thread")
     );
   });
-  (resolvedThread.props as { onClick: () => void }).onClick();
+  (openThread.props as { onClick: () => void }).onClick();
 
   const html = renderToStaticMarkup(inspector);
 
   expect(rowCalls).toEqual(["src/app.ts"]);
-  expect(threadCalls).toEqual(["comment-resolved-review-row"]);
+  expect(threadCalls).toEqual(["comment-open-review-row"]);
   expect(threadBadge.props).toMatchObject({
     className: "review-thread-count-toggle",
     htmlFor: "review-queue-item-1-thread-toggle",
@@ -3935,8 +3905,8 @@ it("expands Review Queue thread lists from the thread badge only", () => {
   expect(html).toContain("Resolved context should remain visible");
   expect(html).toContain("Archived context should read quietly.");
   expect(html).toContain('class="review-thread-status-badge open"');
-  expect(html).toContain('class="review-thread-status-badge resolved"');
-  expect(html).toContain('class="review-thread-status-badge archived"');
+  expect(html).not.toContain('class="review-thread-status-badge resolved"');
+  expect(html).not.toContain('class="review-thread-status-badge archived"');
 });
 
 it("omits explicit inspector reveal when Review Queue already navigates files", () => {

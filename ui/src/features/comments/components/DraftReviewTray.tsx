@@ -92,9 +92,8 @@ export function DraftReviewTray({
             <button
               type="button"
               aria-label={publishAction.description}
-              aria-keyshortcuts="Meta+Shift+P Control+Shift+P"
               disabled={publishAction.disabled}
-              title={`${publishAction.description} (Cmd/Ctrl Shift P)`}
+              title={publishAction.description}
               onClick={() => void onPublishAll?.()}
             >
               {publishAction.label}

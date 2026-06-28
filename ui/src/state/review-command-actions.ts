@@ -62,7 +62,6 @@ export function reviewCommandActions({
       detail: attentionThreadCount
         ? `${attentionThreadCount} attention ${attentionThreadCount === 1 ? "thread" : "threads"}`
         : `${openThreadTargetCount} open ${openThreadTargetCount === 1 ? "thread" : "threads"}`,
-      shortcut: `${shortcutPrefix} Shift C`,
     });
   }
 

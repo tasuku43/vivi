@@ -1,6 +1,7 @@
 import type {
   CommentStatus,
   CommentThreadActivityEvent,
+  DraftReviewComment,
   ViviComment,
 } from "../domain/comments.js";
 import type { CommentActivitySummary } from "./comment-activity.js";
@@ -11,6 +12,8 @@ export interface ReviewQueueItem {
   change: ReviewChangeItem | null;
   threadCounts: Record<CommentStatus, number>;
   commentCount: number;
+  pendingDraftCount?: number;
+  pendingDraftIds?: string[];
   latestActivity?: CommentThreadActivityEvent;
   unread: boolean;
 }
@@ -33,6 +36,7 @@ export interface ReviewQueuePosition {
 export interface ReviewQueueBuildOptions {
   acceptedPaths?: ReadonlySet<string>;
   completedThreadPaths?: ReadonlySet<string>;
+  draftComments?: readonly DraftReviewComment[];
   knownMissingPaths?: ReadonlySet<string>;
 }
 
@@ -66,6 +70,10 @@ export function buildReviewQueueItems(
       paths.add(thread.path);
     }
   }
+  const draftsByPath = collectDraftsByPath(options.draftComments ?? []);
+  for (const path of draftsByPath.keys()) {
+    if (!options.acceptedPaths?.has(path)) paths.add(path);
+  }
 
   const changeByPath = new Map(changes.map((change) => [change.path, change]));
   const changeOrder = new Map(
@@ -84,6 +92,7 @@ export function buildReviewQueueItems(
       };
       let commentCount = 0;
       let latestActivity: CommentThreadActivityEvent | undefined;
+      const pathDrafts = draftsByPath.get(path) ?? [];
 
       for (const thread of pathThreads) {
         threadCounts[thread.status] += 1;
@@ -97,7 +106,7 @@ export function buildReviewQueueItems(
         }
       }
 
-      return {
+      const item: ReviewQueueItem = {
         path,
         change: changeByPath.get(path) ?? null,
         threadCounts,
@@ -105,6 +114,11 @@ export function buildReviewQueueItems(
         latestActivity,
         unread: unreadPaths.has(path),
       };
+      if (pathDrafts.length) {
+        item.pendingDraftCount = pathDrafts.length;
+        item.pendingDraftIds = pathDrafts.map((draft) => draft.id);
+      }
+      return item;
     })
     .sort((a, b) => compareReviewQueueItems(a, b, changeOrder));
 }
@@ -244,6 +258,14 @@ function collectThreads(comments: ViviComment[]) {
   return threads;
 }
 
+function collectDraftsByPath(drafts: readonly DraftReviewComment[]) {
+  const byPath = new Map<string, DraftReviewComment[]>();
+  for (const draft of drafts) {
+    byPath.set(draft.path, [...(byPath.get(draft.path) ?? []), draft]);
+  }
+  return byPath;
+}
+
 function compareReviewQueueItems(
   a: ReviewQueueItem,
   b: ReviewQueueItem,
@@ -252,6 +274,10 @@ function compareReviewQueueItems(
   const openCompare =
     Number(b.threadCounts.open > 0) - Number(a.threadCounts.open > 0);
   if (openCompare) return openCompare;
+  const pendingCompare =
+    Number((b.pendingDraftCount ?? 0) > 0) -
+    Number((a.pendingDraftCount ?? 0) > 0);
+  if (pendingCompare) return pendingCompare;
   const unreadCompare = Number(b.unread) - Number(a.unread);
   if (unreadCompare) return unreadCompare;
   const activityCompare = (b.latestActivity?.createdAt ?? "").localeCompare(

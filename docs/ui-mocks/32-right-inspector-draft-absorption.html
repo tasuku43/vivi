@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>32 Right inspector draft absorption - Vivi mock</title>
+    <style>
+      :root {
+        --bg: #101217;
+        --panel: #171b23;
+        --panel-2: #1e2430;
+        --panel-3: #252c3a;
+        --text: #eceff4;
+        --muted: #a3adbd;
+        --line: #30394a;
+        --accent: #6aa6ff;
+        --draft: #d6a85f;
+        --open: #7cc48a;
+        --attention: #f07878;
+        --reviewed: #8892a5;
+        --code: #0b0e13;
+        --shadow: 0 18px 64px rgba(0, 0, 0, 0.34);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      body {
+        padding: 28px;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .page {
+        max-width: 1440px;
+        margin: 0 auto;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: end;
+        margin-bottom: 22px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 10px;
+      }
+
+      .logo {
+        width: 22px;
+        height: 22px;
+        border-radius: 7px;
+        background: linear-gradient(135deg, var(--accent), #7cc48a);
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(28px, 4vw, 52px);
+        line-height: 1;
+        letter-spacing: 0;
+      }
+
+      .hero p {
+        color: var(--muted);
+        max-width: 760px;
+        margin-top: 12px;
+        line-height: 1.55;
+      }
+
+      .jump {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      .jump a,
+      .kbd,
+      .pill {
+        color: var(--text);
+        text-decoration: none;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+
+      .grid {
+        display: grid;
+        gap: 24px;
+      }
+
+      .concept {
+        display: grid;
+        grid-template-columns: 310px minmax(0, 1fr);
+        gap: 18px;
+        align-items: start;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: color-mix(in srgb, var(--panel) 76%, transparent);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .copy {
+        padding: 20px;
+        border-right: 1px solid var(--line);
+        min-height: 100%;
+      }
+
+      .kicker {
+        color: var(--accent);
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+      }
+
+      .copy h2 {
+        font-size: 24px;
+        letter-spacing: 0;
+        margin-bottom: 10px;
+      }
+
+      .copy p {
+        color: var(--muted);
+        line-height: 1.5;
+        margin-bottom: 14px;
+      }
+
+      .score {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-bottom: 14px;
+      }
+
+      .note {
+        border-left: 2px solid var(--accent);
+        padding-left: 10px;
+        color: var(--muted);
+        line-height: 1.5;
+        font-size: 13px;
+      }
+
+      .mock {
+        min-width: 0;
+        padding: 18px;
+      }
+
+      .app {
+        min-height: 620px;
+        display: grid;
+        grid-template-rows: 42px 1fr 26px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--bg);
+      }
+
+      .topbar,
+      .statusbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 12px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .statusbar {
+        justify-content: space-between;
+        border-top: 1px solid var(--line);
+        border-bottom: 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .topbar .spacer {
+        flex: 1;
+      }
+
+      .top-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel-2);
+        color: var(--text);
+        padding: 6px 9px;
+        font-size: 12px;
+      }
+
+      .top-action.subtle {
+        color: var(--muted);
+      }
+
+      .top-action.focus {
+        border-color: color-mix(in srgb, var(--accent) 58%, var(--line));
+      }
+
+      .count {
+        min-width: 20px;
+        height: 20px;
+        display: inline-grid;
+        place-items: center;
+        border-radius: 999px;
+        background: var(--panel-3);
+        color: var(--text);
+        font-size: 11px;
+      }
+
+      .workbench {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 218px minmax(360px, 1fr) 320px;
+      }
+
+      .tree,
+      .inspector {
+        min-width: 0;
+        background: var(--panel);
+        overflow: hidden;
+      }
+
+      .tree {
+        border-right: 1px solid var(--line);
+        padding: 10px;
+      }
+
+      .tree-head,
+      .inspector-head,
+      .section-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        margin-bottom: 9px;
+      }
+
+      .node {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 27px;
+        padding: 4px 7px;
+        border-radius: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .node.active {
+        background: color-mix(in srgb, var(--accent) 16%, transparent);
+        color: var(--text);
+      }
+
+      .node.changed {
+        color: var(--draft);
+      }
+
+      .viewer {
+        min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg);
+      }
+
+      .tabs {
+        display: flex;
+        align-items: end;
+        gap: 2px;
+        min-height: 36px;
+        padding: 0 8px;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel-2);
+      }
+
+      .tab {
+        padding: 8px 11px;
+        border: 1px solid transparent;
+        border-bottom: 0;
+        border-radius: 7px 7px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .tab.active {
+        background: var(--bg);
+        border-color: var(--line);
+        color: var(--text);
+      }
+
+      .document {
+        padding: 20px;
+        overflow: hidden;
+      }
+
+      .code {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--code);
+        overflow: hidden;
+        font-family:
+          "SFMono-Regular",
+          Consolas,
+          "Liberation Mono",
+          monospace;
+        font-size: 12px;
+      }
+
+      .line {
+        display: grid;
+        grid-template-columns: 38px minmax(0, 1fr);
+        min-height: 27px;
+      }
+
+      .line span {
+        padding: 6px 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      }
+
+      .line span:first-child {
+        color: #6f7887;
+        text-align: right;
+        user-select: none;
+      }
+
+      .line.focus span:last-child {
+        background: color-mix(in srgb, var(--draft) 18%, transparent);
+        box-shadow: inset 3px 0 0 var(--draft);
+      }
+
+      .line.open span:last-child {
+        background: color-mix(in srgb, var(--open) 14%, transparent);
+        box-shadow: inset 3px 0 0 var(--open);
+      }
+
+      .inspector {
+        border-left: 1px solid var(--line);
+        display: flex;
+        flex-direction: column;
+      }
+
+      .inspector-body {
+        min-height: 0;
+        overflow: auto;
+        padding: 12px;
+      }
+
+      .inspector-head {
+        margin: 0;
+        padding: 12px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .mode-rail {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        margin-bottom: 12px;
+      }
+
+      .mode-rail button {
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        color: var(--muted);
+        background: var(--panel-2);
+        padding: 7px 4px;
+        font-size: 12px;
+      }
+
+      .mode-rail button.active {
+        color: var(--text);
+        border-color: color-mix(in srgb, var(--accent) 52%, var(--line));
+      }
+
+      .state-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 7px;
+        margin-bottom: 12px;
+      }
+
+      .state {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel-2);
+        padding: 8px;
+      }
+
+      .state strong {
+        display: block;
+        font-size: 20px;
+      }
+
+      .state span {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .section {
+        margin-bottom: 13px;
+      }
+
+      .row,
+      .draft-row,
+      .publish-row,
+      .outline-row {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel-2);
+        padding: 9px;
+        margin-bottom: 7px;
+      }
+
+      .row-head,
+      .row-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .row-head strong,
+      .row-meta strong {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 13px;
+      }
+
+      .row p,
+      .draft-row p,
+      .publish-row p {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.4;
+        margin-top: 6px;
+      }
+
+      .badge {
+        white-space: nowrap;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 3px 7px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .badge.draft {
+        color: var(--draft);
+        border-color: color-mix(in srgb, var(--draft) 52%, var(--line));
+      }
+
+      .badge.open {
+        color: var(--open);
+        border-color: color-mix(in srgb, var(--open) 48%, var(--line));
+      }
+
+      .badge.attention {
+        color: var(--attention);
+        border-color: color-mix(in srgb, var(--attention) 52%, var(--line));
+      }
+
+      .publish-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 10px;
+        border-color: color-mix(in srgb, var(--draft) 46%, var(--line));
+      }
+
+      .publish-row button,
+      .small-button {
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--panel-3);
+        color: var(--text);
+        padding: 7px 9px;
+        font-size: 12px;
+      }
+
+      .compact-publish {
+        position: sticky;
+        bottom: 0;
+        padding: 10px 0 0;
+        background: linear-gradient(transparent, var(--panel) 28%);
+      }
+
+      .drawer-strip {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        align-items: center;
+        border: 1px solid color-mix(in srgb, var(--draft) 50%, var(--line));
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--draft) 10%, var(--panel-2));
+        padding: 9px;
+        margin-bottom: 12px;
+      }
+
+      .outline-row {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      @media (max-width: 980px) {
+        body {
+          padding: 14px;
+        }
+
+        .hero,
+        .concept {
+          grid-template-columns: 1fr;
+        }
+
+        .copy {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        .workbench {
+          grid-template-columns: 190px minmax(320px, 1fr);
+        }
+
+        .inspector {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <div>
+          <div class="brand"><span class="logo"></span>Vivi review concept</div>
+          <h1>Right inspector draft absorption</h1>
+          <p>
+            Three Stage 1 directions for retiring the separate Comments hub as a
+            primary destination. Cmd/Ctrl+Shift+C becomes a focus shortcut into
+            the inspector, while private drafts, open threads, and reviewed
+            history stay in one review navigation surface.
+          </p>
+        </div>
+        <nav class="jump" aria-label="Concept shortcuts">
+          <a href="#concept-a">A Section Stack</a>
+          <a href="#concept-b">B Review Lanes</a>
+          <a href="#concept-c">C Draft Shelf</a>
+        </nav>
+      </header>
+
+      <div class="grid">
+        <section class="concept" id="concept-a">
+          <aside class="copy">
+            <div class="kicker">Concept A</div>
+            <h2>Section Stack</h2>
+            <p>
+              Keep the current Review inspector structure and add Drafts as a
+              first-class section between In Review and In This File.
+            </p>
+            <div class="score">
+              <span class="pill">Smallest change</span>
+              <span class="pill">Current model</span>
+              <span class="pill">Good default</span>
+            </div>
+            <p class="note">
+              Best when the user mostly reviews one active file at a time and
+              only needs a clear private-draft checkpoint before publishing.
+            </p>
+          </aside>
+          <div class="mock">
+            <div class="app">
+              <header class="topbar">
+                <strong>Vivi</strong>
+                <span class="pill">workspace vivi</span>
+                <span class="spacer"></span>
+                <button class="top-action subtle">Command <span class="kbd">Cmd K</span></button>
+                <button class="top-action focus">Focus review <span class="count">4</span></button>
+              </header>
+              <div class="workbench">
+                <aside class="tree">
+                  <div class="tree-head"><span>Files</span><span>live</span></div>
+                  <div class="node changed">▾ ui/src/features</div>
+                  <div class="node active">  DraftReviewTray.tsx</div>
+                  <div class="node changed">  CommentsPanel.tsx</div>
+                  <div class="node">  Inspector.tsx</div>
+                  <div class="node changed">docs/product-review.md</div>
+                  <div class="node">fixtures/review-lab.ts</div>
+                </aside>
+                <section class="viewer">
+                  <div class="tabs">
+                    <div class="tab active">DraftReviewTray.tsx</div>
+                    <div class="tab">product-review.md</div>
+                  </div>
+                  <div class="document">
+                    <div class="code">
+                      <div class="line"><span>7</span><span>const [drafts, setDrafts] = useState([]);</span></div>
+                      <div class="line focus"><span>8</span><span>const publishSummary = summarizeDraftReview(drafts);</span></div>
+                      <div class="line open"><span>9</span><span>return &lt;Inspector reviewItems={items} /&gt;;</span></div>
+                      <div class="line"><span>10</span><span>function onOpenDraft(draft) { openFile(draft.path); }</span></div>
+                    </div>
+                  </div>
+                </section>
+                <aside class="inspector">
+                  <div class="inspector-head">
+                    <span>Review</span>
+                    <strong>4 need action</strong>
+                  </div>
+                  <div class="inspector-body">
+                    <div class="state-grid">
+                      <div class="state"><strong>3</strong><span>Queued</span></div>
+                      <div class="state"><strong>2</strong><span>In Review</span></div>
+                      <div class="state"><strong>5</strong><span>Reviewed</span></div>
+                    </div>
+                    <section class="section">
+                      <div class="section-title"><span>In Review</span><span>open threads</span></div>
+                      <article class="row">
+                        <div class="row-head"><strong>CommentsPanel.tsx</strong><span class="badge attention">agent reply</span></div>
+                        <p>2 open threads, latest activity 4m ago.</p>
+                      </article>
+                    </section>
+                    <section class="section">
+                      <div class="section-title"><span>Private drafts</span><span>not agent-visible</span></div>
+                      <div class="publish-row">
+                        <div>
+                          <strong>4 drafts ready</strong>
+                          <p>Will publish as 3 open threads across 2 files.</p>
+                        </div>
+                        <button>Publish</button>
+                      </div>
+                      <article class="draft-row">
+                        <div class="row-head"><strong>DraftReviewTray.tsx</strong><span class="badge draft">Private</span></div>
+                        <p>Type the draft state before publish.</p>
+                      </article>
+                      <article class="draft-row">
+                        <div class="row-head"><strong>product-review.md</strong><span class="badge draft">Private</span></div>
+                        <p>Clarify that agents only see published threads.</p>
+                      </article>
+                    </section>
+                    <section class="section">
+                      <div class="section-title"><span>In this file</span><span>outline</span></div>
+                      <div class="outline-row">H1 Draft Review Tray</div>
+                      <div class="outline-row">H2 Publish summary</div>
+                    </section>
+                  </div>
+                </aside>
+              </div>
+              <footer class="statusbar">
+                <span>6 review files</span>
+                <span>Cmd/Ctrl+Shift+C focuses Private drafts in inspector</span>
+              </footer>
+            </div>
+          </div>
+        </section>
+
+        <section class="concept" id="concept-b">
+          <aside class="copy">
+            <div class="kicker">Concept B</div>
+            <h2>Review Lanes</h2>
+            <p>
+              Treat the inspector as a state switcher: Attention, Drafts, Open,
+              and Reviewed are equal lanes under the same Review header.
+            </p>
+            <div class="score">
+              <span class="pill">Best triage</span>
+              <span class="pill">Lifecycle explicit</span>
+              <span class="pill">Dense sessions</span>
+            </div>
+            <p class="note">
+              Best when review sessions have many threads and drafts across
+              multiple files. The tradeoff is that the right side becomes more
+              inbox-like and less document-inspector-like.
+            </p>
+          </aside>
+          <div class="mock">
+            <div class="app">
+              <header class="topbar">
+                <strong>Vivi</strong>
+                <span class="pill">workspace vivi</span>
+                <span class="spacer"></span>
+                <button class="top-action subtle">Command <span class="kbd">Cmd K</span></button>
+                <button class="top-action focus">Review <span class="count">12</span></button>
+              </header>
+              <div class="workbench">
+                <aside class="tree">
+                  <div class="tree-head"><span>Files</span><span>live</span></div>
+                  <div class="node changed">▾ ui/src/features</div>
+                  <div class="node active">  CommentsPanel.tsx</div>
+                  <div class="node changed">  DraftReviewTray.tsx</div>
+                  <div class="node changed">docs/product-review.md</div>
+                  <div class="node">test/fixtures/review.json</div>
+                </aside>
+                <section class="viewer">
+                  <div class="tabs">
+                    <div class="tab active">CommentsPanel.tsx</div>
+                    <div class="tab">DraftReviewTray.tsx</div>
+                  </div>
+                  <div class="document">
+                    <div class="code">
+                      <div class="line open"><span>12</span><span>&lt;CommentsPanel statusFilter="drafts" /&gt;</span></div>
+                      <div class="line focus"><span>13</span><span>draftComments={sampleDraftComments}</span></div>
+                      <div class="line"><span>14</span><span>onPublishDrafts={publishDraftReviewComments}</span></div>
+                      <div class="line"><span>15</span><span>onOpenComment={openAnchoredThread}</span></div>
+                    </div>
+                  </div>
+                </section>
+                <aside class="inspector">
+                  <div class="inspector-head">
+                    <span>Review</span>
+                    <strong>12 comments</strong>
+                  </div>
+                  <div class="inspector-body">
+                    <div class="mode-rail" role="group" aria-label="Review lanes">
+                      <button>Attention 2</button>
+                      <button class="active">Drafts 4</button>
+                      <button>Open 6</button>
+                    </div>
+                    <div class="publish-row">
+                      <div>
+                        <strong>Drafts lane</strong>
+                        <p>Private until publish. Batch action stays attached to the lane.</p>
+                      </div>
+                      <button>Publish all</button>
+                    </div>
+                    <section class="section">
+                      <div class="section-title"><span>Current file</span><span>2 drafts</span></div>
+                      <article class="draft-row">
+                        <div class="row-head"><strong>source L13</strong><span class="badge draft">Private</span></div>
+                        <p>Draft comments can be edited or deleted before publish.</p>
+                      </article>
+                      <article class="draft-row">
+                        <div class="row-head"><strong>diff L20</strong><span class="badge draft">Private</span></div>
+                        <p>Comment on the diff surface before batching.</p>
+                      </article>
+                    </section>
+                    <section class="section">
+                      <div class="section-title"><span>Other files</span><span>2 drafts</span></div>
+                      <article class="draft-row">
+                        <div class="row-head"><strong>product-review.md</strong><span class="badge draft">Private</span></div>
+                        <p>Rendered markdown paragraph.</p>
+                      </article>
+                    </section>
+                  </div>
+                </aside>
+              </div>
+              <footer class="statusbar">
+                <span>Attention 2, Drafts 4, Open 6, Reviewed 9</span>
+                <span>Cmd/Ctrl+Shift+C cycles focus to the active lane</span>
+              </footer>
+            </div>
+          </div>
+        </section>
+
+        <section class="concept" id="concept-c">
+          <aside class="copy">
+            <div class="kicker">Concept C</div>
+            <h2>Draft Shelf</h2>
+            <p>
+              Keep Review Queue and In This File calm, but reserve a sticky
+              draft shelf inside the inspector whenever private drafts exist.
+            </p>
+            <div class="score">
+              <span class="pill">Least disruptive</span>
+              <span class="pill">Persistent CTA</span>
+              <span class="pill">Reader friendly</span>
+            </div>
+            <p class="note">
+              Best when drafts are important but should not compete with active
+              reading. The tradeoff is weaker cross-file triage unless the shelf
+              expands into a full list.
+            </p>
+          </aside>
+          <div class="mock">
+            <div class="app">
+              <header class="topbar">
+                <strong>Vivi</strong>
+                <span class="pill">workspace vivi</span>
+                <span class="spacer"></span>
+                <button class="top-action subtle">Command <span class="kbd">Cmd K</span></button>
+                <button class="top-action focus">Drafts <span class="count">4</span></button>
+              </header>
+              <div class="workbench">
+                <aside class="tree">
+                  <div class="tree-head"><span>Files</span><span>live</span></div>
+                  <div class="node changed">docs/product-review.md</div>
+                  <div class="node active">docs/agent-handoff.md</div>
+                  <div class="node changed">ui/src/features/Inspector.tsx</div>
+                  <div class="node">README.md</div>
+                </aside>
+                <section class="viewer">
+                  <div class="tabs">
+                    <div class="tab active">agent-handoff.md</div>
+                    <div class="tab">Inspector.tsx</div>
+                  </div>
+                  <div class="document">
+                    <div class="code">
+                      <div class="line"><span>1</span><span># Agent handoff</span></div>
+                      <div class="line open"><span>3</span><span>Published threads are visible to the agent CLI.</span></div>
+                      <div class="line focus"><span>5</span><span>Private drafts need one final review before publish.</span></div>
+                      <div class="line"><span>7</span><span>Resolved comments stay in history.</span></div>
+                    </div>
+                  </div>
+                </section>
+                <aside class="inspector">
+                  <div class="inspector-head">
+                    <span>Review</span>
+                    <strong>2 need action</strong>
+                  </div>
+                  <div class="inspector-body">
+                    <div class="drawer-strip">
+                      <div>
+                        <strong>4 private drafts</strong>
+                        <p>Hidden from agents until published.</p>
+                      </div>
+                      <button class="small-button">Review</button>
+                    </div>
+                    <section class="section">
+                      <div class="section-title"><span>Review Queue</span><span>next</span></div>
+                      <article class="row">
+                        <div class="row-head"><strong>agent-handoff.md</strong><span class="badge open">Open</span></div>
+                        <p>1 open thread, latest human reply 6m ago.</p>
+                      </article>
+                      <article class="row">
+                        <div class="row-head"><strong>Inspector.tsx</strong><span class="badge attention">Agent reply</span></div>
+                        <p>Needs decision before continuing.</p>
+                      </article>
+                    </section>
+                    <section class="section">
+                      <div class="section-title"><span>In this file</span><span>outline</span></div>
+                      <div class="outline-row">H1 Agent handoff</div>
+                      <div class="outline-row">H2 Feedback loop</div>
+                      <div class="outline-row">H2 Comment visibility</div>
+                    </section>
+                    <div class="compact-publish">
+                      <div class="publish-row">
+                        <div>
+                          <strong>Ready to publish</strong>
+                          <p>4 drafts as 3 threads across 2 files.</p>
+                        </div>
+                        <button>Publish</button>
+                      </div>
+                    </div>
+                  </div>
+                </aside>
+              </div>
+              <footer class="statusbar">
+                <span>Right shelf replaces the old lower-right draft button</span>
+                <span>Cmd/Ctrl+Shift+C opens or focuses the shelf</span>
+              </footer>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

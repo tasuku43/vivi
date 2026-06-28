@@ -37,6 +37,8 @@ modal  : Cmd/Ctrl + K command palette
 - `24-review-queue-flat-inspector-patterns.html`: five flatter right-inspector refinements for Pattern A that avoid nested group and file blocks.
 - `25-review-queue-hairline-workbench.html`: full-workbench Hairline Groups direction with stronger In Review indicators only when an agent reply needs attention.
 - `26-review-queue-empty-state-patterns.html`: empty-state alternatives for zero-count Queued/In Review groups when Reviewed still has recoverable history.
+- `32-right-inspector-draft-absorption.html`: three alternatives for absorbing private drafts and the old Comments shortcut role into the right inspector.
+- `33-in-review-draft-thread-label-patterns.html`: four alternatives for labeling private draft threads inside expanded In Review file rows.
 
 ## Implementation guidance
 

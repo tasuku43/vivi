@@ -12,6 +12,7 @@ import { activityLabel } from "../../state/comment-activity.js";
 import type { LineRange } from "../../state/code-viewer.js";
 import {
   commentLineLabel,
+  commentLineLabelForAnchor,
   statusLabel,
   truncateCommentPreview,
 } from "../../state/comments.js";
@@ -76,6 +77,7 @@ interface Props {
   onOpenComments?: () => void;
   onOpenComment?: (comment: ViviComment) => void;
   onOpenDraft?: (draft: DraftReviewComment) => void;
+  onPublishDrafts?: (draftIds?: string[]) => void | Promise<void>;
   onCommentStatusChange?: (threadId: string, status: CommentStatus) => void;
 }
 
@@ -91,6 +93,7 @@ export function Inspector({
   unreadReviewPaths,
   comments = [],
   reviewComments = comments,
+  draftComments = [],
   knownMissingCommentPaths = emptyMissingCommentPaths,
   activeCommentId = null,
   activePath = file?.path ?? null,
@@ -99,6 +102,8 @@ export function Inspector({
   onOpenNextChanged,
   onRestoreAcceptedReviewPath,
   onOpenComment,
+  onOpenDraft,
+  onPublishDrafts,
 }: Props) {
   const hiddenReviewThreads = summarizeActiveThreads(reviewComments).filter(
     (thread) =>
@@ -111,10 +116,13 @@ export function Inspector({
       change,
       threadCounts: { open: 0, resolved: 0, archived: 0 },
       commentCount: 0,
-        unread: unreadReviewPaths.has(change.path),
-      }));
+      unread: unreadReviewPaths.has(change.path),
+    }));
   const needActionCount = queueItems.filter(
-    (item) => item.unread || item.threadCounts.open > 0,
+    (item) =>
+      item.unread ||
+      item.threadCounts.open > 0 ||
+      (item.pendingDraftCount ?? 0) > 0,
   ).length;
   const queuePosition = reviewQueuePosition(queueItems, activePath);
   const hiddenReviewWork =
@@ -132,6 +140,10 @@ export function Inspector({
   );
   const displayQueueItems = [...queuedItems, ...reviewingItems];
   const reviewedCount = hiddenReviewWork;
+  const pendingDraftCount = reviewingItems.reduce(
+    (total, item) => total + (item.pendingDraftCount ?? 0),
+    0,
+  );
   const reviewStateSections = [
     {
       state: "queued" as const,
@@ -144,7 +156,9 @@ export function Inspector({
       state: "reviewing" as const,
       count: reviewingItems.length,
       items: reviewingItems,
-      detail: "open threads",
+      detail: pendingDraftCount
+        ? `· ${pendingDraftCount} pending`
+        : "in review",
       defaultOpen: true,
     },
     {
@@ -170,6 +184,10 @@ export function Inspector({
     const threadListId = `review-queue-item-${index + 1}-threads`;
     const threadToggleId = `review-queue-item-${index + 1}-thread-toggle`;
     const itemThreads = reviewQueueThreadsForPath(item.path, reviewComments);
+    const itemDrafts = reviewQueueDraftsForPath(item.path, draftComments);
+    const itemPendingCount = item.pendingDraftCount ?? itemDrafts.length;
+    const itemOpenCount = item.threadCounts.open;
+    const itemReviewCount = itemThreads.length + itemDrafts.length;
     const itemStatusLabel = change
       ? changeStatusLabel(change.status, change.kind)
       : "comment";
@@ -179,11 +197,11 @@ export function Inspector({
     const kindLabel = reviewQueueFileKindLabel(item.path);
     return (
       <div
-        className={`review-queue-item${itemThreads.length ? " review-thread-expand-file" : ""}`}
+        className={`review-queue-item${itemReviewCount ? " review-thread-expand-file" : ""}`}
         key={`${change?.source ?? "thread"}:${item.path}`}
       >
         <button
-          className={`change-open${item.threadCounts.open ? " has-open-threads" : ""}${reviewQueueItemHasAgentReply(item) ? " has-agent-reply" : ""}${active ? " active" : ""}`}
+          className={`change-open${itemOpenCount || itemPendingCount ? " has-open-threads" : ""}${reviewQueueItemHasAgentReply(item) ? " has-agent-reply" : ""}${active ? " active" : ""}`}
           disabled={!isReviewQueueItemOpenable(item)}
           aria-current={active ? "true" : undefined}
           aria-describedby={`review-queue-interaction-help review-queue-keyboard-help ${reviewQueueItemDescriptionId}`}
@@ -249,7 +267,7 @@ export function Inspector({
               </small>
             ) : null}
           </span>
-          {itemThreads.length ? (
+          {itemReviewCount ? (
             <span className="review-thread-count-space" aria-hidden="true" />
           ) : change ? (
             <DiffStatBadge
@@ -262,28 +280,32 @@ export function Inspector({
             </span>
           )}
         </button>
-        {itemThreads.length ? (
+        {itemReviewCount ? (
           <>
             <input
               className={`${sharedUiStyles.srOnly} sr-only review-thread-toggle-control`}
               id={threadToggleId}
               type="checkbox"
               aria-controls={threadListId}
-              aria-label={`Toggle ${threadCountLabel(itemThreads.length)} for ${item.path}`}
+              aria-label={`Toggle ${reviewItemCountLabel(itemOpenCount, itemPendingCount, itemReviewCount)} for ${item.path}`}
             />
             <label
-              className="review-thread-count-toggle"
+              className={`review-thread-count-toggle${itemPendingCount ? " pending" : ""}`}
               htmlFor={threadToggleId}
             >
-              {threadCountLabel(itemThreads.length)}
+              {reviewItemCountLabel(
+                itemOpenCount,
+                itemPendingCount,
+                itemReviewCount,
+              )}
             </label>
           </>
         ) : null}
-        {itemThreads.length ? (
+        {itemReviewCount ? (
           <div
             className="review-thread-hairline-list"
             id={threadListId}
-            aria-label={`Review threads for ${item.path}`}
+            aria-label={`Review items for ${item.path}`}
           >
             {itemThreads.map((thread) => {
               const primaryComment = thread.comments[0]!;
@@ -323,6 +345,47 @@ export function Inspector({
                 </div>
               );
             })}
+            {itemDrafts.map((draft) => {
+              const activeDraft =
+                activeCommentId === draft.id ||
+                activeCommentId === `draft:${draft.id}`;
+              return (
+                <div className="review-thread-hairline-item" key={draft.id}>
+                  <button
+                    className={`review-thread-hairline-row${activeDraft ? " active" : ""} has-publish-action`}
+                    type="button"
+                    aria-label={`Open pending item, ${draft.path}, ${commentLineLabelForAnchor(draft.anchor.canonical)}, ${draftSurfaceLabel(draft)}`}
+                    onClick={() => onOpenDraft?.(draft)}
+                  >
+                    <span className="review-thread-hairline-main">
+                      <span className="review-thread-hairline-title">
+                        <span>
+                          {commentLineLabelForAnchor(draft.anchor.canonical)} ·{" "}
+                          {draftSurfaceLabel(draft)}
+                        </span>
+                        <span className="review-thread-status-badge pending">
+                          Pending
+                        </span>
+                      </span>
+                      <span className="review-thread-hairline-preview">
+                        {truncateCommentPreview(draft.body, 96)}
+                      </span>
+                      <span className="review-thread-hairline-meta">
+                        not agent-visible · publishes as open
+                      </span>
+                    </span>
+                  </button>
+                  <button
+                    className="review-thread-publish-button"
+                    type="button"
+                    aria-label={`Publish pending item, ${draft.path}, ${commentLineLabelForAnchor(draft.anchor.canonical)}`}
+                    onClick={() => void onPublishDrafts?.([draft.id])}
+                  >
+                    Publish
+                  </button>
+                </div>
+              );
+            })}
           </div>
         ) : null}
       </div>
@@ -331,7 +394,7 @@ export function Inspector({
 
   return (
     <aside
-      className={`${styles.inspectorRoot} ${sharedUiStyles.inspector} inspector`}
+      className={`${styles.inspectorRoot} ${sharedUiStyles.inspector} inspector review-thread-pattern-a`}
       aria-label="Review inspector"
     >
       <div
@@ -404,15 +467,41 @@ export function Inspector({
                       {section.detail}
                     </small>
                   </summary>
+                  {section.state === "reviewing" && pendingDraftCount ? (
+                    <div
+                      className="review-section-publish-control"
+                      aria-label="Pending draft publish actions"
+                    >
+                      <button
+                        className="review-publish-action"
+                        type="button"
+                        aria-label={`Publish all ${pendingDraftCount} pending`}
+                        onClick={() =>
+                          void onPublishDrafts?.(
+                            reviewingItems.flatMap(
+                              (item) => item.pendingDraftIds ?? [],
+                            ),
+                          )
+                        }
+                      >
+                        Publish pending
+                      </button>
+                    </div>
+                  ) : null}
                   {section.items.length ? (
                     <div className="review-state-section-list">
                       {section.items.map((item) =>
-                        renderReviewQueueItem(item, displayQueueItems.indexOf(item)),
+                        renderReviewQueueItem(
+                          item,
+                          displayQueueItems.indexOf(item),
+                        ),
                       )}
                     </div>
                   ) : (
                     <ReviewStateEmptyRow
-                      state={section.state === "queued" ? "queued" : "reviewing"}
+                      state={
+                        section.state === "queued" ? "queued" : "reviewing"
+                      }
                     />
                   )}
                 </details>
@@ -518,7 +607,6 @@ export function Inspector({
             </div>
           ) : null}
         </div>
-
       </div>
     </aside>
   );
@@ -560,9 +648,9 @@ function reviewQueueItemDescription(
   return [
     reviewQueueItemHasAgentReply(item) ? "agent reply needs attention" : "",
     item.unread ? "unread review activity" : "read",
-    item.threadCounts.open
-      ? `${item.threadCounts.open} open ${item.threadCounts.open === 1 ? "thread" : "threads"}`
-      : "",
+    item.threadCounts.open ? `${item.threadCounts.open} open` : "",
+    item.pendingDraftCount ? `${item.pendingDraftCount} pending` : "",
+    item.pendingDraftCount ? "not agent-visible until publish" : "",
     item.commentCount ? totalMessageCountLabel(item.commentCount) : "",
     reviewStop
       ? `${reviewQueueStopTitle(active)} ${reviewStop.label}: ${reviewStop.preview}`
@@ -577,17 +665,16 @@ function reviewQueueItemDescription(
 function reviewQueueItemDotClass(item: ReviewQueueItem): string {
   if (reviewQueueItemHasAgentReply(item)) return "unread-dot agent-reply";
   if (item.unread) return "unread-dot";
-  if (item.threadCounts.open > 0) return "unread-dot muted";
+  if (item.threadCounts.open > 0 || (item.pendingDraftCount ?? 0) > 0) {
+    return "unread-dot muted";
+  }
   if (reviewQueueItemState(item) === "queued") return "unread-dot muted";
   return "unread-dot read";
 }
 
-function ReviewStateEmptyRow({
-  state,
-}: {
-  state: "queued" | "reviewing";
-}) {
-  const title = state === "queued" ? "No queued files" : "No active review work";
+function ReviewStateEmptyRow({ state }: { state: "queued" | "reviewing" }) {
+  const title =
+    state === "queued" ? "No queued files" : "No active review work";
   const detail =
     state === "queued"
       ? "New HEAD evidence will appear here."
@@ -607,16 +694,25 @@ function ReviewStateEmptyRow({
 }
 
 function reviewQueueVisibleSummary(item: ReviewQueueItem): string | null {
+  const pendingCount = item.pendingDraftCount ?? 0;
   if (reviewQueueItemHasAgentReply(item) && item.latestActivity) {
     return `${activityLabel(item.latestActivity)} · needs decision`;
   }
+  if (item.threadCounts.open > 0 && pendingCount > 0) {
+    return `${item.threadCounts.open} open · ${pendingCount} pending · ${
+      item.unread ? "unread activity" : "not agent-visible"
+    }`;
+  }
   if (item.threadCounts.open > 0) {
-    return `${item.threadCounts.open} open ${item.threadCounts.open === 1 ? "thread" : "threads"} · ${
+    return `${item.threadCounts.open} open · ${
       item.unread ? "unread activity" : "no new movement"
     }`;
   }
+  if (pendingCount > 0) {
+    return `${pendingCount} pending · not agent-visible`;
+  }
   if (item.commentCount > 0) {
-    return `No open threads · ${totalMessageCountLabel(item.commentCount)}`;
+    return `No open · ${totalMessageCountLabel(item.commentCount)}`;
   }
   if (item.unread) return "unread HEAD diff";
   if (item.change) return `read ${reviewQueueSourceLabel(item.change.source)}`;
@@ -660,12 +756,37 @@ function reviewQueueThreadsForPath(
   comments: ViviComment[],
 ): CommentThread[] {
   return summarizeActiveThreads(comments).filter(
-    (thread) => thread.path === path,
+    (thread) => thread.path === path && thread.status === "open",
   );
 }
 
-function threadCountLabel(count: number): string {
-  return `${count} ${count === 1 ? "thread" : "threads"}`;
+function reviewQueueDraftsForPath(
+  path: string,
+  drafts: DraftReviewComment[],
+): DraftReviewComment[] {
+  return drafts
+    .filter((draft) => draft.path === path)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+function reviewItemCountLabel(
+  openCount: number,
+  pendingCount: number,
+  fallbackCount: number,
+): string {
+  if (openCount && pendingCount)
+    return `${openCount} open · ${pendingCount} pending`;
+  if (pendingCount) return `${pendingCount} pending`;
+  if (openCount) return `${openCount} open`;
+  return `${fallbackCount} open`;
+}
+
+function draftSurfaceLabel(draft: DraftReviewComment): string {
+  if (draft.anchor.surface === "diff") return "diff";
+  if (draft.anchor.surface === "rendered") {
+    return `${draft.anchor.rendered?.kind ?? draft.viewerKind} rendered`;
+  }
+  return "source";
 }
 
 export function reviewQueueKeyboardTarget(
@@ -732,7 +853,9 @@ function DiffStatBadge({
   stat: DiffStat | null;
 }) {
   if (loading && !stat)
-    return <span className={`${sharedUiStyles.muted} diff-stat muted`}>...</span>;
+    return (
+      <span className={`${sharedUiStyles.muted} diff-stat muted`}>...</span>
+    );
   if (!stat)
     return <span className={`${sharedUiStyles.muted} diff-stat muted`}>-</span>;
   if (stat.metadataOnly) {

@@ -12,6 +12,7 @@ import {
   manyReviewComments,
   sampleComments,
   sampleCompletedThreadPaths,
+  sampleDraftComments,
   sampleFiles,
   sampleReviewChanges,
   sampleReviewDiffStats,
@@ -61,6 +62,7 @@ const baseArgs = {
   onOpenAllChanged: noop,
   onRevealInTree: noop,
   onOpenComments: noop,
+  onPublishDrafts: noop,
   onAcceptReviewPath: noop,
   onRestoreAcceptedReviewPath: noop,
 };
@@ -138,10 +140,42 @@ export const ReviewQueueItemWithOpenThreads: Story = {
     ).toHaveTextContent("unread review activity");
     await expect(
       canvasElement.querySelector(`#${descriptionId}`),
-    ).toHaveTextContent("open thread");
+    ).toHaveTextContent("open");
     await expect(
       canvas.queryByTestId("review-open-comments-panel"),
     ).not.toBeInTheDocument();
+  },
+};
+
+export const ReviewQueueItemWithPendingDrafts: Story = {
+  args: {
+    draftComments: sampleDraftComments,
+    reviewItems: buildReviewQueueItems(
+      sampleReviewChanges,
+      sampleComments,
+      sampleThreadActivities,
+      sampleUnreadReviewPaths,
+      {
+        completedThreadPaths: sampleCompletedThreadPaths,
+        draftComments: sampleDraftComments,
+      },
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByLabelText("Pending draft publish actions"),
+    ).toHaveTextContent("Publish pending");
+    await expect(
+      canvas.getByRole("button", {
+        name: /Show \d+ open · \d+ pending for/,
+      }),
+    ).toBeVisible();
+    await expect(
+      canvas.getByRole("button", {
+        name: /Show \d+ pending for/,
+      }),
+    ).toBeVisible();
   },
 };
 
@@ -164,6 +198,24 @@ export const InReviewFileThreadExpansionInteraction: Story = {
       canvas.getByText("Reviewed", { selector: "summary span" }),
     ).toBeVisible();
 
+    await expect(
+      canvas.getByText("3", { selector: ".reviewing strong" }),
+    ).toBeVisible();
+    await expect(canvas.getByText("3 files · 3 pending")).not.toBeVisible();
+    await expect(
+      canvas.getByRole("button", {
+        name: "Show 2 open and 1 pending for docs/product-review.md",
+      }),
+    ).toHaveTextContent("2 open · 1 pending");
+    await expect(
+      canvas.getByRole("button", {
+        name: "Show 2 pending for DraftReviewTray.tsx",
+      }),
+    ).toHaveTextContent("2 pending");
+    await expect(
+      canvas.getByLabelText("Pending draft publish actions"),
+    ).toHaveTextContent("Publish pending");
+
     await userEvent.click(
       canvas.getByRole("button", {
         name: "Review queue item, modified docs/product-review.md, current review file",
@@ -174,18 +226,18 @@ export const InReviewFileThreadExpansionInteraction: Story = {
     ).toHaveTextContent("docs/product-review.md");
     await expect(
       canvas.queryByRole("button", {
-        name: /Open open thread, docs\/product-review\.md, L7/i,
+        name: /Open open item, docs\/product-review\.md, L7/i,
       }),
     ).not.toBeInTheDocument();
 
     await userEvent.click(
       canvas.getByRole("button", {
-        name: "Show 3 threads for docs/product-review.md",
+        name: "Show 2 open and 1 pending for docs/product-review.md",
       }),
     );
 
     const firstThread = canvas.getByRole("button", {
-      name: /Open open thread, docs\/product-review\.md, L7/i,
+      name: /Open open item, docs\/product-review\.md, L7/i,
     });
     await expect(firstThread).toBeVisible();
     await expect(firstThread).toHaveTextContent(
@@ -194,22 +246,52 @@ export const InReviewFileThreadExpansionInteraction: Story = {
     await expect(firstThread).toHaveTextContent("Open");
     await expect(
       canvas.getByRole("button", {
-        name: /Open resolved thread, docs\/product-review\.md, L18/i,
+        name: /Open pending item, docs\/product-review\.md, L18/i,
       }),
-    ).toHaveTextContent("Resolved");
+    ).toHaveTextContent("Pending");
     await expect(
       canvas.getByRole("button", {
-        name: /Open archived thread, docs\/product-review\.md, L31/i,
+        name: "Publish pending item, docs/product-review.md, L18",
       }),
-    ).toHaveTextContent("Archived");
+    ).toBeVisible();
+    await expect(
+      canvas.getByRole("button", {
+        name: /Open open item, docs\/product-review\.md, L31/i,
+      }),
+    ).toHaveTextContent("Open");
 
-    await userEvent.click(firstThread);
+    await userEvent.click(
+      canvas.getByRole("button", {
+        name: /Open pending item, docs\/product-review\.md, L18/i,
+      }),
+    );
     await expect(
       canvas.getByRole("status", { name: "Opened thread" }),
-    ).toHaveTextContent("docs/product-review.md · L7");
+    ).toHaveTextContent("docs/product-review.md · L18");
     await expect(
       canvas.getByRole("status", { name: "Opened file" }),
     ).toHaveTextContent("docs/product-review.md");
+    await userEvent.click(
+      canvas.getByRole("button", {
+        name: "Publish pending item, docs/product-review.md, L18",
+      }),
+    );
+    await expect(
+      canvas.getByRole("button", {
+        name: /Open open item, docs\/product-review\.md, L18/i,
+      }),
+    ).toHaveTextContent("published just now");
+    await expect(
+      canvas.getByLabelText("Pending draft publish actions"),
+    ).toHaveTextContent("Publish pending");
+    await userEvent.click(
+      canvas.getByRole("button", {
+        name: "Publish all 2 pending",
+      }),
+    );
+    await expect(
+      canvas.getByLabelText("Pending draft publish actions"),
+    ).toHaveTextContent("Published");
   },
 };
 
@@ -749,6 +831,10 @@ function InReviewThreadExpansionFacade() {
   const [expanded, setExpanded] = useState(false);
   const [openedFile, setOpenedFile] = useState<string | null>(null);
   const [openedThread, setOpenedThread] = useState<string | null>(null);
+  const [publishedPendingIds, setPublishedPendingIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [publishedAllPending, setPublishedAllPending] = useState(false);
   const threads = [
     {
       id: "product-l7",
@@ -762,27 +848,41 @@ function InReviewThreadExpansionFacade() {
     },
     {
       id: "product-l18",
-      status: "resolved",
-      statusLabel: "Resolved",
+      status: "pending",
+      statusLabel: "Pending",
       location: "L18",
       surface: "Source",
       preview: "Mention the agent-readable contract before the diff example.",
-      meta: "2 messages · resolved yesterday",
+      meta: "not agent-visible · publishes as open",
     },
     {
       id: "product-l31",
-      status: "archived",
-      statusLabel: "Archived",
+      status: "open",
+      statusLabel: "Open",
       location: "L31",
       surface: "Rendered Markdown",
-      preview: "Older copy note kept for review history.",
-      meta: "3 messages · archived after publish",
+      preview: "Keep the draft visibility note near the reviewer workflow.",
+      meta: "1 message · updated 18:22",
     },
-  ];
+  ].map((thread) =>
+    thread.status === "pending" && publishedPendingIds.has(thread.id)
+      ? {
+          ...thread,
+          status: "open",
+          statusLabel: "Open",
+          meta: "published just now · agent-visible",
+        }
+      : thread,
+  );
+  const productPendingCount = threads.filter(
+    (thread) => thread.status === "pending",
+  ).length;
+  const draftTrayPendingCount = publishedAllPending ? 0 : 2;
+  const pendingCount = productPendingCount + draftTrayPendingCount;
 
   return (
     <aside
-      className={`${sharedUiStyles.inspector} inspector`}
+      className={`${sharedUiStyles.inspector} inspector review-thread-pattern-a`}
       aria-label="Review inspector"
     >
       <div
@@ -790,7 +890,9 @@ function InReviewThreadExpansionFacade() {
       >
         <span className="review-panel-heading">
           <span>Review</span>
-          <strong>2 need action</strong>
+          <strong>
+            {pendingCount ? `${pendingCount} pending` : "0 pending"}
+          </strong>
         </span>
         <button
           className={`${sharedUiStyles.commandButton} ${sharedUiStyles.commandButtonSecondary} command-button command-button-secondary review-next-action`}
@@ -807,7 +909,7 @@ function InReviewThreadExpansionFacade() {
               <span>Queued</span>
             </span>
             <span className="review-state-card reviewing">
-              <strong>2</strong>
+              <strong>3</strong>
               <span>In Review</span>
             </span>
             <span className="review-state-card reviewed">
@@ -818,7 +920,7 @@ function InReviewThreadExpansionFacade() {
           <div
             className="review-queue"
             role="group"
-            aria-label="Review queue, 3 queued, 2 in review, 5 reviewed"
+            aria-label="Review queue, 3 queued, 3 in review, 5 reviewed"
           >
             <details className="review-state-section queued" open>
               <summary>
@@ -841,7 +943,7 @@ function InReviewThreadExpansionFacade() {
                       <b>README.md</b>
                     </span>
                     <small className="review-thread-summary">
-                      read git · no open threads
+                      read git · no open
                     </small>
                   </span>
                   <span className="diff-stat">
@@ -855,8 +957,43 @@ function InReviewThreadExpansionFacade() {
             <details className="review-state-section reviewing" open>
               <summary>
                 <span>In Review</span>
-                <small>2 files open threads</small>
+                <small>
+                  {pendingCount
+                    ? `3 files · ${pendingCount} pending`
+                    : "3 files · published"}
+                </small>
               </summary>
+              {pendingCount ? (
+                <div
+                  className="review-section-publish-control"
+                  aria-label="Pending draft publish actions"
+                >
+                  <button
+                    className="review-publish-action"
+                    type="button"
+                    aria-label={`Publish all ${pendingCount} pending`}
+                    onClick={() => {
+                      setPublishedAllPending(true);
+                      setPublishedPendingIds((current) => {
+                        const next = new Set(current);
+                        for (const thread of threads) {
+                          if (thread.status === "pending") next.add(thread.id);
+                        }
+                        return next;
+                      });
+                    }}
+                  >
+                    Publish pending
+                  </button>
+                </div>
+              ) : (
+                <div
+                  className="review-section-publish-control published"
+                  aria-label="Pending draft publish actions"
+                >
+                  Published
+                </div>
+              )}
               <div className="review-state-section-list">
                 <div className="review-thread-expand-file active">
                   <button
@@ -876,7 +1013,9 @@ function InReviewThreadExpansionFacade() {
                         <b>product-review.md</b>
                       </span>
                       <small className="review-thread-summary">
-                        open, resolved, archived · latest by Tasuku
+                        {productPendingCount
+                          ? "2 open · 1 pending · latest by Tasuku"
+                          : "3 open · latest by Tasuku"}
                       </small>
                     </span>
                     <span
@@ -885,20 +1024,24 @@ function InReviewThreadExpansionFacade() {
                     />
                   </button>
                   <button
-                    className="review-thread-count-toggle"
+                    className={`review-thread-count-toggle${productPendingCount ? " pending" : ""}`}
                     type="button"
                     aria-expanded={expanded}
                     aria-controls="storybook-in-review-thread-list"
-                    aria-label="Show 3 threads for docs/product-review.md"
+                    aria-label={
+                      productPendingCount
+                        ? "Show 2 open and 1 pending for docs/product-review.md"
+                        : "Show 3 open for docs/product-review.md"
+                    }
                     onClick={() => setExpanded((current) => !current)}
                   >
-                    3 threads
+                    {productPendingCount ? "2 open · 1 pending" : "3 open"}
                   </button>
                   {expanded ? (
                     <div
                       className="review-thread-hairline-list"
                       id="storybook-in-review-thread-list"
-                      aria-label="Open threads for docs/product-review.md"
+                      aria-label="Open review items for docs/product-review.md"
                     >
                       {threads.map((thread) => (
                         <div
@@ -911,9 +1054,9 @@ function InReviewThreadExpansionFacade() {
                               `docs/product-review.md · ${thread.location}`
                                 ? "active"
                                 : ""
-                            }`}
+                            }${thread.status === "pending" ? " has-publish-action" : ""}`}
                             type="button"
-                            aria-label={`Open ${thread.status} thread, docs/product-review.md, ${thread.location}, ${thread.surface}`}
+                            aria-label={`Open ${thread.status} item, docs/product-review.md, ${thread.location}, ${thread.surface}`}
                             onClick={() => {
                               setOpenedFile("docs/product-review.md");
                               setOpenedThread(
@@ -940,6 +1083,22 @@ function InReviewThreadExpansionFacade() {
                               </span>
                             </span>
                           </button>
+                          {thread.status === "pending" ? (
+                            <button
+                              className="review-thread-publish-button"
+                              type="button"
+                              aria-label={`Publish pending item, docs/product-review.md, ${thread.location}`}
+                              onClick={() => {
+                                setPublishedPendingIds((current) => {
+                                  const next = new Set(current);
+                                  next.add(thread.id);
+                                  return next;
+                                });
+                              }}
+                            >
+                              Publish
+                            </button>
+                          ) : null}
                         </div>
                       ))}
                     </div>
@@ -975,9 +1134,50 @@ function InReviewThreadExpansionFacade() {
                     className="review-thread-count-toggle"
                     type="button"
                     aria-expanded="false"
-                    aria-label="Show 1 open thread for WorkbenchContainer.tsx"
+                    aria-label="Show 1 open for WorkbenchContainer.tsx"
                   >
-                    1 thread
+                    1 open
+                  </button>
+                </div>
+
+                <div className="review-thread-expand-file">
+                  <button
+                    className="change-open has-open-threads"
+                    type="button"
+                    aria-label="Review queue item, modified DraftReviewTray.tsx"
+                    onClick={() => setOpenedFile("DraftReviewTray.tsx")}
+                  >
+                    <span
+                      className={`${sharedUiStyles.muted} unread-dot muted`}
+                      aria-hidden="true"
+                    />
+                    <span className="change-main">
+                      <span className="change-heading">
+                        <span className="change-kind">TS</span>
+                        <b>DraftReviewTray.tsx</b>
+                      </span>
+                      <small className="review-thread-summary">
+                        {draftTrayPendingCount
+                          ? "2 pending · not agent-visible"
+                          : "published · agent-visible"}
+                      </small>
+                    </span>
+                    <span
+                      className="review-thread-count-space"
+                      aria-hidden="true"
+                    />
+                  </button>
+                  <button
+                    className={`review-thread-count-toggle${draftTrayPendingCount ? " pending" : ""}`}
+                    type="button"
+                    aria-expanded="false"
+                    aria-label={
+                      draftTrayPendingCount
+                        ? "Show 2 pending for DraftReviewTray.tsx"
+                        : "Show published for DraftReviewTray.tsx"
+                    }
+                  >
+                    {draftTrayPendingCount ? "2 pending" : "Published"}
                   </button>
                 </div>
               </div>

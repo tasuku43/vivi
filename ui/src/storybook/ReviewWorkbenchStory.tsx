@@ -329,7 +329,6 @@ export function ReviewWorkbenchStory({
           ).length
         }
         commentAttentionCount={storyAttentionThreadCount}
-        draftCommentCount={draftComments.length}
         onThemeCycle={noop}
         onQuickOpen={() => setStoryCommandPaletteOpen(true)}
         onSearchText={() => setStoryCommandPaletteOpen(true)}
@@ -339,7 +338,9 @@ export function ReviewWorkbenchStory({
       <div
         className={[
           workbenchStyles.workbench,
-          compactInspector ? workbenchStyles.storyWorkbenchCompactInspector : "",
+          compactInspector
+            ? workbenchStyles.storyWorkbenchCompactInspector
+            : "",
           compactInspector && !compactInspectorOpen
             ? workbenchStyles.inspectorHidden
             : "",
@@ -527,7 +528,7 @@ export function ReviewWorkbenchStory({
           }
           unreadReviewPaths={unreadReviewPaths}
           comments={activeComments}
-          draftComments={activeDrafts}
+          draftComments={draftComments}
           commentsLoading={storyState === "loading"}
           threadActivities={threadActivities}
           selectedCodeRange={
@@ -542,6 +543,7 @@ export function ReviewWorkbenchStory({
           onOpenNextChanged={noop}
           onOpenPreviousChanged={noop}
           onOpenAllChanged={noop}
+          onPublishDrafts={noop}
           onRevealInTree={noop}
           onOpenComments={() => openStoryCommentsPanel(storyFile?.path ?? "")}
           onOpenDraft={noop}

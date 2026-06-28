@@ -22,7 +22,9 @@ export function reviewFileStateTone(state: ReviewFileState): string {
 }
 
 export function reviewQueueItemState(item: ReviewQueueItem): ReviewFileState {
-  return item.threadCounts.open > 0 ? "reviewing" : "queued";
+  return item.threadCounts.open > 0 || (item.pendingDraftCount ?? 0) > 0
+    ? "reviewing"
+    : "queued";
 }
 
 export function reviewChangeFingerprint(

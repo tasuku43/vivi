@@ -65,11 +65,11 @@ export const TopbarWithStaleCommentRouting: Story = {
     openStaleCommentRouting.mockClear();
     const canvas = within(canvasElement);
     const commentsButton = canvas.getByRole("button", {
-      name: "Open Comments inbox, 3 open threads, 1 open review thread",
+      name: "Open Comments hub, 3 open threads, 1 open review thread",
     });
     await expect(commentsButton).toHaveAttribute(
       "title",
-      "Open Comments inbox: 3 open threads, 1 open review thread (Cmd/Ctrl+Shift+C)",
+      "Open Comments hub: 3 open threads, 1 open review thread",
     );
     await userEvent.click(commentsButton);
     await expect(openStaleCommentRouting).toHaveBeenCalled();
@@ -229,10 +229,7 @@ export const SidebarRevealsLazyBreadcrumbTarget: Story = {
   },
 };
 
-function lazyFileNode(
-  path: string,
-  viewerKind: FsNode["viewerKind"],
-): FsNode {
+function lazyFileNode(path: string, viewerKind: FsNode["viewerKind"]): FsNode {
   return {
     id: path,
     path,

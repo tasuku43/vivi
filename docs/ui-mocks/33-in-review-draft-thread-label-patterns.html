@@ -1,0 +1,972 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>33 In Review draft thread label patterns - Vivi mock</title>
+    <style>
+      :root {
+        --bg: #101217;
+        --panel: #171b23;
+        --panel-2: #1e2430;
+        --panel-3: #262e3d;
+        --text: #eceff4;
+        --muted: #a7b0bf;
+        --line: #30394a;
+        --open: #7cc48a;
+        --draft: #d7aa63;
+        --attention: #f07878;
+        --accent: #6aa6ff;
+        --code: #0b0e13;
+        --shadow: 0 18px 64px rgba(0, 0, 0, 0.34);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      body {
+        padding: 28px;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .page {
+        max-width: 1440px;
+        margin: 0 auto;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: end;
+        margin-bottom: 22px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 10px;
+      }
+
+      .logo {
+        width: 22px;
+        height: 22px;
+        border-radius: 7px;
+        background: linear-gradient(135deg, var(--accent), var(--open));
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(28px, 4vw, 50px);
+        line-height: 1;
+        letter-spacing: 0;
+      }
+
+      .hero p {
+        color: var(--muted);
+        max-width: 760px;
+        margin-top: 12px;
+        line-height: 1.55;
+      }
+
+      .jump {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      .jump a,
+      .pill,
+      .kbd {
+        color: var(--text);
+        text-decoration: none;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+
+      .grid {
+        display: grid;
+        gap: 24px;
+      }
+
+      .concept {
+        display: grid;
+        grid-template-columns: 310px minmax(0, 1fr);
+        gap: 18px;
+        align-items: stretch;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: color-mix(in srgb, var(--panel) 78%, transparent);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .copy {
+        padding: 20px;
+        border-right: 1px solid var(--line);
+      }
+
+      .kicker {
+        color: var(--accent);
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+      }
+
+      .copy h2 {
+        font-size: 24px;
+        letter-spacing: 0;
+        margin-bottom: 10px;
+      }
+
+      .copy p {
+        color: var(--muted);
+        line-height: 1.5;
+        margin-bottom: 14px;
+      }
+
+      .score {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-bottom: 14px;
+      }
+
+      .note {
+        border-left: 2px solid var(--accent);
+        padding-left: 10px;
+        color: var(--muted);
+        line-height: 1.5;
+        font-size: 13px;
+      }
+
+      .mock {
+        min-width: 0;
+        padding: 18px;
+      }
+
+      .app {
+        min-height: 620px;
+        display: grid;
+        grid-template-rows: 42px 1fr 26px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--bg);
+      }
+
+      .topbar,
+      .statusbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 12px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .statusbar {
+        justify-content: space-between;
+        border-top: 1px solid var(--line);
+        border-bottom: 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .spacer {
+        flex: 1;
+      }
+
+      .top-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel-2);
+        color: var(--text);
+        padding: 6px 9px;
+        font-size: 12px;
+      }
+
+      .workbench {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 210px minmax(360px, 1fr) 340px;
+      }
+
+      .tree,
+      .inspector {
+        min-width: 0;
+        background: var(--panel);
+        overflow: hidden;
+      }
+
+      .tree {
+        border-right: 1px solid var(--line);
+        padding: 10px;
+      }
+
+      .tree-head,
+      .inspector-head,
+      .section-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        margin-bottom: 9px;
+      }
+
+      .node {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 27px;
+        padding: 4px 7px;
+        border-radius: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .node.active {
+        background: color-mix(in srgb, var(--accent) 16%, transparent);
+        color: var(--text);
+      }
+
+      .node.changed {
+        color: var(--draft);
+      }
+
+      .viewer {
+        min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg);
+      }
+
+      .tabs {
+        display: flex;
+        align-items: end;
+        gap: 2px;
+        min-height: 36px;
+        padding: 0 8px;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel-2);
+      }
+
+      .tab {
+        padding: 8px 11px;
+        border: 1px solid transparent;
+        border-bottom: 0;
+        border-radius: 7px 7px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .tab.active {
+        background: var(--bg);
+        border-color: var(--line);
+        color: var(--text);
+      }
+
+      .document {
+        padding: 20px;
+        overflow: hidden;
+      }
+
+      .code {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--code);
+        overflow: hidden;
+        font-family:
+          "SFMono-Regular",
+          Consolas,
+          "Liberation Mono",
+          monospace;
+        font-size: 12px;
+      }
+
+      .line {
+        display: grid;
+        grid-template-columns: 38px minmax(0, 1fr);
+        min-height: 27px;
+      }
+
+      .line span {
+        padding: 6px 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      }
+
+      .line span:first-child {
+        color: #6f7887;
+        text-align: right;
+        user-select: none;
+      }
+
+      .line.open span:last-child {
+        background: color-mix(in srgb, var(--open) 14%, transparent);
+        box-shadow: inset 3px 0 0 var(--open);
+      }
+
+      .line.draft span:last-child {
+        background: color-mix(in srgb, var(--draft) 18%, transparent);
+        box-shadow: inset 3px 0 0 var(--draft);
+      }
+
+      .inspector {
+        border-left: 1px solid var(--line);
+        display: flex;
+        flex-direction: column;
+      }
+
+      .inspector-head {
+        margin: 0;
+        padding: 12px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .inspector-body {
+        min-height: 0;
+        overflow: auto;
+        padding: 12px;
+      }
+
+      .state-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 7px;
+        margin-bottom: 12px;
+      }
+
+      .state {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel-2);
+        padding: 8px;
+      }
+
+      .state strong {
+        display: block;
+        font-size: 20px;
+      }
+
+      .state span {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .section {
+        margin-bottom: 13px;
+      }
+
+      .file-row,
+      .thread-row,
+      .publish-row {
+        border: 0;
+        border-top: 1px solid color-mix(in srgb, white 6%, transparent);
+        border-radius: 0;
+        background: transparent;
+        padding: 10px 14px;
+        margin: 0;
+      }
+
+      .file-row.active {
+        box-shadow: none;
+      }
+
+      .file-main,
+      .thread-main,
+      .row-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .file-main strong,
+      .thread-main strong,
+      .row-line strong {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 13px;
+      }
+
+      .subline,
+      .thread-preview,
+      .thread-meta,
+      .publish-row p {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.4;
+        margin-top: 5px;
+      }
+
+      .thread-list {
+        margin: 0;
+        padding: 0;
+        border-top: 1px solid color-mix(in srgb, white 6%, transparent);
+        background: color-mix(in srgb, var(--panel) 76%, var(--bg));
+      }
+
+      .thread-row {
+        padding: 9px 14px 9px 32px;
+      }
+
+      .thread-row.draft {
+        box-shadow: none;
+      }
+
+      .thread-row.open {
+        box-shadow: none;
+      }
+
+      .thread-row.attention {
+        box-shadow: none;
+      }
+
+      .badge,
+      .count-badge,
+      .status,
+      .mini-status {
+        white-space: nowrap;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .badge,
+      .status {
+        padding: 3px 7px;
+      }
+
+      .count-badge {
+        padding: 4px 8px;
+      }
+
+      .mini-status {
+        width: 8px;
+        height: 8px;
+        padding: 0;
+        display: inline-block;
+      }
+
+      .open-label,
+      .badge.open,
+      .status.open,
+      .count-badge.open {
+        color: var(--open);
+        border-color: color-mix(in srgb, var(--open) 50%, var(--line));
+      }
+
+      .draft-label,
+      .badge.draft,
+      .status.draft,
+      .count-badge.draft {
+        color: var(--draft);
+        border-color: color-mix(in srgb, var(--draft) 55%, var(--line));
+      }
+
+      .badge.attention,
+      .status.attention,
+      .count-badge.attention {
+        color: var(--attention);
+        border-color: color-mix(in srgb, var(--attention) 55%, var(--line));
+      }
+
+      .count-stack {
+        display: inline-flex;
+        gap: 4px;
+        align-items: center;
+      }
+
+      .publish-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        background: color-mix(in srgb, var(--draft) 7%, transparent);
+        box-shadow: none;
+      }
+
+      .publish-row button,
+      .jump-button {
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--panel-3);
+        color: var(--text);
+        padding: 7px 9px;
+        font-size: 12px;
+      }
+
+      .thread-row.split {
+        display: grid;
+        grid-template-columns: 78px minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .thread-row.split .thread-preview {
+        margin-top: 2px;
+      }
+
+      .status-column {
+        display: grid;
+        gap: 4px;
+        justify-items: start;
+      }
+
+      .thread-group-label {
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin: 8px 0 6px;
+      }
+
+      .source-chip {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      @media (max-width: 980px) {
+        body {
+          padding: 14px;
+        }
+
+        .hero,
+        .concept {
+          grid-template-columns: 1fr;
+        }
+
+        .copy {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        .workbench {
+          grid-template-columns: 190px minmax(320px, 1fr);
+        }
+
+        .inspector {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <div>
+          <div class="brand"><span class="logo"></span>Vivi review concept</div>
+          <h1>In Review draft thread labels</h1>
+          <p>
+            Four ways to show private draft threads inside the existing
+            hairline In Review file expansion. Each pattern keeps drafts in the
+            same review state as open threads, while making agent visibility
+            unmistakable without turning rows into cards.
+          </p>
+        </div>
+        <nav class="jump" aria-label="Concept shortcuts">
+          <a href="#pattern-a">A Mixed Count</a>
+          <a href="#pattern-b">B Status Column</a>
+          <a href="#pattern-c">C Grouped Threads</a>
+          <a href="#pattern-d">D Draft Pending</a>
+        </nav>
+      </header>
+
+      <div class="grid">
+        <section class="concept" id="pattern-a">
+          <aside class="copy">
+            <div class="kicker">Pattern A</div>
+            <h2>Mixed Count Badges</h2>
+            <p>
+              The file row keeps the current compact shape but splits the count:
+              published threads and pending threads are separate pills.
+            </p>
+            <div class="score">
+              <span class="pill">Closest to current UI</span>
+              <span class="pill">Strong file-level summary</span>
+            </div>
+            <p class="note">
+              Best if the file row must stay dense. The tradeoff is that users
+              read the exact thread state only after expanding the row.
+            </p>
+          </aside>
+          <div class="mock">
+            <div class="app">
+              <header class="topbar">
+                <strong>Vivi</strong>
+                <span class="pill">workspace vivi</span>
+                <span class="spacer"></span>
+                <button class="top-action">Command <span class="kbd">Cmd K</span></button>
+                <button class="top-action">In Review <span class="badge draft">2 pending</span></button>
+              </header>
+              <div class="workbench">
+                <aside class="tree">
+                  <div class="tree-head"><span>Files</span><span>live</span></div>
+                  <div class="node changed">ui/src/features</div>
+                  <div class="node active">  CommentsPanel.tsx</div>
+                  <div class="node changed">  DraftReviewTray.tsx</div>
+                  <div class="node">docs/product-review.md</div>
+                </aside>
+                <section class="viewer">
+                  <div class="tabs"><div class="tab active">CommentsPanel.tsx</div><div class="tab">DraftReviewTray.tsx</div></div>
+                  <div class="document">
+                    <div class="code">
+                      <div class="line open"><span>42</span><span>const visibleThreads = buildCommentThreads(comments);</span></div>
+                      <div class="line draft"><span>43</span><span>const draftThreads = groupDraftReviewComments(drafts);</span></div>
+                      <div class="line"><span>44</span><span>return &lt;Inspector reviewItems={items} /&gt;;</span></div>
+                    </div>
+                  </div>
+                </section>
+                <aside class="inspector">
+                  <div class="inspector-head"><span>Review Queue</span><strong>In Review</strong></div>
+                  <div class="inspector-body">
+                    <div class="state-grid">
+                      <div class="state"><strong>3</strong><span>Queued</span></div>
+                      <div class="state"><strong>2</strong><span>In Review</span></div>
+                      <div class="state"><strong>5</strong><span>Reviewed</span></div>
+                    </div>
+                    <section class="section">
+                      <div class="section-title"><span>In Review</span><span>open + pending</span></div>
+                      <article class="file-row active">
+                        <div class="file-main">
+                          <strong>CommentsPanel.tsx</strong>
+                          <span class="count-stack">
+                            <span class="count-badge open">2 open</span>
+                            <span class="count-badge draft">1 pending</span>
+                          </span>
+                        </div>
+                        <div class="subline">modified - source comments</div>
+                      </article>
+                      <div class="thread-list">
+                        <article class="thread-row open">
+                          <div class="thread-main"><strong>L42 - Source</strong><span class="status open">Open</span></div>
+                          <div class="thread-preview">Agent replied that this should stay in the inspector state model.</div>
+                          <div class="thread-meta">2 messages - visible to agents</div>
+                        </article>
+                        <article class="thread-row draft">
+                          <div class="thread-main"><strong>L43 - Source</strong><span class="status draft">Pending</span></div>
+                          <div class="thread-preview">Call this a pending thread before publish.</div>
+                          <div class="thread-meta">not agent-visible - will publish as open thread</div>
+                        </article>
+                      </div>
+                      <article class="file-row">
+                        <div class="file-main">
+                          <strong>DraftReviewTray.tsx</strong>
+                          <span class="count-stack"><span class="count-badge draft">2 pending</span></span>
+                        </div>
+                        <div class="subline">modified - no published threads</div>
+                      </article>
+                    </section>
+                    <div class="publish-row">
+                      <div><strong>3 pending threads</strong><p>Publish as 2 open threads across 2 files.</p></div>
+                      <button>Publish</button>
+                    </div>
+                  </div>
+                </aside>
+              </div>
+              <footer class="statusbar"><span>File row count is split</span><span>Thread row repeats Pending</span></footer>
+            </div>
+          </div>
+        </section>
+
+        <section class="concept" id="pattern-b">
+          <aside class="copy">
+            <div class="kicker">Pattern B</div>
+            <h2>Status Column</h2>
+            <p>
+              Thread rows get a fixed left status column. Open, Attention, and
+              Draft are read before the location or preview text.
+            </p>
+            <div class="score">
+              <span class="pill">Fastest row scan</span>
+              <span class="pill">Best mixed lists</span>
+            </div>
+            <p class="note">
+              Best when expanded files can have several mixed thread states.
+              The tradeoff is a slightly wider thread row.
+            </p>
+          </aside>
+          <div class="mock">
+            <div class="app">
+              <header class="topbar">
+                <strong>Vivi</strong>
+                <span class="pill">workspace vivi</span>
+                <span class="spacer"></span>
+                <button class="top-action">Review <span class="badge attention">1 attention</span></button>
+              </header>
+              <div class="workbench">
+                <aside class="tree">
+                  <div class="tree-head"><span>Files</span><span>live</span></div>
+                  <div class="node active changed">WorkbenchContainer.tsx</div>
+                  <div class="node changed">CommentsPanel.tsx</div>
+                  <div class="node">docs/agent-handoff.md</div>
+                </aside>
+                <section class="viewer">
+                  <div class="tabs"><div class="tab active">WorkbenchContainer.tsx</div></div>
+                  <div class="document">
+                    <div class="code">
+                      <div class="line open"><span>88</span><span>useGlobalShortcuts({ onOpenComments });</span></div>
+                      <div class="line draft"><span>89</span><span>focusInReviewDraftThread(nextDraftThread);</span></div>
+                      <div class="line open"><span>90</span><span>openAnchoredComment(activeThread);</span></div>
+                    </div>
+                  </div>
+                </section>
+                <aside class="inspector">
+                  <div class="inspector-head"><span>Review Queue</span><strong>In Review</strong></div>
+                  <div class="inspector-body">
+                    <section class="section">
+                      <div class="section-title"><span>In Review</span><span>2 files</span></div>
+                      <article class="file-row active">
+                        <div class="file-main"><strong>WorkbenchContainer.tsx</strong><span class="badge">3 threads</span></div>
+                        <div class="subline">1 attention - 1 open - 1 draft</div>
+                      </article>
+                      <div class="thread-list">
+                        <article class="thread-row split attention">
+                          <div class="status-column"><span class="status attention">Attention</span><span class="source-chip">Diff L88</span></div>
+                          <div><div class="row-line"><strong>Agent reply needs decision</strong></div><div class="thread-preview">The shortcut now points into In Review.</div></div>
+                          <button class="jump-button">Jump</button>
+                        </article>
+                        <article class="thread-row split draft">
+                          <div class="status-column"><span class="status draft">Draft</span><span class="source-chip">Src L89</span></div>
+                          <div><div class="row-line"><strong>Private draft thread</strong></div><div class="thread-preview">This is not visible to agents until publish.</div></div>
+                          <button class="jump-button">Edit</button>
+                        </article>
+                        <article class="thread-row split open">
+                          <div class="status-column"><span class="status open">Open</span><span class="source-chip">Src L90</span></div>
+                          <div><div class="row-line"><strong>Published thread</strong></div><div class="thread-preview">2 messages - latest by Tasuku.</div></div>
+                          <button class="jump-button">Jump</button>
+                        </article>
+                      </div>
+                    </section>
+                    <div class="publish-row">
+                      <div><strong>1 private draft</strong><p>Publish makes it an open thread.</p></div>
+                      <button>Publish</button>
+                    </div>
+                  </div>
+                </aside>
+              </div>
+              <footer class="statusbar"><span>Status comes before location</span><span>Draft action says Edit, not Jump</span></footer>
+            </div>
+          </div>
+        </section>
+
+        <section class="concept" id="pattern-c">
+          <aside class="copy">
+            <div class="kicker">Pattern C</div>
+            <h2>Grouped Thread Sets</h2>
+            <p>
+              Inside each expanded file, published threads and private draft
+              threads are grouped under small labels.
+            </p>
+            <div class="score">
+              <span class="pill">Clearest semantics</span>
+              <span class="pill">Good for publish review</span>
+            </div>
+            <p class="note">
+              Best when the user is checking what will become visible to
+              agents. The tradeoff is extra vertical space.
+            </p>
+          </aside>
+          <div class="mock">
+            <div class="app">
+              <header class="topbar">
+                <strong>Vivi</strong>
+                <span class="pill">workspace vivi</span>
+                <span class="spacer"></span>
+                <button class="top-action">Drafts <span class="badge draft">3</span></button>
+              </header>
+              <div class="workbench">
+                <aside class="tree">
+                  <div class="tree-head"><span>Files</span><span>live</span></div>
+                  <div class="node active changed">docs/product-review.md</div>
+                  <div class="node changed">review-preview.html</div>
+                  <div class="node">README.md</div>
+                </aside>
+                <section class="viewer">
+                  <div class="tabs"><div class="tab active">product-review.md</div><div class="tab">review-preview.html</div></div>
+                  <div class="document">
+                    <div class="code">
+                      <div class="line open"><span>7</span><span>Open feedback is agent-readable immediately.</span></div>
+                      <div class="line draft"><span>12</span><span>Draft feedback stays private until publish.</span></div>
+                      <div class="line draft"><span>18</span><span>Batch publish should preserve anchors.</span></div>
+                    </div>
+                  </div>
+                </section>
+                <aside class="inspector">
+                  <div class="inspector-head"><span>Review Queue</span><strong>In Review</strong></div>
+                  <div class="inspector-body">
+                    <section class="section">
+                      <div class="section-title"><span>In Review</span><span>mixed file</span></div>
+                      <article class="file-row active">
+                        <div class="file-main">
+                          <strong>product-review.md</strong>
+                          <span class="count-stack"><span class="count-badge open">1 open</span><span class="count-badge draft">2 draft</span></span>
+                        </div>
+                        <div class="subline">rendered markdown review</div>
+                      </article>
+                      <div class="thread-list">
+                        <div class="thread-group-label">Published threads</div>
+                        <article class="thread-row open">
+                          <div class="thread-main"><strong>Rendered L7</strong><span class="status open">Open</span></div>
+                          <div class="thread-preview">Keep the feedback loop language here.</div>
+                          <div class="thread-meta">visible to agents</div>
+                        </article>
+                        <div class="thread-group-label">Private draft threads</div>
+                        <article class="thread-row draft">
+                          <div class="thread-main"><strong>Rendered L12</strong><span class="status draft">Draft</span></div>
+                          <div class="thread-preview">Explain private visibility before publish.</div>
+                          <div class="thread-meta">will publish as a new open thread</div>
+                        </article>
+                        <article class="thread-row draft">
+                          <div class="thread-main"><strong>Source L18</strong><span class="status draft">Draft</span></div>
+                          <div class="thread-preview">Mention anchor preservation.</div>
+                          <div class="thread-meta">will merge into the same thread key</div>
+                        </article>
+                      </div>
+                    </section>
+                    <div class="publish-row">
+                      <div><strong>Review private draft threads</strong><p>2 drafts in this file, 3 drafts total.</p></div>
+                      <button>Publish</button>
+                    </div>
+                  </div>
+                </aside>
+              </div>
+              <footer class="statusbar"><span>Groups separate visibility states</span><span>Works well before batch publish</span></footer>
+            </div>
+          </div>
+        </section>
+
+        <section class="concept" id="pattern-d">
+          <aside class="copy">
+            <div class="kicker">Pattern D</div>
+            <h2>Draft Pending Label</h2>
+            <p>
+              Keep every row named "thread", but draft rows use a stronger
+              compound status: Draft pending. The label says what happens next.
+            </p>
+            <div class="score">
+              <span class="pill">Most explicit</span>
+              <span class="pill">Good first-run clarity</span>
+            </div>
+            <p class="note">
+              Best if "draft thread" might be confusing. The tradeoff is longer
+              labels and slightly more visual weight.
+            </p>
+          </aside>
+          <div class="mock">
+            <div class="app">
+              <header class="topbar">
+                <strong>Vivi</strong>
+                <span class="pill">workspace vivi</span>
+                <span class="spacer"></span>
+                <button class="top-action">In Review <span class="badge">5 threads</span></button>
+              </header>
+              <div class="workbench">
+                <aside class="tree">
+                  <div class="tree-head"><span>Files</span><span>live</span></div>
+                  <div class="node active changed">review-preview.html</div>
+                  <div class="node changed">docs/product-review.md</div>
+                  <div class="node">ui/src/features/Inspector.tsx</div>
+                </aside>
+                <section class="viewer">
+                  <div class="tabs"><div class="tab active">review-preview.html</div></div>
+                  <div class="document">
+                    <div class="code">
+                      <div class="line open"><span>21</span><span>&lt;section data-vivi-comment-block-id="hero"&gt;</span></div>
+                      <div class="line draft"><span>33</span><span>&lt;aside class="review-summary"&gt;</span></div>
+                      <div class="line"><span>34</span><span>&lt;/aside&gt;</span></div>
+                    </div>
+                  </div>
+                </section>
+                <aside class="inspector">
+                  <div class="inspector-head"><span>Review Queue</span><strong>In Review</strong></div>
+                  <div class="inspector-body">
+                    <section class="section">
+                      <div class="section-title"><span>In Review</span><span>draft pending</span></div>
+                      <article class="file-row active">
+                        <div class="file-main">
+                          <strong>review-preview.html</strong>
+                          <span class="count-stack"><span class="count-badge open">1 open thread</span><span class="count-badge draft">1 draft pending</span></span>
+                        </div>
+                        <div class="subline">HTML preview comments</div>
+                      </article>
+                      <div class="thread-list">
+                        <article class="thread-row open">
+                          <div class="thread-main"><strong>Hero block</strong><span class="status open">Open thread</span></div>
+                          <div class="thread-preview">Hero copy needs the product name in the first viewport.</div>
+                          <div class="thread-meta">published - visible to agents</div>
+                        </article>
+                        <article class="thread-row draft">
+                          <div class="thread-main"><strong>Summary aside</strong><span class="status draft">Draft pending</span></div>
+                          <div class="thread-preview">This visual treatment needs to match the review queue language.</div>
+                          <div class="thread-meta">private now - becomes open thread on publish</div>
+                        </article>
+                      </div>
+                    </section>
+                    <section class="section">
+                      <article class="file-row">
+                        <div class="file-main"><strong>docs/product-review.md</strong><span class="count-badge draft">2 draft pending</span></div>
+                        <div class="subline">private draft threads only</div>
+                      </article>
+                    </section>
+                    <div class="publish-row">
+                      <div><strong>3 draft pending</strong><p>Publish converts them into open threads.</p></div>
+                      <button>Publish</button>
+                    </div>
+                  </div>
+                </aside>
+              </div>
+              <footer class="statusbar"><span>Every row is still a thread</span><span>Draft pending names the transition</span></footer>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

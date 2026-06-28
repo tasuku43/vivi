@@ -136,6 +136,7 @@ import {
 } from "../ui/src/state/review-queue.js";
 import { summarizeReviewLifecycle } from "../ui/src/state/review-lifecycle.js";
 import { buildReviewNextAction } from "../ui/src/state/review-next-action.js";
+import { reviewQueueItemState } from "../ui/src/state/review-state.js";
 import {
   agentReplyNavigationTargets,
   commentActivityThreadTargets,
@@ -827,21 +828,21 @@ it("maps workspace keyboard shortcuts to app actions", () => {
   expect(keyboardShortcutAction({ ...command, key: "b" })).toBe(
     "toggle-sidebar",
   );
-  expect(keyboardShortcutAction({ ...command, key: "\\", shiftKey: true })).toBe(
-    "toggle-inspector",
-  );
+  expect(
+    keyboardShortcutAction({ ...command, key: "\\", shiftKey: true }),
+  ).toBe("toggle-inspector");
   expect(keyboardShortcutAction({ ...command, key: "i" })).toBe(
     "focus-current-inline-thread",
   );
-  expect(keyboardShortcutAction({ ...command, key: "Enter", shiftKey: true })).toBe(
-    "toggle-current-thread-status",
-  );
+  expect(
+    keyboardShortcutAction({ ...command, key: "Enter", shiftKey: true }),
+  ).toBe("toggle-current-thread-status");
   expect(
     keyboardShortcutAction({ ...command, key: "Backspace", shiftKey: true }),
   ).toBe("archive-current-thread");
-  expect(keyboardShortcutAction({ ...command, key: "C", shiftKey: true })).toBe(
-    "focus-comments-panel",
-  );
+  expect(
+    keyboardShortcutAction({ ...command, key: "C", shiftKey: true }),
+  ).toBeNull();
   expect(keyboardShortcutAction({ ...command, key: "U", shiftKey: true })).toBe(
     "open-latest-unread",
   );
@@ -863,9 +864,9 @@ it("maps workspace keyboard shortcuts to app actions", () => {
   expect(keyboardShortcutAction({ ...command, key: "G", shiftKey: true })).toBe(
     "open-previous-search-result",
   );
-  expect(keyboardShortcutAction({ ...command, key: "P", shiftKey: true })).toBe(
-    "publish-draft-review",
-  );
+  expect(
+    keyboardShortcutAction({ ...command, key: "P", shiftKey: true }),
+  ).toBeNull();
   expect(keyboardShortcutAction({ ...command, key: "w" })).toBe(
     "close-active-tab",
   );
@@ -1261,9 +1262,7 @@ it("finds nested unloaded ancestors for a single lazy path reveal", () => {
   ];
 
   expect(
-    unloadedAncestorDirectoryPaths(nodes, [
-      "docs/ui-mocks/02-doc-reader.html",
-    ]),
+    unloadedAncestorDirectoryPaths(nodes, ["docs/ui-mocks/02-doc-reader.html"]),
   ).toEqual(["docs", "docs/ui-mocks"]);
 });
 
@@ -1277,9 +1276,9 @@ it("moves command palette selection with keyboard wrapping", () => {
 });
 
 it("maps command palette mode tabs with keyboard navigation", () => {
-  expect(paletteModeKeyboardAction(["file", "text"], "file", "ArrowRight")).toBe(
-    "text",
-  );
+  expect(
+    paletteModeKeyboardAction(["file", "text"], "file", "ArrowRight"),
+  ).toBe("text");
   expect(paletteModeKeyboardAction(["file", "text"], "file", "ArrowLeft")).toBe(
     "text",
   );
@@ -1665,6 +1664,48 @@ it("builds an agent-aware queue from changes and authoritative open threads", ()
     openThreads: 1,
     filesWithOpenThreads: 1,
   });
+});
+
+it("treats draft review comments as pending in-review work", () => {
+  const items = buildReviewQueueItems(
+    [{ path: "src/app.ts", status: "modified", source: "git" }],
+    [],
+    {},
+    new Set(),
+    {
+      draftComments: [
+        {
+          id: "draft-1",
+          path: "docs/product-review.md",
+          viewerKind: "markdown",
+          anchor: {
+            surface: "source",
+            canonical: {
+              path: "docs/product-review.md",
+              lineStart: 18,
+              lineEnd: 18,
+            },
+          },
+          body: "Mention the agent-readable contract before publish.",
+          createdAt: "2026-06-20T00:01:00.000Z",
+          updatedAt: "2026-06-20T00:01:00.000Z",
+        },
+      ],
+    },
+  );
+
+  expect(items.map((item) => item.path)).toEqual([
+    "docs/product-review.md",
+    "src/app.ts",
+  ]);
+  expect(items[0]).toMatchObject({
+    change: null,
+    pendingDraftCount: 1,
+    pendingDraftIds: ["draft-1"],
+    threadCounts: { open: 0, resolved: 0, archived: 0 },
+  });
+  expect(reviewQueueItemState(items[0]!)).toBe("reviewing");
+  expect(reviewQueueItemState(items[1]!)).toBe("queued");
 });
 
 it("highlights in-review files only when the latest open-thread movement is an agent reply", () => {
@@ -2162,7 +2203,6 @@ it("builds contextual review command palette actions", () => {
       id: "open-comments",
       label: "Open attention inbox",
       detail: "2 attention threads",
-      shortcut: "Cmd/Ctrl Shift C",
     },
     {
       id: "open-latest-unread",
@@ -2342,15 +2382,11 @@ it("prefers relevant open threads when jumping from a review queue item", () => 
 });
 
 it("uses scheduled inline comment ids instead of stale active comment state", () => {
-  expect(inlineThreadFocusCommentId(null, "comment-next")).toBe(
-    "comment-next",
-  );
+  expect(inlineThreadFocusCommentId(null, "comment-next")).toBe("comment-next");
   expect(inlineThreadFocusCommentId("comment-current", "comment-next")).toBe(
     "comment-next",
   );
-  expect(inlineThreadFocusCommentId("comment-current")).toBe(
-    "comment-current",
-  );
+  expect(inlineThreadFocusCommentId("comment-current")).toBe("comment-current");
 });
 
 it("treats unread activity as a navigation hint rather than status", () => {
@@ -2442,17 +2478,17 @@ it("uses the activity comment surface for latest unread navigation", () => {
     new Set(["docs/a.md"]),
   );
 
-  expect(latestUnreadActivityTarget(items, [root, renderedReply])).toMatchObject(
-    {
-      id: "unread:docs/a.md",
-      path: "docs/a.md",
-      threadId: "thread-a",
-      commentId: "reply-1",
-      activityId: "activity-1",
-      surface: "rendered",
-      sortKey: "2026-06-20T00:04:00.000Z",
-    },
-  );
+  expect(
+    latestUnreadActivityTarget(items, [root, renderedReply]),
+  ).toMatchObject({
+    id: "unread:docs/a.md",
+    path: "docs/a.md",
+    threadId: "thread-a",
+    commentId: "reply-1",
+    activityId: "activity-1",
+    surface: "rendered",
+    sortKey: "2026-06-20T00:04:00.000Z",
+  });
 });
 
 it("loads comment activity targets from authoritative thread state", () => {
@@ -3335,15 +3371,15 @@ it("maps tree keyboard navigation to visible rows and directory actions", () => 
     },
   ];
 
-  expect(treeKeyboardAction(rows, new Set(["docs"]), "docs", "ArrowDown")).toEqual(
-    { kind: "focus", path: "docs/readme.md" },
-  );
+  expect(
+    treeKeyboardAction(rows, new Set(["docs"]), "docs", "ArrowDown"),
+  ).toEqual({ kind: "focus", path: "docs/readme.md" });
   expect(
     treeKeyboardAction(rows, new Set(["docs"]), "docs/readme.md", "ArrowLeft"),
   ).toEqual({ kind: "focus", path: "docs" });
-  expect(treeKeyboardAction(rows, new Set(["docs"]), "docs", "ArrowLeft")).toEqual(
-    { kind: "toggle", path: "docs" },
-  );
+  expect(
+    treeKeyboardAction(rows, new Set(["docs"]), "docs", "ArrowLeft"),
+  ).toEqual({ kind: "toggle", path: "docs" });
   expect(treeKeyboardAction(rows, new Set(), "src", "ArrowRight")).toEqual({
     kind: "toggle",
     path: "src",

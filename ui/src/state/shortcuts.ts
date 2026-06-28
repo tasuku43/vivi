@@ -5,11 +5,9 @@ export type KeyboardShortcutAction =
   | "toggle-source"
   | "toggle-sidebar"
   | "toggle-inspector"
-  | "focus-comments-panel"
   | "focus-current-inline-thread"
   | "toggle-current-thread-status"
   | "archive-current-thread"
-  | "publish-draft-review"
   | "open-in-review-reply"
   | "open-latest-unread"
   | "open-next-review"
@@ -41,7 +39,6 @@ export function keyboardShortcutAction(
   const key = event.key.toLowerCase();
   if (!event.shiftKey && key === "k") return "quick-open";
   if (event.shiftKey && key === "f") return "search-text";
-  if (event.shiftKey && key === "c") return "focus-comments-panel";
   if (!event.shiftKey && key === "d") return "toggle-diff";
   if (!event.shiftKey && key === "e") return "toggle-source";
   if (!event.shiftKey && key === "b") return "toggle-sidebar";
@@ -51,7 +48,6 @@ export function keyboardShortcutAction(
     return "toggle-current-thread-status";
   if (event.shiftKey && event.key === "Backspace")
     return "archive-current-thread";
-  if (event.shiftKey && key === "p") return "publish-draft-review";
   if (event.shiftKey && key === "i") return "open-in-review-reply";
   if (event.shiftKey && key === "u") return "open-latest-unread";
   if (event.shiftKey && key === "j") return "open-next-review";

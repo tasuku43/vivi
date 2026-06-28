@@ -521,13 +521,13 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     setDraftComments((items) => items.filter((draft) => draft.id !== id));
   }
 
-  async function publishDraftReviewComments() {
+  async function publishDraftReviewComments(draftIds?: string[]) {
     if (!draftComments.length || draftPublishing) return;
     setDraftPublishing(true);
     setDraftPublishError(null);
     setLastPublishedReviewBatchId(null);
     try {
-      const batch = await client.publishDraftReviewComments();
+      const batch = await client.publishDraftReviewComments({ draftIds });
       setComments((items) =>
         mergeComments(
           items,
@@ -535,7 +535,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
           null,
         ),
       );
-      setDraftComments([]);
+      setDraftComments((items) =>
+        draftIds?.length
+          ? items.filter((draft) => !draftIds.includes(draft.id))
+          : [],
+      );
       setLastPublishedReviewBatchId(batch.reviewBatchId);
       await loadComments(null);
     } catch (err) {
@@ -592,13 +596,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         ? comments.filter((comment) => comment.path === selectedPath)
         : [],
     [comments, selectedPath],
-  );
-  const activeFileDraftComments = useMemo(
-    () =>
-      selectedPath
-        ? draftComments.filter((draft) => draft.path === selectedPath)
-        : [],
-    [draftComments, selectedPath],
   );
   const quickOpenRecentFiles = useMemo<RecentFileSearchResult[]>(() => {
     const seen = new Set<string>();
@@ -780,6 +777,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
           acceptedPaths: acceptedReviewPathSet,
           completedThreadPaths: completedThreadPathSet,
           knownMissingPaths: knownMissingCommentPathSet,
+          draftComments,
         },
       ),
     [
@@ -788,6 +786,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       comments,
       completedThreadPathSet,
       knownMissingCommentPathSet,
+      draftComments,
       reviewChanges,
       unreadReviewPathSet,
     ],
@@ -2071,12 +2070,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         return;
       }
 
-      if (action === "focus-comments-panel") {
-        event.preventDefault();
-        focusCommentsPanel();
-        return;
-      }
-
       if (action === "toggle-sidebar") {
         event.preventDefault();
         setSidebarVisible((visible) => !visible);
@@ -2121,8 +2114,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       event.preventDefault();
       if (action === "toggle-diff") toggleHeadDiff();
       if (action === "toggle-source") toggleSourceRendered();
-      if (action === "publish-draft-review")
-        void publishDraftReviewComments().catch((err) => setError(String(err)));
       if (action === "open-latest-unread") openLatestUnreadReviewFile();
       if (action === "open-in-review-reply")
         openMovedTarget(inReviewReplyTargets, "next");
@@ -2243,7 +2234,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         openCommentThreadCount={openThreadTargets.length}
         reviewOpenCommentThreadCount={reviewQueueProgress.openThreads}
         commentAttentionCount={attentionCommentThreadCount}
-        draftCommentCount={draftComments.length}
         onOpenComments={openCommentInbox}
         onOpenShortcuts={openShortcutHelp}
       />
@@ -2412,7 +2402,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               unreadReviewPaths={unreadReviewPathSet}
               comments={activeFileComments}
               reviewComments={comments}
-              draftComments={activeFileDraftComments}
+              draftComments={draftComments}
               commentsLoading={commentsLoading}
               knownMissingCommentPaths={knownMissingCommentPathSet}
               threadActivities={commentActivitySummaries}
@@ -2433,6 +2423,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               onOpenComment={openCommentFromPanel}
               onOpenDraft={(draft) =>
                 void openDraftReviewComment(draft).catch((err) =>
+                  setError(String(err)),
+                )
+              }
+              onPublishDrafts={(draftIds) =>
+                void publishDraftReviewComments(draftIds).catch((err) =>
                   setError(String(err)),
                 )
               }
