@@ -688,13 +688,13 @@ export const CommentsPanelOpensInlineThread: Story = {
       canvas.getByLabelText(/Comment thread for lines 9-12/i),
     ).toBeInTheDocument();
     let composerBoxes = canvas.getAllByRole("textbox", {
-      name: "New line comment",
+      name: "Continue thread",
     });
     await expect(composerBoxes).toHaveLength(1);
     await expect(
       composerBoxes.some((textbox) => textbox === document.activeElement),
     ).toBe(false);
-    await expect(canvas.getByText("New thread on Lines 9-12")).toBeVisible();
+    await expect(canvas.getByText("Continue thread")).toBeVisible();
 
     const rowTarget = canvasElement.querySelector<HTMLElement>(
       '.code-line.has-comment[data-line="5"]',
@@ -707,7 +707,7 @@ export const CommentsPanelOpensInlineThread: Story = {
       canvas.getByLabelText(/Comment thread for line 5/i),
     ).toBeInTheDocument();
     composerBoxes = canvas.getAllByRole("textbox", {
-      name: "New line comment",
+      name: "Continue thread",
     });
     await expect(composerBoxes).toHaveLength(2);
     await expect(

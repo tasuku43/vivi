@@ -914,12 +914,12 @@ it("renders code line comments as an inline thread with replies", () => {
   expect(html.indexOf("Check this return")).toBeLessThan(
     html.indexOf("Agreed, keep it explicit"),
   );
-  expect(html).toContain('placeholder="Start a new thread"');
+  expect(html).toContain('placeholder="Add a follow-up"');
   expect(html).not.toContain("autofocus");
-  expect(html).toContain('aria-label="Save private draft comment"');
-  expect(html).toContain("New thread on Line 2");
+  expect(html).toContain('aria-label="Add follow-up"');
+  expect(html).toContain("Continue thread");
   expect(html).toContain("Comment composer intent");
-  expect(html).toContain(">Reply</button>");
+  expect(html).toContain(">Continue</button>");
   expect(html).toContain(
     'aria-describedby="comment-composer-mode-src-app-ts-2-2 comment-reply-hint-src-app-ts-2-2"',
   );
@@ -938,7 +938,7 @@ it("renders code line comments as an inline thread with replies", () => {
   expect(html).toContain(
     'title="Archive current thread (Cmd/Ctrl Shift Backspace)"',
   );
-  expect(html).toContain("<kbd>Cmd/Ctrl Enter</kbd> to save private draft");
+  expect(html).toContain("<kbd>Cmd/Ctrl Enter</kbd> to add follow-up");
   expect(html).toContain("Esc closes");
   expect(html).not.toContain(">Comment<");
 });
@@ -1080,7 +1080,7 @@ it("can keep the current stop highlighted without expanding the source thread", 
   expect(html).not.toContain("code-comment-thread-row");
   expect(html).not.toContain("Comment thread for line 2");
   expect(html).not.toContain("Current stop");
-  expect(html).not.toContain("Reply to thread");
+  expect(html).not.toContain("Continue thread");
 });
 
 it("keeps inline comment submit on Cmd/Ctrl Enter while Shift Enter stays editable", () => {
@@ -1326,10 +1326,10 @@ it("renders a replyable document thread with the code-thread width contract", ()
 
   expect(html).toContain('class="code-comment-thread rendered-comment-thread"');
   expect(html).toContain("Lines 3-4");
-  expect(html).toContain('placeholder="Start a new thread"');
-  expect(html).toContain("New thread on Lines 3-4");
-  expect(html).toContain(">Reply</button>");
-  expect(html).toContain("<kbd>Cmd/Ctrl Enter</kbd> to save private draft");
+  expect(html).toContain('placeholder="Add a follow-up"');
+  expect(html).toContain("Continue thread");
+  expect(html).toContain(">Continue</button>");
+  expect(html).toContain("<kbd>Cmd/Ctrl Enter</kbd> to add follow-up");
   expect(html).toContain("Check this return");
 });
 
@@ -3783,7 +3783,7 @@ it("keeps resolved-only Review Queue files out of next-stop guidance", () => {
   expect(html).toContain("<span>Reviewed</span><small>1 reviewed</small>");
 });
 
-it("opens Review Queue rows as preview on click and stable tabs on double click", () => {
+it("opens Review Queue rows as preview while reserving thread badges for expansion", () => {
   const calls: string[] = [];
   const inspector = Inspector({
     file: codeFile,
@@ -3822,9 +3822,7 @@ it("opens Review Queue rows as preview on click and stable tabs on double click"
   props.onClick();
   props.onDoubleClick();
 
-  expect(props.title).toBe(
-    "Click to preview; double-click to keep open as a tab",
-  );
+  expect(props.title).toBe("Click to preview; double-click to keep open as a tab");
   expect(props["aria-describedby"]).toBe(
     "review-queue-interaction-help review-queue-keyboard-help review-queue-item-1-description",
   );
@@ -3835,6 +3833,104 @@ it("opens Review Queue rows as preview on click and stable tabs on double click"
   expect(props["data-review-path"]).toBe("src/app.ts");
   expect(props["data-testid"]).toBe("review-queue-item");
   expect(calls).toEqual(["preview:src/app.ts", "normal:src/app.ts"]);
+});
+
+it("expands Review Queue thread lists from the thread badge only", () => {
+  const openComment: ViviComment = {
+    ...codeLineComment,
+    id: "comment-open-review-row",
+    threadId: "thread-open-review-row",
+    body: "Open issue still needs a look.",
+    status: "open",
+  };
+  const resolvedComment: ViviComment = {
+    ...codeLineComment,
+    id: "comment-resolved-review-row",
+    threadId: "thread-resolved-review-row",
+    body: "Resolved context should remain visible in the file row.",
+    status: "resolved",
+    updatedAt: "2026-01-01T00:02:00.000Z",
+    resolvedAt: "2026-01-01T00:02:00.000Z",
+  };
+  const archivedComment: ViviComment = {
+    ...codeLineComment,
+    id: "comment-archived-review-row",
+    threadId: "thread-archived-review-row",
+    body: "Archived context should read quietly.",
+    status: "archived",
+    updatedAt: "2026-01-01T00:03:00.000Z",
+    archivedAt: "2026-01-01T00:03:00.000Z",
+  };
+  const rowCalls: string[] = [];
+  const threadCalls: string[] = [];
+  const inspector = Inspector({
+    file: codeFile,
+    reviewChanges: [],
+    reviewItems: [
+      {
+        path: "src/app.ts",
+        change: { path: "src/app.ts", status: "modified", source: "git" },
+        threadCounts: { open: 1, resolved: 1, archived: 1 },
+        commentCount: 3,
+        unread: false,
+      },
+    ],
+    reviewComments: [openComment, resolvedComment, archivedComment],
+    reviewDiffStats: {},
+    loadingReviewDiffs: {},
+    unreadReviewPaths: new Set(),
+    selectedCodeRange: null,
+    activePaneId: "main",
+    onOpenEventPath: (path) => rowCalls.push(path),
+    onConfirmEventPath: () => undefined,
+    onOpenComment: (comment) => threadCalls.push(comment.id),
+    onOpenNextChanged: () => undefined,
+    onOpenPreviousChanged: () => undefined,
+    onOpenAllChanged: () => undefined,
+    onRevealInTree: () => undefined,
+  });
+
+  const row = findElement(inspector, (element) => {
+    const props = element.props as { className?: string; children?: ReactNode };
+    return (
+      props.className?.split(" ").includes("change-open") &&
+      flattenText(props.children).includes("app.ts")
+    );
+  });
+  (row.props as { onClick: () => void }).onClick();
+
+  const threadBadge = findElement(inspector, (element) => {
+    const props = element.props as { className?: string; children?: ReactNode };
+    return (
+      props.className === "review-thread-count-toggle" &&
+      flattenText(props.children) === "3 threads"
+    );
+  });
+  const resolvedThread = findElement(inspector, (element) => {
+    const props = element.props as { className?: string; "aria-label"?: string };
+    return (
+      props.className?.split(" ").includes("review-thread-hairline-row") &&
+      props["aria-label"]?.includes("Open Resolved thread")
+    );
+  });
+  (resolvedThread.props as { onClick: () => void }).onClick();
+
+  const html = renderToStaticMarkup(inspector);
+
+  expect(rowCalls).toEqual(["src/app.ts"]);
+  expect(threadCalls).toEqual(["comment-resolved-review-row"]);
+  expect(threadBadge.props).toMatchObject({
+    className: "review-thread-count-toggle",
+    htmlFor: "review-queue-item-1-thread-toggle",
+  });
+  expect(html).toContain('id="review-queue-item-1-thread-toggle"');
+  expect(html).toContain('aria-controls="review-queue-item-1-threads"');
+  expect(html).toContain("Open issue still needs a look.");
+  expect(html).toContain("Resolved context should remain visible");
+  expect(html).toContain("Archived context should read quietly.");
+  expect(html).toContain('class="review-thread-status-badge open"');
+  expect(html).toContain('class="review-thread-status-badge resolved"');
+  expect(html).toContain('class="review-thread-status-badge archived"');
 });
 
 it("omits explicit inspector reveal when Review Queue already navigates files", () => {

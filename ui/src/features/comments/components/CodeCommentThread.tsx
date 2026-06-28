@@ -39,9 +39,12 @@ export function CodeCommentThread({
   activeCommentId?: string | null;
   currentActorId?: string;
 }) {
+  const hasPublishedThread = thread.comments.length > 0;
+  const defaultComposerIntent: CommentComposerIntent =
+    hasPublishedThread && draft.threadId ? "reply" : "new-thread";
   const [body, setBody] = useState("");
   const [composerIntent, setComposerIntent] =
-    useState<CommentComposerIntent>("new-thread");
+    useState<CommentComposerIntent>(defaultComposerIntent);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const threadRef = useRef<HTMLElement | null>(null);
@@ -51,17 +54,18 @@ export function CodeCommentThread({
     thread.lineStart === thread.lineEnd
       ? `Line ${thread.lineEnd}`
       : `Lines ${thread.lineStart}-${thread.lineEnd}`;
-  const hasPublishedThread = thread.comments.length > 0;
   const isReplyComposer =
     hasPublishedThread && composerIntent === "reply" && Boolean(draft.threadId);
   const composerModeId = commentComposerModeId(thread.key);
   const replyHintId = commentReplyHintId(thread.key);
   const submitLabel = isReplyComposer
-    ? "Add reply"
+    ? "Add follow-up"
     : "Save private draft comment";
-  const submitHint = isReplyComposer ? "to send" : "to save private draft";
+  const submitHint = isReplyComposer
+    ? "to add follow-up"
+    : "to save private draft";
   const composerModeLabel = isReplyComposer
-    ? "Reply to thread"
+    ? "Continue thread"
     : `New thread on ${lineLabel}`;
   const hasActiveComment = Boolean(
     activeCommentId &&
@@ -100,10 +104,10 @@ export function CodeCommentThread({
   }, [thread.comments.length, thread.key]);
 
   useEffect(() => {
-    setComposerIntent("new-thread");
+    setComposerIntent(defaultComposerIntent);
     setBody("");
     setError(null);
-  }, [thread.key]);
+  }, [defaultComposerIntent, thread.key]);
 
   useEffect(() => {
     if (!hasPublishedThread || !draft.threadId) {
@@ -294,7 +298,7 @@ export function CodeCommentThread({
                 textareaRef.current?.focus();
               }}
             >
-              Reply
+              Continue
             </button>
           </div>
         ) : null}
@@ -304,9 +308,9 @@ export function CodeCommentThread({
           rows={2}
           value={body}
           placeholder={
-            isReplyComposer ? "Reply to thread" : "Start a new thread"
+            isReplyComposer ? "Add a follow-up" : "Start a new thread"
           }
-          aria-label={isReplyComposer ? "Reply to thread" : "New line comment"}
+          aria-label={isReplyComposer ? "Continue thread" : "New line comment"}
           aria-describedby={`${composerModeId} ${replyHintId}`}
           aria-keyshortcuts="Meta+Enter Control+Enter"
           onChange={(event) => {

@@ -84,10 +84,20 @@ export const Open: Story = {
     await expect(
       canvas.getByRole("article", { name: "Comment thread for lines 9-12" }),
     ).toBeInTheDocument();
-    await expect(canvas.getByText("New thread on Lines 9-12")).toBeVisible();
+    await expect(canvas.getByText("Continue thread")).toBeVisible();
+    await expect(canvas.getByLabelText("Continue thread")).toHaveAccessibleDescription(
+      /Continue thread.*to add follow-up/,
+    );
+    await userEvent.type(canvas.getByLabelText("Continue thread"), "Following up");
+    await userEvent.click(canvas.getByRole("button", { name: "Add follow-up" }));
+    await expect(args.onCreateComment).toHaveBeenCalled();
     await expect(
-      canvas.getByLabelText("New line comment"),
-    ).toHaveAccessibleDescription(/New thread on Lines 9-12.*to save/);
+      (args.onCreateComment as unknown as { mock: { calls: unknown[][] } }).mock
+        .calls[0]?.[0],
+    ).toMatchObject({ threadId: "thread-workbench-open" });
+
+    await userEvent.click(canvas.getByRole("button", { name: "New thread" }));
+    await expect(canvas.getByText("New thread on Lines 9-12")).toBeVisible();
     await userEvent.type(
       canvas.getByLabelText("New line comment"),
       "Separate concern",
@@ -95,20 +105,10 @@ export const Open: Story = {
     await userEvent.click(
       canvas.getByRole("button", { name: "Save private draft comment" }),
     );
-    await expect(args.onCreateComment).toHaveBeenCalled();
-    await expect(
-      (args.onCreateComment as unknown as { mock: { calls: unknown[][] } }).mock
-        .calls[0]?.[0],
-    ).not.toMatchObject({ threadId: "thread-workbench-open" });
-
-    await userEvent.click(canvas.getByRole("button", { name: "Reply" }));
-    await expect(canvas.getByText("Reply to thread")).toBeVisible();
-    await userEvent.type(canvas.getByLabelText("Reply to thread"), "Replying");
-    await userEvent.click(canvas.getByRole("button", { name: "Add reply" }));
     await expect(
       (args.onCreateComment as unknown as { mock: { calls: unknown[][] } }).mock
         .calls[1]?.[0],
-    ).toMatchObject({ threadId: "thread-workbench-open" });
+    ).not.toMatchObject({ threadId: "thread-workbench-open" });
     await userEvent.click(
       canvas.getByRole("button", { name: "Resolve thread" }),
     );
@@ -309,8 +309,8 @@ export const MultiActorConversation: Story = {
       ),
     ).not.toHaveClass("current-user");
     await expect(canvas.getByText("Current stop")).toBeVisible();
-    await userEvent.click(canvas.getByRole("button", { name: "Reply" }));
-    await expect(canvas.getByLabelText("Reply to thread")).toHaveFocus();
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    await expect(canvas.getByLabelText("Continue thread")).toHaveFocus();
   },
 };
 
@@ -716,10 +716,10 @@ export const SubmitFailureKeepsDraftEditable: Story = {
   },
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("button", { name: "Reply" }));
-    const reply = canvas.getByLabelText("Reply to thread");
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    const reply = canvas.getByLabelText("Continue thread");
     await userEvent.type(reply, "This should survive a failed save.");
-    await userEvent.click(canvas.getByRole("button", { name: "Add reply" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Add follow-up" }));
 
     await expect(args.onCreateComment).toHaveBeenCalled();
     await expect(reply).toHaveValue("This should survive a failed save.");

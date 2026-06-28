@@ -172,10 +172,10 @@ export const RenderedStartsSeparateDraftFromExistingThread: Story = {
     await expect(
       canvas.getAllByRole("button", {
         name: "Save private draft comment",
-      })[1],
+      })[0],
     ).toBeDisabled();
     await expect(
-      canvas.getAllByLabelText("New line comment")[0],
+      canvas.getByLabelText("Continue thread"),
     ).toBeInTheDocument();
   },
 };
@@ -216,7 +216,7 @@ export const RenderedResolvedCommentOpensFromBlock: Story = {
     });
     await expect(thread).toBeVisible();
     await expect(within(thread).getAllByText("Resolved")[0]).toBeVisible();
-    await expect(canvas.getByLabelText("New line comment")).toBeVisible();
+    await expect(canvas.getByLabelText("Continue thread")).toBeVisible();
   },
 };
 
@@ -461,7 +461,7 @@ export const RenderedMarkerPlacement: Story = {
     ).toBe("calc(0.85em + 1px)");
 
     await userEvent.click(listMarker);
-    await expect(canvas.getByLabelText("New line comment")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Continue thread")).toBeInTheDocument();
     await waitFor(() =>
       expect(
         Math.abs(

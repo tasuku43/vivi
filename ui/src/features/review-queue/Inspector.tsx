@@ -88,6 +88,7 @@ export function Inspector({
   comments = [],
   reviewComments = comments,
   knownMissingCommentPaths = emptyMissingCommentPaths,
+  activeCommentId = null,
   activePath = file?.path ?? null,
   onOpenEventPath,
   onConfirmEventPath,
@@ -162,7 +163,10 @@ export function Inspector({
     const keyboardIndex = keyboardQueueIndexes.indexOf(index);
     const reviewStop = reviewQueueStopForPath(item.path, reviewComments);
     const reviewQueueItemDescriptionId = `review-queue-item-${index + 1}-description`;
-    const statusLabel = change
+    const threadListId = `review-queue-item-${index + 1}-threads`;
+    const threadToggleId = `review-queue-item-${index + 1}-thread-toggle`;
+    const itemThreads = reviewQueueThreadsForPath(item.path, reviewComments);
+    const itemStatusLabel = change
       ? changeStatusLabel(change.status, change.kind)
       : "comment";
     const directoryLabel = change
@@ -171,7 +175,7 @@ export function Inspector({
     const kindLabel = reviewQueueFileKindLabel(item.path);
     return (
       <div
-        className="review-queue-item"
+        className={`review-queue-item${itemThreads.length ? " review-thread-expand-file" : ""}`}
         key={`${change?.source ?? "thread"}:${item.path}`}
       >
         <button
@@ -182,13 +186,17 @@ export function Inspector({
           aria-keyshortcuts="ArrowDown ArrowUp Home End"
           aria-label={reviewQueueItemAriaLabel(item, {
             active,
-            statusLabel,
+            statusLabel: itemStatusLabel,
           })}
           data-review-index={index}
           data-review-path={item.path}
           data-testid="review-queue-item"
-          onClick={() => onOpenEventPath(item.path)}
-          onDoubleClick={() => onConfirmEventPath(item.path)}
+          onClick={() => {
+            if (isReviewQueueItemOpenable(item)) onOpenEventPath(item.path);
+          }}
+          onDoubleClick={() => {
+            if (isReviewQueueItemOpenable(item)) onConfirmEventPath(item.path);
+          }}
           onKeyDown={(event) => {
             const nextKeyboardIndex = reviewQueueKeyboardTarget(
               event.key,
@@ -232,7 +240,9 @@ export function Inspector({
               </small>
             ) : null}
           </span>
-          {change ? (
+          {itemThreads.length ? (
+            <span className="review-thread-count-space" aria-hidden="true" />
+          ) : change ? (
             <DiffStatBadge
               loading={Boolean(loadingReviewDiffs[item.path])}
               stat={reviewDiffStats[item.path] ?? null}
@@ -243,6 +253,69 @@ export function Inspector({
             </span>
           )}
         </button>
+        {itemThreads.length ? (
+          <>
+            <input
+              className="sr-only review-thread-toggle-control"
+              id={threadToggleId}
+              type="checkbox"
+              aria-controls={threadListId}
+              aria-label={`Toggle ${threadCountLabel(itemThreads.length)} for ${item.path}`}
+            />
+            <label
+              className="review-thread-count-toggle"
+              htmlFor={threadToggleId}
+            >
+              {threadCountLabel(itemThreads.length)}
+            </label>
+          </>
+        ) : null}
+        {itemThreads.length ? (
+          <div
+            className="review-thread-hairline-list"
+            id={threadListId}
+            aria-label={`Review threads for ${item.path}`}
+          >
+            {itemThreads.map((thread) => {
+              const primaryComment = thread.comments[0]!;
+              const latestComment =
+                thread.comments[thread.comments.length - 1] ?? primaryComment;
+              const activeThread = thread.comments.some(
+                (comment) => comment.id === activeCommentId,
+              );
+              return (
+                <div className="review-thread-hairline-item" key={thread.id}>
+                  <button
+                    className={`review-thread-hairline-row${activeThread ? " active" : ""}`}
+                    type="button"
+                    aria-label={`Open ${statusLabel(thread.status)} thread in ${thread.path}, ${surfaceLabel(primaryComment)}, ${commentLineLabel(primaryComment)}`}
+                    onClick={() => onOpenComment?.(primaryComment)}
+                  >
+                    <span className="review-thread-hairline-main">
+                      <span className="review-thread-hairline-title">
+                        <span>
+                          {surfaceLabel(primaryComment)} ·{" "}
+                          {commentLineLabel(primaryComment)}
+                        </span>
+                        <span
+                          className={`review-thread-status-badge ${thread.status}`}
+                        >
+                          {statusLabel(thread.status)}
+                        </span>
+                      </span>
+                      <span className="review-thread-hairline-preview">
+                        {truncateCommentPreview(latestComment.body, 96)}
+                      </span>
+                      <span className="review-thread-hairline-meta">
+                        {totalMessageCountLabel(thread.comments.length)}
+                      </span>
+                    </span>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -548,6 +621,19 @@ function reviewQueueStopForPath(
   };
 }
 
+function reviewQueueThreadsForPath(
+  path: string,
+  comments: ViviComment[],
+): CommentThread[] {
+  return summarizeActiveThreads(comments).filter(
+    (thread) => thread.path === path,
+  );
+}
+
+function threadCountLabel(count: number): string {
+  return `${count} ${count === 1 ? "thread" : "threads"}`;
+}
+
 export function reviewQueueKeyboardTarget(
   key: string,
   currentIndex: number,
@@ -564,8 +650,8 @@ export function reviewQueueKeyboardTarget(
 
 function focusReviewQueueTarget(index: number) {
   document
-    .querySelector<HTMLButtonElement>(
-      `.review-queue .change-open[data-review-index="${index}"]:not(:disabled)`,
+    .querySelector<HTMLElement>(
+      `.review-queue .change-open[data-review-index="${index}"]`,
     )
     ?.focus();
 }

@@ -163,30 +163,52 @@ export const InReviewFileThreadExpansionInteraction: Story = {
       canvas.getByText("Reviewed", { selector: "summary span" }),
     ).toBeVisible();
 
+    await userEvent.click(
+      canvas.getByRole("button", {
+        name: "Review queue item, modified docs/product-review.md, current review file",
+      }),
+    );
+    await expect(
+      canvas.getByRole("status", { name: "Opened file" }),
+    ).toHaveTextContent("docs/product-review.md");
     await expect(
       canvas.queryByRole("button", {
-        name: /Open thread source, docs\/product-review\.md, L7/i,
+        name: /Open open thread, docs\/product-review\.md, L7/i,
       }),
     ).not.toBeInTheDocument();
 
     await userEvent.click(
       canvas.getByRole("button", {
-        name: "Show 2 open threads for docs/product-review.md",
+        name: "Show 3 threads for docs/product-review.md",
       }),
     );
 
     const firstThread = canvas.getByRole("button", {
-      name: /Open thread source, docs\/product-review\.md, L7/i,
+      name: /Open open thread, docs\/product-review\.md, L7/i,
     });
     await expect(firstThread).toBeVisible();
     await expect(firstThread).toHaveTextContent(
       "Keep this feedback layer visible in the inspector outline story.",
     );
+    await expect(firstThread).toHaveTextContent("Open");
+    await expect(
+      canvas.getByRole("button", {
+        name: /Open resolved thread, docs\/product-review\.md, L18/i,
+      }),
+    ).toHaveTextContent("Resolved");
+    await expect(
+      canvas.getByRole("button", {
+        name: /Open archived thread, docs\/product-review\.md, L31/i,
+      }),
+    ).toHaveTextContent("Archived");
 
     await userEvent.click(firstThread);
     await expect(
-      canvas.getByRole("status", { name: "Opened thread source" }),
+      canvas.getByRole("status", { name: "Opened thread" }),
     ).toHaveTextContent("docs/product-review.md · L7");
+    await expect(
+      canvas.getByRole("status", { name: "Opened file" }),
+    ).toHaveTextContent("docs/product-review.md");
   },
 };
 
@@ -230,7 +252,9 @@ export const ReviewQueueItemWithLatestAgentActivity: Story = {
       agentRow.querySelector(".unread-dot.agent-reply"),
     ).toBeInTheDocument();
     await expect(
-      canvasElement.querySelector(".change-open.has-open-threads:not(.has-agent-reply) .unread-dot.muted"),
+      canvasElement.querySelector(
+        ".change-open.has-open-threads:not(.has-agent-reply) .unread-dot.muted",
+      ),
     ).toBeInTheDocument();
     await expect(agentRow).toHaveAccessibleDescription(
       expect.stringContaining("agent reply needs attention"),
@@ -356,8 +380,12 @@ export const ResolvedThreadActivityIsHistory: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Reviewed", { selector: "summary span" })).toBeInTheDocument();
-    await userEvent.click(canvas.getByText("Reviewed", { selector: "summary span" }));
+    await expect(
+      canvas.getByText("Reviewed", { selector: "summary span" }),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      canvas.getByText("Reviewed", { selector: "summary span" }),
+    );
     await expect(canvas.getByText("resolved")).toBeInTheDocument();
     await expect(canvas.queryByText("Queue stop")).not.toBeInTheDocument();
     await expect(canvas.queryByText("Next queue stop")).not.toBeInTheDocument();
@@ -407,8 +435,9 @@ export const ResolvedThreadActivityFromUnknownActor: Story = {
     ).toBeInTheDocument();
     await expect(canvas.queryByText("No files here.")).not.toBeInTheDocument();
     expect(
-      canvasElement.querySelectorAll(".review-state-empty-row .unread-dot.muted")
-        .length,
+      canvasElement.querySelectorAll(
+        ".review-state-empty-row .unread-dot.muted",
+      ).length,
     ).toBe(2);
     await expect(
       canvas.getByText("coding-agent marked resolved"),
@@ -489,7 +518,9 @@ export const StaleThreadOnlyPathsHidden: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Queued", { selector: "summary span" })).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Queued", { selector: "summary span" }),
+    ).toBeInTheDocument();
     await expect(
       canvas.queryByText("missing-review.md"),
     ).not.toBeInTheDocument();
@@ -529,7 +560,9 @@ export const MarkReviewedHidesCandidate: Story = {
       }),
     ).not.toBeInTheDocument();
 
-    await userEvent.click(canvas.getByText("Reviewed", { selector: "summary span" }));
+    await userEvent.click(
+      canvas.getByText("Reviewed", { selector: "summary span" }),
+    );
     await expect(canvas.getByText("marked reviewed")).toBeVisible();
     await expect(
       canvas.getByRole("button", {
@@ -604,7 +637,9 @@ export const GitReviewTrackedOnlyWarning: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Queued", { selector: "summary span" })).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Queued", { selector: "summary span" }),
+    ).toBeInTheDocument();
     await expect(
       canvas.getByText(
         "Git review warning: Git untracked scan timed out; showing tracked changes only.",
@@ -711,7 +746,38 @@ function ReviewedChangeInspector(args: Story["args"]) {
 
 function InReviewThreadExpansionFacade() {
   const [expanded, setExpanded] = useState(false);
+  const [openedFile, setOpenedFile] = useState<string | null>(null);
   const [openedThread, setOpenedThread] = useState<string | null>(null);
+  const threads = [
+    {
+      id: "product-l7",
+      status: "open",
+      statusLabel: "Open",
+      location: "L7",
+      surface: "Rendered Markdown",
+      preview:
+        "Keep this feedback layer visible in the inspector outline story.",
+      meta: "1 message · updated 18:14",
+    },
+    {
+      id: "product-l18",
+      status: "resolved",
+      statusLabel: "Resolved",
+      location: "L18",
+      surface: "Source",
+      preview: "Mention the agent-readable contract before the diff example.",
+      meta: "2 messages · resolved yesterday",
+    },
+    {
+      id: "product-l31",
+      status: "archived",
+      statusLabel: "Archived",
+      location: "L31",
+      surface: "Rendered Markdown",
+      preview: "Older copy note kept for review history.",
+      meta: "3 messages · archived after publish",
+    },
+  ];
 
   return (
     <aside className="inspector" aria-label="Review inspector">
@@ -789,6 +855,7 @@ function InReviewThreadExpansionFacade() {
                     type="button"
                     aria-current="true"
                     aria-label="Review queue item, modified docs/product-review.md, current review file"
+                    onClick={() => setOpenedFile("docs/product-review.md")}
                   >
                     <span className="unread-dot muted" aria-hidden="true" />
                     <span className="change-main">
@@ -797,80 +864,87 @@ function InReviewThreadExpansionFacade() {
                         <b>product-review.md</b>
                       </span>
                       <small className="review-thread-summary">
-                        2 open threads · latest by Tasuku
+                        open, resolved, archived · latest by Tasuku
                       </small>
                     </span>
+                    <span
+                      className="review-thread-count-space"
+                      aria-hidden="true"
+                    />
                   </button>
                   <button
                     className="review-thread-count-toggle"
                     type="button"
                     aria-expanded={expanded}
                     aria-controls="storybook-in-review-thread-list"
-                    aria-label="Show 2 open threads for docs/product-review.md"
+                    aria-label="Show 3 threads for docs/product-review.md"
                     onClick={() => setExpanded((current) => !current)}
                   >
-                    2 threads
+                    3 threads
                   </button>
+                  {expanded ? (
+                    <div
+                      className="review-thread-hairline-list"
+                      id="storybook-in-review-thread-list"
+                      aria-label="Open threads for docs/product-review.md"
+                    >
+                      {threads.map((thread) => (
+                        <div
+                          className="review-thread-hairline-item"
+                          key={thread.id}
+                        >
+                          <button
+                            className={`review-thread-hairline-row ${
+                              openedThread ===
+                              `docs/product-review.md · ${thread.location}`
+                                ? "active"
+                                : ""
+                            }`}
+                            type="button"
+                            aria-label={`Open ${thread.status} thread, docs/product-review.md, ${thread.location}, ${thread.surface}`}
+                            onClick={() => {
+                              setOpenedFile("docs/product-review.md");
+                              setOpenedThread(
+                                `docs/product-review.md · ${thread.location}`,
+                              );
+                            }}
+                          >
+                            <span className="review-thread-hairline-main">
+                              <span className="review-thread-hairline-title">
+                                <span>
+                                  {thread.location} · {thread.surface}
+                                </span>
+                                <span
+                                  className={`review-thread-status-badge ${thread.status}`}
+                                >
+                                  {thread.statusLabel}
+                                </span>
+                              </span>
+                              <span className="review-thread-hairline-preview">
+                                {thread.preview}
+                              </span>
+                              <span className="review-thread-hairline-meta">
+                                {thread.meta}
+                              </span>
+                            </span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
-
-                {expanded ? (
-                  <div
-                    className="review-thread-hairline-list"
-                    id="storybook-in-review-thread-list"
-                    aria-label="Open threads for docs/product-review.md"
-                  >
-                    <button
-                      className="review-thread-hairline-row active"
-                      type="button"
-                      aria-label="Open thread source, docs/product-review.md, L7, rendered Markdown"
-                      onClick={() =>
-                        setOpenedThread("docs/product-review.md · L7")
-                      }
-                    >
-                      <span className="review-thread-hairline-main">
-                        <span className="review-thread-hairline-title">
-                          L7 · Rendered Markdown
-                        </span>
-                        <span className="review-thread-hairline-preview">
-                          Keep this feedback layer visible in the inspector
-                          outline story.
-                        </span>
-                        <span className="review-thread-hairline-meta">
-                          1 message · updated 18:14
-                        </span>
-                      </span>
-                    </button>
-                    <button
-                      className="review-thread-hairline-row"
-                      type="button"
-                      aria-label="Open thread source, docs/product-review.md, L18, source"
-                      onClick={() =>
-                        setOpenedThread("docs/product-review.md · L18")
-                      }
-                    >
-                      <span className="review-thread-hairline-main">
-                        <span className="review-thread-hairline-title">
-                          L18 · Source
-                        </span>
-                        <span className="review-thread-hairline-preview">
-                          Mention the agent-readable contract before the diff
-                          example.
-                        </span>
-                        <span className="review-thread-hairline-meta">
-                          2 messages · agent read
-                        </span>
-                      </span>
-                    </button>
-                  </div>
-                ) : null}
 
                 <div className="review-thread-expand-file">
                   <button
                     className="change-open has-open-threads"
                     type="button"
                     aria-label="Review queue item, modified WorkbenchContainer.tsx"
+                    onClick={() => setOpenedFile("WorkbenchContainer.tsx")}
                   >
-                    <span className="unread-dot agent-reply" aria-hidden="true" />
+                    <span
+                      className="unread-dot agent-reply"
+                      aria-hidden="true"
+                    />
                     <span className="change-main">
                       <span className="change-heading">
                         <span className="change-kind">TS</span>
@@ -880,6 +954,10 @@ function InReviewThreadExpansionFacade() {
                         Agent replied · needs decision
                       </small>
                     </span>
+                    <span
+                      className="review-thread-count-space"
+                      aria-hidden="true"
+                    />
                   </button>
                   <button
                     className="review-thread-count-toggle"
@@ -900,11 +978,10 @@ function InReviewThreadExpansionFacade() {
               </summary>
             </details>
           </div>
-          <p
-            className="sr-only"
-            role="status"
-            aria-label="Opened thread source"
-          >
+          <p className="sr-only" role="status" aria-label="Opened file">
+            {openedFile ?? "No file opened"}
+          </p>
+          <p className="sr-only" role="status" aria-label="Opened thread">
             {openedThread ?? "No thread opened"}
           </p>
         </div>
