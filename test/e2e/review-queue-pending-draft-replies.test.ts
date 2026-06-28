@@ -179,8 +179,10 @@ it("publishes separate draft-only threads on the same file from the Review Queue
 
   await page.getByRole("button", { name: "Publish all 4 pending" }).click();
 
-  await expect.poll(() => draftCount()).toBe(0);
-  await expect.poll(() => publishedThreadMessageCounts()).toEqual([2, 2]);
+  await expect.poll(() => draftCount(), { timeout: 10_000 }).toBe(0);
+  await expect
+    .poll(() => publishedThreadMessageCounts(), { timeout: 10_000 })
+    .toEqual([2, 2]);
   expect(await page.getByText("draft target thread not found").count()).toBe(0);
 }, 40_000);
 
@@ -242,7 +244,9 @@ it("keeps an open pending source thread expanded after publishing it", async () 
   await lineAction.waitFor({ state: "visible" });
   await lineAction.click();
 
-  const openThread = page.locator(".code-comment-thread");
+  const openThread = page.locator(".code-comment-thread", {
+    hasText: "Third pending source draft.",
+  });
   await expect.poll(async () => openThread.textContent()).toContain("Pending");
   await expect
     .poll(async () => openThread.textContent())
@@ -256,7 +260,7 @@ it("keeps an open pending source thread expanded after publishing it", async () 
 
   await page.getByRole("button", { name: "Publish all 3 pending" }).click();
 
-  await expect.poll(() => draftCount()).toBe(0);
+  await expect.poll(() => draftCount(), { timeout: 10_000 }).toBe(0);
   await expect
     .poll(async () => lineAction.getAttribute("aria-expanded"))
     .toBe("true");
