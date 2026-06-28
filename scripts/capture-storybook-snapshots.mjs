@@ -31,6 +31,9 @@ const channelTolerance = Number.parseInt(
 const maxDiffRatio = Number.parseFloat(
   process.env.VIVI_STORYBOOK_SNAPSHOT_MAX_DIFF_RATIO ?? "0.0005",
 );
+const maxDiffRatioOverrides = parseMaxDiffRatioOverrides(
+  process.env.VIVI_STORYBOOK_SNAPSHOT_MAX_DIFF_RATIO_OVERRIDES,
+);
 
 if (isDirectRun()) {
   main().catch((error) => {
@@ -123,6 +126,30 @@ function parseViewports(value) {
     return viewport;
   });
   return resolved.length ? resolved : [available.desktop];
+}
+
+function parseMaxDiffRatioOverrides(value) {
+  const entries = new Map();
+  if (!value) return entries;
+  const parsed = JSON.parse(value);
+  for (const [storyIdOrLabel, ratio] of Object.entries(parsed)) {
+    const numericRatio = Number.parseFloat(String(ratio));
+    if (!Number.isFinite(numericRatio) || numericRatio < 0) {
+      throw new Error(
+        `Invalid snapshot diff ratio override for ${storyIdOrLabel}: ${ratio}`,
+      );
+    }
+    entries.set(storyIdOrLabel, numericRatio);
+  }
+  return entries;
+}
+
+function maxDiffRatioForTarget(target) {
+  return (
+    maxDiffRatioOverrides.get(target.id) ??
+    maxDiffRatioOverrides.get(target.label) ??
+    maxDiffRatio
+  );
 }
 
 function snapshotTargets(manifest, storyIndex) {
@@ -255,7 +282,8 @@ async function captureTargets(targets) {
           expected,
           screenshot,
         );
-        if (comparison.changedRatio > maxDiffRatio) {
+        const allowedDiffRatio = maxDiffRatioForTarget(target);
+        if (comparison.changedRatio > allowedDiffRatio) {
           writeArtifact(viewport.name, target.id, "actual.png", screenshot);
           writeArtifact(viewport.name, target.id, "expected.png", expected);
           if (comparison.diffPngBase64) {
@@ -271,7 +299,7 @@ async function captureTargets(targets) {
               `Snapshot changed for ${target.label} (${viewport.name}).`,
               `  expected ${expectedHash}`,
               `  actual   ${hash}`,
-              `  changed  ${comparison.changedPixels}/${comparison.totalPixels} pixels (${formatRatio(comparison.changedRatio)})`,
+              `  changed  ${comparison.changedPixels}/${comparison.totalPixels} pixels (${formatRatio(comparison.changedRatio)}, limit ${formatRatio(allowedDiffRatio)})`,
               `  artifact ${path.relative(repoRoot, artifactPath(viewport.name, target.id))}`,
             ].join("\n"),
           );

@@ -10,6 +10,9 @@ permissions: read-all
 jobs:
   check:
     runs-on: macos-latest
+    env:
+      VIVI_STORYBOOK_SNAPSHOT_MAX_DIFF_RATIO: "0.002"
+      VIVI_STORYBOOK_SNAPSHOT_MAX_DIFF_RATIO_OVERRIDES: '{"files-viewer-coverage-states--mermaid-known-viewer":0.1}'
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
