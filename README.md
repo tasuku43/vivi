@@ -66,6 +66,7 @@ vivi ./docs
 vivi ./dist --open
 vivi . --ready-json
 vivi inbox http://127.0.0.1:4317
+vivi inbox http://127.0.0.1:4317 --watch
 vivi inbox http://127.0.0.1:4317 --read-as codex
 vivi reply http://127.0.0.1:4317 <thread-id> --actor codex --body "Fixed."
 vivi reply http://127.0.0.1:4317 <thread-id> --actor codex --resolve --body-file /tmp/vivi-reply.md
@@ -111,7 +112,9 @@ agent-facing interface structured and deterministic.
 For coding agents, the first public surface is the top-level comment pipe:
 `inbox <url>` reads open human feedback from a specific running Vivi server,
 and `reply <url> <thread-id> --actor codex|claude` writes back. Plain
-`inbox <url>` is a passive query; add `--read-as codex` or `--read-as claude`
+`inbox <url>` is a passive one-shot query. `inbox <url> --watch` first emits
+the current open inbox, then keeps polling and emits only new open threads or
+threads with a newer human comment. Add `--read-as codex` or `--read-as claude`
 only when the browser should show an explicit read receipt. `reply` is
 non-interactive and requires `--body <text>` or `--body-file <path|->`; add
 `--resolve` or `--archive` when the reply should also close the thread. Use

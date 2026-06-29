@@ -54,7 +54,7 @@ canonical Go CLI used by the release binary:
 ```bash
 npm exec -- vivi --help
 npm exec -- vivi . --ready-json
-npm exec -- vivi inbox http://127.0.0.1:4317
+npm exec -- vivi inbox http://127.0.0.1:4317 --watch
 npm exec -- vivi reply http://127.0.0.1:4317 <thread-id> --actor codex --body "Fixed."
 ```
 

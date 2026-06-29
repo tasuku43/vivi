@@ -14,7 +14,7 @@ func TestHelpTextSurfacesAgentCommentsLoop(t *testing.T) {
 	help := helpText()
 	for _, command := range []string{
 		"vivi - local review adapter",
-		"vivi inbox <url> [--read-as codex|claude]",
+		"vivi inbox <url> [--watch] [--read-as codex|claude]",
 		"vivi claim <url> <thread-id> --actor codex|claude",
 		"vivi release <url> <thread-id> --actor codex|claude [--body <text>|--body-file <path|->]",
 		"vivi reply <url> <thread-id> --actor codex|claude (--body <text>|--body-file <path|->) [--resolve|--archive]",
@@ -25,6 +25,7 @@ func TestHelpTextSurfacesAgentCommentsLoop(t *testing.T) {
 		"vivi [root] --open",
 		"Agent:",
 		"vivi inbox <url>",
+		"vivi inbox <url> --watch",
 		"vivi inbox <url> --read-as codex",
 		"vivi reply <url> <thread-id> --actor codex --body <text>",
 		"Changed-file context:",
@@ -51,7 +52,7 @@ func TestServerReadyPayloadIncludesResolvedURLAndAgentCommands(t *testing.T) {
 		t.Fatalf("expected three suggested commands, got %#v", payload.SuggestedCommands)
 	}
 	inboxCommand := payload.SuggestedCommands[0]
-	if inboxCommand.Intent != "read_agent_inbox" || inboxCommand.Command != "inbox" || !inboxCommand.Primary || inboxCommand.DisplayCommand != "vivi inbox http://127.0.0.1:59432" || !containsString(inboxCommand.Args, "inbox") || !containsString(inboxCommand.Args, "http://127.0.0.1:59432") {
+	if inboxCommand.Intent != "read_agent_inbox" || inboxCommand.Command != "inbox" || !inboxCommand.Primary || inboxCommand.DisplayCommand != "vivi inbox http://127.0.0.1:59432 --watch" || !containsString(inboxCommand.Args, "inbox") || !containsString(inboxCommand.Args, "http://127.0.0.1:59432") || !containsString(inboxCommand.Args, "--watch") {
 		t.Fatalf("ready payload should make top-level inbox primary: %#v", inboxCommand)
 	}
 	reviewCommand := payload.SuggestedCommands[1]

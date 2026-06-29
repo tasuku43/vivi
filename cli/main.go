@@ -144,7 +144,7 @@ func run(args []string) error {
 	} else {
 		fmt.Printf("Vivi serving %s\n", workspaceFS.Config().Root)
 		fmt.Printf("Browser: %s\n", httpServer.URL())
-		fmt.Printf("Agent inbox: %s inbox %s\n", viviExecutable, httpServer.URL())
+		fmt.Printf("Agent inbox: %s inbox %s --watch\n", viviExecutable, httpServer.URL())
 	}
 	if *open {
 		_ = openBrowser(httpServer.URL())
@@ -202,7 +202,7 @@ func helpText() string {
 		"",
 		"Usage:",
 		"  vivi [root] [--host 127.0.0.1] [--port 4317] [--open] [--include md,html,ts] [--max-file-size 1048576] [--allow-html-scripts]",
-		"  vivi inbox <url> [--read-as codex|claude]",
+		"  vivi inbox <url> [--watch] [--read-as codex|claude]",
 		"  vivi claim <url> <thread-id> --actor codex|claude",
 		"  vivi release <url> <thread-id> --actor codex|claude [--body <text>|--body-file <path|->]",
 		"  vivi reply <url> <thread-id> --actor codex|claude (--body <text>|--body-file <path|->) [--resolve|--archive]",
@@ -215,6 +215,7 @@ func helpText() string {
 		"",
 		"Agent:",
 		"  vivi inbox <url>",
+		"  vivi inbox <url> --watch",
 		"  vivi inbox <url> --read-as codex",
 		"  vivi reply <url> <thread-id> --actor codex --body <text>",
 		"  vivi reply <url> <thread-id> --actor codex --resolve --body-file <path|->",
@@ -256,7 +257,7 @@ type serverReadyPayload struct {
 }
 
 func newServerReadyPayload(root string, serverURL string) serverReadyPayload {
-	inboxArgs := []string{"inbox", serverURL}
+	inboxArgs := []string{"inbox", serverURL, "--watch"}
 	reviewArgs := []string{"review", "queue", "--url", serverURL}
 	doctorArgs := []string{"comments", "doctor", "--url", serverURL}
 	reviewArgs = append(reviewArgs, "--json")
@@ -267,8 +268,8 @@ func newServerReadyPayload(root string, serverURL string) serverReadyPayload {
 			"inbox",
 			inboxArgs,
 			"",
-			"Poll this Vivi server for open human comments. Add --read-as codex or --read-as claude only when the GUI should show an explicit read receipt.",
-		).withPrimary().withOutput("agent_safe", "passive_until_read_as"),
+			"Watch this Vivi server for open human comments. The first emission is the current open inbox; later emissions include only new threads or new human comments.",
+		).withPrimary().withOutput("agent_safe", "initial_snapshot_then_comment_diffs"),
 		suggestedCommentsCommand(
 			"inspect_review_queue_context",
 			"review queue",
