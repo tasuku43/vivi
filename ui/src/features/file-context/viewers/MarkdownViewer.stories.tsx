@@ -402,7 +402,7 @@ const markerPlacementComments: ViviComment[] = [
 ];
 
 export const RenderedMarkerPlacement: Story = {
-  tags: ["interaction"],
+  tags: ["interaction", "snapshot-ready"],
   args: {
     mode: "rendered",
     file: {
@@ -495,6 +495,7 @@ export const RenderedMarkerPlacement: Story = {
       5,
     );
     await expect(listMetricsAfterCodeOpen.height).toBeLessThanOrEqual(36);
+    canvasElement.dataset.viviSnapshotReady = "true";
   },
 };
 

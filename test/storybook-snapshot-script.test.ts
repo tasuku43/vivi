@@ -1,7 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
-import { parseSnapshotMismatchRetries } from "../scripts/capture-storybook-snapshots.mjs";
+import {
+  parseSnapshotMismatchRetries,
+  parseSnapshotSettleMs,
+  shouldWaitForSnapshotReady,
+} from "../scripts/capture-storybook-snapshots.mjs";
 
 describe("Storybook snapshot capture script", () => {
   it("recaptures a mismatched snapshot once by default", () => {
@@ -22,9 +26,35 @@ describe("Storybook snapshot capture script", () => {
     );
   });
 
+  it("waits for interaction stories to settle before capture", () => {
+    expect(parseSnapshotSettleMs(undefined)).toBe(750);
+    expect(parseSnapshotSettleMs("0")).toBe(0);
+    expect(parseSnapshotSettleMs("1000")).toBe(1000);
+    expect(() => parseSnapshotSettleMs("-1")).toThrow(
+      /Invalid snapshot settle duration/,
+    );
+    expect(() => parseSnapshotSettleMs("1.5")).toThrow(
+      /Invalid snapshot settle duration/,
+    );
+  });
+
+  it("allows interaction stories to opt into an explicit snapshot-ready gate", () => {
+    expect(shouldWaitForSnapshotReady(["interaction", "snapshot-ready"])).toBe(
+      true,
+    );
+    expect(shouldWaitForSnapshotReady(["interaction"])).toBe(false);
+  });
+
   it("keeps CI snapshot artifacts available when the check job fails", async () => {
     const workflow = await readFile(".github/workflows/ci.yml", "utf8");
 
+    expect(workflow).toContain("runs-on: macos-15");
+    expect(workflow).toContain('TZ: "Asia/Tokyo"');
+    expect(workflow).toContain('VIVI_STORYBOOK_SNAPSHOT_LOCALE: "en-US"');
+    expect(workflow).toContain(
+      'VIVI_STORYBOOK_SNAPSHOT_TIMEZONE: "Asia/Tokyo"',
+    );
+    expect(workflow).toContain("VIVI_STORYBOOK_SNAPSHOT_SETTLE_MS");
     expect(workflow).toContain("VIVI_STORYBOOK_SNAPSHOT_MISMATCH_RETRIES");
     expect(workflow).toContain(
       "files-viewer-coverage-states--code-with-local-outline",

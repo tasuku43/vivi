@@ -9,8 +9,14 @@ permissions: read-all
 
 jobs:
   check:
-    runs-on: macos-latest
+    runs-on: macos-15
     env:
+      LANG: "en_US.UTF-8"
+      LC_ALL: "en_US.UTF-8"
+      TZ: "Asia/Tokyo"
+      VIVI_STORYBOOK_SNAPSHOT_LOCALE: "en-US"
+      VIVI_STORYBOOK_SNAPSHOT_TIMEZONE: "Asia/Tokyo"
+      VIVI_STORYBOOK_SNAPSHOT_SETTLE_MS: "750"
       VIVI_STORYBOOK_SNAPSHOT_MAX_DIFF_RATIO: "0.002"
       VIVI_STORYBOOK_SNAPSHOT_MAX_DIFF_RATIO_OVERRIDES: '{"files-viewer-coverage-states--mermaid-known-viewer":0.1,"files-viewer-coverage-states--viewer-toolbar-sticky-by-extension":0.01,"files-viewer-coverage-states--code-with-local-outline":0.005}'
       VIVI_STORYBOOK_SNAPSHOT_MISMATCH_RETRIES: "1"

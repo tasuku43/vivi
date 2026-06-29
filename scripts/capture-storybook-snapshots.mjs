@@ -14,6 +14,10 @@ import { chromium } from "playwright";
 
 const repoRoot = fileURLToPath(new URL("../", import.meta.url));
 let storybookUrl = process.env.STORYBOOK_URL ?? null;
+const snapshotLocale = process.env.VIVI_STORYBOOK_SNAPSHOT_LOCALE ?? "en-US";
+const snapshotTimezone =
+  process.env.VIVI_STORYBOOK_SNAPSHOT_TIMEZONE ?? "Asia/Tokyo";
+process.env.TZ = snapshotTimezone;
 const manifestPath = path.join(
   repoRoot,
   "ui/src/storybook/storybook-lab.manifest.json",
@@ -29,13 +33,16 @@ const channelTolerance = Number.parseInt(
   10,
 );
 const maxDiffRatio = Number.parseFloat(
-  process.env.VIVI_STORYBOOK_SNAPSHOT_MAX_DIFF_RATIO ?? "0.0005",
+  process.env.VIVI_STORYBOOK_SNAPSHOT_MAX_DIFF_RATIO ?? "0.002",
 );
 const maxDiffRatioOverrides = parseMaxDiffRatioOverrides(
   process.env.VIVI_STORYBOOK_SNAPSHOT_MAX_DIFF_RATIO_OVERRIDES,
 );
 const snapshotMismatchRetries = parseSnapshotMismatchRetries(
   process.env.VIVI_STORYBOOK_SNAPSHOT_MISMATCH_RETRIES,
+);
+const snapshotSettleMs = parseSnapshotSettleMs(
+  process.env.VIVI_STORYBOOK_SNAPSHOT_SETTLE_MS,
 );
 
 if (isDirectRun()) {
@@ -64,7 +71,13 @@ async function main() {
     ],
     {
       cwd: repoRoot,
-      env: { ...process.env, BROWSER: "none" },
+      env: {
+        ...process.env,
+        BROWSER: "none",
+        TZ: snapshotTimezone,
+        VIVI_STORYBOOK_SNAPSHOT_LOCALE: snapshotLocale,
+        VIVI_STORYBOOK_SNAPSHOT_TIMEZONE: snapshotTimezone,
+      },
       detached: process.platform !== "win32",
       stdio: ["ignore", "pipe", "pipe"],
     },
@@ -87,6 +100,9 @@ async function main() {
     }
     console.log(
       `Storybook snapshot targets: ${targets.length} ${includeInteractionStories ? "required+interaction" : "required"} story(s).`,
+    );
+    console.log(
+      `Storybook snapshot environment: locale=${snapshotLocale} timezone=${snapshotTimezone} settleMs=${snapshotSettleMs}.`,
     );
     await captureTargets(targets).catch((error) => {
       throw new Error(
@@ -132,7 +148,11 @@ function parseViewports(value) {
 }
 
 function parseMaxDiffRatioOverrides(value) {
-  const entries = new Map();
+  const entries = new Map([
+    ["files-viewer-coverage-states--mermaid-known-viewer", 0.1],
+    ["files-viewer-coverage-states--viewer-toolbar-sticky-by-extension", 0.01],
+    ["files-viewer-coverage-states--code-with-local-outline", 0.005],
+  ]);
   if (!value) return entries;
   const parsed = JSON.parse(value);
   for (const [storyIdOrLabel, ratio] of Object.entries(parsed)) {
@@ -156,6 +176,25 @@ export function parseSnapshotMismatchRetries(value) {
     );
   }
   return retries;
+}
+
+export function parseSnapshotSettleMs(value) {
+  if (value === undefined || value === "") return 750;
+  const milliseconds = Number.parseInt(value, 10);
+  if (
+    !Number.isFinite(milliseconds) ||
+    milliseconds < 0 ||
+    String(milliseconds) !== value
+  ) {
+    throw new Error(
+      `Invalid snapshot settle duration: ${value}. Use a non-negative integer number of milliseconds.`,
+    );
+  }
+  return milliseconds;
+}
+
+export function shouldWaitForSnapshotReady(tags) {
+  return tags.includes("snapshot-ready");
 }
 
 function maxDiffRatioForTarget(target) {
@@ -241,7 +280,9 @@ async function captureTargets(targets) {
       const context = await browser.newContext({
         viewport: { width: viewport.width, height: viewport.height },
         deviceScaleFactor: 1,
+        locale: snapshotLocale,
         reducedMotion: "reduce",
+        timezoneId: snapshotTimezone,
       });
       for (const target of targets) {
         const screenshot = await captureStoryWithRetry(context, target).catch(
@@ -293,11 +334,7 @@ async function captureTargets(targets) {
         compared += 1;
         let actual = screenshot;
         let actualHash = hash;
-        let comparison = await comparePngBuffers(
-          browser,
-          expected,
-          actual,
-        );
+        let comparison = await comparePngBuffers(browser, expected, actual);
         const allowedDiffRatio = maxDiffRatioForTarget(target);
         let recoveredByRetry = false;
         for (
@@ -401,6 +438,67 @@ async function waitForSrOnlyStyles(page) {
   });
 }
 
+async function waitForSnapshotSettled(page, quietMs) {
+  if (quietMs <= 0) return;
+  await page.evaluate(
+    ({ quietMs, timeoutMs }) =>
+      new Promise((resolve) => {
+        const finish = () => {
+          if (finished) return;
+          finished = true;
+          window.clearTimeout(quietTimer);
+          window.clearTimeout(timeoutTimer);
+          observer.disconnect();
+          resolve(true);
+        };
+        const scheduleQuietTimer = () => {
+          window.clearTimeout(quietTimer);
+          quietTimer = window.setTimeout(finish, quietMs);
+        };
+
+        let finished = false;
+        let quietTimer = 0;
+        const root =
+          document.querySelector("#storybook-root, #storybook-docs, #root") ??
+          document.body;
+        const observer = new MutationObserver(scheduleQuietTimer);
+        const timeoutTimer = window.setTimeout(finish, timeoutMs);
+
+        observer.observe(root, {
+          attributes: true,
+          childList: true,
+          characterData: true,
+          subtree: true,
+        });
+        scheduleQuietTimer();
+      }),
+    { quietMs, timeoutMs: Math.max(quietMs * 4, 3_000) },
+  );
+  await page.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      ),
+  );
+}
+
+async function waitForStorySnapshotReady(page, target) {
+  if (!shouldWaitForSnapshotReady(target.tags)) return;
+  await page.waitForFunction(
+    () =>
+      window.__viviStorybookSnapshotReady === true ||
+      document.querySelector('[data-vivi-snapshot-ready="true"]') !== null,
+    undefined,
+    { timeout: 10_000 },
+  );
+}
+
+async function resetTransientSelectionState(page) {
+  await page.evaluate(() => {
+    window.getSelection()?.removeAllRanges();
+  });
+}
+
 async function captureStory(page, target) {
   const url = `${storybookUrl}/iframe.html?id=${encodeURIComponent(target.id)}&viewMode=story`;
   await page.addInitScript((storyId) => {
@@ -461,14 +559,26 @@ async function captureStory(page, target) {
     }
   });
   await waitForSrOnlyStyles(page);
+  await waitForStorySnapshotReady(page, target);
   await page.mouse.move(0, 0);
-  await page.waitForTimeout(250);
+  await resetTransientSelectionState(page);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await waitForSnapshotSettled(page, snapshotSettleMs);
+  const screenshot = await page.screenshot({
+    fullPage: false,
+    animations: "disabled",
+  });
+  if (!shouldWaitForSnapshotReady(target.tags)) return screenshot;
+  await waitForSnapshotSettled(page, snapshotSettleMs);
   return page.screenshot({ fullPage: false, animations: "disabled" });
 }
 
 async function captureStoryWithRetry(context, target) {
   const maxAttempts = 3;
   let lastError = null;
+  if (shouldWaitForSnapshotReady(target.tags)) {
+    await warmUpSnapshotReadyStory(context, target);
+  }
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const page = await context.newPage();
     try {
@@ -485,6 +595,15 @@ async function captureStoryWithRetry(context, target) {
     }
   }
   throw lastError;
+}
+
+async function warmUpSnapshotReadyStory(context, target) {
+  const page = await context.newPage();
+  try {
+    await captureStory(page, target);
+  } finally {
+    await page.close().catch(() => undefined);
+  }
 }
 
 function isTransientStorybookCaptureError(error) {
