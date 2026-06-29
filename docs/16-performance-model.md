@@ -138,6 +138,7 @@ VIVI_PERF_CLI_ITERATIONS=10 npm run perf:otel
 VIVI_PERF_BURST_CHANGES=100 VIVI_PERF_BURST_DELAY_MS=10 npm run perf:otel
 VIVI_PERF_AGENT_STORM_OPS=300 VIVI_PERF_AGENT_STORM_FILES=60 npm run perf:otel
 VIVI_PERF_SKIP_BUILD=1 npm run perf:otel
+VIVI_PERF_BROWSER_CHANNEL=chrome VIVI_PERF_BROWSER_IDLE_MS=6000 npm run perf:otel
 ```
 
 Use `VIVI_PERF_RUN_NAME=<name>` to keep a named copy of the summary at:
@@ -145,6 +146,14 @@ Use `VIVI_PERF_RUN_NAME=<name>` to keep a named copy of the summary at:
 ```text
 artifacts/perf/<name>.summary.json
 ```
+
+When `VIVI_PERF_BROWSER_CHANNEL=chrome` is set, the front-end scenario samples
+the Chrome process tree and separates renderer, browser, GPU, utility, and
+other helper processes. The browser profile directory is created under the OS
+temporary directory so Chrome's own profile/cache writes do not become watched
+workspace events. The front-end summary includes load, command-palette, and
+post-interaction idle windows; use the idle window to distinguish a startup
+spike from sustained renderer CPU.
 
 ### Reading Results
 
@@ -399,6 +408,70 @@ targets. Removing the hidden Threads and Map inspector DOM reduced the active
 inspector render surface; the front-end after-load path was slightly lighter,
 while the command-palette interaction window was modestly higher and should
 continue to be watched in future UI-heavy slices.
+
+### Chrome renderer idle loop fix on 2026-06-29
+
+Problem: launching Vivi in Chrome showed sustained CPU in
+`Google Chrome Helper (Renderer)` even after the initial UI appeared. The
+server-side process metrics were low, so the perf harness was extended to sample
+the browser process tree and report renderer CPU separately.
+
+Baseline command against this repository:
+
+```bash
+VIVI_PERF_RUN_NAME=chrome-renderer-after-profile-outside-workspace-2026-06-29 \
+  VIVI_PERF_WORKSPACE=/Users/tasuku/work/github.com/tasuku43/vivi \
+  VIVI_PERF_BROWSER_CHANNEL=chrome \
+  VIVI_PERF_BROWSER_IDLE_MS=6000 \
+  VIVI_PERF_IDLE_MS=1500 \
+  VIVI_PERF_CLI_ITERATIONS=2 \
+  VIVI_PERF_BURST_CHANGES=5 \
+  VIVI_PERF_BURST_DELAY_MS=10 \
+  VIVI_PERF_AGENT_STORM_OPS=30 \
+  VIVI_PERF_AGENT_STORM_FILES=10 \
+  VIVI_PERF_AGENT_STORM_DELAY_MS=0 \
+  npm run perf:otel
+```
+
+Fix command:
+
+```bash
+VIVI_PERF_RUN_NAME=chrome-renderer-after-unread-loop-fix-vivi-2026-06-29 \
+  VIVI_PERF_WORKSPACE=/Users/tasuku/work/github.com/tasuku43/vivi \
+  VIVI_PERF_BROWSER_CHANNEL=chrome \
+  VIVI_PERF_BROWSER_IDLE_MS=6000 \
+  VIVI_PERF_IDLE_MS=1500 \
+  VIVI_PERF_CLI_ITERATIONS=2 \
+  VIVI_PERF_BURST_CHANGES=5 \
+  VIVI_PERF_BURST_DELAY_MS=10 \
+  VIVI_PERF_AGENT_STORM_OPS=30 \
+  VIVI_PERF_AGENT_STORM_FILES=10 \
+  VIVI_PERF_AGENT_STORM_DELAY_MS=0 \
+  VIVI_PERF_SKIP_BUILD=1 \
+  npm run perf:otel
+```
+
+Measured results:
+
+| Run | Workspace | Post-interaction idle window | Renderer CPU by process time | Renderer CPU time | Renderer max sampled CPU | Script duration after idle |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Before fix | vivi repo, 6,276 dirs / 44,365 files | 5,877 ms | 112.643% | 6,620 ms | 130.6% | 6,845 ms |
+| After fix | vivi repo, 6,276 dirs / 44,368 files | 5,835 ms | 0.857% | 50 ms | 3.8% | 107 ms |
+| Synthetic after fix | 25 dirs / 961 files | 5,893 ms | 0.509% | 30 ms | 3.4% | 56 ms |
+
+Root cause: the workbench derived `reviewItems` from `unreadReviewPaths`, then
+an effect watching `reviewItems` always called `setUnreadReviewPaths` with a new
+array, even when the contents were unchanged. That created a browser-only React
+commit loop. The fix preserves the existing array identity when reconciliation
+does not change the unread path list.
+
+Follow-up hardening in the same slice:
+
+- Markdown rendering is memoized by file content so unrelated workbench state
+  updates do not reparse the same document.
+- Rendered Markdown comment highlighting now skips repeated DOM work when the
+  rendered HTML, visible comments, active comment, and draft block groups are
+  unchanged.
 
 ### Production-readiness performance targets
 

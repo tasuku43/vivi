@@ -125,12 +125,28 @@ export function MarkdownViewer({
     controlledMode === "source" || controlledMode === "rendered"
       ? controlledMode
       : localMode;
-  const html = renderMarkdownDocumentHtml(file.content);
+  const html = useMemo(
+    () => renderMarkdownDocumentHtml(file.content),
+    [file.content],
+  );
   const markdownRef = useRef<HTMLElement | null>(null);
   const renderedThreadTargetsRef = useRef<MarkdownRenderedThreadTarget[]>([]);
+  const appliedRenderedHighlightSignature = useRef<string | null>(null);
   const visibleRenderedComments = useMemo(
     () => visibleThreadComments(comments),
     [comments],
+  );
+  const renderedHighlightSignature = useMemo(
+    () =>
+      markdownRenderedHighlightSignature({
+        activeCommentId,
+        comments: visibleRenderedComments,
+        draftingBlockIdGroups: renderedThreadTargets.map(
+          (target) => target.blockIds,
+        ),
+        html,
+      }),
+    [activeCommentId, html, renderedThreadTargets, visibleRenderedComments],
   );
   const setMode = (nextMode: ViewerMode) => {
     setRenderedThreadTargets((items) => {
@@ -160,6 +176,7 @@ export function MarkdownViewer({
   useLayoutEffect(() => {
     if (mode !== "rendered" || diffEnabled || !markdownRef.current) return;
     markdownRef.current.innerHTML = html;
+    appliedRenderedHighlightSignature.current = null;
     renderPendingMermaid();
   }, [diffEnabled, html, mode, renderPendingMermaid]);
 
@@ -167,10 +184,16 @@ export function MarkdownViewer({
     renderPendingMermaid();
     const timeout = window.setTimeout(renderPendingMermaid, 0);
     return () => window.clearTimeout(timeout);
-  });
+  }, [renderPendingMermaid]);
 
   useLayoutEffect(() => {
     if (mode !== "rendered" || diffEnabled) return;
+    if (
+      appliedRenderedHighlightSignature.current === renderedHighlightSignature
+    ) {
+      return;
+    }
+    appliedRenderedHighlightSignature.current = renderedHighlightSignature;
     applyRenderedCommentHighlights(
       markdownRef.current,
       visibleRenderedComments,
@@ -182,8 +205,8 @@ export function MarkdownViewer({
   }, [
     activeCommentId,
     diffEnabled,
-    html,
     mode,
+    renderedHighlightSignature,
     renderedThreadTargets,
     visibleRenderedComments,
   ]);
@@ -209,7 +232,7 @@ export function MarkdownViewer({
       );
       if (block) placeRenderedThreadHost(block, target.host);
     }
-  });
+  }, [diffEnabled, mode, renderedThreadTargets]);
 
   useEffect(() => {
     renderedThreadTargetsRef.current = renderedThreadTargets;
@@ -619,4 +642,36 @@ function renderedThreadTargetKey(
   return target.draft.threadId
     ? JSON.stringify(["thread", target.draft.threadId])
     : JSON.stringify([path, lineStart, lineEnd, target.blockIds.join("|")]);
+}
+
+export function markdownRenderedHighlightSignature({
+  activeCommentId,
+  comments,
+  draftingBlockIdGroups,
+  html,
+}: {
+  activeCommentId?: string | null;
+  comments: ViviComment[];
+  draftingBlockIdGroups: string[][];
+  html: string;
+}): string {
+  return JSON.stringify({
+    activeCommentId: activeCommentId ?? null,
+    comments: comments.map((comment) => ({
+      id: comment.id,
+      status: comment.status,
+      rendered: comment.anchor.rendered
+        ? {
+            blockId: comment.anchor.rendered.blockId,
+            kind: comment.anchor.rendered.kind,
+            selector: comment.anchor.rendered.selector,
+            textQuote: comment.anchor.rendered.textQuote,
+          }
+        : null,
+      sourceLineEnd: comment.anchor.canonical.lineEnd ?? null,
+      sourceLineStart: comment.anchor.canonical.lineStart ?? null,
+    })),
+    draftingBlockIdGroups,
+    html,
+  });
 }

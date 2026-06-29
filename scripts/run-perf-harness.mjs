@@ -2,6 +2,7 @@ import { spawn, spawnSync } from "node:child_process";
 import {
   appendFileSync,
   existsSync,
+  mkdtempSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -9,6 +10,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { chromium } from "playwright";
@@ -17,6 +19,8 @@ import {
   aggregateProcessSummaries,
   summarizeProcessSamples,
   summarizeProcessSamplesSince,
+  summarizeProcessTreeSamples,
+  summarizeProcessTreeSamplesSince,
 } from "./perf-harness-metrics.mjs";
 import { readOtelSpans, summarizeOperationSpans } from "./perf-otel-summary.mjs";
 
@@ -639,8 +643,15 @@ async function runBrowserWorkspaceScenario(baseURL, workspace) {
     "init/main.c",
     "kernel/sched/core.c",
   ]);
-  const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext();
+  const launchOptions = { headless: true };
+  if (process.env.VIVI_PERF_BROWSER_CHANNEL) {
+    launchOptions.channel = process.env.VIVI_PERF_BROWSER_CHANNEL;
+  }
+  const browserUserDataDir = mkdtempSync(path.join(tmpdir(), "vivi-browser-profile-"));
+  const context = await chromium.launchPersistentContext(browserUserDataDir, launchOptions);
+  const browser = context.browser();
+  const browserRootProcess = findProcessByCommandSubstring(browserUserDataDir);
+  const browserSampler = browserRootProcess?.pid ? startProcessTreeSampler(browserRootProcess.pid, "browser") : null;
   const page = await context.newPage();
   const client = await context.newCDPSession(page);
   await client.send("Performance.enable");
@@ -650,24 +661,49 @@ async function runBrowserWorkspaceScenario(baseURL, workspace) {
     await page.goto(url, { waitUntil: "domcontentloaded" });
     await page.waitForSelector('aside[aria-label="File explorer"]', { timeout: 20_000 });
     await page.waitForTimeout(500);
+    const afterLoadAtMs = Date.now();
     const afterLoad = await collectBrowserMetrics(page, client);
     const modifier = process.platform === "darwin" ? "Meta" : "Control";
+    const interactionStartedAtMs = Date.now();
     await page.keyboard.press(`${modifier}+K`);
     await page.waitForTimeout(150);
     await page.keyboard.press("Escape");
     await page.waitForTimeout(150);
+    const interactionFinishedAtMs = Date.now();
     const afterInteraction = await collectBrowserMetrics(page, client);
+    const postInteractionIdleStartedAtMs = Date.now();
+    await page.waitForTimeout(numberEnv("VIVI_PERF_BROWSER_IDLE_MS", 1000));
+    const afterPostInteractionIdle = await collectBrowserMetrics(page, client);
+    browserSampler?.stop();
     return {
       openedPath,
       durationMs: Date.now() - started,
       bodyTextLength: await page.locator("body").innerText().then((text) => text.length),
+      browserProcess: browserSampler
+        ? {
+            executable: browserRootProcess?.commandName ?? null,
+            rootPidFoundBy: "user-data-dir",
+            channel: process.env.VIVI_PERF_BROWSER_CHANNEL ?? null,
+            total: browserSampler.summary(),
+            afterLoadWindow: browserSampler.summarySince("browser_after_load", started),
+            interactionWindow: browserSampler.summarySince("browser_command_palette", interactionStartedAtMs),
+            firstPaintToMetricsWindow: browserSampler.summaryBetween("browser_first_paint_to_metrics", started, afterLoadAtMs),
+            postInteractionIdleWindow: browserSampler.summarySince("browser_post_interaction_idle", postInteractionIdleStartedAtMs),
+            interactionDurationMs: interactionFinishedAtMs - interactionStartedAtMs,
+          }
+        : null,
       metrics: {
         afterLoad,
         afterInteraction,
+        afterPostInteractionIdle,
       },
     };
   } finally {
-    await browser.close();
+    browserSampler?.stop();
+    await browser?.close().catch(async () => {
+      await context.close();
+    });
+    rmSync(browserUserDataDir, { recursive: true, force: true });
   }
 }
 
@@ -883,6 +919,37 @@ function startProcessSampler(pid, label, intervalMs = numberEnv("VIVI_PERF_PROCE
   };
 }
 
+function startProcessTreeSampler(pid, label, intervalMs = numberEnv("VIVI_PERF_BROWSER_PROCESS_SAMPLE_MS", numberEnv("VIVI_PERF_PROCESS_SAMPLE_MS", 250))) {
+  const samples = [];
+  const sample = () => {
+    const value = sampleProcessTree(pid);
+    if (value) {
+      samples.push({ ...value, atMs: Date.now() });
+    }
+  };
+  sample();
+  const timer = setInterval(sample, intervalMs);
+  timer.unref?.();
+  return {
+    stop() {
+      clearInterval(timer);
+      sample();
+    },
+    summary() {
+      return summarizeProcessTreeSamples(samples, label);
+    },
+    summarySince(sinceLabel, sinceMs) {
+      return summarizeProcessTreeSamplesSince(samples, sinceLabel, sinceMs);
+    },
+    summaryBetween(betweenLabel, fromMs, untilMs) {
+      return summarizeProcessTreeSamples(
+        samples.filter((sample) => sample.atMs >= fromMs && sample.atMs <= untilMs),
+        betweenLabel,
+      );
+    },
+  };
+}
+
 function sampleProcess(pid) {
   if (!pid) return null;
   const result = spawnSync("ps", ["-p", String(pid), "-o", "rss=", "-o", "pcpu=", "-o", "time="], {
@@ -898,6 +965,113 @@ function sampleProcess(pid) {
     cpuPercent: Number.parseFloat(parts[1]),
     cpuTimeMs: parseProcessCpuTime(parts[2]),
   };
+}
+
+function sampleProcessTree(rootPid) {
+  const rows = listProcesses();
+  if (!rows.has(rootPid)) return null;
+  const selected = collectProcessTree(rows, rootPid);
+  const roles = {};
+  let rssBytes = 0;
+  let cpuPercent = 0;
+  let cpuTimeMs = 0;
+  for (const row of selected) {
+    rssBytes += row.rssBytes;
+    cpuPercent += row.cpuPercent;
+    cpuTimeMs += row.cpuTimeMs ?? 0;
+    const roleName = processRole(row, rootPid);
+    const role = roles[roleName] ?? { processCount: 0, rssBytes: 0, cpuPercent: 0, cpuTimeMs: 0 };
+    role.processCount++;
+    role.rssBytes += row.rssBytes;
+    role.cpuPercent += row.cpuPercent;
+    role.cpuTimeMs += row.cpuTimeMs ?? 0;
+    roles[roleName] = role;
+  }
+  return {
+    processCount: selected.length,
+    rssBytes,
+    cpuPercent,
+    cpuTimeMs,
+    roles,
+    sampleProcessNames: selected.slice(0, 12).map((row) => row.commandName),
+  };
+}
+
+function listProcesses() {
+  const result = spawnSync("ps", ["-axo", "pid=", "-o", "ppid=", "-o", "rss=", "-o", "pcpu=", "-o", "time=", "-o", "command="], {
+    encoding: "utf8",
+  });
+  const rows = new Map();
+  if (result.status !== 0) return rows;
+  for (const line of result.stdout.split(/\r?\n/)) {
+    const match = line.trim().match(/^(\d+)\s+(\d+)\s+(\d+)\s+([0-9.]+)\s+(\S+)\s+(.*)$/);
+    if (!match) continue;
+    const [, pid, ppid, rssKb, pcpu, timeValue, command] = match;
+    const numericPid = Number.parseInt(pid, 10);
+    rows.set(numericPid, {
+      pid: numericPid,
+      ppid: Number.parseInt(ppid, 10),
+      rssBytes: Number.parseInt(rssKb, 10) * 1024,
+      cpuPercent: Number.parseFloat(pcpu),
+      cpuTimeMs: parseProcessCpuTime(timeValue),
+      command,
+      commandName: processCommandName(command),
+    });
+  }
+  return rows;
+}
+
+function collectProcessTree(rows, rootPid) {
+  const childrenByParent = new Map();
+  for (const row of rows.values()) {
+    const children = childrenByParent.get(row.ppid) ?? [];
+    children.push(row);
+    childrenByParent.set(row.ppid, children);
+  }
+  const selected = [];
+  const queue = [rootPid];
+  const seen = new Set();
+  while (queue.length > 0) {
+    const pid = queue.shift();
+    if (seen.has(pid)) continue;
+    seen.add(pid);
+    const row = rows.get(pid);
+    if (!row) continue;
+    selected.push(row);
+    for (const child of childrenByParent.get(pid) ?? []) {
+      queue.push(child.pid);
+    }
+  }
+  return selected;
+}
+
+function findProcessByCommandSubstring(substring) {
+  for (const row of listProcesses().values()) {
+    if (row.command.includes(substring)) return row;
+  }
+  return null;
+}
+
+function processRole(row, rootPid) {
+  if (row.pid === rootPid) return "browser";
+  const command = row.command;
+  if (command.includes("--type=renderer") || command.includes("Helper (Renderer)")) return "renderer";
+  if (command.includes("--type=gpu-process") || command.includes("Helper (GPU)")) return "gpu";
+  if (command.includes("--type=utility") || command.includes("Helper (Plugin)") || command.includes("Helper (Utility)")) return "utility";
+  if (command.includes("--type=zygote")) return "zygote";
+  if (command.includes("--type=broker")) return "broker";
+  return "other";
+}
+
+function processCommandName(command) {
+  if (command.includes("Google Chrome Helper (Renderer)")) return "Google Chrome Helper (Renderer)";
+  if (command.includes("Google Chrome Helper")) return "Google Chrome Helper";
+  if (command.includes("Google Chrome.app")) return "Google Chrome";
+  if (command.includes("Chromium Helper (Renderer)")) return "Chromium Helper (Renderer)";
+  if (command.includes("Chromium Helper")) return "Chromium Helper";
+  if (command.includes("Chromium.app")) return "Chromium";
+  const firstArg = command.split(/\s+/)[0] ?? "";
+  return path.basename(firstArg) || firstArg;
 }
 
 function parseProcessCpuTime(value) {

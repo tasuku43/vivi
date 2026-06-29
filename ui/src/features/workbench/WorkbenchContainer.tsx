@@ -1957,12 +1957,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     }
     for (const path of newPaths) knownReviewPaths.current.add(path);
 
-    setUnreadReviewPaths((paths) => [
-      ...newPaths.reverse(),
-      ...paths.filter(
-        (path) => currentPaths.has(path) && !newPaths.includes(path),
-      ),
-    ]);
+    setUnreadReviewPaths((paths) =>
+      reconcileUnreadReviewPaths(paths, currentPaths, newPaths),
+    );
   }, [reviewItems]);
 
   useEffect(() => {
@@ -3075,6 +3072,24 @@ function buildCompletedThreadPathSet(
     if (status.hasHiddenThread && !status.hasOpenThread) paths.add(path);
   }
   return paths;
+}
+
+export function reconcileUnreadReviewPaths(
+  currentUnreadPaths: string[],
+  currentReviewPaths: ReadonlySet<string>,
+  newReviewPaths: string[],
+): string[] {
+  const retainedPaths = currentUnreadPaths.filter(
+    (path) => currentReviewPaths.has(path) && !newReviewPaths.includes(path),
+  );
+  if (
+    newReviewPaths.length === 0 &&
+    retainedPaths.length === currentUnreadPaths.length &&
+    retainedPaths.every((path, index) => path === currentUnreadPaths[index])
+  ) {
+    return currentUnreadPaths;
+  }
+  return [...newReviewPaths.slice().reverse(), ...retainedPaths];
 }
 
 export function reviewActorForConfig(

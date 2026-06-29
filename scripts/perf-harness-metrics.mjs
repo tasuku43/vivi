@@ -25,6 +25,44 @@ export function summarizeProcessSamplesSince(samples, label, sinceMs) {
   );
 }
 
+export function summarizeProcessTreeSamples(samples, label) {
+  const totals = samples.map((sample) => ({
+    atMs: sample.atMs,
+    rssBytes: sample.rssBytes,
+    cpuPercent: sample.cpuPercent,
+    cpuTimeMs: sample.cpuTimeMs,
+  }));
+  const roles = {};
+  const roleNames = Array.from(new Set(samples.flatMap((sample) => Object.keys(sample.roles ?? {})))).sort();
+  for (const roleName of roleNames) {
+    const roleSamples = samples.map((sample) => {
+      const role = sample.roles?.[roleName] ?? {};
+      return {
+        atMs: sample.atMs,
+        rssBytes: role.rssBytes ?? 0,
+        cpuPercent: role.cpuPercent ?? 0,
+        cpuTimeMs: role.cpuTimeMs ?? 0,
+      };
+    });
+    roles[roleName] = {
+      ...summarizeProcessSamples(roleSamples, `${label}_${roleName}`),
+      processCount: numericSummary(samples.map((sample) => sample.roles?.[roleName]?.processCount ?? 0)),
+    };
+  }
+  return {
+    ...summarizeProcessSamples(totals, label),
+    processCount: numericSummary(samples.map((sample) => sample.processCount).filter(Number.isFinite)),
+    roles,
+  };
+}
+
+export function summarizeProcessTreeSamplesSince(samples, label, sinceMs) {
+  return summarizeProcessTreeSamples(
+    samples.filter((sample) => sample.atMs >= sinceMs),
+    label,
+  );
+}
+
 export function aggregateProcessSummaries(summaries) {
   return {
     sampleCount: summaries.reduce((sum, summary) => sum + summary.sampleCount, 0),

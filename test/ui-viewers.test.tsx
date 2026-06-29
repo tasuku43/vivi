@@ -75,6 +75,7 @@ import {
 } from "../ui/src/features/file-context/viewers/MermaidViewer.js";
 import { TextViewer } from "../ui/src/features/file-context/viewers/TextViewer.js";
 import {
+  reconcileUnreadReviewPaths,
   reviewActorForConfig,
   TextSearchNavigationBar,
 } from "../ui/src/features/workbench/WorkbenchContainer.js";
@@ -746,6 +747,27 @@ it("renders text search navigation as a compact reader control", () => {
   expect(html).toContain("Previous");
   expect(html).toContain("Next");
   expect(html).toContain("Clear");
+});
+
+it("preserves unread review path identity when reconciliation is unchanged", () => {
+  const current = ["src/app.ts", "README.md"];
+  const unchanged = reconcileUnreadReviewPaths(
+    current,
+    new Set(["src/app.ts", "README.md", "docs/notes.md"]),
+    [],
+  );
+
+  expect(unchanged).toBe(current);
+  expect(
+    reconcileUnreadReviewPaths(
+      current,
+      new Set(["src/app.ts", "README.md", "docs/notes.md"]),
+      ["docs/notes.md"],
+    ),
+  ).toEqual(["docs/notes.md", "src/app.ts", "README.md"]);
+  expect(
+    reconcileUnreadReviewPaths(current, new Set(["README.md"]), []),
+  ).toEqual(["README.md"]);
 });
 
 it("renders code line comments as an inline thread with replies", () => {

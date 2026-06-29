@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   injectMermaidPreviewBlocks,
+  markdownRenderedHighlightSignature,
   renderMarkdownDocumentHtml,
 } from "../ui/src/features/file-context/viewers/MarkdownViewer.js";
 import { isSafeSvgReference } from "../ui/src/features/file-context/rendering/mermaid-rendering.js";
@@ -168,5 +169,55 @@ Alice->>Bob: <script>alert(1)</script>
     expect(isSafeSvgReference("javascript:alert(1)")).toBe(false);
     expect(isSafeSvgReference("data:text/html,<script>x</script>")).toBe(false);
     expect(isSafeSvgReference("vbscript:msgbox(1)")).toBe(false);
+  });
+
+  it("keeps rendered comment highlight signatures stable for equivalent inputs", () => {
+    const comment = {
+      id: "comment-1",
+      path: "README.md",
+      viewerKind: "markdown",
+      anchor: {
+        surface: "rendered",
+        canonical: {
+          path: "README.md",
+          lineStart: 3,
+          lineEnd: 4,
+          quote: "Body",
+        },
+        rendered: {
+          kind: "markdown",
+          blockId: "vivi-block-2",
+          selector: "p:nth-of-type(1)",
+          textQuote: "Body",
+        },
+      },
+      body: "Tighten this paragraph.",
+      status: "open",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    } as const;
+    const input = {
+      activeCommentId: comment.id,
+      comments: [comment],
+      draftingBlockIdGroups: [["vivi-block-3"]],
+      html: "<p>Body</p>",
+    };
+
+    expect(markdownRenderedHighlightSignature(input)).toBe(
+      markdownRenderedHighlightSignature({
+        ...input,
+        comments: [{ ...comment }],
+        draftingBlockIdGroups: [["vivi-block-3"]],
+      }),
+    );
+    expect(
+      markdownRenderedHighlightSignature({
+        ...input,
+        comments: [{ ...comment, status: "resolved" }],
+      }),
+    ).not.toBe(markdownRenderedHighlightSignature(input));
+    expect(
+      markdownRenderedHighlightSignature({ ...input, html: "<p>Changed</p>" }),
+    ).not.toBe(markdownRenderedHighlightSignature(input));
   });
 });
