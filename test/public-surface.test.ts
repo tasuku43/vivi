@@ -48,8 +48,12 @@ it(
     );
     expect(result.stdout).toContain("Human:");
     expect(result.stdout).toContain("Agent:");
+    expect(result.stdout).toContain("vivi inbox <url> [--read-as codex|claude]");
     expect(result.stdout).toContain(
-      "vivi comments work --actor <actor> --loop --url <url> --json",
+      "vivi reply <url> <thread-id> --actor codex|claude",
+    );
+    expect(result.stdout).toContain(
+      "vivi inbox <url>",
     );
     expect(result.stdout).toContain("Changed-file context:");
     expect(result.stdout).toContain("Debug/recovery:");
@@ -117,9 +121,12 @@ it("documents npm as a local Go CLI delegate, not a TypeScript CLI path", () => 
 
   for (const text of [readme, install]) {
     expect(text).toContain("canonical Go CLI");
-    expect(text).toContain("comments work");
+    expect(text).toContain("vivi inbox");
+    expect(text).toContain("vivi reply");
   }
   expect(cliContract).toContain("Go CLI/backend");
+  expect(cliContract).toContain("vivi inbox <url>");
+  expect(cliContract).toContain("vivi reply <url> <thread-id>");
   expect(cliContract).toContain("comments work");
   expect(readme).toContain("npm exec -- vivi --help");
   expect(cliContract).toContain("comments watch");

@@ -14,14 +14,19 @@ func TestHelpTextSurfacesAgentCommentsLoop(t *testing.T) {
 	help := helpText()
 	for _, command := range []string{
 		"vivi - local review adapter",
+		"vivi inbox <url> [--read-as codex|claude]",
+		"vivi claim <url> <thread-id> --actor codex|claude",
+		"vivi release <url> <thread-id> --actor codex|claude [--body <text>|--body-file <path|->]",
+		"vivi reply <url> <thread-id> --actor codex|claude (--body <text>|--body-file <path|->) [--resolve|--archive]",
 		"vivi review <queue|bases|diff> [options]",
 		"vivi comments <work|doctor|mine|check|triage|release|done|dismiss> [options]",
 		"vivi comments <protocol|schema|inbox|watch|follow|claim|renew|hold|active|next|list|show|context|reply|resolve|archive|reopen> [advanced]",
 		"Human:",
 		"vivi [root] --open",
 		"Agent:",
-		"vivi [root] --port 0 --ready-json --actor <actor>",
-		"vivi comments work --actor <actor> --loop --url <url> --json",
+		"vivi inbox <url>",
+		"vivi inbox <url> --read-as codex",
+		"vivi reply <url> <thread-id> --actor codex --body <text>",
 		"Changed-file context:",
 		"vivi review queue --actor <actor> --json",
 		"Debug/recovery:",
@@ -37,17 +42,17 @@ func TestHelpTextSurfacesAgentCommentsLoop(t *testing.T) {
 }
 
 func TestServerReadyPayloadIncludesResolvedURLAndAgentCommands(t *testing.T) {
-	payload := newServerReadyPayload("/work/linux", "http://127.0.0.1:59432", "")
+	payload := newServerReadyPayload("/work/linux", "http://127.0.0.1:59432")
 
-	if payload.SchemaVersion != 1 || payload.Event != "vivi_server_ready" || payload.Root != "/work/linux" || payload.URL != "http://127.0.0.1:59432" || payload.Actor != "" {
+	if payload.SchemaVersion != 1 || payload.Event != "vivi_server_ready" || payload.Root != "/work/linux" || payload.URL != "http://127.0.0.1:59432" {
 		t.Fatalf("unexpected ready payload metadata: %#v", payload)
 	}
 	if len(payload.SuggestedCommands) != 3 {
 		t.Fatalf("expected three suggested commands, got %#v", payload.SuggestedCommands)
 	}
-	configureCommand := payload.SuggestedCommands[0]
-	if configureCommand.Intent != "configure_agent_actor" || configureCommand.Command != "comments doctor" || !configureCommand.Primary || configureCommand.DisplayCommand != "vivi comments doctor --url http://127.0.0.1:59432 --json" || !containsString(configureCommand.Args, "--url") || !containsString(configureCommand.Args, "http://127.0.0.1:59432") || !containsString(configureCommand.Args, "--json") {
-		t.Fatalf("ready payload should make actor configuration primary without --actor: %#v", configureCommand)
+	inboxCommand := payload.SuggestedCommands[0]
+	if inboxCommand.Intent != "read_agent_inbox" || inboxCommand.Command != "inbox" || !inboxCommand.Primary || inboxCommand.DisplayCommand != "vivi inbox http://127.0.0.1:59432" || !containsString(inboxCommand.Args, "inbox") || !containsString(inboxCommand.Args, "http://127.0.0.1:59432") {
+		t.Fatalf("ready payload should make top-level inbox primary: %#v", inboxCommand)
 	}
 	reviewCommand := payload.SuggestedCommands[1]
 	if reviewCommand.Intent != "inspect_review_queue_context" || reviewCommand.Command != "review queue" || reviewCommand.DisplayCommand != "vivi review queue --url http://127.0.0.1:59432 --json" || !containsString(reviewCommand.Args, "--url") || !containsString(reviewCommand.Args, "http://127.0.0.1:59432") || !containsString(reviewCommand.Args, "--json") {
@@ -68,26 +73,6 @@ func TestServerReadyPayloadIncludesResolvedURLAndAgentCommands(t *testing.T) {
 	}
 	if decoded.Event != payload.Event || decoded.URL != payload.URL {
 		t.Fatalf("decoded ready payload lost metadata: %#v", decoded)
-	}
-}
-
-func TestServerReadyPayloadCanCarryAgentActor(t *testing.T) {
-	payload := newServerReadyPayload("/work/linux", "http://127.0.0.1:59432", " codex ")
-
-	if payload.Actor != "codex" {
-		t.Fatalf("ready payload actor = %q", payload.Actor)
-	}
-	if len(payload.SuggestedCommands) != 3 {
-		t.Fatalf("expected three suggested commands, got %#v", payload.SuggestedCommands)
-	}
-	workCommand := payload.SuggestedCommands[0]
-	if workCommand.Intent != "start_resident_work_loop" || workCommand.Command != "comments work" || !workCommand.Primary || workCommand.ClientEventID != "server-ready:codex:work" || workCommand.OutputMode != "agent_safe" || workCommand.IdlePolicy == "" || containsString(workCommand.Args, "--wait") || !containsString(workCommand.Args, "--loop") || containsString(workCommand.Args, "--idle-events") || !containsString(workCommand.Args, "--activity-limit") || !containsString(workCommand.Args, "--comment-limit") {
-		t.Fatalf("actor-ready payload should make comments work primary: %#v", workCommand)
-	}
-	for _, command := range payload.SuggestedCommands {
-		if !containsString(command.Args, "--actor") || !containsString(command.Args, "codex") || !containsString(command.Args, "--url") || !containsString(command.Args, "http://127.0.0.1:59432") {
-			t.Fatalf("actor-ready suggestion missing resolved actor or url: %#v", command)
-		}
 	}
 }
 

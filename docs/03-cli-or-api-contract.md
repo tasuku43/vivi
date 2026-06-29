@@ -15,10 +15,17 @@ vivi [root] --port 4317
 vivi [root] --host 127.0.0.1
 vivi [root] --open
 vivi [root] --port 0 --ready-json
-vivi [root] --port 0 --ready-json --actor codex
 vivi [root] --include md,html,ts,tsx,json
 vivi [root] --max-file-size 1048576
 vivi [root] --allow-html-scripts
+vivi inbox http://127.0.0.1:4317
+vivi inbox http://127.0.0.1:4317 --read-as codex
+vivi claim http://127.0.0.1:4317 <thread-id> --actor codex
+vivi release http://127.0.0.1:4317 <thread-id> --actor codex
+vivi release http://127.0.0.1:4317 <thread-id> --actor codex --body-file /tmp/vivi-handoff.md
+vivi reply http://127.0.0.1:4317 <thread-id> --actor codex --body "Implemented"
+vivi reply http://127.0.0.1:4317 <thread-id> --actor codex --resolve --body-file /tmp/vivi-reply.md
+vivi reply http://127.0.0.1:4317 <thread-id> --actor codex --archive --body-file -
 vivi comments work --actor codex --loop --json
 vivi comments work --once --actor codex --full --json
 vivi comments mine --actor codex --json
@@ -89,6 +96,11 @@ Default root: `.`
 
 Default host: `127.0.0.1`
 
+Default port: `4317`. When that default port is unavailable and the user did
+not pass `--port`, the launcher increments mechanically to the next available
+local port, such as `4318` or `4319`. Explicit `--port` values still fail if
+that port cannot be bound.
+
 Default security posture: local-only, sandboxed HTML preview, local CSS enabled for practical artifact inspection, and HTML script execution disabled. Use `--allow-html-scripts` only when intentionally reviewing generated HTML that needs script execution.
 
 Default rich preview limit: `1048576` bytes. Use `--max-file-size <bytes>` to change it for the current local run.
@@ -96,24 +108,52 @@ Default rich preview limit: `1048576` bytes. Use `--max-file-size <bytes>` to ch
 Pass `--ready-json` when a launcher or coding agent needs a stable startup
 handoff. After the local server is listening, Vivi emits one JSON object on
 stdout with `event: "vivi_server_ready"`, the selected root, the resolved server
-URL, and `suggestedCommands` that already include the resolved `--url`. Add
-`--actor <id>` to include the agent actor in those startup suggestions. With an
-actor, the primary startup suggestion is `comments work --loop`, which
-is the agent-facing feedback loop and stays silent while no work or thread
-activity is available. `review queue` remains available as optional changed-file
-context, and `comments doctor` remains the online readiness and recovery check.
-Without an actor, the primary startup
-suggestion is a `comments doctor` retry that configures the agent actor first.
+URL, and `suggestedCommands` that already include that resolved URL. Server
+launch does not choose an agent identity. The primary startup suggestion is the
+top-level `inbox <url>` command, which passively queries open human comments
+for that specific Vivi server. `review queue` remains available as optional
+changed-file context, and `comments doctor` remains the online readiness and
+recovery check.
 The top-level `vivi --help` output presents the CLI as human launch, agent
 loop, changed-file context, and debug/recovery lanes, so a CLI user can choose
 the right surface before opening the deeper `comments work`, `review`, or
 `comments` help screens.
 
+### Top-level agent comment pipe
+
+The first user-facing agent surface is intentionally small:
+
+```bash
+vivi inbox <url>
+vivi inbox <url> --read-as codex
+vivi claim <url> <thread-id> --actor codex
+vivi release <url> <thread-id> --actor codex [--body <text>|--body-file <path|->]
+vivi reply <url> <thread-id> --actor codex (--body <text>|--body-file <path|->) [--resolve|--archive]
+```
+
+`inbox` requires an explicit URL because multiple Vivi servers may run at the
+same time. Plain `inbox <url>` is passive and does not send actor headers or
+create read receipts. Use `--read-as codex` or `--read-as claude` only when the
+browser should show that a named agent read the thread.
+
+`reply` is the write surface. It always requires `--actor`, and the accepted
+facade actors are `codex` and `claude`; `claude` maps internally to the existing
+`claude_code` actor kind. Unsupported actors are CLI usage errors. `reply` is
+non-interactive: pass `--body <text>` or `--body-file <path|->`; it never waits
+for terminal input unless stdin is explicitly requested with `--body-file -`.
+Without a lifecycle flag the thread remains open. `--resolve` posts the reply
+and resolves the thread. `--archive` posts the reply and archives the thread.
+
+`claim` and `release` are the small ownership primitives for multi-agent work.
+They can be used directly when several sub-agents may pick up the same thread.
+`release` may include a handoff body before releasing the claim.
+
 ### Agent comments CLI
 
-`vivi comments` is the stable JSON-first CLI surface for coding agents that
-need to work through local comment threads. It talks to a running Vivi server
-through GraphQL and does not edit comment storage directly. The server URL is
+`vivi comments` remains the stable JSON-first lower-level CLI surface for
+adapter authors and recovery workflows that need the full comment protocol. It
+talks to a running Vivi server through GraphQL and does not edit comment storage
+directly. The server URL is
 resolved from `--url`, then `VIVI_URL`, then `http://127.0.0.1:4317`.
 When that server is not reachable, the JSON error envelope includes structured
 `suggestedCommands` for loading the offline protocol, starting `vivi` for the
@@ -130,7 +170,7 @@ restart-safe receipt recovery, help tells it to keep the selected
 `--receipt-log` on startup, resident loops, and suggested writes. Adapters can
 orient from help text before relying on hard-coded command recipes.
 
-For a durable agent loop, use:
+For a durable advanced adapter loop, use:
 
 ```bash
 vivi . --port 0 --ready-json --actor codex

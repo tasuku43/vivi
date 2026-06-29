@@ -64,8 +64,11 @@ agent-facing CLI path and includes the local server launcher plus
 vivi .
 vivi ./docs
 vivi ./dist --open
-vivi . --port 0 --ready-json --actor codex
-vivi comments work --actor codex --wait --loop --idle-events --idle-on-change --json
+vivi . --ready-json
+vivi inbox http://127.0.0.1:4317
+vivi inbox http://127.0.0.1:4317 --read-as codex
+vivi reply http://127.0.0.1:4317 <thread-id> --actor codex --body "Fixed."
+vivi reply http://127.0.0.1:4317 <thread-id> --actor codex --resolve --body-file /tmp/vivi-reply.md
 vivi review queue --actor codex --json
 vivi . --include md,html,ts,tsx,json,css,png,jpg
 vivi . --max-file-size 2097152
@@ -75,6 +78,8 @@ vivi . --allow-html-scripts
 Defaults:
 
 - binds locally by default,
+- uses `127.0.0.1:4317`, incrementing to the next available local port when
+  that default is already busy,
 - serves only the selected workspace,
 - ignores `.git`, `node_modules`, and common build caches,
 - renders HTML in a sandboxed iframe,
@@ -103,12 +108,17 @@ reply to, resolve, or archive those threads through the CLI and GraphQL API.
 This keeps the human-facing UI visual and low-friction while keeping the
 agent-facing interface structured and deterministic.
 
-For coding agents, `comments work` is the primary feedback loop. Start Vivi
-with `--ready-json --actor <actor>`, then run the primary suggested
-`comments work --loop --url <url> --json` command from that ready payload.
+For coding agents, the first public surface is the top-level comment pipe:
+`inbox <url>` reads open human feedback from a specific running Vivi server,
+and `reply <url> <thread-id> --actor codex|claude` writes back. Plain
+`inbox <url>` is a passive query; add `--read-as codex` or `--read-as claude`
+only when the browser should show an explicit read receipt. `reply` is
+non-interactive and requires `--body <text>` or `--body-file <path|->`; add
+`--resolve` or `--archive` when the reply should also close the thread. Use
+`claim` and `release` when multiple sub-agents need an ownership handoff.
 `review queue` and `review diff` are changed-file context helpers; they are not
-the human-feedback intake loop. `protocol`, `schema`, `watch`, `follow`, and
-raw `claim` remain available for adapter authors, debugging, and recovery.
+the human-feedback intake loop. The deeper `comments` commands remain available
+for adapter authors, debugging, protocol inspection, and recovery.
 
 ## Product Boundary
 

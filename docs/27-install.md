@@ -53,8 +53,9 @@ canonical Go CLI used by the release binary:
 
 ```bash
 npm exec -- vivi --help
-npm exec -- vivi . --port 0 --ready-json --actor codex
-npm exec -- vivi comments work --actor codex --loop --json
+npm exec -- vivi . --ready-json
+npm exec -- vivi inbox http://127.0.0.1:4317
+npm exec -- vivi reply http://127.0.0.1:4317 <thread-id> --actor codex --body "Fixed."
 ```
 
 This npm path is for repository development and requires Go. npm is not a

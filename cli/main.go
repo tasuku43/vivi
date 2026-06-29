@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"os/exec"
@@ -44,6 +45,9 @@ func invokedViviExecutable(args []string) string {
 }
 
 func run(args []string) error {
+	if len(args) > 0 && isTopLevelAgentCommand(args[0]) {
+		return runTopLevelAgentCommand(context.Background(), args, os.Stdout)
+	}
 	if len(args) > 0 && args[0] == "comments" {
 		err := runCommentsCommand(context.Background(), args[1:], os.Stdout)
 		if err != nil && commentsWantsJSON(args[1:]) {
@@ -62,6 +66,7 @@ func run(args []string) error {
 	flags.SetOutput(os.Stdout)
 	host := flags.String("host", "127.0.0.1", "host to bind")
 	port := flags.Int("port", 4317, "port to bind")
+	portExplicit := hasFlagArg(args, "port")
 	open := flags.Bool("open", false, "open browser after startup")
 	include := flags.String("include", "", "comma-separated extension allow-list")
 	maxFileSize := flags.Int64("max-file-size", 1024*1024, "rich preview byte limit")
@@ -69,7 +74,7 @@ func run(args []string) error {
 	noHTMLScripts := flags.Bool("no-html-scripts", false, "keep HTML preview scripts disabled")
 	gitTimeout := flags.Duration("git-review-timeout", 2*time.Second, "Git review timeout")
 	logLevel := flags.String("log-level", "info", "log level")
-	actor := flags.String("actor", "", "review actor id for browser comments and ready JSON suggested commands")
+	actor := flags.String("actor", "", "review actor id for browser comments")
 	readyJSON := flags.Bool("ready-json", false, "print a JSON server-ready event after startup")
 	showVersion := flags.Bool("version", false, "print version")
 	flags.Usage = func() { fmt.Fprintln(flags.Output(), helpText()) }
@@ -120,7 +125,7 @@ func run(args []string) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	httpServer, err := server.Start(ctx, server.Options{
+	httpServer, err := startViviServer(ctx, server.Options{
 		Host:             *host,
 		Port:             *port,
 		Workspace:        workspaceFS,
@@ -128,17 +133,18 @@ func run(args []string) error {
 		Comments:         commentStore,
 		AllowHTMLScripts: *allowHTMLScripts,
 		ReviewActor:      reviewActorFromFlag(*actor),
-	})
+	}, !portExplicit && *port == 4317)
 	if err != nil {
 		return err
 	}
 	if *readyJSON {
-		if err := writeJSON(os.Stdout, newServerReadyPayload(workspaceFS.Config().Root, httpServer.URL(), *actor)); err != nil {
+		if err := writeJSON(os.Stdout, newServerReadyPayload(workspaceFS.Config().Root, httpServer.URL())); err != nil {
 			return err
 		}
 	} else {
 		fmt.Printf("Vivi serving %s\n", workspaceFS.Config().Root)
-		fmt.Println(httpServer.URL())
+		fmt.Printf("Browser: %s\n", httpServer.URL())
+		fmt.Printf("Agent inbox: %s inbox %s\n", viviExecutable, httpServer.URL())
 	}
 	if *open {
 		_ = openBrowser(httpServer.URL())
@@ -196,6 +202,10 @@ func helpText() string {
 		"",
 		"Usage:",
 		"  vivi [root] [--host 127.0.0.1] [--port 4317] [--open] [--include md,html,ts] [--max-file-size 1048576] [--allow-html-scripts]",
+		"  vivi inbox <url> [--read-as codex|claude]",
+		"  vivi claim <url> <thread-id> --actor codex|claude",
+		"  vivi release <url> <thread-id> --actor codex|claude [--body <text>|--body-file <path|->]",
+		"  vivi reply <url> <thread-id> --actor codex|claude (--body <text>|--body-file <path|->) [--resolve|--archive]",
 		"  vivi review <queue|bases|diff> [options]",
 		"  vivi comments <work|doctor|mine|check|triage|release|done|dismiss> [options]",
 		"  vivi comments <protocol|schema|inbox|watch|follow|claim|renew|hold|active|next|list|show|context|reply|resolve|archive|reopen> [advanced]",
@@ -204,8 +214,10 @@ func helpText() string {
 		"  vivi [root] --open",
 		"",
 		"Agent:",
-		"  vivi [root] --port 0 --ready-json --actor <actor>",
-		"  vivi comments work --actor <actor> --loop --url <url> --json",
+		"  vivi inbox <url>",
+		"  vivi inbox <url> --read-as codex",
+		"  vivi reply <url> <thread-id> --actor codex --body <text>",
+		"  vivi reply <url> <thread-id> --actor codex --resolve --body-file <path|->",
 		"",
 		"Changed-file context:",
 		"  vivi review queue --actor <actor> --json",
@@ -221,7 +233,7 @@ func helpText() string {
 		"",
 		"Options:",
 		"  --host <host>              Host to bind (default: 127.0.0.1)",
-		"  --port <port>              Port to bind (default: 4317, 0 for random)",
+		"  --port <port>              Port to bind (default: 4317, auto-increments when unavailable; 0 for random)",
 		"  --open                     Open the browser after startup",
 		"  --include <extensions>     Comma-separated extension allow-list",
 		"  --max-file-size <bytes>    Rich preview byte limit",
@@ -229,7 +241,6 @@ func helpText() string {
 		"  --no-html-scripts          Keep HTML preview scripts disabled",
 		"  --git-review-timeout <d>   Git review timeout such as 2s or 500ms",
 		"  --log-level <level>        Log level (default: info)",
-		"  --actor <actor>            Review actor id for browser comments and ready JSON suggested commands",
 		"  --ready-json               Print a JSON server-ready event after startup",
 		"  --version                  Print version",
 		"  --help                     Show this help",
@@ -241,41 +252,23 @@ type serverReadyPayload struct {
 	Event             string                    `json:"event"`
 	Root              string                    `json:"root"`
 	URL               string                    `json:"url"`
-	Actor             string                    `json:"actor,omitempty"`
 	SuggestedCommands []commentSuggestedCommand `json:"suggestedCommands"`
 }
 
-func newServerReadyPayload(root string, serverURL string, actor string) serverReadyPayload {
+func newServerReadyPayload(root string, serverURL string) serverReadyPayload {
+	inboxArgs := []string{"inbox", serverURL}
 	reviewArgs := []string{"review", "queue", "--url", serverURL}
 	doctorArgs := []string{"comments", "doctor", "--url", serverURL}
-	workArgs := []string{"comments", "work", "--url", serverURL}
-	if actor = strings.TrimSpace(actor); actor != "" {
-		reviewArgs = append(reviewArgs, "--actor", actor)
-		doctorArgs = append(doctorArgs, "--actor", actor)
-		workArgs = withURLArg(residentCommentsWorkCommand(actor, ""), serverURL)
-	}
 	reviewArgs = append(reviewArgs, "--json")
 	doctorArgs = append(doctorArgs, "--json")
-	suggestions := []commentSuggestedCommand{}
-	if actor != "" {
-		suggestions = append(suggestions, suggestedCommentsCommandWithClientEventID(
-			"start_resident_work_loop",
-			"comments work",
-			withAgentHistoryLimitArgs(workArgs),
+	suggestions := []commentSuggestedCommand{
+		suggestedCommentsCommand(
+			"read_agent_inbox",
+			"inbox",
+			inboxArgs,
 			"",
-			"Primary agent feedback loop: wait silently for GUI comments, claim work safely, keep the lease warm, and emit next-action suggestions only when work or thread activity changes.",
-			"server-ready:"+actor+":work",
-		).withPrimary().withOutput("agent_safe", "silent_until_claimable_work_or_thread_activity"))
-	} else {
-		suggestions = append(suggestions, suggestedCommentsCommand(
-			"configure_agent_actor",
-			"comments doctor",
-			doctorArgs,
-			"",
-			"Choose an --actor before starting the resident comments work loop.",
-		).withPrimary())
-	}
-	suggestions = append(suggestions,
+			"Poll this Vivi server for open human comments. Add --read-as codex or --read-as claude only when the GUI should show an explicit read receipt.",
+		).withPrimary().withOutput("agent_safe", "passive_until_read_as"),
 		suggestedCommentsCommand(
 			"inspect_review_queue_context",
 			"review queue",
@@ -290,13 +283,12 @@ func newServerReadyPayload(root string, serverURL string, actor string) serverRe
 			"",
 			"Optional online readiness and recovery check for receipt ledgers, actor setup, and owned live claims.",
 		),
-	)
+	}
 	return serverReadyPayload{
 		SchemaVersion:     1,
 		Event:             "vivi_server_ready",
 		Root:              root,
 		URL:               serverURL,
-		Actor:             actor,
 		SuggestedCommands: suggestions,
 	}
 }
@@ -311,6 +303,30 @@ func reviewActorFromFlag(actor string) *workspace.Actor {
 		Kind:        "human",
 		DisplayName: actor,
 	}
+}
+
+func startViviServer(ctx context.Context, options server.Options, incrementDefaultPort bool) (*server.Server, error) {
+	for {
+		httpServer, err := server.Start(ctx, options)
+		if err == nil {
+			return httpServer, nil
+		}
+		if !incrementDefaultPort || !addressAlreadyInUse(err) || options.Port <= 0 || options.Port >= 65535 {
+			return nil, err
+		}
+		options.Port++
+	}
+}
+
+func addressAlreadyInUse(err error) bool {
+	if errors.Is(err, syscall.EADDRINUSE) {
+		return true
+	}
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		return strings.Contains(strings.ToLower(opErr.Error()), "address already in use")
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "address already in use")
 }
 
 func splitFlagsAndPositionals(args []string) ([]string, []string) {
@@ -333,6 +349,20 @@ func splitFlagsAndPositionals(args []string) ([]string, []string) {
 		}
 	}
 	return flagArgs, positionals
+}
+
+func hasFlagArg(args []string, name string) bool {
+	long := "--" + name
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--" {
+			return false
+		}
+		if arg == long || strings.HasPrefix(arg, long+"=") {
+			return true
+		}
+	}
+	return false
 }
 
 func flagRequiresValue(arg string) bool {
