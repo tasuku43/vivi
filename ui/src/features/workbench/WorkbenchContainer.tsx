@@ -97,6 +97,7 @@ import {
   latestUnreadReviewItemPath,
   nextReviewQueueItemPath,
   summarizeReviewQueue,
+  syncUnreadReviewPaths,
 } from "../../state/review-queue.js";
 import {
   reviewChangeFingerprint,
@@ -1947,22 +1948,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }, [reviewChanges]);
 
   useEffect(() => {
-    const currentPaths = new Set(reviewItems.map((item) => item.path));
-    const newPaths = reviewItems
-      .map((item) => item.path)
-      .filter((path) => !knownReviewPaths.current.has(path));
-
-    for (const path of [...knownReviewPaths.current]) {
-      if (!currentPaths.has(path)) knownReviewPaths.current.delete(path);
-    }
-    for (const path of newPaths) knownReviewPaths.current.add(path);
-
-    setUnreadReviewPaths((paths) => [
-      ...newPaths.reverse(),
-      ...paths.filter(
-        (path) => currentPaths.has(path) && !newPaths.includes(path),
-      ),
-    ]);
+    setUnreadReviewPaths((paths) =>
+      syncUnreadReviewPaths(paths, reviewItems, knownReviewPaths.current),
+    );
   }, [reviewItems]);
 
   useEffect(() => {

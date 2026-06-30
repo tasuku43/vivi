@@ -400,6 +400,61 @@ inspector render surface; the front-end after-load path was slightly lighter,
 while the command-palette interaction window was modestly higher and should
 continue to be watched in future UI-heavy slices.
 
+### Chrome Render Helper regression check on 2026-07-01
+
+Regression symptom: opening the linux workspace in Chrome or the in-app browser
+could leave the renderer process near one full CPU core after the page appeared
+idle.
+
+Root cause: the Review Queue unread-path synchronization returned a fresh array
+on every render even when the path list was unchanged. That changed the
+`unreadReviewPathSet` dependency, rebuilt review items, and retriggered the
+same effect, producing a React render loop without any visible animation.
+
+Fix slice:
+
+- extracted unread review path synchronization into a stable state helper,
+- kept the previous array reference when synchronized paths are unchanged,
+- added a UI state test that asserts unchanged review items preserve the same
+  unread path array reference.
+
+Manual Chrome check on `/Users/tasuku/work/github.com/torvalds/linux`:
+
+| Check | Before fix | After fix |
+| --- | ---: | ---: |
+| Idle Chrome renderer after opening `Makefile` | 40-100% CPU after 20s | 0% after 20s, with brief 5-7% Git-poll blips |
+| 300-operation manual write storm | not applicable | transient 74% renderer peak, then back to 0-10% within a few seconds |
+
+Harness command:
+
+```bash
+VIVI_PERF_RUN_NAME=linux-render-helper-fix-2026-07-01 \
+  VIVI_PERF_WORKSPACE=/Users/tasuku/work/github.com/torvalds/linux \
+  VIVI_PERF_IDLE_MS=3500 \
+  VIVI_PERF_BURST_CHANGES=30 \
+  VIVI_PERF_BURST_DELAY_MS=20 \
+  VIVI_PERF_AGENT_STORM_OPS=300 \
+  VIVI_PERF_AGENT_STORM_FILES=60 \
+  VIVI_PERF_AGENT_STORM_DELAY_MS=0 \
+  VIVI_PERF_CLI_ITERATIONS=5 \
+  npm run perf:otel
+```
+
+Artifact:
+
+- `artifacts/perf/linux-render-helper-fix-2026-07-01.summary.json`
+
+Key harness values:
+
+| Scenario | Value |
+| --- | ---: |
+| `front_workspace` after-load JS heap / script / task | 7.0 MB / 41 ms / 126 ms |
+| `front_workspace` after-interaction JS heap / script / task | 12.3 MB / 86 ms / 195 ms |
+| `idle_watch` steady CPU time | 0 ms over 3.266s |
+| `change_burst` observed / first / last event | 30 of 30 / 1 ms / 629 ms |
+| `coding_agent_storm` observed / first / last event | 60 of 60 / 16 ms / 133 ms |
+| `coding_agent_storm` storm CPU time | 30 ms over 1.750s |
+
 ### Production-readiness performance targets
 
 These targets define the line Vivi should reach before it is considered

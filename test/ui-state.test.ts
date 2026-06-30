@@ -138,6 +138,7 @@ import {
   reviewQueueItemHasAgentReply,
   reviewQueuePosition,
   summarizeReviewQueue,
+  syncUnreadReviewPaths,
 } from "../ui/src/state/review-queue.js";
 import { summarizeReviewLifecycle } from "../ui/src/state/review-lifecycle.js";
 import { buildReviewNextAction } from "../ui/src/state/review-next-action.js";
@@ -1499,6 +1500,29 @@ it("does not poll partial Git review results after untracked status times out", 
       changes: [{ path: "README.md", status: "modified" }],
     }),
   ).toBe(false);
+});
+
+it("keeps unread review path state stable when review items are unchanged", () => {
+  const knownPaths = new Set(["README.md", "src/app.ts"]);
+  const current = ["src/app.ts", "README.md"];
+  const unchanged = syncUnreadReviewPaths(
+    current,
+    [{ path: "README.md" }, { path: "src/app.ts" }],
+    knownPaths,
+  );
+
+  expect(unchanged).toBe(current);
+  expect([...knownPaths].sort()).toEqual(["README.md", "src/app.ts"]);
+
+  const withNewPath = syncUnreadReviewPaths(
+    unchanged,
+    [{ path: "README.md" }, { path: "docs/new.md" }],
+    knownPaths,
+  );
+
+  expect(withNewPath).toEqual(["docs/new.md", "README.md"]);
+  expect(withNewPath).not.toBe(current);
+  expect([...knownPaths].sort()).toEqual(["README.md", "docs/new.md"]);
 });
 
 it("waits for the file tree before requesting the initial Git review", () => {

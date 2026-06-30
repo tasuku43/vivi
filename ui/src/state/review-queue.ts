@@ -190,6 +190,36 @@ export function reviewQueuePosition(
   };
 }
 
+export function syncUnreadReviewPaths(
+  paths: string[],
+  items: readonly Pick<ReviewQueueItem, "path">[],
+  knownPaths: Set<string>,
+): string[] {
+  const currentPaths = new Set(items.map((item) => item.path));
+  const newPaths = items
+    .map((item) => item.path)
+    .filter((path) => !knownPaths.has(path));
+
+  for (const path of [...knownPaths]) {
+    if (!currentPaths.has(path)) knownPaths.delete(path);
+  }
+  for (const path of newPaths) knownPaths.add(path);
+
+  const nextPaths = [
+    ...newPaths.reverse(),
+    ...paths.filter(
+      (path) => currentPaths.has(path) && !newPaths.includes(path),
+    ),
+  ];
+  if (
+    nextPaths.length === paths.length &&
+    nextPaths.every((path, index) => path === paths[index])
+  ) {
+    return paths;
+  }
+  return nextPaths;
+}
+
 export function pinActiveReviewQueueItem(
   items: ReviewQueueItem[],
   currentPath: string | null,
