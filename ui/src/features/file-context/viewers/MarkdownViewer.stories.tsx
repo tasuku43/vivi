@@ -513,7 +513,7 @@ const markerPlacementComments: ViviComment[] = [
 ];
 
 export const RenderedMarkerPlacement: Story = {
-  tags: ["interaction"],
+  tags: ["interaction", "snapshot-ready"],
   args: {
     mode: "rendered",
     file: {
@@ -591,7 +591,10 @@ export const RenderedMarkerPlacement: Story = {
     await expect(codeMarkerRect.left).toBeGreaterThan(codeBlockRect.left + 180);
     await expect(codeMarkerRect.right).toBeLessThan(codeBlockRect.right);
     await userEvent.click(codeMarker);
-    await expect(canvas.getByText("Lines 8-12")).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("article", { name: "Comment thread for lines 8-12" }),
+    ).toBeVisible();
+    await expect(canvas.getByText("Lines 8-12")).toBeVisible();
     await waitFor(() =>
       expect(
         Math.abs(
@@ -606,6 +609,7 @@ export const RenderedMarkerPlacement: Story = {
       5,
     );
     await expect(listMetricsAfterCodeOpen.height).toBeLessThanOrEqual(36);
+    canvasElement.dataset.viviSnapshotReady = "true";
   },
 };
 
