@@ -10,6 +10,10 @@ import {
   sampleThreadActivities,
 } from "../../../storybook/fixtures/review-lab.js";
 import { DiffViewer } from "./DiffViewer.js";
+import {
+  RenderedChangeCardsFacade,
+  type RenderedChangeCard,
+} from "./RenderedChangeCardsFacade.js";
 
 const meta = {
   title: "Review/Diff States",
@@ -225,6 +229,171 @@ export const RenderedHtmlComment: Story = {
     diff: htmlDiff,
     comments: commentsForPath(sampleFiles.html.path),
     activeCommentId: "comment-html-rendered",
+  },
+};
+
+const renderedChangeCards: RenderedChangeCard[] = [
+  {
+    id: "markdown-intro-change",
+    kind: "changed",
+    surface: "markdown",
+    title: "Changed paragraph",
+    path: sampleFiles.markdown.path,
+    meta: "Markdown paragraph · old line 3 -> new line 3",
+    beforeLabel: "Before · HEAD",
+    afterLabel: "After · working tree",
+    before: {
+      kind: "markdown",
+      body: "Vivi keeps review comments near files.",
+    },
+    after: {
+      kind: "markdown",
+      body: "Vivi keeps the human review surface close to the files that changed.",
+    },
+    sourceRows: [
+      {
+        line: "-3",
+        kind: "remove",
+        text: "Vivi keeps review comments near files.",
+      },
+      {
+        line: "+3",
+        kind: "add",
+        text: "Vivi keeps the human review surface close to the files that changed.",
+      },
+    ],
+  },
+  {
+    id: "markdown-contract-added",
+    kind: "added",
+    surface: "markdown",
+    title: "Added review contract",
+    path: sampleFiles.markdown.path,
+    meta: "Markdown paragraph · new lines 7-8",
+    afterLabel: "Added · working tree",
+    after: {
+      kind: "markdown",
+      body: "Comment threads are the shared contract between the browser UI and coding agents.",
+    },
+    sourceRows: [
+      {
+        line: "+7",
+        kind: "add",
+        text: "Comment threads are the shared contract between the browser UI and coding agents.",
+      },
+      { line: "+8", kind: "add", text: "" },
+    ],
+    comment: commentsForPath(sampleFiles.markdown.path).find(
+      (comment) => comment.id === "comment-md-rendered",
+    ),
+  },
+  {
+    id: "html-preview-copy",
+    kind: "changed",
+    surface: "html",
+    title: "HTML preview copy",
+    path: sampleFiles.html.path,
+    meta: "review-preview.html · old line 7 -> new lines 7-8",
+    beforeLabel: "Before · HEAD",
+    afterLabel: "After · working tree",
+    before: {
+      kind: "html",
+      heading: "Review Preview",
+      body: "Comments map back to source blocks.",
+    },
+    after: {
+      kind: "html",
+      heading: "Review Preview",
+      body: "Rendered HTML comments map back to source blocks.",
+      action: "Approve local preview",
+    },
+    sourceRows: [
+      {
+        line: "-7",
+        kind: "remove",
+        text: "<p>Comments map back to source blocks.</p>",
+      },
+      {
+        line: "+7",
+        kind: "add",
+        text: "<p>Rendered HTML comments map back to source blocks.</p>",
+      },
+      {
+        line: "+8",
+        kind: "add",
+        text: "<button>Approve local preview</button>",
+      },
+    ],
+    comment: commentsForPath(sampleFiles.html.path).find(
+      (comment) => comment.id === "comment-html-rendered",
+    ),
+  },
+  {
+    id: "removed-rendered-note",
+    kind: "removed",
+    surface: "markdown",
+    title: "Removed note",
+    path: sampleFiles.markdown.path,
+    meta: "Ghost rendered block · old line 12",
+    beforeLabel: "Removed · HEAD",
+    before: {
+      kind: "markdown",
+      body: "Previous note: rendered comments are experimental in preview mode.",
+    },
+    sourceRows: [
+      {
+        line: "-12",
+        kind: "remove",
+        text: "Previous note: rendered comments are experimental in preview mode.",
+      },
+    ],
+  },
+];
+
+export const RenderedChangeCards: Story = {
+  name: "Rendered change cards facade",
+  tags: ["interaction"],
+  render: () => (
+    <RenderedChangeCardsFacade
+      markdownFile={sampleFiles.markdown}
+      markdownDiff={markdownDiff}
+      cards={renderedChangeCards}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("region", { name: "Rendered change cards facade" }),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByTestId("rendered-change-cards-subtitle"),
+    ).toHaveTextContent("source diff remains canonical");
+
+    const addedStatus = canvas.getByRole("button", {
+      name: "Select Added review contract",
+    });
+    await userEvent.click(addedStatus);
+    await expect(addedStatus).toHaveAttribute("aria-pressed", "true");
+
+    const addedCard = canvas.getByRole("article", {
+      name: "Added review contract rendered change card",
+    });
+    const addedCardCanvas = within(addedCard);
+    await expect(
+      addedCardCanvas.getByLabelText("Source hunk preview"),
+    ).toBeVisible();
+    await userEvent.click(
+      addedCardCanvas.getByRole("button", { name: "Hide source hunk" }),
+    );
+    await expect(
+      addedCardCanvas.queryByLabelText("Source hunk preview"),
+    ).not.toBeInTheDocument();
+    await userEvent.click(
+      addedCardCanvas.getByRole("button", { name: "Show source hunk" }),
+    );
+    await expect(
+      addedCardCanvas.getByLabelText("Source hunk preview"),
+    ).toBeVisible();
   },
 };
 
