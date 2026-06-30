@@ -1,0 +1,994 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rendered change cards - Vivi mock</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --vivi-color-canvas: #0d1118;
+        --vivi-color-sidebar: #111821;
+        --vivi-color-panel: #151d28;
+        --vivi-color-panel-raised: #192231;
+        --vivi-color-panel-soft: #101722;
+        --vivi-color-reader: #f7f9fc;
+        --vivi-color-reader-muted: #5d6675;
+        --vivi-color-reader-text: #202833;
+        --vivi-color-border: #263345;
+        --vivi-color-border-strong: #34445b;
+        --vivi-color-text: #dce6f2;
+        --vivi-color-muted: #8f9daf;
+        --vivi-color-subtle: #657387;
+        --vivi-color-accent: #58c7d8;
+        --vivi-color-accent-soft: rgba(88, 199, 216, 0.14);
+        --vivi-color-add: #55c78a;
+        --vivi-color-add-soft: rgba(85, 199, 138, 0.16);
+        --vivi-color-remove: #ec6f78;
+        --vivi-color-remove-soft: rgba(236, 111, 120, 0.16);
+        --vivi-color-change: #d8a955;
+        --vivi-color-change-soft: rgba(216, 169, 85, 0.16);
+        --vivi-color-comment: #6fd0dc;
+        --vivi-color-comment-soft: rgba(111, 208, 220, 0.14);
+        --shadow: 0 18px 44px rgba(1, 5, 12, 0.35);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--vivi-color-canvas);
+        color: var(--vivi-color-text);
+      }
+
+      body {
+        overflow: hidden;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .app {
+        display: grid;
+        grid-template-columns: 260px minmax(680px, 1fr) 310px;
+        grid-template-rows: 38px 1fr 28px;
+        height: 100vh;
+        min-width: 1180px;
+      }
+
+      .topbar {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--vivi-color-border);
+        background: #0c1118;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 185px;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .brand-mark {
+        width: 18px;
+        height: 18px;
+        border: 1px solid rgba(88, 199, 216, 0.8);
+        border-radius: 5px;
+        background:
+          linear-gradient(90deg, rgba(88, 199, 216, 0.2) 1px, transparent 1px),
+          linear-gradient(rgba(88, 199, 216, 0.18) 1px, transparent 1px);
+        background-size: 6px 6px;
+      }
+
+      .path-chip,
+      .status-chip,
+      .small-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 22px;
+        border: 1px solid var(--vivi-color-border);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.025);
+        color: var(--vivi-color-muted);
+        font-size: 12px;
+        padding: 0 9px;
+        white-space: nowrap;
+      }
+
+      .path-chip {
+        min-width: 0;
+        max-width: 36vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .top-spacer {
+        flex: 1;
+      }
+
+      .sidebar {
+        grid-column: 1 / 2;
+        grid-row: 2 / 3;
+        border-right: 1px solid var(--vivi-color-border);
+        background: var(--vivi-color-sidebar);
+        overflow: hidden;
+      }
+
+      .side-section {
+        padding: 12px 10px 2px;
+      }
+
+      .side-label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: var(--vivi-color-subtle);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        margin: 0 0 8px;
+      }
+
+      .tree-node,
+      .queue-row,
+      .thread-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        min-height: 28px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--vivi-color-muted);
+        font-size: 12px;
+        text-align: left;
+        padding: 5px 8px;
+      }
+
+      .tree-node.active,
+      .queue-row.active {
+        background: var(--vivi-color-accent-soft);
+        color: var(--vivi-color-text);
+        box-shadow: inset 2px 0 0 var(--vivi-color-accent);
+      }
+
+      .tree-node.indent {
+        padding-left: 22px;
+      }
+
+      .tree-node .mark {
+        width: 7px;
+        height: 7px;
+        border-radius: 99px;
+        background: var(--vivi-color-change);
+      }
+
+      .tree-node .file {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .queue-row {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        min-height: 42px;
+      }
+
+      .queue-row strong {
+        display: block;
+        color: inherit;
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .queue-row small {
+        display: block;
+        margin-top: 2px;
+        color: var(--vivi-color-subtle);
+        font-size: 11px;
+      }
+
+      .delta {
+        min-width: 34px;
+        border: 1px solid var(--vivi-color-border);
+        border-radius: 999px;
+        color: var(--vivi-color-change);
+        font-size: 11px;
+        font-weight: 750;
+        text-align: center;
+        padding: 2px 6px;
+      }
+
+      .main {
+        grid-column: 2 / 3;
+        grid-row: 2 / 3;
+        display: grid;
+        grid-template-rows: 42px 1fr;
+        min-width: 0;
+        overflow: hidden;
+        background: #0e131b;
+      }
+
+      .tabs {
+        display: flex;
+        align-items: end;
+        gap: 1px;
+        padding: 6px 8px 0;
+        border-bottom: 1px solid var(--vivi-color-border);
+        background: var(--vivi-color-panel-soft);
+      }
+
+      .tab {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 150px;
+        max-width: 235px;
+        height: 34px;
+        border: 1px solid transparent;
+        border-bottom: 0;
+        border-radius: 7px 7px 0 0;
+        color: var(--vivi-color-muted);
+        font-size: 12px;
+        padding: 0 10px;
+      }
+
+      .tab.active {
+        border-color: var(--vivi-color-border);
+        background: var(--vivi-color-panel);
+        color: var(--vivi-color-text);
+      }
+
+      .tab .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 99px;
+        background: var(--vivi-color-change);
+      }
+
+      .viewer {
+        min-height: 0;
+        overflow: auto;
+        padding: 14px 18px 26px;
+      }
+
+      .viewer-shell {
+        max-width: 1040px;
+        margin: 0 auto;
+      }
+
+      .viewer-toolbar {
+        position: sticky;
+        top: -14px;
+        z-index: 10;
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        align-items: center;
+        gap: 12px;
+        min-height: 46px;
+        border: 1px solid var(--vivi-color-border);
+        border-radius: 8px;
+        background: rgba(21, 29, 40, 0.96);
+        padding: 8px 10px 8px 12px;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+      }
+
+      .file-title strong {
+        display: block;
+        font-size: 13px;
+      }
+
+      .file-title span {
+        display: block;
+        margin-top: 2px;
+        color: var(--vivi-color-subtle);
+        font-size: 11px;
+      }
+
+      .segmented {
+        display: inline-grid;
+        grid-auto-flow: column;
+        border: 1px solid var(--vivi-color-border);
+        border-radius: 7px;
+        overflow: hidden;
+      }
+
+      .segmented span {
+        display: grid;
+        place-items: center;
+        min-width: 76px;
+        height: 28px;
+        color: var(--vivi-color-muted);
+        font-size: 12px;
+        border-left: 1px solid var(--vivi-color-border);
+        background: #101722;
+      }
+
+      .segmented span:first-child {
+        border-left: 0;
+      }
+
+      .segmented .active {
+        color: var(--vivi-color-text);
+        background: rgba(88, 199, 216, 0.14);
+      }
+
+      .change-summary {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin: 14px 0;
+      }
+
+      .summary-tile {
+        min-height: 66px;
+        border: 1px solid var(--vivi-color-border);
+        border-radius: 8px;
+        background: var(--vivi-color-panel);
+        padding: 10px 12px;
+      }
+
+      .summary-tile b {
+        display: block;
+        font-size: 18px;
+      }
+
+      .summary-tile span {
+        display: block;
+        margin-top: 4px;
+        color: var(--vivi-color-muted);
+        font-size: 12px;
+      }
+
+      .card-stack {
+        display: grid;
+        gap: 13px;
+      }
+
+      .change-card {
+        position: relative;
+        display: grid;
+        grid-template-columns: 8px minmax(0, 1fr);
+        border: 1px solid var(--vivi-color-border);
+        border-radius: 8px;
+        background: var(--vivi-color-panel);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .change-card.changed {
+        border-color: rgba(216, 169, 85, 0.42);
+      }
+
+      .change-card.added {
+        border-color: rgba(85, 199, 138, 0.42);
+      }
+
+      .change-card.removed {
+        border-color: rgba(236, 111, 120, 0.44);
+      }
+
+      .card-rail {
+        background: var(--vivi-color-change);
+      }
+
+      .added .card-rail {
+        background: var(--vivi-color-add);
+      }
+
+      .removed .card-rail {
+        background: var(--vivi-color-remove);
+      }
+
+      .card-body {
+        min-width: 0;
+      }
+
+      .card-head {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 10px;
+        align-items: center;
+        min-height: 46px;
+        border-bottom: 1px solid var(--vivi-color-border);
+        padding: 8px 12px;
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 850;
+        letter-spacing: 0.04em;
+        padding: 0 9px;
+        text-transform: uppercase;
+      }
+
+      .status.changed {
+        background: var(--vivi-color-change-soft);
+        color: #ffd278;
+      }
+
+      .status.added {
+        background: var(--vivi-color-add-soft);
+        color: #85e1ad;
+      }
+
+      .status.removed {
+        background: var(--vivi-color-remove-soft);
+        color: #ff9aa0;
+      }
+
+      .card-meta {
+        color: var(--vivi-color-muted);
+        font-size: 12px;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .card-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .icon-button,
+      .text-button {
+        display: inline-grid;
+        place-items: center;
+        min-width: 28px;
+        height: 28px;
+        border: 1px solid var(--vivi-color-border);
+        border-radius: 6px;
+        background: #111824;
+        color: var(--vivi-color-muted);
+        font-size: 12px;
+        padding: 0 8px;
+      }
+
+      .text-button.primary {
+        border-color: rgba(88, 199, 216, 0.42);
+        background: rgba(88, 199, 216, 0.12);
+        color: var(--vivi-color-text);
+      }
+
+      .render-area {
+        padding: 14px;
+      }
+
+      .before-after {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .render-pane {
+        min-width: 0;
+        border: 1px solid var(--vivi-color-border);
+        border-radius: 8px;
+        background: var(--vivi-color-reader);
+        color: var(--vivi-color-reader-text);
+        padding: 14px 16px;
+      }
+
+      .render-pane.old {
+        background:
+          linear-gradient(var(--vivi-color-remove-soft), var(--vivi-color-remove-soft)),
+          var(--vivi-color-reader);
+      }
+
+      .render-pane.new {
+        background:
+          linear-gradient(var(--vivi-color-add-soft), var(--vivi-color-add-soft)),
+          var(--vivi-color-reader);
+      }
+
+      .render-pane h1,
+      .render-pane h2,
+      .render-pane p {
+        margin: 0;
+      }
+
+      .render-pane h1 {
+        font-size: 24px;
+        line-height: 1.12;
+      }
+
+      .render-pane h2 {
+        font-size: 18px;
+        line-height: 1.22;
+      }
+
+      .render-pane p {
+        color: var(--vivi-color-reader-muted);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .render-pane + .render-pane {
+        margin-top: 10px;
+      }
+
+      .pane-label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 0 0 8px;
+        color: var(--vivi-color-reader-muted);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .html-preview-card {
+        display: grid;
+        gap: 10px;
+        max-width: 430px;
+        border: 1px solid #d8dde6;
+        border-radius: 7px;
+        background: #ffffff;
+        padding: 20px;
+      }
+
+      .html-preview-card h1 {
+        margin: 0;
+        color: #202833;
+        font-size: 25px;
+        line-height: 1.15;
+      }
+
+      .html-preview-card p {
+        margin: 0;
+        color: #566171;
+      }
+
+      .html-preview-card button {
+        justify-self: start;
+        height: 32px;
+        border: 0;
+        border-radius: 5px;
+        background: #20324b;
+        color: white;
+        padding: 0 12px;
+      }
+
+      .source-strip {
+        display: grid;
+        grid-template-columns: 52px 1fr;
+        gap: 0;
+        margin-top: 10px;
+        border: 1px solid var(--vivi-color-border);
+        border-radius: 7px;
+        overflow: hidden;
+        background: #0a1018;
+        color: #aab7c8;
+        font-family:
+          ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          Consolas,
+          monospace;
+        font-size: 11px;
+      }
+
+      .source-strip span {
+        padding: 7px 9px;
+      }
+
+      .source-strip span:nth-child(odd) {
+        border-right: 1px solid var(--vivi-color-border);
+        color: var(--vivi-color-subtle);
+        text-align: right;
+      }
+
+      .source-strip .add {
+        background: rgba(85, 199, 138, 0.1);
+        color: #96e6b7;
+      }
+
+      .source-strip .remove {
+        background: rgba(236, 111, 120, 0.1);
+        color: #ffadb2;
+      }
+
+      .gap-row {
+        display: grid;
+        place-items: center;
+        min-height: 32px;
+        border: 1px dashed var(--vivi-color-border-strong);
+        border-radius: 7px;
+        color: var(--vivi-color-subtle);
+        font-size: 12px;
+        background: rgba(255, 255, 255, 0.015);
+      }
+
+      .inspector {
+        grid-column: 3 / 4;
+        grid-row: 2 / 3;
+        border-left: 1px solid var(--vivi-color-border);
+        background: var(--vivi-color-sidebar);
+        overflow: auto;
+        padding: 12px;
+      }
+
+      .inspector-card {
+        border: 1px solid var(--vivi-color-border);
+        border-radius: 8px;
+        background: var(--vivi-color-panel);
+        margin-bottom: 12px;
+        overflow: hidden;
+      }
+
+      .inspector-card h2 {
+        margin: 0;
+        border-bottom: 1px solid var(--vivi-color-border);
+        color: var(--vivi-color-muted);
+        font-size: 11px;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        padding: 10px 11px;
+      }
+
+      .inspector-body {
+        padding: 9px;
+      }
+
+      .review-stop {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 8px;
+        align-items: start;
+        border-radius: 7px;
+        padding: 8px;
+      }
+
+      .review-stop.active {
+        background: var(--vivi-color-accent-soft);
+      }
+
+      .review-stop b {
+        display: block;
+        font-size: 12px;
+      }
+
+      .review-stop small {
+        display: block;
+        color: var(--vivi-color-subtle);
+        font-size: 11px;
+        margin-top: 2px;
+      }
+
+      .stop-mark {
+        width: 8px;
+        height: 28px;
+        border-radius: 999px;
+        background: var(--vivi-color-change);
+      }
+
+      .stop-mark.add {
+        background: var(--vivi-color-add);
+      }
+
+      .stop-mark.remove {
+        background: var(--vivi-color-remove);
+      }
+
+      .comment-thread {
+        border: 1px solid rgba(111, 208, 220, 0.25);
+        border-radius: 7px;
+        background: var(--vivi-color-comment-soft);
+        padding: 9px;
+      }
+
+      .comment-thread strong {
+        display: block;
+        font-size: 12px;
+      }
+
+      .comment-thread p {
+        margin: 7px 0 0;
+        color: var(--vivi-color-muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .statusbar {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border-top: 1px solid var(--vivi-color-border);
+        background: #0c1118;
+        color: var(--vivi-color-subtle);
+        font-size: 11px;
+        padding: 0 12px;
+      }
+
+      .statusbar .right {
+        margin-left: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark"></span><span>Vivi</span></div>
+        <div class="path-chip">~/work/vivi · review adapter</div>
+        <span class="status-chip">Git HEAD -> working tree</span>
+        <span class="status-chip">Rendered cards</span>
+        <div class="top-spacer"></div>
+        <span class="status-chip">127.0.0.1:4317</span>
+      </header>
+
+      <aside class="sidebar">
+        <section class="side-section">
+          <p class="side-label"><span>Files</span><span>6 changed</span></p>
+          <div class="tree-node"><span>▾</span><span class="file">docs</span></div>
+          <div class="tree-node indent active"><span class="mark"></span><span class="file">product-review.md</span></div>
+          <div class="tree-node"><span>▾</span><span class="file">ui</span></div>
+          <div class="tree-node indent"><span class="mark"></span><span class="file">review-preview.html</span></div>
+          <div class="tree-node indent"><span></span><span class="file">DiffViewer.tsx</span></div>
+          <div class="tree-node"><span>▸</span><span class="file">server</span></div>
+        </section>
+
+        <section class="side-section">
+          <p class="side-label"><span>Review queue</span><span>3 open</span></p>
+          <button class="queue-row active" type="button">
+            <span class="delta">+3</span>
+            <span><strong>product-review.md</strong><small>2 rendered cards · 1 comment</small></span>
+            <span>›</span>
+          </button>
+          <button class="queue-row" type="button">
+            <span class="delta">+2</span>
+            <span><strong>review-preview.html</strong><small>HTML rendered card · no reply</small></span>
+            <span>›</span>
+          </button>
+          <button class="queue-row" type="button">
+            <span class="delta">+8</span>
+            <span><strong>DiffViewer.tsx</strong><small>source diff · implementation</small></span>
+            <span>›</span>
+          </button>
+        </section>
+      </aside>
+
+      <main class="main">
+        <nav class="tabs" aria-label="Open files">
+          <div class="tab active"><span class="dot"></span><span>product-review.md</span></div>
+          <div class="tab"><span class="dot"></span><span>review-preview.html</span></div>
+          <div class="tab"><span></span><span>DiffViewer.tsx</span></div>
+        </nav>
+
+        <section class="viewer">
+          <div class="viewer-shell">
+            <div class="viewer-toolbar">
+              <div class="file-title">
+                <strong>product-review.md</strong>
+                <span>Rendered diff · HEAD -> working tree · source remains canonical</span>
+              </div>
+              <div class="segmented" aria-label="Viewer mode">
+                <span class="active">Rendered</span>
+                <span>Source</span>
+              </div>
+              <div class="segmented" aria-label="Diff mode">
+                <span class="active">Diff from HEAD</span>
+              </div>
+            </div>
+
+            <div class="change-summary">
+              <div class="summary-tile"><b>3</b><span>rendered change cards</span></div>
+              <div class="summary-tile"><b>1</b><span>replacement pair</span></div>
+              <div class="summary-tile"><b>1</b><span>open comment mapped to L7</span></div>
+              <div class="summary-tile"><b>4</b><span>unchanged blocks hidden</span></div>
+            </div>
+
+            <div class="card-stack">
+              <article class="change-card changed">
+                <div class="card-rail"></div>
+                <div class="card-body">
+                  <header class="card-head">
+                    <span class="status changed">Changed</span>
+                    <span class="card-meta">Markdown paragraph · old line 3 -> new line 3 · rendered block</span>
+                    <span class="card-actions">
+                      <button class="icon-button" title="Comment" type="button">◌</button>
+                      <button class="text-button primary" type="button">Open source hunk</button>
+                    </span>
+                  </header>
+                  <div class="render-area">
+                    <div class="before-after">
+                      <div>
+                        <p class="pane-label"><span>Before</span><span>HEAD</span></p>
+                        <div class="render-pane old">
+                          <p>Vivi keeps review comments near files.</p>
+                        </div>
+                      </div>
+                      <div>
+                        <p class="pane-label"><span>After</span><span>working tree</span></p>
+                        <div class="render-pane new">
+                          <p>Vivi keeps the human review surface close to the files that changed.</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="source-strip" aria-label="Source hunk preview">
+                      <span>-3</span><span class="remove">Vivi keeps review comments near files.</span>
+                      <span>+3</span><span class="add">Vivi keeps the human review surface close to the files that changed.</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <div class="gap-row">2 unchanged rendered blocks hidden</div>
+
+              <article class="change-card added">
+                <div class="card-rail"></div>
+                <div class="card-body">
+                  <header class="card-head">
+                    <span class="status added">Added</span>
+                    <span class="card-meta">Markdown paragraph · new lines 7-8 · comment anchor available</span>
+                    <span class="card-actions">
+                      <button class="icon-button" title="Open comment" type="button">1</button>
+                      <button class="text-button primary" type="button">Open source hunk</button>
+                    </span>
+                  </header>
+                  <div class="render-area">
+                    <div class="render-pane new">
+                      <p>Comment threads are the shared contract between the browser UI and coding agents.</p>
+                    </div>
+                    <div class="source-strip" aria-label="Source hunk preview">
+                      <span>+7</span><span class="add">Comment threads are the shared contract between the browser UI and coding agents.</span>
+                      <span>+8</span><span class="add">&nbsp;</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="change-card changed">
+                <div class="card-rail"></div>
+                <div class="card-body">
+                  <header class="card-head">
+                    <span class="status changed">HTML changed</span>
+                    <span class="card-meta">review-preview.html · rendered card mirrors iframe content without losing diff chrome</span>
+                    <span class="card-actions">
+                      <button class="icon-button" title="Comment" type="button">◌</button>
+                      <button class="text-button primary" type="button">Open HTML source</button>
+                    </span>
+                  </header>
+                  <div class="render-area">
+                    <div class="before-after">
+                      <div>
+                        <p class="pane-label"><span>Before</span><span>line 7</span></p>
+                        <div class="render-pane old">
+                          <div class="html-preview-card">
+                            <h1>Review Preview</h1>
+                            <p>Comments map back to source blocks.</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <p class="pane-label"><span>After</span><span>lines 7-8</span></p>
+                        <div class="render-pane new">
+                          <div class="html-preview-card">
+                            <h1>Review Preview</h1>
+                            <p>Rendered HTML comments map back to source blocks.</p>
+                            <button type="button">Approve local preview</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="source-strip" aria-label="HTML source hunk preview">
+                      <span>-7</span><span class="remove">&lt;p&gt;Comments map back to source blocks.&lt;/p&gt;</span>
+                      <span>+7</span><span class="add">&lt;p&gt;Rendered HTML comments map back to source blocks.&lt;/p&gt;</span>
+                      <span>+8</span><span class="add">&lt;button&gt;Approve local preview&lt;/button&gt;</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="change-card removed">
+                <div class="card-rail"></div>
+                <div class="card-body">
+                  <header class="card-head">
+                    <span class="status removed">Removed</span>
+                    <span class="card-meta">Example removed callout · ghost-rendered because it no longer exists in the after view</span>
+                    <span class="card-actions">
+                      <button class="icon-button" title="Comment" type="button">◌</button>
+                      <button class="text-button primary" type="button">Open source hunk</button>
+                    </span>
+                  </header>
+                  <div class="render-area">
+                    <div class="render-pane old">
+                      <p><strong>Previous note:</strong> Review comments are experimental in rendered mode.</p>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <aside class="inspector">
+        <section class="inspector-card">
+          <h2>Rendered diff stops</h2>
+          <div class="inspector-body">
+            <div class="review-stop active">
+              <span class="stop-mark"></span>
+              <span><b>Changed paragraph</b><small>product-review.md · old L3 / new L3</small></span>
+              <span>1</span>
+            </div>
+            <div class="review-stop">
+              <span class="stop-mark add"></span>
+              <span><b>Added review contract</b><small>product-review.md · new L7-L8</small></span>
+              <span>2</span>
+            </div>
+            <div class="review-stop">
+              <span class="stop-mark"></span>
+              <span><b>HTML preview copy</b><small>review-preview.html · L7-L8</small></span>
+              <span>3</span>
+            </div>
+            <div class="review-stop">
+              <span class="stop-mark remove"></span>
+              <span><b>Removed note</b><small>ghost block · old L12</small></span>
+              <span>4</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="inspector-card">
+          <h2>Active thread</h2>
+          <div class="inspector-body">
+            <div class="comment-thread">
+              <strong>Tasuku · rendered block L7</strong>
+              <p>Keep comments anchored to the rendered card rail, not buried inside the document content.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="inspector-card">
+          <h2>Review rule</h2>
+          <div class="inspector-body">
+            <div class="thread-row"><span>Source diff</span><span class="small-chip">canonical</span></div>
+            <div class="thread-row"><span>Rendered cards</span><span class="small-chip">reviewable</span></div>
+            <div class="thread-row"><span>Final preview</span><span class="small-chip">context</span></div>
+          </div>
+        </section>
+      </aside>
+
+      <footer class="statusbar">
+        <span>6 changed files</span>
+        <span>3 open threads</span>
+        <span>rendered diff cards · concept mock</span>
+        <span class="right">Cmd/Ctrl+D diff · Cmd/Ctrl+K open</span>
+      </footer>
+    </div>
+  </body>
+</html>
