@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
 import {
+  isTransientStorybookCaptureError,
   parseSnapshotMismatchRetries,
   parseSnapshotSettleMs,
   shouldWaitForSnapshotReady,
@@ -43,6 +44,21 @@ describe("Storybook snapshot capture script", () => {
       true,
     );
     expect(shouldWaitForSnapshotReady(["interaction"])).toBe(false);
+  });
+
+  it("retries snapshot-ready timeouts without treating every timeout as transient", () => {
+    expect(
+      isTransientStorybookCaptureError(
+        new Error(
+          "Snapshot ready timed out for Files/Markdown Review States/RenderedMarkerPlacement: page.waitForFunction: Timeout 10000ms exceeded.",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      isTransientStorybookCaptureError(
+        new Error("page.waitForFunction: Timeout 10000ms exceeded."),
+      ),
+    ).toBe(false);
   });
 
   it("keeps CI snapshot artifacts available when the check job fails", async () => {

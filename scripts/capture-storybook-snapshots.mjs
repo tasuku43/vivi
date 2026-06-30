@@ -484,13 +484,21 @@ async function waitForSnapshotSettled(page, quietMs) {
 
 async function waitForStorySnapshotReady(page, target) {
   if (!shouldWaitForSnapshotReady(target.tags)) return;
-  await page.waitForFunction(
-    () =>
-      window.__viviStorybookSnapshotReady === true ||
-      document.querySelector('[data-vivi-snapshot-ready="true"]') !== null,
-    undefined,
-    { timeout: 10_000 },
-  );
+  await page
+    .waitForFunction(
+      () =>
+        window.__viviStorybookSnapshotReady === true ||
+        document.querySelector('[data-vivi-snapshot-ready="true"]') !== null,
+      undefined,
+      { timeout: 10_000 },
+    )
+    .catch((error) => {
+      throw new Error(
+        `Snapshot ready timed out for ${target.label}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    });
 }
 
 async function resetTransientSelectionState(page) {
@@ -577,7 +585,9 @@ async function captureStoryWithRetry(context, target) {
   const maxAttempts = 3;
   let lastError = null;
   if (shouldWaitForSnapshotReady(target.tags)) {
-    await warmUpSnapshotReadyStory(context, target);
+    await warmUpSnapshotReadyStory(context, target).catch((error) => {
+      if (!isTransientStorybookCaptureError(error)) throw error;
+    });
   }
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const page = await context.newPage();
@@ -606,9 +616,10 @@ async function warmUpSnapshotReadyStory(context, target) {
   }
 }
 
-function isTransientStorybookCaptureError(error) {
+export function isTransientStorybookCaptureError(error) {
   const message = error instanceof Error ? error.message : String(error);
   return (
+    message.includes("Snapshot ready timed out") ||
     message.includes("Execution context was destroyed") ||
     message.includes("Target page, context or browser has been closed") ||
     message.includes("Navigation failed because page was closed")
