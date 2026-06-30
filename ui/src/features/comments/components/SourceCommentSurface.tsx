@@ -101,19 +101,22 @@ export function SourceCommentSurface({
       )
     : undefined;
   const visibleThreadKeys = new Set<string>();
+  const hasDraftThreads = draftThreads.length > 0;
   for (const draftThread of draftThreads) {
     visibleThreadKeys.add(
       matchingDraftPreviewThread(commentThreads, draftThread.thread)?.key ??
         draftThread.thread.key,
     );
   }
-  for (const openThread of openThreads) {
-    visibleThreadKeys.add(
-      matchingOpenSourceThread(commentThreads, openThread)?.key ??
-        openThread.key,
-    );
+  if (!hasDraftThreads) {
+    for (const openThread of openThreads) {
+      visibleThreadKeys.add(
+        matchingOpenSourceThread(commentThreads, openThread)?.key ??
+          openThread.key,
+      );
+    }
   }
-  if (expandActiveCommentThread && activeThread) {
+  if (!hasDraftThreads && expandActiveCommentThread && activeThread) {
     visibleThreadKeys.add(activeThread.key);
   }
 
@@ -270,12 +273,14 @@ export function SourceCommentSurface({
       },
       draft: sourceCommentDraft(file, normalized, quote),
     };
+    setOpenThreads([]);
     setDraftThreads((items) => [
       ...items.filter((item) => item.thread.key !== key),
       nextDraftThread,
     ]);
     setAnchorLine(normalized.start);
     onSelectionChange(normalized);
+    onCloseComment?.();
   }
 
   function openCommentThread(

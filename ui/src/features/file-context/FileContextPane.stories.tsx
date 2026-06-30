@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import {
   commentsForPath,
   htmlDiff,
@@ -63,12 +64,34 @@ export const MarkdownRendered: Story = {
 };
 
 export const HtmlSource: Story = {
+  tags: ["interaction"],
   args: {
     file: sampleFiles.html,
     viewerMode: "source",
     diff: htmlDiff,
     selectedCodeRange: null,
     comments: commentsForPath(sampleFiles.html.path),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(canvas.getByRole("list")).toBeInTheDocument());
+    const line7Thread = canvas.getByRole("button", {
+      name: "Open comment thread on line 7 with 1 message",
+    });
+    await userEvent.click(line7Thread);
+    await expect(
+      canvas.getByRole("article", { name: "Comment thread for line 7" }),
+    ).toBeVisible();
+
+    const line8Action = canvas.getByRole("button", {
+      name: "Add comment on line 8",
+    });
+    await userEvent.click(line8Action);
+
+    await expect(canvas.getByLabelText("New line comment")).toBeVisible();
+    await expect(
+      canvas.queryByRole("article", { name: "Comment thread for line 7" }),
+    ).toBeNull();
   },
 };
 

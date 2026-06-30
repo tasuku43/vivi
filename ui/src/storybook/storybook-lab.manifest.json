@@ -166,6 +166,7 @@
         "Files/HTML Preview States/PreviewMultipleRenderedHtmlLineThreads",
         "Files/HTML Preview States/PreviewDraftComposerReplacesTarget",
         "Files/HTML Preview States/SourceHtmlComment",
+        "Files/Open File Surface States/HtmlSource",
         "Files/Viewer Coverage States/ViewerToolbarStickyByExtension"
       ]
     },
