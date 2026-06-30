@@ -13,9 +13,10 @@
 }
 
 :global(.code-line) {
+  --source-line-gutter-width: 64px;
   position: relative;
   display: grid;
-  grid-template-columns: 64px max-content minmax(0, 1fr);
+  grid-template-columns: var(--source-line-gutter-width) max-content minmax(0, 1fr);
   min-height: 23px;
   color: var(--vivi-color-content-primary);
 }
@@ -41,33 +42,56 @@
 :global(.code-line.drafting-comment) {
   background: linear-gradient(
     90deg,
-    var(--vivi-color-comment-surface-active),
-    color-mix(in srgb, var(--vivi-color-comment-surface) 52%, transparent) 56%,
-    transparent
+    transparent 0 var(--source-line-gutter-width),
+    color-mix(
+        in srgb,
+        var(--vivi-color-comment-surface-active) 56%,
+        transparent
+      )
+      var(--source-line-gutter-width),
+    color-mix(in srgb, var(--vivi-color-comment-surface) 40%, transparent) 62%,
+    transparent 92%
   );
-  box-shadow: inset 2px 0 0 var(--vivi-color-comment-border);
+}
+
+:global(.code-line.has-comment::before),
+:global(.code-line.drafting-comment::before) {
+  content: "";
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: calc(var(--source-line-gutter-width) - 1px);
+  width: 2px;
+  border-radius: 2px;
+  background: var(--vivi-color-comment-border);
+  pointer-events: none;
 }
 
 :global(.code-line.active-comment) {
   background: linear-gradient(
     90deg,
+    transparent 0 var(--source-line-gutter-width),
     color-mix(
       in srgb,
-      var(--vivi-color-comment-surface-active) 88%,
+      var(--vivi-color-comment-surface-active) 74%,
       var(--vivi-color-accent-surface-subtle)
-    ),
+    )
+      var(--source-line-gutter-width),
     color-mix(
         in srgb,
-        var(--vivi-color-comment-surface-active) 72%,
+        var(--vivi-color-comment-surface-active) 44%,
         transparent
       )
       66%,
-    transparent
+    transparent 92%
   );
   box-shadow:
-    inset 2px 0 0 var(--vivi-color-comment-text),
     inset 0 0 0 1px
       color-mix(in srgb, var(--vivi-color-comment-border) 52%, transparent);
+}
+
+:global(.code-line.active-comment::before) {
+  background: var(--vivi-color-comment-text);
 }
 
 :global(.code-line.has-comment .line-number),
@@ -132,7 +156,7 @@
 
 @media (max-width: 720px) {
   :global(.code-line) {
-    grid-template-columns: 48px max-content minmax(0, 1fr);
+    --source-line-gutter-width: 48px;
   }
 
   :global(.line-code) {
