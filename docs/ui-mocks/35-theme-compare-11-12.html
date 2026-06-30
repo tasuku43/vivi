@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>35 Theme compare 11 dark vs 12 light - Vivi mock</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        background: #0d1116;
+        color: #eef2f3;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+
+      header {
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 0 18px;
+        border-bottom: 1px solid #293640;
+        background: #111821;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 15px;
+        letter-spacing: 0;
+      }
+
+      p {
+        margin: 4px 0 0;
+        color: #9aa9b1;
+        font-size: 12px;
+      }
+
+      nav {
+        display: flex;
+        gap: 8px;
+      }
+
+      a {
+        border: 1px solid #344653;
+        border-radius: 7px;
+        padding: 7px 10px;
+        color: #dce7ea;
+        background: #16212a;
+        text-decoration: none;
+        font-size: 12px;
+      }
+
+      main {
+        height: calc(100vh - 64px);
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      section {
+        min-width: 0;
+        display: grid;
+        grid-template-rows: 34px 1fr;
+        border-right: 1px solid #293640;
+      }
+
+      section:last-child {
+        border-right: 0;
+      }
+
+      .label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 12px;
+        border-bottom: 1px solid #293640;
+        background: #0f151c;
+        color: #c6d1d5;
+        font-size: 12px;
+      }
+
+      .label span:last-child {
+        color: #8c9ca4;
+      }
+
+      iframe {
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+
+      @media (max-width: 960px) {
+        body {
+          overflow: auto;
+        }
+
+        main {
+          height: auto;
+          grid-template-columns: 1fr;
+        }
+
+        section {
+          height: 720px;
+          border-right: 0;
+          border-bottom: 1px solid #293640;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Blueprint Ledger dark / light pair</h1>
+        <p>Same Vivi workspace state. Left is the chosen dark direction; right is the proposed light mode.</p>
+      </div>
+      <nav>
+        <a href="./35-theme-11-blueprint-ledger.html">Open dark</a>
+        <a href="./35-theme-12-blueprint-ledger-light.html">Open light</a>
+      </nav>
+    </header>
+    <main>
+      <section>
+        <div class="label"><strong>11 Blueprint Ledger</strong><span>dark default</span></div>
+        <iframe src="./35-theme-11-blueprint-ledger.html" title="11 Blueprint Ledger"></iframe>
+      </section>
+      <section>
+        <div class="label"><strong>12 Blueprint Ledger Light</strong><span>cool daylight pair</span></div>
+        <iframe src="./35-theme-12-blueprint-ledger-light.html" title="12 Blueprint Ledger Light"></iframe>
+      </section>
+    </main>
+  </body>
+</html>
