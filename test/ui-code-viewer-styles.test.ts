@@ -47,10 +47,13 @@ const normalizedRenderedCommentStyles = normalizeCssModuleGlobals(
 describe("code viewer line actions", () => {
   it("keeps the comment action on a fixed gutter rail", () => {
     expect(sourceLineStyles).toContain(
-      "grid-template-columns: 64px max-content minmax(0, 1fr);",
+      "--source-line-gutter-width: 64px;",
     );
     expect(sourceLineStyles).toContain(
-      "grid-template-columns: 48px max-content minmax(0, 1fr);",
+      "grid-template-columns: var(--source-line-gutter-width) max-content minmax(0, 1fr);",
+    );
+    expect(sourceLineStyles).toContain(
+      "--source-line-gutter-width: 48px;",
     );
     expect(sourceLineStyles).toMatch(
       /\.code-line-comment-action \{[\s\S]*?position: absolute;[\s\S]*?left: 1px;[\s\S]*?width: 28px;[\s\S]*?height: 24px;/,

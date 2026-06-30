@@ -1,5 +1,22 @@
 .sourceCommentSurfaceStyles {
   --source-comment-surface-module: 1;
+  --source-comment-anchor-width: 2px;
+  --source-comment-highlight-active-mix: 56%;
+  --source-comment-highlight-surface-mix: 40%;
+  --source-comment-highlight-end: 92%;
+  --source-comment-active-highlight-mix: 74%;
+  --source-comment-active-fade-mix: 44%;
+  --source-comment-row-outline-mix: 0%;
+}
+
+:global(.source-comment-surface.markdown-source) {
+  --source-comment-anchor-width: 3px;
+  --source-comment-highlight-active-mix: 100%;
+  --source-comment-highlight-surface-mix: 72%;
+  --source-comment-highlight-end: 78%;
+  --source-comment-active-highlight-mix: 88%;
+  --source-comment-active-fade-mix: 60%;
+  --source-comment-row-outline-mix: 34%;
 }
 
 :global(.code-lines) {
@@ -44,14 +61,34 @@
     90deg,
     transparent 0 var(--source-line-gutter-width),
     color-mix(
-        in srgb,
-        var(--vivi-color-comment-surface-active) 56%,
+      in srgb,
+        var(--vivi-color-comment-surface-active)
+          var(--source-comment-highlight-active-mix),
         transparent
       )
       var(--source-line-gutter-width),
-    color-mix(in srgb, var(--vivi-color-comment-surface) 40%, transparent) 62%,
-    transparent 92%
+    color-mix(
+        in srgb,
+        var(--vivi-color-comment-surface)
+          var(--source-comment-highlight-surface-mix),
+        transparent
+      )
+      62%,
+    transparent var(--source-comment-highlight-end)
   );
+  box-shadow:
+    inset 0 1px 0
+      color-mix(
+        in srgb,
+        var(--vivi-color-comment-border) var(--source-comment-row-outline-mix),
+        transparent
+      ),
+    inset 0 -1px 0
+      color-mix(
+        in srgb,
+        var(--vivi-color-comment-border) var(--source-comment-row-outline-mix),
+        transparent
+      );
 }
 
 :global(.code-line.has-comment::before),
@@ -61,7 +98,7 @@
   top: 3px;
   bottom: 3px;
   left: calc(var(--source-line-gutter-width) - 1px);
-  width: 2px;
+  width: var(--source-comment-anchor-width);
   border-radius: 2px;
   background: var(--vivi-color-comment-border);
   pointer-events: none;
@@ -73,19 +110,33 @@
     transparent 0 var(--source-line-gutter-width),
     color-mix(
       in srgb,
-      var(--vivi-color-comment-surface-active) 74%,
+      var(--vivi-color-comment-surface-active)
+        var(--source-comment-active-highlight-mix),
       var(--vivi-color-accent-surface-subtle)
     )
       var(--source-line-gutter-width),
     color-mix(
         in srgb,
-        var(--vivi-color-comment-surface-active) 44%,
+        var(--vivi-color-comment-surface-active)
+          var(--source-comment-active-fade-mix),
         transparent
       )
       66%,
     transparent 92%
   );
   box-shadow:
+    inset 0 1px 0
+      color-mix(
+        in srgb,
+        var(--vivi-color-comment-border) var(--source-comment-row-outline-mix),
+        transparent
+      ),
+    inset 0 -1px 0
+      color-mix(
+        in srgb,
+        var(--vivi-color-comment-border) var(--source-comment-row-outline-mix),
+        transparent
+      ),
     inset 0 0 0 1px
       color-mix(in srgb, var(--vivi-color-comment-border) 52%, transparent);
 }
