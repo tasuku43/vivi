@@ -7,7 +7,7 @@
 
 :global(.markdown.markdown-document) {
   width: auto;
-  max-width: min(1120px, calc(100% - 48px));
+  max-width: min(1120px, max(0px, calc(100vw - 28px)));
   overflow-wrap: break-word;
 }
 
@@ -324,19 +324,40 @@
   background: var(--vivi-color-surface-panel);
 }
 
+:global(.markdown-table-wrap:focus-visible) {
+  outline: 2px solid var(--vivi-color-accent);
+  outline-offset: 2px;
+}
+
 :global(.markdown table) {
-  width: 100%;
-  min-width: min(100%, 520px);
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
   font-size: 14px;
 }
 
 :global(.markdown th),
 :global(.markdown td) {
+  min-width: 9rem;
   padding: 13px 14px;
   border-bottom: 1px solid var(--vivi-color-border-default);
   text-align: left;
   vertical-align: top;
+}
+
+:global(.markdown th[align="center"]),
+:global(.markdown td[align="center"]) {
+  text-align: center;
+}
+
+:global(.markdown th[align="right"]),
+:global(.markdown td[align="right"]) {
+  text-align: right;
+}
+
+:global(.markdown th[align="left"]),
+:global(.markdown td[align="left"]) {
+  text-align: left;
 }
 
 :global(.markdown th) {

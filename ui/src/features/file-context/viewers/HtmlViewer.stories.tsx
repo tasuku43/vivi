@@ -1,9 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import docReaderMockHtml from "../../../../../docs/ui-mocks/02-doc-reader.html?raw";
+import type { ViviComment } from "../../../domain/comments.js";
 import { addRenderedCommentBlockIdsToHtml } from "../../../domain/rendered-comment-blocks.js";
 import {
   commentsForPath,
+  humanTasuku,
   htmlDiff,
   sampleFiles,
   sampleThreadActivities,
@@ -89,6 +91,42 @@ export const PreviewSandboxChrome: Story = {
           "The iframe preview chrome and sandbox state render in Storybook; the /preview/html server response remains covered by E2E.",
       },
     },
+  },
+};
+
+export const PreviewHtmlPatternGallery: Story = {
+  name: "HTML preview pattern gallery",
+  tags: ["interaction"],
+  args: {
+    mode: "preview",
+    file: {
+      ...sampleFiles.html,
+      path: "preview/html-pattern-gallery.html",
+      content: htmlPatternGalleryDocument(),
+    },
+    comments: [],
+    previewSrcDoc: htmlPatternGalleryDocument(),
+  },
+  play: async ({ canvasElement }) => {
+    const path = "preview/html-pattern-gallery.html";
+    const frame = await waitForHtmlStoryFrame(canvasElement, path);
+    await waitForHtmlPreviewReady(frame, path);
+    const metrics = await waitForHtmlPatternGalleryMetrics(frame, path);
+
+    expect(metrics.title).toBe("HTML Pattern Gallery");
+    expect(metrics.controlCount).toBeGreaterThanOrEqual(4);
+    expect(metrics.imageAlt).toBe("Inline preview swatch");
+    expect(metrics.detailsOpen).toBe(true);
+    expect(metrics.tableWrapScrollWidth).toBeGreaterThan(
+      metrics.tableWrapClientWidth,
+    );
+    expect(metrics.tableWrapRight).toBeLessThanOrEqual(
+      metrics.viewportWidth + 1,
+    );
+    expect(metrics.preWrapScrollWidth).toBeGreaterThan(
+      metrics.preWrapClientWidth,
+    );
+    expect(metrics.pageScrollWidth).toBe(metrics.viewportWidth);
   },
 };
 
@@ -184,11 +222,127 @@ export const PreviewKeepsThreadReplyFocused: Story = {
     await expect(canvas.queryByLabelText("New line comment")).toBeNull();
     await expect(canvas.getByLabelText("Continue thread")).toBeVisible();
     await expect(
-      canvas.getByRole("button", { name: "Save pending draft comment" }),
+      canvas.getByRole("button", { name: "Add follow-up" }),
     ).toBeDisabled();
     await expect(
       within(thread).getByText(/HTML rendered comments should be visible/),
     ).toBeVisible();
+  },
+};
+
+const multiTargetHtmlFile = {
+  ...sampleFiles.html,
+  content: [
+    "<!doctype html>",
+    "<html>",
+    "  <body>",
+    '    <main class="review-card">',
+    "      <h1>Review Preview</h1>",
+    "      <p>Rendered HTML comments map back to source blocks.</p>",
+    "      <button>Approve local preview</button>",
+    "      <p>Second rendered target stays line-bound.</p>",
+    "    </main>",
+    "  </body>",
+    "</html>",
+  ].join("\n"),
+};
+
+const multiTargetHtmlComments: ViviComment[] = [
+  renderedHtmlStoryComment({
+    id: "comment-html-preview-paragraph",
+    threadId: "thread-html-preview-paragraph",
+    lineStart: 6,
+    blockId: "html-preview-p-1",
+    selector: "[data-vivi-comment-block-id='html-preview-p-1']",
+    textQuote: "Rendered HTML comments map back to source blocks.",
+    body: "This existing HTML preview thread is still anchored to source line 6.",
+  }),
+  renderedHtmlStoryComment({
+    id: "comment-html-preview-second",
+    threadId: "thread-html-preview-second",
+    lineStart: 8,
+    blockId: "html-preview-p-2",
+    selector: "[data-vivi-comment-block-id='html-preview-p-2']",
+    textQuote: "Second rendered target stays line-bound.",
+    body: "A second preview marker makes the current multiple-thread state visible.",
+  }),
+];
+
+export const PreviewMultipleRenderedHtmlLineThreads: Story = {
+  name: "HTML preview shows multiple current line threads",
+  tags: ["interaction", "current-ui-observation"],
+  args: {
+    mode: "preview",
+    file: multiTargetHtmlFile,
+    comments: multiTargetHtmlComments,
+    activeCommentId: "comment-html-preview-second",
+    previewSrcDoc: htmlMultiTargetPreviewStoryDocument(
+      multiTargetHtmlFile.path,
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.findByTitle(multiTargetHtmlFile.path),
+    ).resolves.toBeInTheDocument();
+    const frame = canvas.getByTitle(
+      multiTargetHtmlFile.path,
+    ) as HTMLIFrameElement;
+    await waitForHtmlPreviewReady(frame, multiTargetHtmlFile.path);
+
+    openHtmlStoryCommentById(frame, "comment-html-preview-second");
+    const thread = await canvas.findByRole("article", {
+      name: "Comment thread for line 8",
+    });
+    await expect(thread).toBeVisible();
+    await expect(
+      within(thread).getByText(/multiple-thread state visible/),
+    ).toBeVisible();
+    await expect(canvas.queryByLabelText("New line comment")).toBeNull();
+  },
+};
+
+export const PreviewDraftComposerReplacesTarget: Story = {
+  name: "HTML preview draft composer replaces the previous target",
+  tags: ["interaction", "current-ui-observation"],
+  args: {
+    mode: "preview",
+    file: multiTargetHtmlFile,
+    comments: [],
+    previewSrcDoc: htmlMultiTargetPreviewStoryDocument(
+      multiTargetHtmlFile.path,
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.findByTitle(multiTargetHtmlFile.path),
+    ).resolves.toBeInTheDocument();
+    const frame = canvas.getByTitle(
+      multiTargetHtmlFile.path,
+    ) as HTMLIFrameElement;
+    await waitForHtmlPreviewReady(frame, multiTargetHtmlFile.path);
+
+    clickHtmlStoryBlockId(frame, "html-preview-p-1", { altKey: true });
+    await expect(
+      await canvas.findByRole("article", {
+        name: "Comment thread for line 6",
+      }),
+    ).toBeVisible();
+    await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(1);
+
+    clickHtmlStoryBlockId(frame, "html-preview-p-2", { altKey: true });
+    await expect(
+      await canvas.findByRole("article", {
+        name: "Comment thread for line 8",
+      }),
+    ).toBeVisible();
+    await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(1);
+    await expect(
+      canvas.queryByRole("article", {
+        name: "Comment thread for line 6",
+      }),
+    ).toBeNull();
   },
 };
 
@@ -306,6 +460,198 @@ export const SourceDiffMode: Story = {
   },
 };
 
+function renderedHtmlStoryComment(input: {
+  id: string;
+  threadId: string;
+  lineStart: number;
+  blockId: string;
+  selector: string;
+  textQuote: string;
+  body: string;
+}): ViviComment {
+  return {
+    id: input.id,
+    threadId: input.threadId,
+    path: multiTargetHtmlFile.path,
+    viewerKind: "html",
+    body: input.body,
+    status: "open",
+    source: "human",
+    createdBy: humanTasuku,
+    createdAt: "2026-06-25T09:00:00.000Z",
+    updatedAt: "2026-06-25T09:00:00.000Z",
+    anchor: {
+      surface: "rendered",
+      canonical: {
+        path: multiTargetHtmlFile.path,
+        lineStart: input.lineStart,
+        lineEnd: input.lineStart,
+        quote: input.textQuote,
+        fileHash: multiTargetHtmlFile.etag,
+      },
+      rendered: {
+        kind: "html",
+        blockId: input.blockId,
+        selector: input.selector,
+        textQuote: input.textQuote,
+        sourceLineStart: input.lineStart,
+        sourceLineEnd: input.lineStart,
+      },
+    },
+  };
+}
+
+function htmlPatternGalleryDocument(): string {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HTML Pattern Gallery</title>
+    <style>
+      :root { color-scheme: light; --pattern-ink: #182126; --pattern-muted: #66727a; --pattern-surface: #ffffff; --pattern-chip: #f4f1eb; --pattern-border: #d8d0c5; --pattern-link: #255a8a; --pattern-link-soft: #e8f1fb; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #f7f5ef; color: var(--pattern-ink); font: 15px/1.58 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .pattern-shell { width: min(1120px, calc(100vw - 32px)); margin: 0 auto; padding: 24px 0 40px; }
+      header, main, aside, footer { min-width: 0; }
+      .hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: start; border: 1px solid var(--pattern-border); border-radius: 8px; background: var(--pattern-surface); padding: 24px; }
+      h1, h2, h3, p { margin-top: 0; }
+      h1 { margin-bottom: 10px; font-size: clamp(28px, 4vw, 42px); line-height: 1.12; }
+      h2 { margin-bottom: 12px; font-size: 20px; }
+      p { overflow-wrap: anywhere; }
+      nav { display: flex; flex-wrap: wrap; gap: 8px; }
+      nav a, .badge { border: 1px solid var(--pattern-border); border-radius: 999px; background: var(--pattern-chip); color: var(--pattern-link); padding: 5px 9px; text-decoration: none; white-space: nowrap; }
+      .content-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 320px); gap: 18px; margin-top: 18px; }
+      .panel { min-width: 0; border: 1px solid var(--pattern-border); border-radius: 8px; background: var(--pattern-surface); padding: 18px; }
+      .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .card { min-width: 0; border: 1px solid var(--pattern-border); border-radius: 8px; background: #fffdf8; padding: 14px; }
+      blockquote { margin: 16px 0; border-left: 4px solid var(--pattern-link); background: var(--pattern-link-soft); padding: 12px 14px; }
+      figure { margin: 18px 0 0; }
+      img { display: block; max-width: 100%; height: auto; border: 1px solid var(--pattern-border); border-radius: 8px; }
+      figcaption, small { color: var(--pattern-muted); }
+      .table-wrap, .pre-wrap { max-width: 100%; overflow-x: auto; border: 1px solid var(--pattern-border); border-radius: 8px; background: var(--pattern-surface); }
+      table { width: max-content; min-width: 100%; border-collapse: collapse; }
+      th, td { min-width: 10rem; border-bottom: 1px solid var(--pattern-border); padding: 10px 12px; text-align: left; vertical-align: top; }
+      th { background: var(--pattern-chip); }
+      pre { width: max-content; min-width: 100%; margin: 0; padding: 14px; font: 13px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      form { display: grid; gap: 10px; margin-top: 14px; }
+      label { display: grid; gap: 4px; color: var(--pattern-muted); font-size: 12px; }
+      input, select, textarea, button { width: 100%; border: 1px solid var(--pattern-border); border-radius: 7px; background: #fff; color: var(--pattern-ink); font: inherit; padding: 8px 10px; }
+      button { width: auto; justify-self: start; background: var(--pattern-link); color: #fff; }
+      details { border: 1px solid var(--pattern-border); border-radius: 8px; background: #fffdf8; padding: 10px 12px; }
+      summary { cursor: pointer; font-weight: 700; }
+      footer { margin-top: 18px; color: var(--pattern-muted); }
+      @media (max-width: 720px) {
+        .pattern-shell { width: min(100% - 20px, 1120px); padding-top: 10px; }
+        .hero, .content-grid, .cards { grid-template-columns: minmax(0, 1fr); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="pattern-shell">
+      <header class="hero">
+        <div>
+          <h1>HTML Pattern Gallery</h1>
+          <p>Preview coverage for ordinary local HTML: semantic regions, responsive cards, form controls, media, wide tables, scrollable code, disclosure, and long text such as preview.pipeline.HTMLViewer.longIdentifier.rendering.regression.case.</p>
+        </div>
+        <nav aria-label="Sections">
+          <a href="#article">Article</a>
+          <a href="#data">Data</a>
+          <a href="#controls">Controls</a>
+        </nav>
+      </header>
+      <main class="content-grid" id="article">
+        <article class="panel">
+          <h2>Article Rhythm</h2>
+          <p>This panel mixes paragraphs with <strong>strong text</strong>, <em>emphasis</em>, inline <code>code</code>, and a local link target.</p>
+          <blockquote>HTML preview should keep author styling intact while the Vivi frame stays stable around it.</blockquote>
+          <div class="cards">
+            <section class="card"><h3>Responsive Card</h3><p>Cards collapse to one column on narrow frames without causing page-level horizontal scroll.</p></section>
+            <section class="card"><h3>Metadata</h3><p><span class="badge">sandboxed</span> <span class="badge">scripts off</span></p></section>
+          </div>
+          <figure>
+            <img alt="Inline preview swatch" width="420" height="140" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc0MjAnIGhlaWdodD0nMTQwJyB2aWV3Qm94PScwIDAgNDIwIDE0MCc+PHJlY3Qgd2lkdGg9JzQyMCcgaGVpZ2h0PScxNDAnIGZpbGw9JyNmNmY4ZmEnLz48cmVjdCB4PScyNCcgeT0nMjQnIHdpZHRoPSczNzInIGhlaWdodD0nOTInIHJ4PSc4JyBmaWxsPScjZmZmZmZmJyBzdHJva2U9JyM5YWE0YjInLz48Y2lyY2xlIGN4PSc3MicgY3k9JzcwJyByPScyNCcgZmlsbD0nIzI1NjNlYicvPjxwYXRoIGQ9J00xMTggODhoMjEwTTExOCA1OGgyNTQnIHN0cm9rZT0nIzM3NDE1MScgc3Ryb2tlLXdpZHRoPScxMicgc3Ryb2tlLWxpbmVjYXA9J3JvdW5kJy8+PC9zdmc+">
+            <figcaption>Data URI image with intrinsic dimensions.</figcaption>
+          </figure>
+        </article>
+        <aside class="panel">
+          <h2>Inspector-like Aside</h2>
+          <details open><summary>Open disclosure</summary><p>Details content remains readable and does not cover nearby controls.</p></details>
+          <form id="controls">
+            <label>Search query<input value="rendered HTML preview" readonly></label>
+            <label>Mode<select><option>Preview</option><option>Source</option></select></label>
+            <label>Notes<textarea rows="3" readonly>Readonly form controls keep their sizing in the frame.</textarea></label>
+            <button type="button">Local action</button>
+          </form>
+        </aside>
+      </main>
+      <section class="panel" id="data" aria-label="Dense data and code">
+        <h2>Dense Data</h2>
+        <div class="table-wrap" tabindex="0" aria-label="Scrollable HTML table">
+          <table>
+            <thead><tr><th>Surface</th><th>Owner</th><th>Status</th><th>Long Value</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>HTML preview</td><td>Viewer</td><td>Ready</td><td>preview.pipeline.html.table.scroll.regression.identifier</td><td>Wide content scrolls inside this table region.</td></tr>
+              <tr><td>Sandbox</td><td>Server</td><td>Guarded</td><td>allow-scripts-off-by-default-contract</td><td>The story keeps the iframe chrome visible.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h2>Code Block</h2>
+        <div class="pre-wrap" tabindex="0" aria-label="Scrollable HTML code block">
+          <pre><code>&lt;section class="preview.pipeline.html.long.code.sample.that.should.scroll.inside.the.preview.with.a.very.long.attribute.value.for.viewport.regression.coverage"&gt;
+  &lt;p&gt;Long code remains inspectable without widening the whole iframe document.&lt;/p&gt;
+&lt;/section&gt;</code></pre>
+        </div>
+      </section>
+      <footer>HTML preview pattern gallery footer.</footer>
+    </div>
+    <script>
+      (() => {
+        const path = "preview/html-pattern-gallery.html";
+        const requiredElement = (selector) => {
+          const element = document.querySelector(selector);
+          if (!element) throw new Error("Missing HTML pattern element: " + selector);
+          return element;
+        };
+        const metrics = () => {
+          const tableWrap = requiredElement(".table-wrap");
+          const preWrap = requiredElement(".pre-wrap");
+          const image = requiredElement("img");
+          const details = requiredElement("details");
+          return {
+            controlCount: document.querySelectorAll("input, select, textarea, button").length,
+            detailsOpen: details.open,
+            imageAlt: image.getAttribute("alt"),
+            pageScrollWidth: document.documentElement.scrollWidth,
+            preWrapClientWidth: preWrap.clientWidth,
+            preWrapScrollWidth: preWrap.scrollWidth,
+            tableWrapClientWidth: tableWrap.clientWidth,
+            tableWrapRight: tableWrap.getBoundingClientRect().right,
+            tableWrapScrollWidth: tableWrap.scrollWidth,
+            title: document.title,
+            viewportWidth: document.documentElement.clientWidth
+          };
+        };
+        const postReady = () => parent.postMessage({ type: "vivi-story-html-ready", path }, "*");
+        const postMetrics = () => parent.postMessage({ type: "vivi-story-html-pattern-metrics", path, metrics: metrics() }, "*");
+        window.addEventListener("message", (event) => {
+          if (event.source !== parent) return;
+          if (event.data?.type === "vivi-story-ready-request" && event.data.path === path) {
+            postReady();
+            return;
+          }
+          if (event.data?.type === "vivi-story-html-pattern-metrics-request" && event.data.path === path) {
+            postMetrics();
+          }
+        });
+        if (document.readyState === "complete") postReady();
+        else window.addEventListener("load", postReady, { once: true });
+      })();
+    </script>
+  </body>
+</html>`;
+}
+
 function htmlWorkspaceLinkPreviewStoryDocument(path: string): string {
   return `<!doctype html>
 <html>
@@ -336,6 +682,114 @@ function htmlWorkspaceLinkPreviewStoryDocument(path: string): string {
             link?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
           }
         });
+        postReady();
+      })();
+    </script>
+  </body>
+</html>`;
+}
+
+function htmlMultiTargetPreviewStoryDocument(path: string): string {
+  return `<!doctype html>
+<html>
+  <head>
+    <style>
+      body { margin: 0; padding: 28px; font: 15px/1.6 Inter, system-ui, sans-serif; color: #172426; background: #fbfaf7; }
+      .review-card { max-width: 760px; border: 1px solid #d4c9b8; border-radius: 8px; background: white; padding: 24px; }
+      h1 { margin: 0 0 14px; font-size: 28px; }
+      p { margin: 0 0 14px; }
+      button { border: 1px solid #b9ac96; border-radius: 7px; background: #fffaf0; color: #332b20; padding: 8px 12px; margin: 0 0 14px; }
+      .vivi-rendered-comment-block { --vivi-color-comment-surface: rgba(126,87,194,.12); --vivi-color-comment-surface-active: rgba(126,87,194,.2); --vivi-color-comment-border: rgba(126,87,194,.35); --vivi-color-comment-text: #5e3aa3; --vivi-color-surface-panel: white; --vivi-color-surface-palette: #fbfaf7; isolation: isolate; position: relative; z-index: 0; border-radius: 8px; }
+      .vivi-rendered-comment-block::before { content: ""; position: absolute; z-index: 0; inset: 0; border-radius: inherit; pointer-events: none; }
+      .vivi-rendered-comment-block > * { position: relative; z-index: 1; }
+      .has-rendered-comment::before, .drafting-rendered-comment::before { background: linear-gradient(90deg, var(--vivi-color-comment-surface-active), var(--vivi-color-comment-surface) 68%, transparent); box-shadow: inset 2px 0 0 var(--vivi-color-comment-border); }
+      .active-rendered-comment::before { background: linear-gradient(90deg, rgba(126,87,194,.26), rgba(126,87,194,.12) 72%, transparent); box-shadow: inset 3px 0 0 var(--vivi-color-comment-text), 0 0 0 1px rgba(126,87,194,.18); }
+      .rendered-comment-marker { position: absolute; right: 8px; top: 50%; width: 20px; height: 20px; border: 1px solid var(--vivi-color-comment-border); border-radius: 6px; background: var(--vivi-color-surface-panel); color: var(--vivi-color-comment-text); transform: translateY(-50%); cursor: pointer; }
+      .rendered-comment-marker-count { position: absolute; right: -5px; top: -6px; min-width: 13px; height: 13px; border: 1px solid var(--vivi-color-comment-border); border-radius: 999px; background: var(--vivi-color-surface-palette); color: var(--vivi-color-comment-text); font-size: 8px; font-weight: 800; line-height: 13px; }
+    </style>
+  </head>
+  <body>
+    <main class="review-card">
+      <h1 data-vivi-comment-block-id="html-preview-h1" data-vivi-source-line-start="5" data-vivi-source-line-end="5">Review Preview</h1>
+      <p data-vivi-comment-block-id="html-preview-p-1" data-vivi-source-line-start="6" data-vivi-source-line-end="6">Rendered HTML comments map back to source blocks.</p>
+      <button data-vivi-comment-block-id="html-preview-button" data-vivi-source-line-start="7" data-vivi-source-line-end="7" type="button">Approve local preview</button>
+      <p data-vivi-comment-block-id="html-preview-p-2" data-vivi-source-line-start="8" data-vivi-source-line-end="8">Second rendered target stays line-bound.</p>
+    </main>
+    <script>
+      (() => {
+        const path = ${JSON.stringify(path)};
+        const blocks = Array.from(document.querySelectorAll("[data-vivi-comment-block-id]"));
+        const blockById = (id) => blocks.find((item) => item.dataset.viviCommentBlockId === id);
+        const readableText = (block) => (block?.innerText || block?.textContent || "").replace(/\\s+/g, " ").trim();
+        const postReady = () => parent.postMessage({ type: "vivi-story-html-ready", path }, "*");
+        const hasRenderedCommentModifier = (event) => event.altKey || event.ctrlKey || event.metaKey;
+        const postTarget = (type, block, id) => {
+          const rect = block.getBoundingClientRect();
+          parent.postMessage({
+            type,
+            path,
+            id,
+            blockId: block.dataset.viviCommentBlockId,
+            blockIds: [block.dataset.viviCommentBlockId],
+            selector: "[data-vivi-comment-block-id='" + block.dataset.viviCommentBlockId + "']",
+            text: readableText(block),
+            sourceLineStart: Number(block.dataset.viviSourceLineStart),
+            sourceLineEnd: Number(block.dataset.viviSourceLineEnd),
+            rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+          }, "*");
+        };
+        const applyComments = (eventData) => {
+          const drafting = new Set(eventData.draftingBlockIds || []);
+          const comments = Array.isArray(eventData.comments) ? eventData.comments : [];
+          blocks.forEach((block) => {
+            block.className = "vivi-rendered-comment-block";
+            block.querySelector(".rendered-comment-marker")?.remove();
+            if (drafting.has(block.dataset.viviCommentBlockId)) block.classList.add("drafting-rendered-comment");
+          });
+          comments.forEach((comment) => {
+            if (comment.status === "archived") return;
+            const block = blockById(comment.blockId);
+            if (!block) return;
+            block.classList.add("has-rendered-comment");
+            if (eventData.activeCommentId === comment.id) block.classList.add("active-rendered-comment");
+            const action = document.createElement("button");
+            action.type = "button";
+            action.className = "rendered-comment-marker";
+            action.dataset.commentId = comment.id;
+            action.setAttribute("aria-label", "Open comment thread with 1 message");
+            action.innerHTML = '<span class="rendered-comment-marker-count" aria-hidden="true">1</span>';
+            action.addEventListener("click", (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              postTarget("vivi-html-comment-open", block, comment.id);
+            });
+            block.append(action);
+          });
+        };
+        window.addEventListener("message", (event) => {
+          if (event.source === parent && event.data?.type === "vivi-story-ready-request") {
+            postReady();
+            return;
+          }
+          if (event.source === parent && event.data?.type === "vivi-story-click-block") {
+            const block = blockById(event.data.blockId);
+            if (block && hasRenderedCommentModifier(event.data)) postTarget("vivi-html-block-target", block);
+            return;
+          }
+          if (event.source === parent && event.data?.type === "vivi-story-open-comment") {
+            const marker = document.querySelector(".rendered-comment-marker[data-comment-id='" + event.data.id + "']");
+            marker?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+            return;
+          }
+          if (event.source !== parent || event.data?.type !== "vivi-html-comments" || event.data.path !== path) return;
+          applyComments(event.data);
+        });
+        blocks.forEach((block) => block.addEventListener("click", (event) => {
+          if (!hasRenderedCommentModifier(event)) return;
+          event.preventDefault();
+          event.stopPropagation();
+          postTarget("vivi-html-block-target", block);
+        }));
         postReady();
       })();
     </script>
@@ -620,6 +1074,41 @@ function openHtmlStoryComment(frame: HTMLIFrameElement): void {
   );
 }
 
+function openHtmlStoryCommentById(frame: HTMLIFrameElement, id: string): void {
+  frame.contentWindow?.postMessage(
+    { type: "vivi-story-open-comment", id },
+    "*",
+  );
+}
+
+async function waitForHtmlPreviewReady(
+  frame: HTMLIFrameElement,
+  path: string,
+): Promise<void> {
+  const frameWindow = frame.contentWindow;
+  if (!frameWindow) throw new Error("missing HTML preview frame");
+  await new Promise<void>((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      window.removeEventListener("message", onMessage);
+      reject(new Error("HTML preview story frame did not become ready"));
+    }, 3000);
+    const onMessage = (event: MessageEvent) => {
+      if (
+        event.source !== frameWindow ||
+        event.data?.type !== "vivi-story-html-ready" ||
+        event.data.path !== path
+      ) {
+        return;
+      }
+      window.clearTimeout(timeout);
+      window.removeEventListener("message", onMessage);
+      resolve();
+    };
+    window.addEventListener("message", onMessage);
+    frameWindow.postMessage({ type: "vivi-story-ready-request", path }, "*");
+  });
+}
+
 async function waitForHtmlDraftPreviewReady(
   frame: HTMLIFrameElement,
 ): Promise<void> {
@@ -644,6 +1133,85 @@ async function waitForHtmlDraftPreviewReady(
     };
     window.addEventListener("message", onMessage);
     frameWindow.postMessage({ type: "vivi-story-ready-request" }, "*");
+  });
+}
+
+async function waitForHtmlStoryFrame(
+  canvasElement: HTMLElement,
+  path: string,
+): Promise<HTMLIFrameElement> {
+  await waitFor(
+    () => {
+      expect(canvasElement.querySelector(".html-viewer")).toBeInTheDocument();
+      const frame = Array.from(canvasElement.querySelectorAll("iframe")).find(
+        (item) => item.title === path,
+      );
+      expect(frame).toBeInTheDocument();
+      expect(frame?.contentWindow).not.toBeNull();
+    },
+    { timeout: 5000 },
+  );
+  const frame = Array.from(canvasElement.querySelectorAll("iframe")).find(
+    (item) => item.title === path,
+  );
+  if (!frame) throw new Error(`missing HTML preview frame: ${path}`);
+  return frame;
+}
+
+async function waitForHtmlPatternGalleryMetrics(
+  frame: HTMLIFrameElement,
+  path: string,
+): Promise<{
+  controlCount: number;
+  detailsOpen: boolean;
+  imageAlt: string | null;
+  pageScrollWidth: number;
+  preWrapClientWidth: number;
+  preWrapScrollWidth: number;
+  tableWrapClientWidth: number;
+  tableWrapRight: number;
+  tableWrapScrollWidth: number;
+  title: string;
+  viewportWidth: number;
+}> {
+  const frameWindow = frame.contentWindow;
+  if (!frameWindow) throw new Error("missing HTML preview frame");
+  return await new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      window.removeEventListener("message", onMessage);
+      reject(new Error("HTML pattern gallery metrics were not reported"));
+    }, 3000);
+    const onMessage = (event: MessageEvent) => {
+      if (
+        event.source !== frameWindow ||
+        event.data?.type !== "vivi-story-html-pattern-metrics" ||
+        event.data.path !== path
+      ) {
+        return;
+      }
+      const metrics = event.data.metrics ?? {};
+      window.clearTimeout(timeout);
+      window.removeEventListener("message", onMessage);
+      resolve({
+        controlCount: Number(metrics.controlCount),
+        detailsOpen: metrics.detailsOpen === true,
+        imageAlt:
+          typeof metrics.imageAlt === "string" ? metrics.imageAlt : null,
+        pageScrollWidth: Number(metrics.pageScrollWidth),
+        preWrapClientWidth: Number(metrics.preWrapClientWidth),
+        preWrapScrollWidth: Number(metrics.preWrapScrollWidth),
+        tableWrapClientWidth: Number(metrics.tableWrapClientWidth),
+        tableWrapRight: Number(metrics.tableWrapRight),
+        tableWrapScrollWidth: Number(metrics.tableWrapScrollWidth),
+        title: String(metrics.title),
+        viewportWidth: Number(metrics.viewportWidth),
+      });
+    };
+    window.addEventListener("message", onMessage);
+    frameWindow.postMessage(
+      { type: "vivi-story-html-pattern-metrics-request", path },
+      "*",
+    );
   });
 }
 

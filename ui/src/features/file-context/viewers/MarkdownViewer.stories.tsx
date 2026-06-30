@@ -266,6 +266,117 @@ export const RenderedMarkdownWorkspaceLink: Story = {
   },
 };
 
+const markdownSyntaxGallery = [
+  "---",
+  "title: Markdown Pattern Gallery",
+  "owner: docs-team",
+  "tags:",
+  "  - markdown",
+  "  - visual-regression",
+  "release: 2026-06-30",
+  "published: true",
+  "---",
+  "",
+  "# Markdown Pattern Gallery",
+  "",
+  "A broad rendered Markdown sample keeps common document shapes visible in Storybook: **strong text**, _emphasis_, `inline code`, workspace links, and long identifiers like `workspace.preview.pipeline.table.regression.case.identifier`.",
+  "",
+  "## Lists and Tasks",
+  "",
+  "- [x] Preserve the sidebar as the stable map.",
+  "- [ ] Keep the reader comfortable during dense review sessions.",
+  "  - Nested bullets should align under the parent text.",
+  "  - A second nested item checks compact row spacing.",
+  "1. Ordered items keep their counter alignment.",
+  "2. Multiline ordered items wrap without crossing the marker column and keep enough leading for scanning.",
+  "",
+  "## Dense Table",
+  "",
+  "| Area | Owner | Status | Latency | Risk | Notes |",
+  "| :--- | :--- | :---: | ---: | :--- | :--- |",
+  "| Markdown renderer | UI platform | Ready | 2.4s | Low | Tables should scroll horizontally instead of compressing every cell. |",
+  "| Storybook regression lab | Review surface | Watching | 184ms | Medium | Long identifiers such as `vivi.markdown.table.column.width.regression` should remain readable. |",
+  "| Local preview server | Server | Queued | 8.0s | High | Paths outside the selected root stay refused by default. |",
+  "",
+  "## Quotes and Callouts",
+  "",
+  "> Plain blockquotes keep muted body text and enough left rule contrast.",
+  "",
+  "> [!WARNING]",
+  "> GitHub-style alert blocks render as callouts without breaking nearby document rhythm.",
+  "",
+  "## Code and HTML",
+  "",
+  "```ts",
+  'type ViewerMode = "source" | "rendered";',
+  "const tableState = { scrolls: true, aligned: true };",
+  "```",
+  "",
+  "<details open>",
+  "<summary>Inline HTML disclosure</summary>",
+  "<p>Raw HTML blocks stay inside the Markdown reader flow.</p>",
+  "</details>",
+  "",
+  "## Image",
+  "",
+  "![Tiny preview swatch](data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc0MjAnIGhlaWdodD0nMTQwJyB2aWV3Qm94PScwIDAgNDIwIDE0MCc+PHJlY3Qgd2lkdGg9JzQyMCcgaGVpZ2h0PScxNDAnIGZpbGw9JyNmNmY4ZmEnLz48cmVjdCB4PScyNCcgeT0nMjQnIHdpZHRoPSczNzInIGhlaWdodD0nOTInIHJ4PSc4JyBmaWxsPScjZmZmZmZmJyBzdHJva2U9JyM5YWE0YjInLz48Y2lyY2xlIGN4PSc3MicgY3k9JzcwJyByPScyNCcgZmlsbD0nIzI1NjNlYicvPjxwYXRoIGQ9J00xMTggODhoMjEwTTExOCA1OGgyNTQnIHN0cm9rZT0nIzM3NDE1MScgc3Ryb2tlLXdpZHRoPScxMicgc3Ryb2tlLWxpbmVjYXA9J3JvdW5kJy8+PC9zdmc+)",
+].join("\n");
+
+export const RenderedMarkdownSyntaxGallery: Story = {
+  name: "Rendered Markdown syntax gallery",
+  tags: ["interaction"],
+  args: {
+    mode: "rendered",
+    file: {
+      ...sampleFiles.markdown,
+      path: "docs/markdown-pattern-gallery.md",
+      content: markdownSyntaxGallery,
+    },
+    comments: [],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("heading", { name: "Markdown Pattern Gallery" }),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText("Front matter metadata"),
+    ).toBeInTheDocument();
+    await expect(canvas.getByText("visual-regression")).toBeInTheDocument();
+    await expect(canvas.getByText("Inline HTML disclosure")).toBeVisible();
+    await expect(
+      canvas.getByRole("img", { name: "Tiny preview swatch" }),
+    ).toBeVisible();
+
+    const tableWrap = canvasElement.querySelector<HTMLElement>(
+      ".markdown-table-wrap",
+    );
+    await expect(tableWrap).toBeInTheDocument();
+    const table = tableWrap!.querySelector("table");
+    await expect(table).toBeInTheDocument();
+    const markdown = canvasElement.querySelector<HTMLElement>(".markdown");
+    await expect(markdown).toBeInTheDocument();
+    await expect(tableWrap!.getBoundingClientRect().right).toBeLessThanOrEqual(
+      markdown!.getBoundingClientRect().right + 1,
+    );
+
+    const statusHeader = canvas.getByRole("columnheader", {
+      name: "Status",
+    });
+    const latencyHeader = canvas.getByRole("columnheader", {
+      name: "Latency",
+    });
+    await expect(getComputedStyle(statusHeader).textAlign).toBe("center");
+    await expect(getComputedStyle(latencyHeader).textAlign).toBe("right");
+    await expect(statusHeader.getBoundingClientRect().width).toBeGreaterThan(
+      120,
+    );
+    await expect(latencyHeader.getBoundingClientRect().width).toBeGreaterThan(
+      120,
+    );
+  },
+};
+
 export const MultipleRenderedDraftFormsStayOpen: Story = {
   tags: ["interaction"],
   args: {
@@ -495,6 +606,68 @@ export const RenderedMarkerPlacement: Story = {
       5,
     );
     await expect(listMetricsAfterCodeOpen.height).toBeLessThanOrEqual(36);
+  },
+};
+
+export const RenderedMarkdownMultipleLineThreads: Story = {
+  name: "Rendered Markdown shows multiple current line threads",
+  tags: ["current-ui-observation"],
+  args: {
+    mode: "rendered",
+    file: {
+      ...sampleFiles.markdown,
+      content: markerPlacementMarkdown,
+    },
+    comments: markerPlacementComments,
+    activeCommentId: "comment-md-paragraph-marker",
+  },
+};
+
+export const RenderedMarkdownOpenThreadBesideNewDraft: Story = {
+  name: "Rendered Markdown can show an existing thread beside a new draft",
+  tags: ["interaction", "current-ui-observation", "snapshot-ready"],
+  args: {
+    mode: "rendered",
+    file: {
+      ...sampleFiles.markdown,
+      content: markerPlacementMarkdown,
+    },
+    comments: markerPlacementComments,
+    activeCommentId: "comment-md-list-marker",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const listItem = canvas.getByText(/marker list item/).closest("li")!;
+    await userEvent.click(
+      within(listItem).getByRole("button", {
+        name: /Open comment thread/,
+      }),
+    );
+    await expect(
+      canvas.getByRole("article", { name: "Comment thread for line 3" }),
+    ).toBeVisible();
+
+    await clickRenderedBlock(
+      canvas.getByRole("heading", { name: "Marker placement" }),
+      { altKey: true },
+    );
+    const draftComposer = canvas.getByLabelText("New line comment");
+    await expect(draftComposer).toBeVisible();
+    await expect(draftComposer).toHaveFocus();
+    await expect(
+      canvas.getByRole("article", { name: "Comment thread for line 1" }),
+    ).toBeVisible();
+    await expect(
+      canvas.getAllByRole("article", { name: /Comment thread for line/ }),
+    ).toHaveLength(2);
+    await waitFor(() =>
+      expect(
+        Number.parseFloat(
+          listItem.style.getPropertyValue("--rendered-comment-block-bottom"),
+        ),
+      ).toBeGreaterThan(0),
+    );
+    canvasElement.dataset.viviSnapshotReady = "true";
   },
 };
 

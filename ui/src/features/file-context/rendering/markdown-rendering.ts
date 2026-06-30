@@ -57,13 +57,29 @@ export function injectMermaidPreviewBlocks(markdown: string): string {
 }
 
 function enhanceMarkdownHtml(html: string): string {
-  return wrapTables(renderGitHubAlerts(html));
+  return wrapTables(renderGitHubAlerts(labelTaskCheckboxes(html)));
 }
 
 function wrapTables(html: string): string {
   return html.replace(
     /<table>([\s\S]*?)<\/table>/g,
-    '<div class="markdown-table-wrap"><table>$1</table></div>',
+    '<div class="markdown-table-wrap" role="region" aria-label="Scrollable Markdown table" tabindex="0"><table>$1</table></div>',
+  );
+}
+
+function labelTaskCheckboxes(html: string): string {
+  return html.replace(
+    /<input\b[^>]*\btype\s*=\s*(?:"checkbox"|'checkbox'|checkbox)[^>]*>/gi,
+    (match) => {
+      if (/\baria-label\s*=/.test(match)) return match;
+      const checked = /\bchecked(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/i.test(
+        match,
+      );
+      const selfClosing = /\/\s*>$/.test(match);
+      const body = match.replace(/\s*\/?>$/, "");
+      const label = checked ? "Completed task" : "Incomplete task";
+      return `${body} aria-label="${label}"${selfClosing ? " />" : ">"}`;
+    },
   );
 }
 

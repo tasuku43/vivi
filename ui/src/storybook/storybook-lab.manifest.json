@@ -46,9 +46,7 @@
         "agents can identify the current GUI review stage",
         "Storybook communicates the distinction between visual approval and wired behavior"
       ],
-      "requiredStories": [
-        "Design Review/Workflow/ThreeStageReviewPath"
-      ],
+      "requiredStories": ["Design Review/Workflow/ThreeStageReviewPath"],
       "interactionStories": []
     },
     {
@@ -149,16 +147,24 @@
         "Files/Viewer Coverage States/ImageKnownViewer",
         "Files/Viewer Coverage States/BinaryMetadata",
         "Files/Viewer Coverage States/LargeTextLimitedPreview",
-        "Files/Viewer Coverage States/LargeBinaryMetadata"
+        "Files/Viewer Coverage States/LargeBinaryMetadata",
+        "Files/Markdown Review States/RenderedMarkdownSyntaxGallery",
+        "Files/Markdown Review States/RenderedMarkdownMultipleLineThreads",
+        "Files/HTML Preview States/PreviewHtmlPatternGallery"
       ],
       "interactionStories": [
         "Files/Code Review States/SourceWithOpenThread",
         "Files/Code Review States/SourceWithStackedLineThreads",
         "Files/Markdown Review States/RenderedBlockClickDraft",
+        "Files/Markdown Review States/RenderedMarkdownSyntaxGallery",
+        "Files/Markdown Review States/RenderedMarkdownOpenThreadBesideNewDraft",
         "Files/Markdown Review States/RenderedListDraftFormsDoNotBridge",
         "Files/Markdown Review States/RenderedMarkerPlacement",
         "Files/Markdown Review States/RenderedMarkdownComment",
+        "Files/HTML Preview States/PreviewHtmlPatternGallery",
         "Files/HTML Preview States/SinglePreviewDraftFormFixedSlot",
+        "Files/HTML Preview States/PreviewMultipleRenderedHtmlLineThreads",
+        "Files/HTML Preview States/PreviewDraftComposerReplacesTarget",
         "Files/HTML Preview States/SourceHtmlComment",
         "Files/Viewer Coverage States/ViewerToolbarStickyByExtension"
       ]

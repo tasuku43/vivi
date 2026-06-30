@@ -39,6 +39,7 @@ modal  : Cmd/Ctrl + K command palette
 - `26-review-queue-empty-state-patterns.html`: empty-state alternatives for zero-count Queued/In Review groups when Reviewed still has recoverable history.
 - `32-right-inspector-draft-absorption.html`: three alternatives for absorbing private drafts and the old Comments shortcut role into the right inspector.
 - `33-in-review-draft-thread-label-patterns.html`: four alternatives for labeling private draft threads inside expanded In Review file rows.
+- `34-line-thread-comment-concepts.html`: three current-UI-respecting concepts that separate line-thread model fixes from cautious rendered/preview commenting affordances.
 
 ## Implementation guidance
 

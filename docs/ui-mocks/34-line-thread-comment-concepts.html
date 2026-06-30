@@ -1,0 +1,1128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>34 Line-thread comment concepts - Vivi mock</title>
+    <style>
+      :root {
+        --bg: #0f1117;
+        --panel: #151923;
+        --panel-2: #1b2130;
+        --panel-3: #222a3b;
+        --text: #e6e8ef;
+        --muted: #9ba4b5;
+        --subtle: #737d91;
+        --line: #2a3346;
+        --soft-line: rgba(132, 146, 170, 0.18);
+        --accent: #7aa2ff;
+        --accent-soft: rgba(122, 162, 255, 0.16);
+        --comment-line: #9ece6a;
+        --comment-tint: rgba(158, 206, 106, 0.15);
+        --warn: #e0af68;
+        --danger: #f7768e;
+        --code: #0b0e14;
+        --radius: 10px;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      body {
+        overflow-x: hidden;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .page {
+        display: grid;
+        gap: 26px;
+        padding: 24px;
+      }
+
+      .brief {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+        gap: 18px;
+        max-width: 1440px;
+        margin: 0 auto;
+      }
+
+      .brief h1,
+      .brief h2,
+      .brief p {
+        margin: 0;
+      }
+
+      .brief h1 {
+        font-size: 24px;
+        line-height: 1.2;
+        letter-spacing: 0;
+      }
+
+      .brief p {
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      .note,
+      .matrix {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--panel);
+      }
+
+      .note {
+        display: grid;
+        gap: 10px;
+        padding: 16px;
+      }
+
+      .matrix {
+        overflow: hidden;
+      }
+
+      .matrix-row {
+        display: grid;
+        grid-template-columns: 150px minmax(0, 1fr);
+        gap: 14px;
+        min-height: 58px;
+        padding: 12px 14px;
+        border-top: 1px solid var(--soft-line);
+      }
+
+      .matrix-row:first-child {
+        border-top: 0;
+      }
+
+      .matrix-row strong {
+        font-size: 12px;
+      }
+
+      .matrix-row span {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .concept {
+        max-width: 1440px;
+        margin: 0 auto;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        overflow: hidden;
+        background: var(--panel);
+      }
+
+      .concept-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: center;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+        background: #111520;
+      }
+
+      .concept-title {
+        display: grid;
+        gap: 4px;
+      }
+
+      .concept-title h2 {
+        margin: 0;
+        font-size: 18px;
+        letter-spacing: 0;
+      }
+
+      .concept-title p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .classifiers {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: end;
+        gap: 6px;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 0 9px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .tag.fix {
+        border-color: rgba(158, 206, 106, 0.36);
+        color: #b6df8e;
+        background: rgba(158, 206, 106, 0.08);
+      }
+
+      .tag.new {
+        border-color: rgba(224, 175, 104, 0.38);
+        color: #e6c184;
+        background: rgba(224, 175, 104, 0.08);
+      }
+
+      .tag.risk {
+        border-color: rgba(247, 118, 142, 0.32);
+        color: #f4a4b4;
+        background: rgba(247, 118, 142, 0.08);
+      }
+
+      .app {
+        height: 690px;
+        display: grid;
+        grid-template-rows: 44px minmax(0, 1fr) 28px;
+        background: var(--bg);
+      }
+
+      .topbar {
+        height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(15, 17, 23, 0.96);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-weight: 760;
+      }
+
+      .logo {
+        width: 22px;
+        height: 22px;
+        border-radius: 7px;
+        background: linear-gradient(135deg, var(--accent), #c099ff);
+      }
+
+      .pathbar {
+        color: var(--muted);
+        font-size: 12px;
+        padding: 6px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--panel);
+      }
+
+      .topbar .spacer {
+        flex: 1;
+      }
+
+      .kbd {
+        color: var(--text);
+        background: #0b0e14;
+        border: 1px solid var(--line);
+        border-bottom-color: #44506a;
+        padding: 2px 7px;
+        border-radius: 7px;
+        font-size: 12px;
+      }
+
+      .workbench {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 280px minmax(460px, 1fr) 360px;
+      }
+
+      .sidebar,
+      .inspector {
+        min-width: 0;
+        overflow: hidden;
+        background: var(--panel);
+      }
+
+      .sidebar {
+        border-right: 1px solid var(--line);
+      }
+
+      .inspector {
+        border-left: 1px solid var(--line);
+      }
+
+      .side-head,
+      .inspect-head {
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 760;
+      }
+
+      .tree {
+        padding: 8px;
+      }
+
+      .node {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 28px;
+        padding: 4px 8px;
+        border-radius: 8px;
+        color: var(--muted);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      .node.active {
+        background: var(--accent-soft);
+        color: var(--text);
+      }
+
+      .node.changed {
+        color: var(--warn);
+      }
+
+      .node .twisty {
+        width: 12px;
+        color: #697386;
+      }
+
+      .node .badge {
+        margin-left: auto;
+        color: var(--comment-line);
+        font-size: 11px;
+      }
+
+      .indent {
+        margin-left: 18px;
+      }
+
+      .main {
+        min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg);
+      }
+
+      .tabs {
+        height: 39px;
+        display: flex;
+        align-items: end;
+        gap: 2px;
+        padding: 0 8px;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel-2);
+      }
+
+      .tab {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 32px;
+        padding: 0 12px;
+        border: 1px solid transparent;
+        border-bottom: 0;
+        border-radius: 9px 9px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      .tab.active {
+        border-color: var(--line);
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      .viewer-head {
+        min-height: 47px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 14px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .viewer-title {
+        min-width: 0;
+        display: grid;
+        gap: 2px;
+      }
+
+      .viewer-title strong {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 13px;
+      }
+
+      .viewer-title span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .controls {
+        display: flex;
+        gap: 6px;
+      }
+
+      .control {
+        min-height: 28px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--panel-2);
+        color: var(--text);
+        padding: 0 9px;
+        font-size: 12px;
+      }
+
+      .control.active {
+        border-color: rgba(122, 162, 255, 0.48);
+        background: var(--accent-soft);
+      }
+
+      .viewer {
+        min-height: 0;
+        overflow: auto;
+        background: var(--code);
+      }
+
+      .code-lines {
+        min-width: max-content;
+        padding: 12px 0 20px;
+        font-family:
+          ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+        font-size: 13px;
+        line-height: 1.62;
+      }
+
+      .code-line {
+        position: relative;
+        display: grid;
+        grid-template-columns: 64px max-content minmax(0, 1fr);
+        min-height: 23px;
+        color: var(--text);
+      }
+
+      .code-line.thread {
+        background: linear-gradient(90deg, var(--comment-tint), transparent 64%);
+        box-shadow: inset 2px 0 0 var(--comment-line);
+      }
+
+      .code-line.active-thread {
+        background: linear-gradient(
+          90deg,
+          rgba(158, 206, 106, 0.22),
+          rgba(158, 206, 106, 0.08) 60%,
+          transparent
+        );
+        box-shadow:
+          inset 2px 0 0 var(--comment-line),
+          inset 0 0 0 1px rgba(158, 206, 106, 0.18);
+      }
+
+      .line-number {
+        border-right: 1px solid var(--soft-line);
+        color: var(--subtle);
+        padding: 0 12px 0 8px;
+        text-align: right;
+        user-select: none;
+      }
+
+      .thread .line-number,
+      .active-thread .line-number {
+        color: var(--comment-line);
+      }
+
+      .line-code {
+        display: block;
+        min-width: 0;
+        padding: 0 10px 0 18px;
+        white-space: pre;
+      }
+
+      .thread-chip {
+        align-self: center;
+        width: max-content;
+        margin-left: 12px;
+        border: 1px solid rgba(158, 206, 106, 0.34);
+        border-radius: 999px;
+        background: rgba(158, 206, 106, 0.08);
+        color: #b6df8e;
+        padding: 2px 7px;
+        font-family: inherit;
+        font-size: 11px;
+      }
+
+      .rendered-doc {
+        max-width: 760px;
+        padding: 30px 42px 70px;
+        color: var(--text);
+        font-size: 15px;
+        line-height: 1.72;
+      }
+
+      .rendered-doc h1 {
+        margin: 0 0 20px;
+        font-size: 28px;
+        letter-spacing: 0;
+      }
+
+      .rendered-doc h2 {
+        margin: 30px 0 12px;
+        font-size: 19px;
+        letter-spacing: 0;
+      }
+
+      .rendered-doc p {
+        margin: 0 0 16px;
+      }
+
+      .rendered-line {
+        position: relative;
+        border-radius: 7px;
+        background: rgba(158, 206, 106, 0.09);
+        box-shadow: inset 2px 0 0 var(--comment-line);
+        padding: 8px 10px 8px 14px;
+      }
+
+      .line-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 20px;
+        border: 1px solid rgba(158, 206, 106, 0.36);
+        border-radius: 999px;
+        color: #b6df8e;
+        font-size: 11px;
+        font-weight: 760;
+        padding: 0 7px;
+        margin-right: 7px;
+      }
+
+      .preview-frame {
+        margin: 28px;
+        max-width: 760px;
+        min-height: 360px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #f6f7fb;
+        color: #20242d;
+        padding: 34px;
+      }
+
+      .preview-frame h1 {
+        margin: 0 0 14px;
+        color: #111827;
+        font-size: 26px;
+      }
+
+      .preview-line {
+        position: relative;
+        border-radius: 7px;
+        outline: 2px solid rgba(81, 127, 76, 0.45);
+        background: #eef7e8;
+        padding: 10px 12px;
+      }
+
+      .floating-thread {
+        position: absolute;
+        right: 24px;
+        top: 154px;
+        width: 228px;
+        border: 1px solid rgba(158, 206, 106, 0.36);
+        border-radius: 10px;
+        background: #171d26;
+        color: var(--text);
+        padding: 10px;
+        box-shadow: 0 20px 70px rgba(0, 0, 0, 0.35);
+      }
+
+      .floating-thread strong {
+        display: block;
+        font-size: 12px;
+        margin-bottom: 6px;
+      }
+
+      .floating-thread p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .inspect-body {
+        height: calc(100% - 42px);
+        overflow: auto;
+      }
+
+      .review-summary {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .review-summary div {
+        display: grid;
+        gap: 2px;
+        padding: 10px 12px;
+        border-right: 1px solid var(--soft-line);
+      }
+
+      .review-summary div:last-child {
+        border-right: 0;
+      }
+
+      .review-summary strong {
+        font-size: 16px;
+      }
+
+      .review-summary span {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .queue-row {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 10px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 5px 8px;
+        min-height: 58px;
+        border: 0;
+        border-top: 1px solid var(--soft-line);
+        background: transparent;
+        color: var(--text);
+        padding: 10px 12px;
+        text-align: left;
+      }
+
+      .queue-row.active {
+        background: linear-gradient(90deg, var(--comment-tint), transparent 62%);
+        box-shadow: inset 2px 0 0 var(--comment-line);
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--accent);
+      }
+
+      .dot.comment {
+        background: var(--comment-line);
+        box-shadow: 0 0 0 3px rgba(158, 206, 106, 0.13);
+      }
+
+      .queue-main {
+        min-width: 0;
+        display: grid;
+        gap: 3px;
+      }
+
+      .queue-main b {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 12px;
+      }
+
+      .queue-main small {
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .count {
+        min-width: 54px;
+        border: 1px solid var(--soft-line);
+        border-radius: 999px;
+        color: var(--muted);
+        padding: 3px 6px;
+        text-align: center;
+        font-size: 11px;
+      }
+
+      .count.open {
+        border-color: rgba(158, 206, 106, 0.34);
+        color: #b6df8e;
+      }
+
+      .section-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 34px;
+        padding: 10px 12px 4px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 760;
+      }
+
+      .thread-list {
+        display: grid;
+        gap: 8px;
+        padding: 8px 12px 14px;
+      }
+
+      .thread-row {
+        display: grid;
+        gap: 6px;
+        border: 1px solid var(--soft-line);
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.02);
+        padding: 10px;
+      }
+
+      .thread-row.active {
+        border-color: rgba(158, 206, 106, 0.4);
+        background: rgba(158, 206, 106, 0.08);
+      }
+
+      .thread-meta {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .thread-row strong {
+        font-size: 12px;
+      }
+
+      .thread-row p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 0 12px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+        background: var(--panel);
+      }
+
+      .status span:last-child {
+        margin-left: auto;
+      }
+
+      @media (max-width: 980px) {
+        .brief {
+          grid-template-columns: 1fr;
+        }
+
+        .workbench {
+          grid-template-columns: 220px minmax(420px, 1fr);
+        }
+
+        .inspector {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="brief" aria-label="Concept summary">
+        <div class="note">
+          <h1>Line-bound thread concepts for Vivi comments</h1>
+          <p>
+            These concepts keep the current Vivi workspace intact: left file
+            tree, central open-file surface, right Review Queue inspector, and
+            line-number based source comments. The model assumption is explicit:
+            a thread is anchored to one line or line range. Rendered Markdown,
+            rendered diff, and HTML preview may be where the reviewer notices
+            the issue, but the thread still resolves to a canonical line range.
+          </p>
+        </div>
+        <div class="matrix" aria-label="Issue classification">
+          <div class="matrix-row">
+            <strong>Must fix</strong>
+            <span>
+              UI or implementation diverges from the existing line-thread model:
+              invisible controls, stale composers, pending state ambiguity, or
+              rendered comments that cannot be opened as a line/range thread.
+            </span>
+          </div>
+          <div class="matrix-row">
+            <strong>Careful add</strong>
+            <span>
+              New surface affordances that help users comment from rendered
+              views. These should be introduced only when they preserve the
+              current queue, line rail, and inspector vocabulary.
+            </span>
+          </div>
+          <div class="matrix-row">
+            <strong>Do not do</strong>
+            <span>
+              A separate comment product with its own shell, unrelated actions,
+              or block-only model. That breaks the current mental model.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="concept" aria-label="Concept A">
+        <header class="concept-head">
+          <div class="concept-title">
+            <h2>A. Model alignment patch</h2>
+            <p>
+              Treat the work as a correctness fix: every comment row, marker,
+              draft, and queue item names the same line/range thread.
+            </p>
+          </div>
+          <div class="classifiers">
+            <span class="tag fix">must fix</span>
+            <span class="tag">lowest UI change</span>
+            <span class="tag">current model</span>
+          </div>
+        </header>
+        <div class="app">
+          <header class="topbar">
+            <div class="brand"><span class="logo"></span><span>Vivi</span></div>
+            <div class="pathbar">Workspace /Users/tasuku/work/github.com/tasuku43/vivi</div>
+            <div class="spacer"></div>
+            <span class="kbd">Cmd/Ctrl K</span>
+          </header>
+          <div class="workbench">
+            <aside class="sidebar">
+              <div class="side-head"><span>Explorer</span><span>live</span></div>
+              <div class="tree">
+                <div class="node"><span class="twisty">▾</span><span>docs</span></div>
+                <div class="node indent active changed">
+                  <span class="twisty"></span><span>product-review.md</span><span class="badge">2</span>
+                </div>
+                <div class="node indent"><span class="twisty"></span><span>agent-handoff.md</span></div>
+                <div class="node"><span class="twisty">▾</span><span>ui/src/features</span></div>
+                <div class="node indent changed"><span class="twisty"></span><span>WorkbenchContainer.tsx</span><span class="badge">1</span></div>
+              </div>
+            </aside>
+            <section class="main">
+              <div class="tabs">
+                <div class="tab active">product-review.md</div>
+                <div class="tab">WorkbenchContainer.tsx</div>
+                <div class="tab">review-preview.html</div>
+              </div>
+              <div class="viewer-head">
+                <div class="viewer-title">
+                  <strong>docs/product-review.md</strong>
+                  <span>Markdown · selected thread docs/product-review.md:L7-L9</span>
+                </div>
+                <div class="controls">
+                  <button class="control active">Rendered</button>
+                  <button class="control">Source</button>
+                  <button class="control">Diff from HEAD</button>
+                </div>
+              </div>
+              <div class="viewer">
+                <div class="code-lines">
+                  <div class="code-line"><span class="line-number">5</span><code class="line-code">## Feedback layer</code></div>
+                  <div class="code-line"><span class="line-number">6</span><code class="line-code"></code></div>
+                  <div class="code-line active-thread">
+                    <span class="line-number">7</span>
+                    <code class="line-code">Comment threads are the shared contract between the browser UI and coding agents.</code>
+                    <span class="thread-chip">thread · L7-L9</span>
+                  </div>
+                  <div class="code-line thread"><span class="line-number">8</span><code class="line-code">Draft comments stay private until the reviewer publishes a batch.</code></div>
+                  <div class="code-line thread"><span class="line-number">9</span><code class="line-code">Agents read open threads and reply with context.</code></div>
+                  <div class="code-line"><span class="line-number">10</span><code class="line-code"></code></div>
+                  <div class="code-line"><span class="line-number">11</span><code class="line-code">## Review Queue</code></div>
+                </div>
+              </div>
+            </section>
+            <aside class="inspector">
+              <div class="inspect-head"><span>Review</span><span>3 files</span></div>
+              <div class="inspect-body">
+                <div class="review-summary">
+                  <div><strong>2</strong><span>queued</span></div>
+                  <div><strong>3</strong><span>in review</span></div>
+                  <div><strong>5</strong><span>seen</span></div>
+                </div>
+                <button class="queue-row active">
+                  <span class="dot comment"></span>
+                  <span class="queue-main">
+                    <b>docs/product-review.md</b>
+                    <small>modified · 2 open · latest Codex reply</small>
+                  </span>
+                  <span class="count open">2 open</span>
+                </button>
+                <button class="queue-row">
+                  <span class="dot"></span>
+                  <span class="queue-main">
+                    <b>ui/src/features/WorkbenchContainer.tsx</b>
+                    <small>modified · 1 pending draft</small>
+                  </span>
+                  <span class="count">1 draft</span>
+                </button>
+                <div class="section-title"><span>In this file</span><span>line threads</span></div>
+                <div class="thread-list">
+                  <div class="thread-row active">
+                    <div class="thread-meta"><span class="line-pill">L7-L9</span><span>Open · 2 messages</span></div>
+                    <strong>Comment threads are the shared contract</strong>
+                    <p>Same thread opens from source, rendered Markdown, or diff.</p>
+                  </div>
+                  <div class="thread-row">
+                    <div class="thread-meta"><span class="line-pill">L18</span><span>Pending</span></div>
+                    <strong>Draft review comments</strong>
+                    <p>Private until publish; attached to the line before it is sent.</p>
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
+          <footer class="status"><span>watching 214 files</span><span>3 tabs</span><span>connected</span></footer>
+        </div>
+      </section>
+
+      <section class="concept" aria-label="Concept B">
+        <header class="concept-head">
+          <div class="concept-title">
+            <h2>B. Surface-aware line thread</h2>
+            <p>
+              Keep one line/range thread, but preserve where the reviewer saw
+              it: rendered Markdown, rendered diff, HTML preview, source, or diff.
+            </p>
+          </div>
+          <div class="classifiers">
+            <span class="tag fix">must fix base model</span>
+            <span class="tag new">careful add</span>
+            <span class="tag">same inspector</span>
+          </div>
+        </header>
+        <div class="app">
+          <header class="topbar">
+            <div class="brand"><span class="logo"></span><span>Vivi</span></div>
+            <div class="pathbar">Workspace /Users/tasuku/work/github.com/tasuku43/vivi</div>
+            <div class="spacer"></div>
+            <span class="kbd">Cmd/Ctrl D</span>
+          </header>
+          <div class="workbench">
+            <aside class="sidebar">
+              <div class="side-head"><span>Explorer</span><span>live</span></div>
+              <div class="tree">
+                <div class="node"><span class="twisty">▾</span><span>docs</span></div>
+                <div class="node indent active changed"><span class="twisty"></span><span>product-review.md</span><span class="badge">2</span></div>
+                <div class="node"><span class="twisty">▾</span><span>web</span></div>
+                <div class="node indent changed"><span class="twisty"></span><span>review-preview.html</span><span class="badge">1</span></div>
+              </div>
+            </aside>
+            <section class="main">
+              <div class="tabs">
+                <div class="tab active">product-review.md</div>
+                <div class="tab">review-preview.html</div>
+              </div>
+              <div class="viewer-head">
+                <div class="viewer-title">
+                  <strong>docs/product-review.md</strong>
+                  <span>Rendered Markdown · thread anchored to L7-L9</span>
+                </div>
+                <div class="controls">
+                  <button class="control active">Rendered</button>
+                  <button class="control">Source</button>
+                  <button class="control">Diff from HEAD</button>
+                </div>
+              </div>
+              <div class="viewer">
+                <article class="rendered-doc">
+                  <h1>Review Queue</h1>
+                  <p>Files with open threads rise to the top of the queue.</p>
+                  <h2>Feedback layer</h2>
+                  <p class="rendered-line">
+                    <span class="line-pill">L7-L9</span>
+                    Comment threads are the shared contract between the browser
+                    UI and coding agents. Draft comments stay private until the
+                    reviewer publishes a batch.
+                  </p>
+                  <p>
+                    Agents read open threads, reply with context, and mark
+                    threads when resolved.
+                  </p>
+                </article>
+              </div>
+            </section>
+            <aside class="inspector">
+              <div class="inspect-head"><span>Review</span><span>current file</span></div>
+              <div class="inspect-body">
+                <div class="review-summary">
+                  <div><strong>1</strong><span>open</span></div>
+                  <div><strong>1</strong><span>pending</span></div>
+                  <div><strong>3</strong><span>messages</span></div>
+                </div>
+                <button class="queue-row active">
+                  <span class="dot comment"></span>
+                  <span class="queue-main">
+                    <b>docs/product-review.md</b>
+                    <small>modified · rendered Markdown · source L7-L9</small>
+                  </span>
+                  <span class="count open">open</span>
+                </button>
+                <div class="section-title"><span>Thread</span><span>one line range</span></div>
+                <div class="thread-list">
+                  <div class="thread-row active">
+                    <div class="thread-meta">
+                      <span class="line-pill">L7-L9</span>
+                      <span>Seen in Rendered · opens in Source</span>
+                    </div>
+                    <strong>Feedback layer language</strong>
+                    <p>
+                      This is not a rendered-only comment. The surface is
+                      metadata; the thread remains anchored to the line range.
+                    </p>
+                  </div>
+                  <div class="thread-row">
+                    <div class="thread-meta"><span class="line-pill">L18</span><span>Pending</span></div>
+                    <strong>Draft review comments</strong>
+                    <p>Publish keeps the same thread id and line range.</p>
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
+          <footer class="status"><span>rendered surface</span><span>line thread model</span><span>connected</span></footer>
+        </div>
+      </section>
+
+      <section class="concept" aria-label="Concept C">
+        <header class="concept-head">
+          <div class="concept-title">
+            <h2>C. Preview composer as a cautious new affordance</h2>
+            <p>
+              HTML preview can have a floating composer, but it must still create
+              exactly one line/range thread and stay subordinate to the current
+              Review Queue and inspector model.
+            </p>
+          </div>
+          <div class="classifiers">
+            <span class="tag new">new experience</span>
+            <span class="tag risk">introduce carefully</span>
+            <span class="tag">HTML only first</span>
+          </div>
+        </header>
+        <div class="app">
+          <header class="topbar">
+            <div class="brand"><span class="logo"></span><span>Vivi</span></div>
+            <div class="pathbar">Workspace /Users/tasuku/work/github.com/tasuku43/vivi</div>
+            <div class="spacer"></div>
+            <span class="kbd">Cmd/Ctrl K</span>
+          </header>
+          <div class="workbench">
+            <aside class="sidebar">
+              <div class="side-head"><span>Explorer</span><span>live</span></div>
+              <div class="tree">
+                <div class="node"><span class="twisty">▾</span><span>web</span></div>
+                <div class="node indent active changed"><span class="twisty"></span><span>review-preview.html</span><span class="badge">1</span></div>
+                <div class="node"><span class="twisty">▾</span><span>docs</span></div>
+                <div class="node indent changed"><span class="twisty"></span><span>product-review.md</span><span class="badge">2</span></div>
+              </div>
+            </aside>
+            <section class="main">
+              <div class="tabs">
+                <div class="tab active">review-preview.html</div>
+                <div class="tab">product-review.md</div>
+              </div>
+              <div class="viewer-head">
+                <div class="viewer-title">
+                  <strong>web/review-preview.html</strong>
+                  <span>HTML preview · sandboxed · selected source L7</span>
+                </div>
+                <div class="controls">
+                  <button class="control active">Preview</button>
+                  <button class="control">Source</button>
+                  <button class="control">Diff from HEAD</button>
+                </div>
+              </div>
+              <div class="viewer" style="position: relative">
+                <div class="preview-frame">
+                  <h1>Review Preview</h1>
+                  <p class="preview-line">
+                    <span class="line-pill">L7</span>
+                    Rendered HTML comments map back to source blocks.
+                  </p>
+                  <button class="control" style="margin-top: 18px; color: #20242d; background: #ffffff">Approve local preview</button>
+                </div>
+                <div class="floating-thread">
+                  <strong>Draft on web/review-preview.html:L7</strong>
+                  <p>
+                    One active preview composer. Selecting another preview target
+                    moves this composer instead of opening many forms.
+                  </p>
+                </div>
+              </div>
+            </section>
+            <aside class="inspector">
+              <div class="inspect-head"><span>Review</span><span>HTML preview</span></div>
+              <div class="inspect-body">
+                <div class="review-summary">
+                  <div><strong>1</strong><span>open</span></div>
+                  <div><strong>1</strong><span>draft</span></div>
+                  <div><strong>7</strong><span>line</span></div>
+                </div>
+                <button class="queue-row active">
+                  <span class="dot comment"></span>
+                  <span class="queue-main">
+                    <b>web/review-preview.html</b>
+                    <small>added · HTML preview · source L7</small>
+                  </span>
+                  <span class="count">draft</span>
+                </button>
+                <div class="section-title"><span>In this file</span><span>source-mapped</span></div>
+                <div class="thread-list">
+                  <div class="thread-row active">
+                    <div class="thread-meta"><span class="line-pill">L7</span><span>Draft · preview surface</span></div>
+                    <strong>Rendered HTML comments map back to source blocks.</strong>
+                    <p>
+                      The new piece is the preview composer. The saved object is
+                      still a thread anchored to source line 7.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
+          <footer class="status"><span>sandboxed iframe</span><span>1 preview composer</span><span>connected</span></footer>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

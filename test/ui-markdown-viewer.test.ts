@@ -23,10 +23,37 @@ describe("renderMarkdownDocumentHtml", () => {
 
     expect(html).toContain('<h1 id="title"');
     expect(html).toContain('data-vivi-comment-block-id="vivi-block-1"');
-    expect(html).toContain('<div class="markdown-table-wrap"><table>');
+    expect(html).toContain(
+      '<div class="markdown-table-wrap" role="region" aria-label="Scrollable Markdown table" tabindex="0"><table>',
+    );
     expect(html).toContain('data-vivi-source-line-start="3"');
     expect(html).toContain('data-vivi-source-line-start="5"');
     expect(html).toContain("<td>stable</td>");
+  });
+
+  it("preserves Markdown table alignment for styled reader tables", () => {
+    const html = renderMarkdownDocumentHtml(`# Metrics
+
+| Area | Status | Latency |
+| :--- | :---: | ---: |
+| Markdown | Ready | 2.4s |
+`);
+
+    expect(html).toContain(
+      '<div class="markdown-table-wrap" role="region" aria-label="Scrollable Markdown table" tabindex="0"><table>',
+    );
+    expect(html).toMatch(
+      /<th[^>]+align="center"[^>]*>Status<\/th>|<th[^>]+style="text-align:\s*center;?"[^>]*>Status<\/th>/,
+    );
+    expect(html).toMatch(
+      /<th[^>]+align="right"[^>]*>Latency<\/th>|<th[^>]+style="text-align:\s*right;?"[^>]*>Latency<\/th>/,
+    );
+    expect(html).toMatch(
+      /<td[^>]+align="center"[^>]*>Ready<\/td>|<td[^>]+style="text-align:\s*center;?"[^>]*>Ready<\/td>/,
+    );
+    expect(html).toMatch(
+      /<td[^>]+align="right"[^>]*>2\.4s<\/td>|<td[^>]+style="text-align:\s*right;?"[^>]*>2\.4s<\/td>/,
+    );
   });
 
   it("maps formatted document blocks back to canonical source lines", () => {
@@ -130,6 +157,14 @@ const value = 1;
     expect(html).toContain('<p class="markdown-callout-title"');
     expect(html).toContain(">Warning</p>");
     expect(html).toContain("Check paths before serving files.");
+  });
+
+  it("labels GitHub task list checkboxes for the rendered reader", () => {
+    const html = renderMarkdownDocumentHtml(`- [x] Finished item
+- [ ] Pending item`);
+
+    expect(html).toContain('aria-label="Completed task"');
+    expect(html).toContain('aria-label="Incomplete task"');
   });
 
   it("renders Mermaid fences as safe inline previews with source fallback", () => {
