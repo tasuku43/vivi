@@ -211,6 +211,7 @@ export const ResolvedDiffThreadMarker: Story = {
 };
 
 export const RenderedMarkdownComment: Story = {
+  tags: ["interaction"],
   args: {
     path: sampleFiles.markdown.path,
     renderKind: "markdown",
@@ -218,6 +219,32 @@ export const RenderedMarkdownComment: Story = {
     diff: markdownDiff,
     comments: commentsForPath(sampleFiles.markdown.path),
     activeCommentId: "comment-md-rendered",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const cardsRegion = canvas.getByRole("region", {
+      name: `Rendered Markdown change cards for ${sampleFiles.markdown.path}`,
+    });
+    await expect(cardsRegion).toBeVisible();
+    const cardsCanvas = within(cardsRegion);
+    expect(cardsCanvas.getAllByRole("article").length).toBeGreaterThan(0);
+    await expect(cardsRegion).toHaveTextContent(
+      "source diff remains canonical",
+    );
+    const sourcePreviews = cardsCanvas.getAllByLabelText("Source hunk preview");
+    expect(sourcePreviews.length).toBeGreaterThan(0);
+    const toggle = cardsCanvas.getAllByRole("button", {
+      name: "Hide source hunk",
+    })[0];
+    expect(toggle).toBeDefined();
+    await userEvent.click(toggle!);
+    expect(cardsCanvas.getAllByLabelText("Source hunk preview").length).toBe(
+      sourcePreviews.length - 1,
+    );
+    await userEvent.click(toggle!);
+    expect(cardsCanvas.getAllByLabelText("Source hunk preview").length).toBe(
+      sourcePreviews.length,
+    );
   },
 };
 
@@ -352,7 +379,6 @@ const renderedChangeCards: RenderedChangeCard[] = [
 
 export const RenderedChangeCards: Story = {
   name: "Rendered change cards facade",
-  tags: ["interaction"],
   render: () => (
     <RenderedChangeCardsFacade
       markdownFile={sampleFiles.markdown}

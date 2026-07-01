@@ -182,6 +182,308 @@
   white-space: nowrap;
 }
 
+.diffViewer :global(.rendered-change-cards) {
+  position: relative;
+  min-width: 0;
+  margin-top: 8px;
+}
+
+.diffViewer :global(.rendered-change-card-summary) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  margin-bottom: 10px;
+  border: 1px solid var(--vivi-color-border-default);
+  border-radius: 8px;
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-content-muted);
+  font-size: 12px;
+  padding: 8px 10px;
+}
+
+.diffViewer :global(.rendered-change-card-summary strong) {
+  color: var(--vivi-color-content-primary);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.diffViewer :global(.rendered-change-card-stack) {
+  display: grid;
+  gap: 12px;
+}
+
+.diffViewer :global(.rendered-change-card) {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr);
+  min-width: 0;
+  border: 1px solid var(--vivi-color-border-default);
+  border-radius: 8px;
+  background: var(--vivi-color-surface-panel);
+  box-shadow: 0 14px 36px
+    color-mix(in srgb, var(--vivi-color-shadow) 52%, transparent);
+  overflow: hidden;
+}
+
+.diffViewer :global(.rendered-change-card.changed) {
+  border-color: var(--vivi-color-change-border);
+}
+
+.diffViewer :global(.rendered-change-card.added) {
+  border-color: var(--vivi-color-success-border);
+}
+
+.diffViewer :global(.rendered-change-card.removed) {
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-danger) 44%,
+    var(--vivi-color-border-default)
+  );
+}
+
+.diffViewer :global(.rendered-change-card.has-comment) {
+  box-shadow:
+    0 14px 36px color-mix(in srgb, var(--vivi-color-shadow) 52%, transparent),
+    inset 0 0 0 1px var(--vivi-color-comment-border);
+}
+
+.diffViewer :global(.rendered-change-card-rail) {
+  background: var(--vivi-color-change-text);
+}
+
+.diffViewer :global(.rendered-change-card.added .rendered-change-card-rail) {
+  background: var(--vivi-color-diff-add-line);
+}
+
+.diffViewer :global(.rendered-change-card.removed .rendered-change-card-rail) {
+  background: var(--vivi-color-diff-remove-line);
+}
+
+.diffViewer :global(.rendered-change-card-body) {
+  min-width: 0;
+}
+
+.diffViewer :global(.rendered-change-card-head) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 44px;
+  border-bottom: 1px solid var(--vivi-color-border-default);
+  padding: 8px 12px;
+}
+
+.diffViewer :global(.rendered-change-badge) {
+  display: inline-grid;
+  place-items: center;
+  min-height: 23px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  padding: 0 9px;
+  text-transform: uppercase;
+}
+
+.diffViewer :global(.rendered-change-badge.changed) {
+  background: var(--vivi-color-change-surface-strong);
+  color: var(--vivi-color-change-text);
+}
+
+.diffViewer :global(.rendered-change-badge.added) {
+  background: var(--vivi-color-success-surface);
+  color: var(--vivi-color-success-text);
+}
+
+.diffViewer :global(.rendered-change-badge.removed) {
+  background: color-mix(in srgb, var(--vivi-color-danger) 15%, transparent);
+  color: var(--vivi-color-diff-remove-line);
+}
+
+.diffViewer :global(.rendered-change-card-meta) {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--vivi-color-content-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diffViewer :global(.rendered-change-card-content) {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.diffViewer :global(.rendered-change-card-content.before-after) {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.diffViewer :global(.rendered-change-pane) {
+  min-width: 0;
+}
+
+.diffViewer :global(.rendered-change-pane-label) {
+  margin: 0 0 8px;
+  color: var(--vivi-color-content-subtle);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.diffViewer :global(.rendered-change-preview) {
+  min-width: 0;
+  border: 1px solid var(--vivi-color-border-default);
+  border-radius: 8px;
+  background: #f7f9fc;
+  color: #202833;
+  overflow: hidden;
+}
+
+.diffViewer :global(.rendered-change-preview.old) {
+  background:
+    linear-gradient(
+      color-mix(in srgb, var(--vivi-color-diff-remove-line) 14%, transparent),
+      color-mix(in srgb, var(--vivi-color-diff-remove-line) 14%, transparent)
+    ),
+    #f7f9fc;
+}
+
+.diffViewer :global(.rendered-change-preview.new) {
+  background:
+    linear-gradient(
+      color-mix(in srgb, var(--vivi-color-diff-add-line) 14%, transparent),
+      color-mix(in srgb, var(--vivi-color-diff-add-line) 14%, transparent)
+    ),
+    #f7f9fc;
+}
+
+.diffViewer :global(.rendered-change-preview .rendered-diff-line) {
+  padding: 14px 16px;
+}
+
+.diffViewer :global(.rendered-change-preview .markdown-document) {
+  border: 0;
+  background: transparent;
+  color: #202833;
+  font-size: 14px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.diffViewer
+  :global(
+    .rendered-change-preview
+      .markdown-document
+      :is(h1, h2, h3, h4, h5, h6, p, li, blockquote, code)
+  ) {
+  color: #202833;
+}
+
+.diffViewer :global(.rendered-change-preview .markdown-document p) {
+  color: #566171;
+}
+
+.diffViewer
+  :global(.rendered-change-preview .markdown-document > :first-child) {
+  margin-top: 0;
+}
+
+.diffViewer :global(.rendered-change-preview .markdown-document > :last-child) {
+  margin-bottom: 0;
+}
+
+.diffViewer :global(.rendered-change-preview .rendered-diff-frame) {
+  display: block;
+  width: 100%;
+  height: 150px;
+  border: 0;
+  background: white;
+}
+
+.diffViewer :global(.rendered-change-source) {
+  display: grid;
+  justify-items: stretch;
+  gap: 8px;
+  padding: 0 14px 14px;
+}
+
+.diffViewer :global(.rendered-change-source > button) {
+  justify-self: end;
+  min-height: 28px;
+  border: 1px solid var(--vivi-color-accent-border);
+  border-radius: 6px;
+  background: var(--vivi-color-surface-panel-raised);
+  color: var(--vivi-color-content-primary);
+  font-size: 12px;
+  padding: 0 9px;
+}
+
+.diffViewer :global(.rendered-change-source > button:hover),
+.diffViewer :global(.rendered-change-source > button:focus-visible) {
+  outline: 2px solid var(--vivi-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.diffViewer :global(.rendered-change-source-rows) {
+  display: grid;
+  border: 1px solid var(--vivi-color-border-default);
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--vivi-color-surface-code);
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+}
+
+.diffViewer :global(.rendered-change-source-row) {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  min-height: 27px;
+}
+
+.diffViewer :global(.rendered-change-source-row > span) {
+  border-right: 1px solid var(--vivi-color-border-default);
+  color: var(--vivi-color-content-subtle);
+  padding: 6px 9px;
+  text-align: right;
+}
+
+.diffViewer :global(.rendered-change-source-row > code) {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--vivi-color-content-primary);
+  padding: 6px 10px;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+.diffViewer :global(.rendered-change-source-row.add) {
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-diff-add-line) 11%,
+    transparent
+  );
+}
+
+.diffViewer :global(.rendered-change-source-row.add > code) {
+  color: var(--vivi-color-success-text);
+}
+
+.diffViewer :global(.rendered-change-source-row.remove) {
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-diff-remove-line) 12%,
+    transparent
+  );
+}
+
+.diffViewer :global(.rendered-change-source-row.remove > code) {
+  color: color-mix(in srgb, var(--vivi-color-diff-remove-line) 78%, white);
+}
+
 .diffViewer :global(.diff-inline-row.gap) {
   min-height: 32px;
   align-items: center;
@@ -472,4 +774,10 @@
   border: 1px solid var(--vivi-color-border-default);
   border-radius: 8px;
   background: white;
+}
+
+@media (max-width: 960px) {
+  .diffViewer :global(.rendered-change-card-content.before-after) {
+    grid-template-columns: 1fr;
+  }
 }

@@ -574,6 +574,9 @@ function RenderedDiff({
     renderKind,
   );
   const displayRows = buildFocusedRenderedDiffRows(rows);
+  const cards = buildRenderedChangeCards(
+    renderKind === "html" ? buildRenderedHtmlRows(displayRows) : displayRows,
+  );
   if (!rows.some((line) => line.kind === "add" || line.kind === "remove")) {
     return (
       <p className={`${sharedUiStyles.muted} muted`}>
@@ -582,126 +585,24 @@ function RenderedDiff({
     );
   }
 
-  if (renderKind === "markdown") {
-    return (
-      <RenderedMarkdownDiff
-        diff={diff}
-        rows={displayRows}
-        file={file}
-        onCreateComment={onCreateComment}
-        comments={comments}
-        activeCommentId={activeCommentId}
-        onOpenComment={onOpenComment}
-      />
-    );
-  }
-
-  if (renderKind === "html") {
-    return (
-      <RenderedHtmlDiff
-        diff={diff}
-        rows={buildRenderedHtmlRows(displayRows)}
-        comments={comments}
-        onOpenComment={onOpenComment}
-      />
-    );
-  }
-
   return (
-    <div
-      className="diff-preview diff-inline rendered-inline-diff"
-      aria-label={`Rendered diff for ${diff.path}`}
-    >
-      {displayRows.map((line, index) => (
-        <div
-          className={`diff-inline-row ${line.kind}`}
-          key={`${line.kind}-${index}-${line.lineLabel}-${line.source}`}
-        >
-          <span className="diff-line-no">{line.lineLabel}</span>
-          <RenderedDiffLine renderKind={renderKind} source={line.source} />
-        </div>
-      ))}
-    </div>
+    <RenderedChangeCards
+      diff={diff}
+      renderKind={renderKind}
+      cards={cards}
+      file={file}
+      onCreateComment={onCreateComment}
+      comments={comments}
+      activeCommentId={activeCommentId}
+      onOpenComment={onOpenComment}
+    />
   );
 }
 
-function RenderedHtmlDiff({
+function RenderedChangeCards({
   diff,
-  rows,
-  comments,
-  onOpenComment,
-}: {
-  diff: TextDiff;
-  rows: RenderedDiffRow[];
-  comments: ViviComment[];
-  onOpenComment?: (id: string, rect: DOMRectLike) => void;
-}) {
-  return (
-    <div
-      className="rendered-html-diff"
-      aria-label={`Rendered HTML diff for ${diff.path}`}
-    >
-      {rows.map((row, index) => (
-        <RenderedHtmlDiffBlock
-          key={`${row.kind}-${index}-${row.source}`}
-          row={row}
-          comments={comments}
-          onOpenComment={onOpenComment}
-        />
-      ))}
-    </div>
-  );
-}
-
-function RenderedHtmlDiffBlock({
-  row,
-  comments,
-  onOpenComment,
-}: {
-  row: RenderedDiffRow;
-  comments: ViviComment[];
-  onOpenComment?: (id: string, rect: DOMRectLike) => void;
-}) {
-  if (row.kind === "gap") return <DiffGap label={row.source} />;
-  const range = currentLineRangeForRenderedRow(row);
-  const firstComment = range
-    ? commentsForLine(comments, range.start)[0]
-    : undefined;
-  return (
-    <div
-      className={`rendered-html-diff-block ${row.kind}${firstComment ? " has-comment" : ""}`}
-      data-current-line={range?.start}
-      data-change-kind={
-        range ? (row.kind === "add" ? "added" : "context") : undefined
-      }
-    >
-      {firstComment ? (
-        <button
-          className="comment-gutter-marker rendered-diff-comment-marker"
-          type="button"
-          data-comment-id={firstComment.id}
-          aria-label={`Open comment on line ${range?.start}`}
-          onClick={(event) =>
-            onOpenComment?.(
-              firstComment.id,
-              rectLikeFromElement(event.currentTarget),
-            )
-          }
-        />
-      ) : null}
-      <iframe
-        className="rendered-html-diff-frame"
-        sandbox=""
-        srcDoc={htmlSnippetDocument(row.source)}
-        title="HTML diff preview"
-      />
-    </div>
-  );
-}
-
-function RenderedMarkdownDiff({
-  diff,
-  rows,
+  renderKind,
+  cards,
   file,
   onCreateComment,
   comments,
@@ -709,14 +610,15 @@ function RenderedMarkdownDiff({
   onOpenComment,
 }: {
   diff: TextDiff;
-  rows: RenderedDiffRow[];
+  renderKind: Exclude<RenderKind, "source">;
+  cards: RenderedChangeCard[];
   file?: FilePayload;
   onCreateComment?: CommentCreateHandler;
   comments: ViviComment[];
   activeCommentId?: string | null;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
-  const articleRef = useRef<HTMLElement | null>(null);
+  const cardListRef = useRef<HTMLDivElement | null>(null);
   const [selectionComment, setSelectionComment] = useState<{
     draft: CommentDraft;
     rect: DOMRectLike;
@@ -724,7 +626,7 @@ function RenderedMarkdownDiff({
 
   useEffect(() => {
     if (!activeCommentId) return;
-    const marker = articleRef.current?.querySelector<HTMLElement>(
+    const marker = cardListRef.current?.querySelector<HTMLElement>(
       `[data-comment-id="${CSS.escape(activeCommentId)}"]`,
     );
     if (!marker) return;
@@ -735,7 +637,7 @@ function RenderedMarkdownDiff({
   }, [activeCommentId, comments, onOpenComment]);
 
   const updateSelectionComment = () => {
-    if (!file || !articleRef.current) return;
+    if (!file || !cardListRef.current || renderKind !== "markdown") return;
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) {
       setSelectionComment(null);
@@ -747,12 +649,12 @@ function RenderedMarkdownDiff({
       return;
     }
     const range = selection.getRangeAt(0);
-    if (!articleRef.current.contains(range.commonAncestorContainer)) {
+    if (!cardListRef.current.contains(range.commonAncestorContainer)) {
       setSelectionComment(null);
       return;
     }
     const blocks = Array.from(
-      articleRef.current.querySelectorAll<HTMLElement>("[data-current-line]"),
+      cardListRef.current.querySelectorAll<HTMLElement>("[data-current-line]"),
     ).filter((block) => range.intersectsNode(block));
     const lines = blocks
       .map((block) => Number(block.dataset.currentLine))
@@ -776,77 +678,186 @@ function RenderedMarkdownDiff({
   };
 
   return (
-    <article
-      ref={articleRef}
-      className="markdown markdown-document rendered-markdown-diff"
-      aria-label={`Rendered Markdown diff for ${diff.path}`}
+    <div
+      ref={cardListRef}
+      role="region"
+      className="rendered-change-cards"
+      aria-label={`Rendered ${renderKind === "html" ? "HTML" : "Markdown"} change cards for ${diff.path}`}
       onMouseUp={() => scheduleSelectionCommentUpdate(updateSelectionComment)}
       onKeyUp={updateSelectionComment}
     >
-      {rows.map((row, index) => (
-        <RenderedMarkdownDiffBlock
-          key={`${row.kind}-${index}-${row.source}`}
-          row={row}
-          comments={comments}
-          onOpenComment={onOpenComment}
+      <div className="rendered-change-card-summary">
+        <strong>{cards.length}</strong>
+        <span>rendered change cards · source diff remains canonical</span>
+      </div>
+      <div className="rendered-change-card-stack">
+        {cards.map((card) => (
+          <RenderedChangeCardView
+            key={card.id}
+            card={card}
+            renderKind={renderKind}
+            comments={comments}
+            onOpenComment={onOpenComment}
+          />
+        ))}
+      </div>
+      {renderKind === "markdown" ? (
+        <SelectionCommentComposer
+          draft={selectionComment?.draft ?? null}
+          rect={selectionComment?.rect ?? null}
+          onSave={onCreateComment}
+          onDismiss={() => setSelectionComment(null)}
         />
-      ))}
-      <SelectionCommentComposer
-        draft={selectionComment?.draft ?? null}
-        rect={selectionComment?.rect ?? null}
-        onSave={onCreateComment}
-        onDismiss={() => setSelectionComment(null)}
-      />
+      ) : null}
+    </div>
+  );
+}
+
+function RenderedChangeCardView({
+  card,
+  renderKind,
+  comments,
+  onOpenComment,
+}: {
+  card: RenderedChangeCard;
+  renderKind: Exclude<RenderKind, "source">;
+  comments: ViviComment[];
+  onOpenComment?: (id: string, rect: DOMRectLike) => void;
+}) {
+  if (!card.before && !card.after) return <DiffGap label="Changed block" />;
+  const anchorRow = card.after ?? card.before;
+  const range = anchorRow ? currentLineRangeForRenderedRow(anchorRow) : null;
+  const firstComment = range
+    ? commentsForLine(comments, range.start)[0]
+    : undefined;
+  const cardTitle =
+    card.kind === "changed"
+      ? "Changed rendered block"
+      : card.kind === "added"
+        ? "Added rendered block"
+        : "Removed rendered block";
+  return (
+    <article
+      className={`rendered-change-card ${card.kind}${firstComment ? " has-comment" : ""}`}
+      aria-label={`${cardTitle} ${anchorRow?.lineLabel ?? ""}`.trim()}
+    >
+      <div className="rendered-change-card-rail" />
+      <div className="rendered-change-card-body">
+        <header className="rendered-change-card-head">
+          <span className={`rendered-change-badge ${card.kind}`}>
+            {card.kind}
+          </span>
+          <span className="rendered-change-card-meta">
+            {cardTitle}
+            {anchorRow?.lineLabel ? ` · line ${anchorRow.lineLabel}` : ""}
+          </span>
+          {firstComment ? (
+            <button
+              className="comment-gutter-marker rendered-diff-comment-marker"
+              type="button"
+              data-comment-id={firstComment.id}
+              aria-label={`Open comment on line ${range?.start}`}
+              onClick={(event) =>
+                onOpenComment?.(
+                  firstComment.id,
+                  rectLikeFromElement(event.currentTarget),
+                )
+              }
+            />
+          ) : null}
+        </header>
+        <div
+          className={`rendered-change-card-content ${
+            card.before && card.after ? "before-after" : "single"
+          }`}
+        >
+          {card.before ? (
+            <RenderedChangePane
+              label={
+                card.kind === "removed" ? "Removed · HEAD" : "Before · HEAD"
+              }
+              row={card.before}
+              tone="old"
+              renderKind={renderKind}
+            />
+          ) : null}
+          {card.after ? (
+            <RenderedChangePane
+              label={
+                card.kind === "added"
+                  ? "Added · working tree"
+                  : "After · working tree"
+              }
+              row={card.after}
+              tone="new"
+              renderKind={renderKind}
+            />
+          ) : null}
+        </div>
+        <SourceHunkPreview rows={card.sourceRows} />
+      </div>
     </article>
   );
 }
 
-function RenderedMarkdownDiffBlock({
+function RenderedChangePane({
+  label,
   row,
-  comments,
-  onOpenComment,
+  tone,
+  renderKind,
 }: {
+  label: string;
   row: RenderedDiffRow;
-  comments: ViviComment[];
-  onOpenComment?: (id: string, rect: DOMRectLike) => void;
+  tone: "old" | "new";
+  renderKind: Exclude<RenderKind, "source">;
 }) {
-  if (row.kind === "gap") return <DiffGap label={row.source} />;
   const range = currentLineRangeForRenderedRow(row);
-  const firstComment = range
-    ? commentsForLine(comments, range.start)[0]
-    : undefined;
   return (
-    <div
-      className={`rendered-markdown-diff-block ${row.kind}${firstComment ? " has-comment" : ""}`}
-      data-current-line={range?.start}
-      data-change-kind={
-        range ? (row.kind === "add" ? "added" : "context") : undefined
-      }
-    >
-      {firstComment ? (
-        <button
-          className="comment-gutter-marker rendered-diff-comment-marker"
-          type="button"
-          data-comment-id={firstComment.id}
-          aria-label={`Open comment on line ${range?.start}`}
-          onClick={(event) =>
-            onOpenComment?.(
-              firstComment.id,
-              rectLikeFromElement(event.currentTarget),
-            )
-          }
-        />
-      ) : null}
+    <section className="rendered-change-pane">
+      <p className="rendered-change-pane-label">{label}</p>
       <div
-        className={markdownBlockClass(row.source)}
-        data-comment-line={range?.start}
-        dangerouslySetInnerHTML={{
-          __html:
-            row.html ??
-            renderMarkdownDocumentHtml(row.source, { commentBlocks: false }),
-        }}
-      />
-    </div>
+        className={`rendered-change-preview ${tone}`}
+        data-current-line={range?.start}
+        data-change-kind={tone === "new" ? "added" : "context"}
+      >
+        <RenderedDiffLine renderKind={renderKind} source={row.source} />
+      </div>
+    </section>
+  );
+}
+
+function SourceHunkPreview({ rows }: { rows: RenderedDiffRow[] }) {
+  const [visible, setVisible] = useState(true);
+  return (
+    <section className="rendered-change-source">
+      <button
+        type="button"
+        aria-expanded={visible}
+        onClick={() => setVisible((value) => !value)}
+      >
+        {visible ? "Hide source hunk" : "Show source hunk"}
+      </button>
+      {visible ? (
+        <div
+          className="rendered-change-source-rows"
+          aria-label="Source hunk preview"
+        >
+          {rows.map((row, index) => (
+            <div
+              key={`${row.kind}-${row.lineLabel}-${index}-${row.source}`}
+              className={`rendered-change-source-row ${row.kind}`}
+            >
+              <span>
+                {row.kind === "remove"
+                  ? `-${row.lineLabel}`
+                  : `+${row.lineLabel}`}
+              </span>
+              <code>{row.source || " "}</code>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -885,15 +896,6 @@ interface DOMRectLike {
   top: number;
   width: number;
   height: number;
-}
-
-function markdownBlockClass(source: string): string {
-  const trimmed = source.trimStart();
-  if (/^#{1,6}\s/.test(trimmed)) return "markdown-block-heading";
-  if (/^([-*+]|\d+\.)\s/m.test(trimmed)) return "markdown-block-list";
-  if (/^(```|~~~)/.test(trimmed)) return "markdown-block-code";
-  if (/^>/.test(trimmed)) return "markdown-block-quote";
-  return "markdown-block-flow";
 }
 
 function RenderedDiffLine({
@@ -939,6 +941,16 @@ interface RenderedDiffRow {
   lineLabel: string;
   source: string;
   html?: string;
+}
+
+type RenderedChangeKind = "changed" | "added" | "removed";
+
+export interface RenderedChangeCard {
+  id: string;
+  kind: RenderedChangeKind;
+  before?: RenderedDiffRow;
+  after?: RenderedDiffRow;
+  sourceRows: RenderedDiffRow[];
 }
 
 export function buildRenderedDiffRows(
@@ -1004,6 +1016,61 @@ export function buildRenderedHtmlRows(
     grouped.push({ ...row });
   }
   return grouped.filter((row) => row.source.trim().length > 0);
+}
+
+export function buildRenderedChangeCards(
+  rows: RenderedDiffRow[],
+): RenderedChangeCard[] {
+  const cards: RenderedChangeCard[] = [];
+  let index = 0;
+  while (index < rows.length) {
+    const row = rows[index];
+    if (!row) break;
+    if (row.kind === "gap" || row.kind === "context") {
+      index += 1;
+      continue;
+    }
+    const next = rows[index + 1];
+    if (row.kind === "remove" && next?.kind === "add") {
+      cards.push({
+        id: renderedChangeCardId(cards.length, "changed", row, next),
+        kind: "changed",
+        before: row,
+        after: next,
+        sourceRows: [row, next],
+      });
+      index += 2;
+      continue;
+    }
+    if (row.kind === "add") {
+      cards.push({
+        id: renderedChangeCardId(cards.length, "added", row),
+        kind: "added",
+        after: row,
+        sourceRows: [row],
+      });
+      index += 1;
+      continue;
+    }
+    if (row.kind === "remove") {
+      cards.push({
+        id: renderedChangeCardId(cards.length, "removed", row),
+        kind: "removed",
+        before: row,
+        sourceRows: [row],
+      });
+      index += 1;
+      continue;
+    }
+    cards.push({
+      id: renderedChangeCardId(cards.length, "changed", row),
+      kind: "changed",
+      after: row,
+      sourceRows: [row],
+    });
+    index += 1;
+  }
+  return cards;
 }
 
 export function buildFocusedSourceDiffRows(
@@ -1225,6 +1292,18 @@ function lineLabelForLines(
   const first = numbers[0];
   const last = numbers[numbers.length - 1];
   return first === last ? String(first) : `${first}-${last}`;
+}
+
+function renderedChangeCardId(
+  index: number,
+  kind: RenderedChangeKind,
+  row: RenderedDiffRow,
+  pairedRow?: RenderedDiffRow,
+): string {
+  const label = pairedRow
+    ? `${row.lineLabel}-${pairedRow.lineLabel}`
+    : row.lineLabel;
+  return `${kind}-${index}-${label || "block"}`;
 }
 
 export function buildRenderedDiffBlocks(

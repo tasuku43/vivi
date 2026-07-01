@@ -189,7 +189,10 @@
         "Review/Diff States/BinaryDiff",
         "Files/Open File Surface States/CodeDiff"
       ],
-      "interactionStories": ["Review/Diff States/DiffCommentOnAddedLine"]
+      "interactionStories": [
+        "Review/Diff States/DiffCommentOnAddedLine",
+        "Review/Diff States/RenderedMarkdownComment"
+      ]
     },
     {
       "id": "navigation-overlays",

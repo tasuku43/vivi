@@ -4447,13 +4447,16 @@ it("renders HEAD diffs inside the file viewer surface", () => {
   expect(html).toContain("Diff from HEAD");
   expect(html).toContain('<h1 id="old-title">Old title</h1>');
   expect(html).toContain('<h1 id="new-title">New title</h1>');
-  expect(html).toContain("rendered-markdown-diff");
-  expect(html).toContain("rendered-markdown-diff-block remove");
-  expect(html).toContain("rendered-markdown-diff-block add");
+  expect(html).toContain("rendered-change-cards");
+  expect(html).toContain("rendered-change-card changed");
+  expect(html).toContain("Before · HEAD");
+  expect(html).toContain("After · working tree");
+  expect(html).toContain("source diff remains canonical");
+  expect(html).toContain("rendered-change-source-row remove");
+  expect(html).toContain("rendered-change-source-row add");
   expect(html).not.toContain("Focus changes");
   expect(html).not.toContain("diff-line-no");
   expect(html).not.toContain("rendered-diff-pane");
-  expect(html).not.toContain("@@ -1,2 +1,2 @@");
 });
 
 it("renders Markdown diffs as intact rendered blocks", () => {
@@ -4479,11 +4482,14 @@ it("renders Markdown diffs as intact rendered blocks", () => {
     />,
   );
 
-  expect(html).toContain("rendered-markdown-diff-block remove");
-  expect(html).toContain("rendered-markdown-diff-block add");
+  expect(html).toContain("rendered-change-card changed");
+  expect(html).toContain("Before · HEAD");
+  expect(html).toContain("After · working tree");
   expect(html).toContain("<pre><code");
-  expect(html).toContain("console.log('old')");
-  expect(html).toContain("console.log('new')");
+  expect(html).toContain("console.log(&#39;old&#39;)");
+  expect(html).toContain("console.log(&#39;new&#39;)");
+  expect(html).toContain("rendered-change-source-row remove");
+  expect(html).toContain("rendered-change-source-row add");
 });
 
 it("keeps additions inside surrounding Markdown code fences", () => {
@@ -4510,10 +4516,10 @@ it("keeps additions inside surrounding Markdown code fences", () => {
 
   expect(html).toContain("<pre><code");
   expect(html).toContain("src/cli -&gt; process args");
-  expect(html).toContain("rendered-markdown-code-line add");
-  expect(html).toContain(">fuga</span>");
+  expect(html).toContain("rendered-change-card added");
+  expect(html).toContain("fuga");
   expect(html).toContain("src/ui -&gt; React SPA");
-  expect(html).toContain("</span>\n<span");
+  expect(html).toContain("rendered-change-source-row add");
   expect(html).not.toContain("<p>fuga</p>");
 });
 
@@ -4677,9 +4683,12 @@ it("renders HTML diffs as rendered snippets without line numbers", () => {
     />,
   );
 
-  expect(html).toContain("rendered-html-diff-block remove");
-  expect(html).toContain("rendered-html-diff-block add");
-  expect(html).toContain("HTML diff preview");
+  expect(html).toContain("rendered-change-card changed");
+  expect(html).toContain("Before · HEAD");
+  expect(html).toContain("After · working tree");
+  expect(html).toContain("HTML diff line preview");
+  expect(html).toContain("rendered-change-source-row remove");
+  expect(html).toContain("rendered-change-source-row add");
   expect(html).not.toContain("diff-line-no");
   expect(html).not.toContain("diff-inline-row");
 });
