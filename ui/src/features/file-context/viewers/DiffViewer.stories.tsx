@@ -348,6 +348,7 @@ export const RenderedMarkdownComment: Story = {
     await userEvent.click(toggle!);
     const sourcePreviews = cardsCanvas.getAllByLabelText("Source hunk preview");
     expect(sourcePreviews.length).toBe(1);
+    expect(sourcePreviews[0]!.id).toBe(toggle!.getAttribute("aria-controls"));
     await userEvent.click(toggle!);
     expect(cardsCanvas.queryByLabelText("Source hunk preview")).toBeNull();
   },
@@ -389,6 +390,10 @@ export const RenderedMarkdownCodeFenceReplacement: Story = {
       }),
     );
     const sourceHunk = within(card).getByLabelText("Source hunk preview");
+    const sourceToggle = within(card).getByRole("button", {
+      name: "Hide source hunk for Changed rendered block line 1-4",
+    });
+    expect(sourceHunk.id).toBe(sourceToggle.getAttribute("aria-controls"));
     await expect(sourceHunk).toHaveTextContent("console.log('old');");
     await expect(sourceHunk).toHaveTextContent("console.log('new');");
 
