@@ -1,5 +1,9 @@
 # Implementation plan
 
+This is the historical build sequence. The current implementation contract is
+kept in `docs/contracts/03-cli-or-api-contract.md`, `docs/architecture/14-architecture.md`, and
+`docs/architecture/25-runtime-architecture.md`.
+
 ## Phase 0: Scaffold hardening
 
 - Ensure package scripts run.
@@ -9,10 +13,14 @@
 ## Phase 1: Minimal vertical slice
 
 - CLI accepts root and port.
-- Server exposes `/api/tree`, `/api/file`, `/events`, and `/preview/html`.
+- Server exposes a browser data API, workspace events, and HTML preview.
 - UI loads tree and file content.
 - Markdown, HTML, code, text, image, and unsupported viewer kinds are routed.
 - File change event refreshes the open file.
+
+The original vertical slice used REST data routes. The current Go runtime uses
+GraphQL for normal workspace data, while HTTP remains for preview resources,
+SSE event streams, static assets, and the local review ledger.
 
 ## Phase 2: Live tree behavior
 
@@ -56,4 +64,4 @@ Suggested vertical slices:
 4. Add Markdown H1/H2 extraction and inspector rendering.
 5. Add a search palette: Cmd/Ctrl + K for quick open and Cmd/Ctrl + Shift + F for text search.
 6. Wire SSE file events to active viewer refresh, tree refresh, and tab changed indicators.
-7. Add E2E coverage for the minimum UX acceptance criteria in `docs/18-ux-acceptance-criteria.md`.
+7. Add E2E coverage for the minimum UX acceptance criteria in `docs/product/18-ux-acceptance-criteria.md`.

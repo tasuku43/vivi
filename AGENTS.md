@@ -4,7 +4,7 @@ This repository is a scaffold for `vivi`, a CLI that launches a local browser SP
 
 ## Operating mode
 
-Move the repository toward the ideal state described in `GOALS.md` and `docs/01-product-brief.md`. Implement in small vertical slices. Each behavior change must be paired with at least one of:
+Move the repository toward the ideal state described in `GOALS.md` and `docs/product/01-product-brief.md`. Implement in small vertical slices. Each behavior change must be paired with at least one of:
 
 - a domain unit test,
 - an app/use-case test,
@@ -83,14 +83,14 @@ Do not implement remote multi-user browsing, cloud sync, editing, git staging, L
 For every meaningful change:
 
 1. Update or add tests/evals first or alongside implementation.
-2. Preserve public contracts documented in `docs/03-cli-or-api-contract.md`.
+2. Preserve public contracts documented in `docs/contracts/03-cli-or-api-contract.md`.
 3. Keep docs current when behavior changes.
 4. Run `task check`.
 5. Summarize changed behavior, verification, and deferred work.
 
 ## Current UI direction
 
-Use `docs/17-ui-product-decisions.md`, `docs/18-ux-acceptance-criteria.md`, and `docs/ui-mocks/06-classic-reader-commandk.html` as the product reference for the first polished UI pass.
+Use `docs/adr/17-ui-product-decisions.md`, `docs/product/18-ux-acceptance-criteria.md`, and `docs/ui-mocks/06-classic-reader-commandk.html` as the product reference for the first polished UI pass.
 
 The target UI is not a command-first layout. It is a classic local workspace:
 

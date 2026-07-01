@@ -70,7 +70,8 @@ document.body.innerHTML = `
               <h2>Safe preview defaults</h2>
               <p>The UI should make safety and freshness legible without becoming an IDE or a staging client.</p>
               <pre><code>vivi ./docs-site --host 127.0.0.1
-GET /api/files/README.md?version=sha256:7a91...</code></pre>
+POST /graphql
+query FileContext($path: String!) { fileContext(path: $path) { path etag viewerKind } }</code></pre>
             </div>
           </article>
         </div>

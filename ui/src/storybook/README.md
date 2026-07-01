@@ -1,8 +1,8 @@
 # Vivi Storybook Lab
 
 Storybook is the fast UI regression lab for Vivi's human review surface. Use it
-before changing product UI and keep it close to `docs/17-ui-product-decisions.md`
-and `docs/18-ux-acceptance-criteria.md`.
+before changing product UI and keep it close to `docs/adr/17-ui-product-decisions.md`
+and `docs/product/18-ux-acceptance-criteria.md`.
 
 ## Three-Stage GUI Review
 

@@ -9,10 +9,10 @@ Before making changes, read:
 - `AGENTS.md`
 - `GOALS.md`
 - `README.md`
-- `docs/01-product-brief.md`
-- `docs/03-cli-or-api-contract.md`
-- `docs/13-test-and-eval-strategy.md`
-- `docs/14-architecture.md`
+- `docs/product/01-product-brief.md`
+- `docs/contracts/03-cli-or-api-contract.md`
+- `docs/engineering/13-test-and-eval-strategy.md`
+- `docs/architecture/14-architecture.md`
 
 ## Working loop
 
@@ -71,8 +71,8 @@ At the end of a run, report:
 
 For UI work, read these files before changing React components:
 
-- `docs/17-ui-product-decisions.md`
-- `docs/18-ux-acceptance-criteria.md`
+- `docs/adr/17-ui-product-decisions.md`
+- `docs/product/18-ux-acceptance-criteria.md`
 - `docs/ui-mocks/README.md`
 - `docs/ui-mocks/06-classic-reader-commandk.html`
 

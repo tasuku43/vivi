@@ -11,14 +11,17 @@ Target module path after repository rename:
 github.com/tasuku43/vivi
 ```
 
-Initial Go layout:
+Current Go layout:
 
 ```text
 cli/main.go
 server/server.go
+server/application
+server/graphql
 server/workspace
 server/gitreview
 server/comments
+server/reviewledger
 ui/static_assets.go
 ```
 
@@ -57,25 +60,20 @@ inside a development container.
 
 ## API Routes
 
-The Go server keeps the existing web API:
+The Go server uses GraphQL as the normal browser and agent data API:
 
-- `GET /api/tree`
-- `GET /api/files`
-- `GET /api/file`
-- `GET /api/search`
-- `GET /api/config`
-- `GET /api/changes`
-- `GET /api/diff-bases`
-- `GET /api/diff`
-- `GET /api/v1/meta`
-- `GET /api/v1/comments`
-- `POST /api/v1/comments`
-- `PATCH /api/v1/comments/:id`
-- `GET /api/v1/comments/export`
+- `POST /graphql`
+- `GET /graphql` for GraphQL SSE operations such as workspace and comment
+  activity streams
 - `GET /preview/html`
 - `GET /preview/raw/*`
 - `GET /events`
+- `GET /api/v1/review-ledger` / `PUT /api/v1/review-ledger`
 - SPA fallback from embedded static files
+
+Removed legacy REST data routes under `/api/*` return 404 in the Go runtime.
+Their historical shapes remain documented in
+`docs/contracts/03-cli-or-api-contract.md` for migration audits only.
 
 Error responses use:
 
@@ -114,9 +112,9 @@ inside the binary.
 
 ## Git Review
 
-Git review must never block initial tree display. The browser can request
-`/api/changes` after tree load, and the server handles that request with a
-bounded context.
+Git review must never block initial tree display. The browser requests changed
+file context through the GraphQL data API after tree load, and the server
+handles Git subprocesses with bounded contexts.
 
 Implementation notes:
 

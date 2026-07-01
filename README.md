@@ -17,8 +17,11 @@ CLI-readable feedback loop. It is not a diff-only viewer. It is a local file
 viewer for reading the whole workspace and the surrounding context with low
 cognitive load.
 
-See [docs/00-product-thesis.md](docs/00-product-thesis.md) for the product
-thesis behind this boundary.
+See [docs/README.md](docs/README.md) for the documentation map,
+[docs/product/00-product-thesis.md](docs/product/00-product-thesis.md) for the product
+thesis behind this boundary, and
+[docs/meta/28-document-inventory.md](docs/meta/28-document-inventory.md) for the current
+map of product, contract, exploration, and historical documents.
 
 ## Install
 
@@ -139,7 +142,7 @@ so feedback from one project does not appear in another.
 ## Security Model
 
 Vivi is local-first, but local-first does not remove every risk. See
-[docs/15-security-model.md](docs/15-security-model.md) for the longer security
+[docs/architecture/15-security-model.md](docs/architecture/15-security-model.md) for the longer security
 notes and operational boundaries.
 
 ## Development
@@ -176,7 +179,7 @@ is not the product CLI and does not expose the agent `review` or `comments`
 surface.
 
 Optional performance instrumentation is build-tag gated and documented in
-[`docs/16-performance-model.md`](docs/16-performance-model.md):
+[`docs/architecture/16-performance-model.md`](docs/architecture/16-performance-model.md):
 
 ```bash
 npm run build:go
@@ -186,7 +189,7 @@ npm run perf:otel
 ```
 
 The fixture-driven fake agent loop is documented in
-[`docs/23-local-agent-loop-harness.md`](docs/23-local-agent-loop-harness.md).
+[`docs/engineering/23-local-agent-loop-harness.md`](docs/engineering/23-local-agent-loop-harness.md).
 Against a running Vivi server, run `npm run harness:agent-loop` to verify the
 human comment, actor-aware read receipt, agent reply, and terminal lifecycle.
 Use `--intake work --terminal cli` when validating the primary resident
