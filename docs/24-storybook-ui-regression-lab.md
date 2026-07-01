@@ -32,9 +32,8 @@ under review rather than by component implementation names:
 - workspace review screens under `Workspace/Workbench States`
 - workspace chrome states under `Workspace/Navigation Chrome`
 - comment thread lifecycle states under `Review/Inline Comment States`
-- review thread inbox states under `Review/Review Thread Inbox States`
-- draft review and publish CTA states under `Review/Review Thread Inbox States`
 - review queue summaries under `Review/Queue States`
+- draft review and publish CTA states under `Workspace/Workbench States` and `Review/Queue States`
 - diff review affordances under `Review/Diff States`
 - Markdown, HTML, code, and file fallback states under `Files/* States`
 - navigation overlays under `Navigation/Search and Command States`

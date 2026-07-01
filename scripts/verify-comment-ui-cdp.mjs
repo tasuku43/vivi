@@ -537,59 +537,38 @@ try {
     `source comment was not projected back onto its rendered block: ${JSON.stringify(renderedProjectionState)}`,
   );
 
-  await pressShortcut("C", { ctrl: true, shift: true });
-  await waitForExpression(
-    () => Boolean(document.querySelector(".global-comments-panel")),
-    5_000,
-  );
-  const panelState = await pageValue(() => {
-    const panel = document
-      .querySelector(".global-comments-panel")
-      ?.getBoundingClientRect();
-    return {
-      panel: panel
-        ? { left: panel.left, right: panel.right, width: panel.width }
-        : null,
-      rowCount: document.querySelectorAll(".global-comment-row").length,
-      inlineCardOpen: Boolean(document.querySelector(".inline-comment-card")),
-      text: document.querySelector(".global-comments-panel")?.innerText,
-    };
-  });
-  assert(panelState.panel, "global comments panel did not open");
+  const panelState = await pageValue(() => ({
+    panel: null,
+    rowCount: document.querySelectorAll(
+      ".rendered-comment-thread .code-thread-comment",
+    ).length,
+    inlineCardOpen: Boolean(document.querySelector(".inline-comment-card")),
+    globalPanelOpen: Boolean(document.querySelector(".global-comments-panel")),
+    text: document.body.innerText,
+  }));
   assert(
-    panelState.rowCount === 4,
-    "global comments panel should list four rows",
+    !panelState.globalPanelOpen,
+    "legacy global comments panel is visible",
   );
-  assert(!panelState.inlineCardOpen, "inline card overlaps global panel");
   assert(
-    panelState.text?.includes("CDP browser selected-text comment"),
-    "global panel did not list the saved comment",
+    panelState.rowCount === 3,
+    "rendered comment thread should list three comments",
   );
+  assert(!panelState.inlineCardOpen, "inline card overlaps rendered thread");
   assert(
     panelState.text?.includes("CDP rendered markdown comment"),
-    "global panel did not list the rendered Markdown comment",
+    "rendered thread did not list the rendered Markdown comment",
   );
   assert(
     panelState.text?.includes("CDP rendered thread reply"),
-    "global panel did not list the rendered thread reply",
+    "rendered thread did not list the rendered thread reply",
   );
   assert(
     panelState.text?.includes("CDP source comment visible in rendered"),
-    "global panel did not list the Markdown source reply",
+    "rendered thread did not list the Markdown source reply",
   );
-  const panelShot = await screenshot("global-panel");
+  const panelShot = await screenshot("rendered-comment-thread");
 
-  await clickElement(
-    () => document.querySelector(".global-comment-row"),
-    "global comment row",
-  );
-  await waitForExpression(
-    () =>
-      !document.querySelector(".global-comments-panel") &&
-      Boolean(document.querySelector(".code-comment-thread")) &&
-      !document.querySelector(".inline-comment-card"),
-    5_000,
-  );
   await openTreeFile("AGENTS.md");
   await waitForExpression(
     () =>

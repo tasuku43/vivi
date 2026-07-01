@@ -53,7 +53,7 @@ const resolvedWorkbenchHistoryComment: ViviComment = {
       path: sampleFiles.code.path,
       lineStart: 12,
       lineEnd: 12,
-      quote: "const [commentsPanelStatus, setCommentsPanelStatus] =",
+      quote: "const [reviewQueueOpen, setReviewQueueOpen] =",
       fileHash: "sha256:workbench-story-resolved-history",
     },
   },
@@ -529,7 +529,7 @@ export const MissingSourceRecoversFromReviewQueue: Story = {
       ),
     ).toBeInTheDocument();
     await expect(
-      canvas.getByText(/const \[commentsPanelOpen, setCommentsPanelOpen\]/),
+      canvas.getByText(/const \[reviewQueueOpen, setReviewQueueOpen\]/),
     ).toBeInTheDocument();
   },
 };

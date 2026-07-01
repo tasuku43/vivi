@@ -141,10 +141,6 @@ export function reviewArtifactResults(nodes: FsNode[], limit = 8): FsNode[] {
     .map((result) => result.file);
 }
 
-export function isReviewArtifactPath(path: string): boolean {
-  return reviewArtifactScore({ path } as FsNode) > 0;
-}
-
 function fuzzyScore(path: string, terms: string[]): number {
   let score = 0;
   for (const term of terms) {

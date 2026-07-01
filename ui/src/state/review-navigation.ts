@@ -10,20 +10,6 @@ import { setPaneActivePath, type EditorLayout } from "./editor-layout.js";
 import type { ReviewQueueItem } from "./review-queue.js";
 
 export type ReviewNavigationDirection = "next" | "previous";
-export type CommentActivityStatusFilter =
-  | Exclude<CommentStatus, "archived">
-  | "all"
-  | "attention"
-  | "drafts";
-
-export interface CommentInboxEntryState {
-  query: string;
-  status: CommentActivityStatusFilter;
-}
-
-export interface CommentInboxOpenState extends CommentInboxEntryState {
-  activeCommentId: string | null;
-}
 
 export interface ReviewNavigationTarget {
   id: string;
@@ -41,7 +27,6 @@ export interface ReviewNavigationTarget {
 export interface ReviewQueueOpenTransition {
   activeCommentId: null;
   activeCommentRect: null;
-  commentsPanelOpen: false;
   error: null;
   layout: EditorLayout;
   paletteOpen: false;
@@ -60,7 +45,6 @@ export function reviewQueueOpenTransition({
   return {
     activeCommentId: null,
     activeCommentRect: null,
-    commentsPanelOpen: false,
     error: null,
     layout: setPaneActivePath(layout, paneId, path),
     paletteOpen: false,
@@ -160,66 +144,6 @@ export function countAttentionCommentThreads(
   ).length;
 }
 
-export function commentInboxEntryStatus(
-  attentionThreadCount: number,
-  draftCount = 0,
-): CommentActivityStatusFilter {
-  if (attentionThreadCount > 0) return "attention";
-  if (draftCount > 0) return "drafts";
-  return "open";
-}
-
-export function commentInboxEntryState(
-  attentionThreadCount: number,
-  draftCount = 0,
-): CommentInboxEntryState {
-  return {
-    query: "",
-    status: commentInboxEntryStatus(attentionThreadCount, draftCount),
-  };
-}
-
-export function commentInboxOpenState({
-  activeComment,
-  activeCommentId,
-  attentionThreadCount,
-  draftCount = 0,
-  preferAttention = false,
-  query,
-}: {
-  activeComment?: ViviComment | null;
-  activeCommentId: string | null;
-  attentionThreadCount: number;
-  draftCount?: number;
-  preferAttention?: boolean;
-  query?: string;
-}): CommentInboxOpenState {
-  if (preferAttention && attentionThreadCount > 0) {
-    return {
-      activeCommentId: null,
-      query: "",
-      status: "attention",
-    };
-  }
-
-  if (activeComment) {
-    return {
-      activeCommentId: activeComment.id,
-      query: query ?? activeComment.path,
-      status: "all",
-    };
-  }
-
-  const entry = commentInboxEntryState(attentionThreadCount, draftCount);
-  const scopedQuery = query?.trim();
-  return {
-    ...entry,
-    activeCommentId,
-    query: query ?? entry.query,
-    status: scopedQuery ? "all" : entry.status,
-  };
-}
-
 export function latestUnreadActivityTarget(
   reviewItems: ReviewQueueItem[],
   comments: ViviComment[] = [],
@@ -291,22 +215,13 @@ export function firstRelevantThreadForReviewItem(
 export function commentActivityThreadTargets({
   comments,
   selectedPath,
-  commentsPanelOpen,
-  commentsPanelQuery,
-  commentsPanelStatus,
-  unreadReviewPaths = new Set<string>(),
   reviewPaths,
 }: {
   comments: ViviComment[];
   selectedPath: string | null;
-  commentsPanelOpen: boolean;
-  commentsPanelQuery: string;
-  commentsPanelStatus: CommentActivityStatusFilter;
-  unreadReviewPaths?: ReadonlySet<string>;
   reviewPaths: string[];
 }): string[] {
   const reviewPathSet = new Set(reviewPaths);
-  const query = commentsPanelQuery.trim().toLowerCase();
   const targets: string[] = [];
   const threads = buildCommentThreads(comments).sort((a, b) =>
     b.updatedAt.localeCompare(a.updatedAt),
@@ -315,22 +230,7 @@ export function commentActivityThreadTargets({
     const selectedTarget =
       selectedPath !== null && thread.path === selectedPath;
     const reviewTarget = reviewPathSet.has(thread.path);
-    const attentionTarget =
-      thread.status === "open" && unreadReviewPaths.has(thread.path);
-    const panelTarget =
-      commentsPanelOpen &&
-      (commentsPanelStatus === "attention"
-        ? attentionTarget
-        : commentsPanelStatus === "all" ||
-          thread.status === commentsPanelStatus) &&
-      (!query ||
-        thread.comments.some((comment) =>
-          [comment.path, comment.body, comment.anchor.canonical.quote ?? ""]
-            .join(" ")
-            .toLowerCase()
-            .includes(query),
-        ));
-    if (selectedTarget || reviewTarget || panelTarget) targets.push(thread.id);
+    if (selectedTarget || reviewTarget) targets.push(thread.id);
     if (targets.length >= 40) break;
   }
   return targets;

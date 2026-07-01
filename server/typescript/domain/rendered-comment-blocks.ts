@@ -1,5 +1,4 @@
 export const renderedCommentBlockAttribute = "data-vivi-comment-block-id";
-export const renderedCommentBlockSelector = `[${renderedCommentBlockAttribute}]`;
 
 const renderedCommentBlockTags = new Set([
   "a",
@@ -82,14 +81,6 @@ export function addRenderedCommentBlockIdsToHtml(
       output.slice(block.openingEnd);
   }
   return output;
-}
-
-export function renderedCommentBlocksForHtml(
-  html: string,
-): RenderedCommentSourceBlock[] {
-  return parseRenderedCommentBlocks(html).map(
-    ({ openingStart: _start, openingEnd: _end, ...block }) => block,
-  );
 }
 
 function parseRenderedCommentBlocks(html: string): ParsedCommentBlock[] {

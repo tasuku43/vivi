@@ -476,25 +476,6 @@ func safeJSONWriteRequest(r *http.Request, configuredHost string) bool {
 	return true
 }
 
-func metaResponse() map[string]any {
-	return map[string]any{
-		"version": "v1",
-		"comments": map[string]any{
-			"statuses":      []string{"open", "resolved", "archived"},
-			"surfaces":      []string{"source", "rendered", "diff"},
-			"exportFormats": []string{"jsonl"},
-		},
-	}
-}
-
-func positiveInt(value string) int {
-	parsed, err := strconv.Atoi(value)
-	if err != nil || parsed <= 0 {
-		return 0
-	}
-	return parsed
-}
-
 func randomNonce() string {
 	var bytes [16]byte
 	if _, err := rand.Read(bytes[:]); err != nil {

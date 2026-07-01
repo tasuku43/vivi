@@ -10,7 +10,6 @@ import { NodeCommentStore } from "../../server/typescript/infrastructure/node-co
 import { NodeFileSystem } from "../../server/typescript/infrastructure/node-file-system.js";
 import { startHttpServer } from "../../server/typescript/http/http-server.js";
 import { CommentedSourceLines } from "../../ui/src/features/comments/components/CommentedSourceLines.js";
-import { CommentsPanel } from "../../ui/src/features/comments/components/CommentsPanel.js";
 import { Inspector } from "../../ui/src/features/review-queue/Inspector.js";
 import { renderedCommentDraft } from "../../ui/src/state/comments.js";
 
@@ -262,23 +261,6 @@ it("creates a comment from the UI anchor model and renders it after retrieval", 
   expect(html).not.toContain("UI-created note from selected text");
   expect(html).not.toContain("Rendered markdown text");
 
-  const panelHtml = renderToStaticMarkup(
-    <CommentsPanel
-      open
-      comments={retrieved}
-      query=""
-      statusFilter="open"
-      onQueryChange={() => undefined}
-      onStatusFilterChange={() => undefined}
-      onClose={() => undefined}
-      onOpenComment={() => undefined}
-    />,
-  );
-  expect(panelHtml).toContain("UI-created note from selected text");
-  expect(panelHtml).toContain("Rendered markdown text");
-  expect(panelHtml).toContain("README.md");
-  expect(panelHtml).toContain("L3");
-
   const sourceHtml = renderToStaticMarkup(
     <CommentedSourceLines
       content={file.content}
@@ -288,37 +270,6 @@ it("creates a comment from the UI anchor model and renders it after retrieval", 
   );
   expect(sourceHtml).toContain("has-comment");
   expect(sourceHtml).toContain(`data-comment-id="${created.id}"`);
-
-  const draftHubHtml = renderToStaticMarkup(
-    <CommentsPanel
-      open
-      comments={[]}
-      draftComments={[
-        {
-          id: "draft-1",
-          path: "README.md",
-          viewerKind: "markdown",
-          anchor: draft.anchor,
-          body: "Unpublished batch note",
-          source: "human",
-          createdAt: "2026-06-20T00:00:00.000Z",
-          updatedAt: "2026-06-20T00:00:00.000Z",
-        },
-      ]}
-      query=""
-      statusFilter="drafts"
-      onQueryChange={() => undefined}
-      onStatusFilterChange={() => undefined}
-      onClose={() => undefined}
-      onOpenComment={() => undefined}
-      onOpenDraft={() => undefined}
-      onDeleteDraft={() => undefined}
-      onPublishDrafts={() => undefined}
-    />,
-  );
-  expect(draftHubHtml).toContain("Comments Hub");
-  expect(draftHubHtml).toContain("Publish review comments");
-  expect(draftHubHtml).toContain("Unpublished batch note");
 });
 
 async function fetchJson<T>(route: string): Promise<T> {

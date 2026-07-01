@@ -235,9 +235,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [recentEvents, setRecentEvents] = useState<ReviewEvent[]>([]);
   const [unreadReviewPaths, setUnreadReviewPaths] = useState<string[]>([]);
-  const [reviewDecisions, setReviewDecisions] = useState<
-    ReviewDecisionEntry[]
-  >([]);
+  const [reviewDecisions, setReviewDecisions] = useState<ReviewDecisionEntry[]>(
+    [],
+  );
   const [reviewReceipts, setReviewReceipts] = useState<ReviewReceiptEntry[]>(
     [],
   );
@@ -775,7 +775,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     [files, reviewChanges, reviewDiffStats],
   );
   const acceptedReviewPathSet = useMemo(
-    () => reviewDecisionPathSet(reviewDecisions, currentReviewFingerprintByPath),
+    () =>
+      reviewDecisionPathSet(reviewDecisions, currentReviewFingerprintByPath),
     [currentReviewFingerprintByPath, reviewDecisions],
   );
   const acceptedReviewChanges = useMemo(
@@ -951,13 +952,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       commentActivityThreadTargets({
         comments,
         selectedPath,
-        commentsPanelOpen: false,
-        commentsPanelQuery: "",
-        commentsPanelStatus: "open",
-        unreadReviewPaths: unreadReviewPathSet,
         reviewPaths: reviewItems.slice(0, 24).map((item) => item.path),
       }),
-    [comments, reviewItems, selectedPath, unreadReviewPathSet],
+    [comments, reviewItems, selectedPath],
   );
   const commandActions = useMemo<CommandActionItem[]>(
     () =>

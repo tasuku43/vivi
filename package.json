@@ -34,6 +34,10 @@
     "verify:comment-ui": "npm run build && node scripts/verify-comment-ui-cdp.mjs",
     "format:check": "prettier --check .",
     "lint": "npm --prefix ui run lint",
+    "dead-code:ts": "knip --include files,exports,types",
+    "dead-code:go": "npm run prepare:go && go tool deadcode -test ./cli",
+    "dead-code:storybook": "node scripts/verify-storybook-orphans.mjs",
+    "dead-code": "npm run dead-code:ts && npm run dead-code:storybook && npm run dead-code:go",
     "test:architecture": "node scripts/verify-ui-architecture.mjs && node scripts/verify-server-architecture.mjs",
     "generate:ui-graphql": "graphql-codegen --config codegen.ts",
     "generate": "npm run generate:ui-graphql && task generate:graphql",
@@ -45,7 +49,7 @@
     "storybook:snapshots:verify": "node scripts/capture-storybook-snapshots.mjs --verify",
     "validate:scaffold": "node scripts/validate-scaffold.mjs",
     "security:policy": "node scripts/check-supply-chain.mjs",
-    "check": "npm run generate:ui-graphql && npm run validate:scaffold && npm run security:policy && npm run lint && npm run test:architecture && npm run storybook:verify && npm run storybook:snapshots:verify && npm run typecheck && npm run test && npm run eval && npm run build && npm run build:go && npm run e2e && npm run build:storybook && npm run test:go"
+    "check": "npm run generate:ui-graphql && npm run validate:scaffold && npm run security:policy && npm run lint && npm run test:architecture && npm run dead-code && npm run storybook:verify && npm run storybook:snapshots:verify && npm run typecheck && npm run test && npm run eval && npm run build && npm run build:go && npm run e2e && npm run build:storybook && npm run test:go"
   },
   "dependencies": {
     "graphql": "^16.14.2",
@@ -75,7 +79,8 @@
     "typescript": "6.0.3",
     "typescript-eslint": "^8.62.0",
     "vite": "8.1.0",
-    "vitest": "4.1.9"
+    "vitest": "4.1.9",
+    "knip": "6.23.0"
   },
   "overrides": {
     "@istanbuljs/load-nyc-config": {

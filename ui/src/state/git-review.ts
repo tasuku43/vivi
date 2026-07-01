@@ -1,20 +1,10 @@
-import type {
-  DiffBaseOption,
-  GitChange,
-  TextDiff,
-} from "../domain/change-review.js";
+import type { GitChange, TextDiff } from "../domain/change-review.js";
 import type { FileReviewState } from "./review-events.js";
 
 export interface GitChangeReviewState {
   available: boolean;
   reason?: string;
   changes: GitChange[];
-}
-
-export interface DiffBaseState {
-  available: boolean;
-  reason?: string;
-  options: DiffBaseOption[];
 }
 
 export interface ReviewChangeItem extends GitChange {

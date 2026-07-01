@@ -138,11 +138,6 @@ export interface DraftReviewComment {
   updatedAt: string;
 }
 
-export interface CommentExportFilters {
-  status?: CommentStatus;
-  format?: "jsonl";
-}
-
 export interface CommentThreadActivityEvent {
   id: string;
   threadId: string;
@@ -247,35 +242,6 @@ export function normalizeCommentFilters(input: {
     status: parseCommentStatus(input.status ?? null),
     reviewBatchId: input.reviewBatchId?.trim() || undefined,
   };
-}
-
-export function exportCommentAsJsonLine(comment: ViviComment): string {
-  return JSON.stringify({
-    id: comment.id,
-    threadId: comment.threadId,
-    path: comment.path,
-    viewerKind: comment.viewerKind,
-    status: comment.status,
-    body: comment.body,
-    author: comment.author,
-    origin: comment.source ?? "unknown",
-    source: {
-      path: comment.anchor.canonical.path,
-      lineStart: comment.anchor.canonical.lineStart,
-      lineEnd: comment.anchor.canonical.lineEnd,
-      columnStart: comment.anchor.canonical.columnStart,
-      columnEnd: comment.anchor.canonical.columnEnd,
-      quote: comment.anchor.canonical.quote,
-      fileHash: comment.anchor.canonical.fileHash,
-    },
-    surface: comment.anchor.surface,
-    rendered: comment.anchor.rendered,
-    diff: comment.anchor.diff,
-    createdAt: comment.createdAt,
-    updatedAt: comment.updatedAt,
-    resolvedAt: comment.resolvedAt,
-    archivedAt: comment.archivedAt,
-  });
 }
 
 export function applyCommentUpdate(
@@ -522,7 +488,7 @@ function normalizeCommentSource(value: unknown): CommentSource {
   throw new Error("invalid comment source");
 }
 
-export function commentViewerKindFor(
+function commentViewerKindFor(
   viewerKind: ViewerKind,
   path: string,
 ): CommentViewerKind {

@@ -99,11 +99,6 @@ export interface CreateCommentInput {
   status?: CommentStatus;
 }
 
-export interface UpdateCommentInput {
-  body?: string;
-  status?: CommentStatus;
-}
-
 export interface CommentListFilters {
   path?: string;
   status?: CommentStatus;
@@ -178,19 +173,11 @@ const commentSources: CommentSource[] = [
   "unknown",
 ];
 
-export function isCommentStatus(value: unknown): value is CommentStatus {
+function isCommentStatus(value: unknown): value is CommentStatus {
   return (
     typeof value === "string" &&
     commentStatuses.includes(value as CommentStatus)
   );
-}
-
-export function parseCommentStatus(
-  value: string | null,
-): CommentStatus | undefined {
-  if (!value) return undefined;
-  if (!isCommentStatus(value)) throw new Error("invalid comment status");
-  return value;
 }
 
 export function normalizeCommentCreateInput(
@@ -233,88 +220,6 @@ function normalizeCommentActor(value: unknown): CommentActor | undefined {
   };
 }
 
-export function normalizeCommentUpdateInput(
-  input: unknown,
-): UpdateCommentInput {
-  if (!isRecord(input)) throw new Error("invalid comment update payload");
-  const update: UpdateCommentInput = {};
-  if (input.body !== undefined) {
-    const body = stringField(input.body, "body").trim();
-    if (!body) throw new Error("comment body is required");
-    update.body = body;
-  }
-  if (input.status !== undefined) update.status = normalizeStatus(input.status);
-  if (update.body === undefined && update.status === undefined) {
-    throw new Error("comment update must include body or status");
-  }
-  return update;
-}
-
-export function normalizeCommentFilters(input: {
-  path?: string | null;
-  status?: string | null;
-  reviewBatchId?: string | null;
-}): CommentListFilters {
-  return {
-    path: input.path?.trim() || undefined,
-    status: parseCommentStatus(input.status ?? null),
-    reviewBatchId: input.reviewBatchId?.trim() || undefined,
-  };
-}
-
-export function exportCommentAsJsonLine(comment: ViviComment): string {
-  return JSON.stringify({
-    id: comment.id,
-    threadId: comment.threadId,
-    path: comment.path,
-    viewerKind: comment.viewerKind,
-    status: comment.status,
-    body: comment.body,
-    author: comment.author,
-    origin: comment.source ?? "unknown",
-    source: {
-      path: comment.anchor.canonical.path,
-      lineStart: comment.anchor.canonical.lineStart,
-      lineEnd: comment.anchor.canonical.lineEnd,
-      columnStart: comment.anchor.canonical.columnStart,
-      columnEnd: comment.anchor.canonical.columnEnd,
-      quote: comment.anchor.canonical.quote,
-      fileHash: comment.anchor.canonical.fileHash,
-    },
-    surface: comment.anchor.surface,
-    rendered: comment.anchor.rendered,
-    diff: comment.anchor.diff,
-    createdAt: comment.createdAt,
-    updatedAt: comment.updatedAt,
-    resolvedAt: comment.resolvedAt,
-    archivedAt: comment.archivedAt,
-  });
-}
-
-export function applyCommentUpdate(
-  comment: ViviComment,
-  update: UpdateCommentInput,
-  now: string,
-): ViviComment {
-  const next: ViviComment = {
-    ...comment,
-    body: update.body ?? comment.body,
-    status: update.status ?? comment.status,
-    updatedAt: now,
-  };
-  if (update.status === "resolved" && comment.status !== "resolved") {
-    next.resolvedAt = now;
-  }
-  if (update.status === "archived" && comment.status !== "archived") {
-    next.archivedAt = now;
-  }
-  if (update.status === "open") {
-    next.resolvedAt = undefined;
-    next.archivedAt = undefined;
-  }
-  return next;
-}
-
 export function buildCommentThreads(comments: ViviComment[]): CommentThread[] {
   const threads = new Map<string, CommentThread>();
   for (const comment of comments) {
@@ -353,22 +258,6 @@ export function buildCommentThreads(comments: ViviComment[]): CommentThread[] {
     threads.set(threadId, thread);
   }
   return [...threads.values()];
-}
-
-export function exportThreadAsJsonLine(thread: CommentThread): string {
-  return JSON.stringify({
-    schemaVersion: 2,
-    type: "commentThread",
-    id: thread.id,
-    path: thread.path,
-    status: thread.status,
-    anchor: thread.anchor,
-    createdAt: thread.createdAt,
-    updatedAt: thread.updatedAt,
-    resolvedAt: thread.resolvedAt,
-    archivedAt: thread.archivedAt,
-    comments: thread.comments,
-  });
 }
 
 function normalizeAnchor(

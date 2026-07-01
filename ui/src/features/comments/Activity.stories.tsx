@@ -2,11 +2,8 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { activityLabel } from "../../state/comment-activity.js";
 import {
   sampleActivityEvents,
-  sampleComments,
-  sampleThreadActivities,
   storyNow,
 } from "../../storybook/fixtures/review-lab.js";
-import { CommentsPanel } from "./components/CommentsPanel.js";
 import activityStyles from "./components/CommentActivity.module.css";
 import sharedUiStyles from "../../shared/styles/SharedUi.module.css";
 
@@ -40,22 +37,6 @@ export const ActivityIndicatorList: Story = {
         </ol>
       </div>
     </section>
-  ),
-};
-
-export const UnreadActivityPresent: Story = {
-  render: () => (
-    <CommentsPanel
-      open
-      comments={sampleComments}
-      query=""
-      statusFilter="all"
-      threadActivities={sampleThreadActivities}
-      onQueryChange={() => undefined}
-      onStatusFilterChange={() => undefined}
-      onClose={() => undefined}
-      onOpenComment={() => undefined}
-    />
   ),
 };
 

@@ -218,7 +218,7 @@ export const InReviewFileThreadExpansionInteraction: Story = {
     ).toHaveTextContent("2 open · 1 pending");
     await expect(
       canvas.getByRole("button", {
-        name: "Show 2 pending for CommentsPanel.tsx",
+        name: "Show 2 pending for CodeCommentThread.tsx",
       }),
     ).toHaveTextContent("2 pending");
     await expect(
@@ -325,7 +325,7 @@ export const ReviewQueueItemWithLatestAgentActivity: Story = {
         unread: true,
       },
       {
-        path: "ui/src/features/comments/CommentsPanel.tsx",
+        path: "ui/src/features/comments/components/CodeCommentThread.tsx",
         change: null,
         threadCounts: { open: 1, resolved: 0, archived: 0 },
         commentCount: 1,
@@ -1153,8 +1153,8 @@ function InReviewThreadExpansionFacade() {
                   <button
                     className="change-open has-open-threads"
                     type="button"
-                    aria-label="Review queue item, modified CommentsPanel.tsx"
-                    onClick={() => setOpenedFile("CommentsPanel.tsx")}
+                    aria-label="Review queue item, modified CodeCommentThread.tsx"
+                    onClick={() => setOpenedFile("CodeCommentThread.tsx")}
                   >
                     <span
                       className={`${sharedUiStyles.muted} unread-dot muted`}
@@ -1163,7 +1163,7 @@ function InReviewThreadExpansionFacade() {
                     <span className="change-main">
                       <span className="change-heading">
                         <span className="change-kind">TS</span>
-                        <b>CommentsPanel.tsx</b>
+                        <b>CodeCommentThread.tsx</b>
                       </span>
                       <small className="review-thread-summary">
                         {draftTrayPendingCount
@@ -1182,8 +1182,8 @@ function InReviewThreadExpansionFacade() {
                     aria-expanded="false"
                     aria-label={
                       draftTrayPendingCount
-                        ? "Show 2 pending for CommentsPanel.tsx"
-                        : "Show published for CommentsPanel.tsx"
+                        ? "Show 2 pending for CodeCommentThread.tsx"
+                        : "Show published for CodeCommentThread.tsx"
                     }
                   >
                     {draftTrayPendingCount ? "2 pending" : "Published"}

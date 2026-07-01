@@ -23,7 +23,6 @@
     "ui/src/features/command-palette/CommandPalette.stories.tsx",
     "ui/src/features/comments/Activity.stories.tsx",
     "ui/src/features/comments/CodeCommentThread.stories.tsx",
-    "ui/src/features/comments/CommentsPanel.stories.tsx",
     "ui/src/features/file-context/FileContextPane.stories.tsx",
     "ui/src/features/file-context/components/FileViewer.stories.tsx",
     "ui/src/features/file-context/viewers/CodeViewer.stories.tsx",
@@ -77,7 +76,7 @@
       "id": "review-navigation",
       "label": "Review navigation",
       "stage": "storybook-facade",
-      "intent": "Keep Review Queue, review thread inbox, unread activity, and agent replies visible as the primary right-inspector workflow.",
+      "intent": "Keep Review Queue, unread activity, and agent replies visible as the primary right-inspector workflow.",
       "reviewFocus": [
         "open review work is easier to find than completed history",
         "agent activity is visible without creating false unread work",
@@ -88,13 +87,10 @@
         "Review/Queue States/InReviewFileThreadExpansion",
         "Review/Queue States/ReviewQueueItemWithLatestAgentActivity",
         "Review/Queue States/GitReviewUnavailable",
-        "Review/Review Thread Inbox States/WorkspaceComments",
-        "Review/Review Thread Inbox States/AgentActivityVisible",
         "Review/Activity States/CommentsWatchDisconnected"
       ],
       "interactionStories": [
-        "Review/Queue States/InReviewFileThreadExpansionInteraction",
-        "Review/Review Thread Inbox States/WorkspaceComments"
+        "Review/Queue States/InReviewFileThreadExpansionInteraction"
       ]
     },
     {
@@ -113,16 +109,12 @@
         "Review/Inline Comment States/Resolved",
         "Review/Inline Comment States/AgentHasReadThread",
         "Review/Inline Comment States/AgentHasReplied",
-        "Review/Inline Comment States/SelfCommentOwnership",
-        "Review/Review Thread Inbox States/PendingDrafts",
-        "Review/Review Thread Inbox States/PendingDraftPublishFailure",
-        "Review/Review Thread Inbox States/PublishedDraftBatch"
+        "Review/Inline Comment States/SelfCommentOwnership"
       ],
       "interactionStories": [
         "Review/Inline Comment States/Open",
         "Review/Inline Comment States/NewLineComment",
-        "Review/Inline Comment States/SelfCommentOwnership",
-        "Review/Review Thread Inbox States/PendingDrafts"
+        "Review/Inline Comment States/SelfCommentOwnership"
       ]
     },
     {
@@ -238,11 +230,7 @@
       "requiredStories": [
         "Workspace/Workbench States/EmptyWorkspace",
         "Workspace/Workbench States/ManyFilesManyComments",
-        "Review/Queue States/ManyFiles",
-        "Review/Review Thread Inbox States/ManyComments",
-        "Review/Review Thread Inbox States/ManyPendingDrafts",
-        "Review/Review Thread Inbox States/NoMatchingComments",
-        "Review/Review Thread Inbox States/EmptyPendingDrafts"
+        "Review/Queue States/ManyFiles"
       ],
       "interactionStories": []
     }

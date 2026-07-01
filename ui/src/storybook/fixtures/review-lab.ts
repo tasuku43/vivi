@@ -80,11 +80,6 @@ export const sampleWorkspaceTree: TreeSnapshot = {
           ]),
           dir("ui/src/features/comments", [
             fileNode(
-              "ui/src/features/comments/components/CommentsPanel.tsx",
-              "code",
-              4_120,
-            ),
-            fileNode(
               "ui/src/features/comments/components/CodeCommentThread.tsx",
               "code",
               3_944,
@@ -136,7 +131,7 @@ export const sampleCodeFile = filePayload(
     'import { FileViewer } from "../file-context/components/FileViewer.js";',
     "",
     "export function WorkbenchContainer() {",
-    "  const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);",
+    "  const [reviewQueueOpen, setReviewQueueOpen] = useState(false);",
     "  const [draftComments, setDraftComments] = useState([]);",
     "  const reviewItems = useMemo(() => buildReviewQueueItems(), []);",
     "",
@@ -311,7 +306,7 @@ export const sampleDiff: TextDiff = {
     "--- a/ui/src/features/workbench/WorkbenchContainer.tsx",
     "+++ b/ui/src/features/workbench/WorkbenchContainer.tsx",
     "@@ -4,8 +4,12 @@ export function WorkbenchContainer() {",
-    "   const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);",
+    "   const [reviewQueueOpen, setReviewQueueOpen] = useState(false);",
     "-  const [draftComments, setDraftComments] = useState([]);",
     "+  const [draftComments, setDraftComments] = useState<DraftReviewComment[]>([]);",
     "+  const [draftPublishing, setDraftPublishing] = useState(false);",
@@ -805,19 +800,6 @@ export function draftsForPath(
   drafts = sampleDraftComments,
 ): DraftReviewComment[] {
   return drafts.filter((draft) => draft.path === path);
-}
-
-export function threadActivityForComments(
-  comments: ViviComment[],
-): Record<string, CommentActivitySummary> {
-  const ids = new Set(
-    comments.map((comment) => comment.threadId ?? comment.id),
-  );
-  return Object.fromEntries(
-    Object.entries(sampleThreadActivities).filter(([threadId]) =>
-      ids.has(threadId),
-    ),
-  );
 }
 
 function filePayload(

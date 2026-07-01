@@ -153,9 +153,6 @@ import {
 import {
   agentReplyNavigationTargets,
   commentActivityThreadTargets,
-  commentInboxEntryState,
-  commentInboxEntryStatus,
-  commentInboxOpenState,
   commentNavigationTarget,
   countAttentionCommentThreads,
   draftCommentNavigationTargets,
@@ -247,7 +244,6 @@ it("prepares Review Queue opens by clearing stale viewer state", () => {
   expect(transition.layout.activePaneId).toBe("main");
   expect(transition.activeCommentId).toBeNull();
   expect(transition.activeCommentRect).toBeNull();
-  expect(transition.commentsPanelOpen).toBe(false);
   expect(transition.paletteOpen).toBe(false);
   expect(transition.shortcutHelpOpen).toBe(false);
   expect(transition.error).toBeNull();
@@ -2059,9 +2055,7 @@ it("lets new diff fingerprints bypass old reviewed decisions", () => {
       createdAt: "2026-07-01T00:00:00.000Z",
     },
   ];
-  const currentFingerprints = new Map([
-    ["src/accepted.ts", "fingerprint-new"],
-  ]);
+  const currentFingerprints = new Map([["src/accepted.ts", "fingerprint-new"]]);
 
   expect(reviewDecisionPathSet(decisions, currentFingerprints)).toEqual(
     new Set(),
@@ -2085,10 +2079,7 @@ it("hides reviewed receipts when active review attention returns", () => {
     ),
   ).toEqual([]);
   expect(
-    compactReviewReceipts(
-      [receipt],
-      Date.parse("2026-07-03T00:00:00.000Z"),
-    ),
+    compactReviewReceipts([receipt], Date.parse("2026-07-03T00:00:00.000Z")),
   ).toEqual([]);
 });
 
@@ -2691,102 +2682,10 @@ it("loads comment activity targets from authoritative thread state", () => {
   expect(
     countAttentionCommentThreads(comments, new Set(["docs/a.md", "docs/b.md"])),
   ).toBe(1);
-  expect(commentInboxEntryStatus(1)).toBe("attention");
-  expect(commentInboxEntryStatus(0)).toBe("open");
-  expect(commentInboxEntryState(1)).toEqual({
-    query: "",
-    status: "attention",
-  });
-  expect(commentInboxEntryState(0)).toEqual({
-    query: "",
-    status: "open",
-  });
-  expect(
-    commentInboxOpenState({
-      activeComment: openThread,
-      activeCommentId: "comment-2",
-      attentionThreadCount: 1,
-    }),
-  ).toEqual({
-    activeCommentId: "open-1",
-    query: "docs/b.md",
-    status: "all",
-  });
-  expect(
-    commentInboxOpenState({
-      activeComment: openThread,
-      activeCommentId: "comment-2",
-      attentionThreadCount: 1,
-      preferAttention: true,
-    }),
-  ).toEqual({
-    activeCommentId: null,
-    query: "",
-    status: "attention",
-  });
-  expect(
-    commentInboxOpenState({
-      activeComment: openThread,
-      activeCommentId: "comment-2",
-      attentionThreadCount: 0,
-      preferAttention: true,
-      query: "custom query",
-    }),
-  ).toEqual({
-    activeCommentId: "open-1",
-    query: "custom query",
-    status: "all",
-  });
-  expect(
-    commentInboxOpenState({
-      activeCommentId: "comment-2",
-      attentionThreadCount: 1,
-    }),
-  ).toEqual({
-    activeCommentId: "comment-2",
-    query: "",
-    status: "attention",
-  });
-  expect(
-    commentInboxOpenState({
-      activeCommentId: null,
-      attentionThreadCount: 0,
-      query: "docs/a.md",
-    }),
-  ).toEqual({
-    activeCommentId: null,
-    query: "docs/a.md",
-    status: "all",
-  });
   expect(
     commentActivityThreadTargets({
       comments,
       selectedPath: null,
-      commentsPanelOpen: true,
-      commentsPanelQuery: "",
-      commentsPanelStatus: "open",
-      reviewPaths: [],
-    }),
-  ).toEqual(["thread-b"]);
-  expect(
-    commentActivityThreadTargets({
-      comments,
-      selectedPath: null,
-      commentsPanelOpen: true,
-      commentsPanelQuery: "",
-      commentsPanelStatus: "attention",
-      unreadReviewPaths: new Set(["docs/b.md"]),
-      reviewPaths: [],
-    }),
-  ).toEqual(["thread-b"]);
-  expect(
-    commentActivityThreadTargets({
-      comments,
-      selectedPath: null,
-      commentsPanelOpen: true,
-      commentsPanelQuery: "",
-      commentsPanelStatus: "attention",
-      unreadReviewPaths: new Set(),
       reviewPaths: [],
     }),
   ).toEqual([]);
@@ -2794,19 +2693,13 @@ it("loads comment activity targets from authoritative thread state", () => {
     commentActivityThreadTargets({
       comments,
       selectedPath: null,
-      commentsPanelOpen: true,
-      commentsPanelQuery: "follow-up",
-      commentsPanelStatus: "resolved",
-      reviewPaths: [],
+      reviewPaths: ["docs/b.md"],
     }),
-  ).toEqual(["thread-a"]);
+  ).toEqual(["thread-b"]);
   expect(
     commentActivityThreadTargets({
       comments,
       selectedPath: "docs/a.md",
-      commentsPanelOpen: false,
-      commentsPanelQuery: "",
-      commentsPanelStatus: "open",
       reviewPaths: [],
     }),
   ).toEqual(["thread-a"]);
@@ -3514,17 +3407,14 @@ it("limits initial tree expansion while keeping important paths visible", () => 
       name: "src",
       kind: "directory",
       parentPath: null,
-      children: Array.from(
-        { length: 20 },
-        (_, index): FsNode => ({
-          id: `src/file-${index}.ts`,
-          path: `src/file-${index}.ts`,
-          name: `file-${index}.ts`,
-          kind: "file",
-          parentPath: "src",
-          viewerKind: "code",
-        }),
-      ),
+      children: Array.from({ length: 20 }, (_, index): FsNode => ({
+        id: `src/file-${index}.ts`,
+        path: `src/file-${index}.ts`,
+        name: `file-${index}.ts`,
+        kind: "file",
+        parentPath: "src",
+        viewerKind: "code",
+      })),
     },
     {
       id: "reports",

@@ -79,9 +79,3 @@ export function nextViewerMode(
     return current === "source" ? "preview" : "source";
   return null;
 }
-
-export function modeLabel(mode: ViewerMode): string {
-  if (mode === "rendered") return "Rendered";
-  if (mode === "preview") return "Preview";
-  return "Source";
-}

@@ -63,6 +63,11 @@ tasks:
       - npm run lint
       - npm run test:architecture
 
+  dead-code:
+    desc: Detect unused TypeScript, Storybook-only UI, and unreachable Go code
+    cmds:
+      - npm run dead-code
+
   ui:test:
     desc: Run UI and browser-facing tests
     cmds:

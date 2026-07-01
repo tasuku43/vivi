@@ -270,13 +270,6 @@ export function renderedCommentSummaryForComment(
   };
 }
 
-export function findBlockForRenderedComment(
-  root: HTMLElement,
-  comment: RenderedCommentSummary,
-): HTMLElement | null {
-  return findBlocksForRenderedComment(root, comment)[0] ?? null;
-}
-
 export function findBlocksForRenderedComment(
   root: HTMLElement,
   comment: RenderedCommentSummary,
@@ -509,8 +502,7 @@ function escapeSelectorValue(value: string): string {
 
 function escapeCssIdentifier(value: string): string {
   const css = globalThis.CSS as
-    | { escape?: (value: string) => string }
-    | undefined;
+    { escape?: (value: string) => string } | undefined;
   return css?.escape
     ? css.escape(value)
     : value.replace(/[^a-zA-Z0-9_-]/g, "\\$&");

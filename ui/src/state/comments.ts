@@ -95,20 +95,6 @@ export function activeCommentRendersInViewerThread({
   return false;
 }
 
-export function commentAnchorSourceChanged(
-  comment: ViviComment,
-  file: FilePayload | null | undefined,
-): boolean {
-  const anchorHash = comment.anchor.canonical.fileHash?.trim();
-  return Boolean(
-    file &&
-    comment.path === file.path &&
-    anchorHash &&
-    file.etag &&
-    anchorHash !== file.etag,
-  );
-}
-
 export function sourceCommentDraft(
   file: FilePayload,
   range: LineRange | null,
@@ -240,21 +226,6 @@ export function codeCommentThreads(
         a.lineStart - b.lineStart ||
         a.key.localeCompare(b.key),
     );
-}
-
-export function matchingCodeCommentThread(
-  threads: CodeCommentThread[],
-  target: CodeCommentThread,
-): CodeCommentThread | undefined {
-  return (
-    threads.find((thread) => thread.key === target.key) ??
-    threads.find(
-      (thread) =>
-        thread.path === target.path &&
-        thread.lineStart === target.lineStart &&
-        thread.lineEnd === target.lineEnd,
-    )
-  );
 }
 
 export function matchingDraftPreviewThread(
@@ -496,10 +467,6 @@ export function sourceTextForLineRange(
     .join("\n");
 }
 
-export function selectedTextInElement(element: HTMLElement | null): string {
-  return selectionCommentTargetInElement(element)?.text ?? "";
-}
-
 export function scheduleSelectionCommentUpdate(update: () => void): void {
   window.requestAnimationFrame(() => {
     window.setTimeout(update, 0);
@@ -588,39 +555,6 @@ export function commentLineLabel(comment: ViviComment): string {
   return commentLineLabelForAnchor(comment.anchor.canonical);
 }
 
-export function commentLocationLabel(comment: ViviComment): string {
-  if (comment.anchor.surface === "rendered") {
-    const rendered = comment.anchor.rendered;
-    const kind = rendered?.kind ?? comment.viewerKind;
-    const parts = [`Rendered ${titleCase(kind)}`];
-    if (rendered?.blockId) parts.push(`block ${rendered.blockId}`);
-    else if (rendered?.selector) parts.push(`selector ${rendered.selector}`);
-    else if (rendered?.textQuote) {
-      parts.push(`text "${truncateCommentPreview(rendered.textQuote, 42)}"`);
-    }
-    const sourceLabel = lineRangeLabel(
-      rendered?.sourceLineStart,
-      rendered?.sourceLineEnd,
-      "source ",
-    );
-    if (sourceLabel) parts.push(sourceLabel);
-    return parts.join(" · ");
-  }
-
-  if (comment.anchor.surface === "diff") {
-    const diff = comment.anchor.diff;
-    if (!diff) return `Diff ${commentLineLabel(comment)}`;
-    const side = diff.side === "old" ? "old" : "new";
-    const lineLabel =
-      diff.side === "old"
-        ? lineRangeLabel(diff.oldLineStart, diff.oldLineEnd)
-        : lineRangeLabel(diff.newLineStart, diff.newLineEnd);
-    return lineLabel ? `Diff ${side} ${lineLabel}` : `Diff ${side} hunk`;
-  }
-
-  return `Source ${commentLineLabel(comment)}`;
-}
-
 export function commentLineLabelForAnchor(anchor: SourceAnchor): string {
   if (
     anchor.lineStart &&
@@ -631,20 +565,6 @@ export function commentLineLabelForAnchor(anchor: SourceAnchor): string {
   }
   if (anchor.lineStart) return `L${anchor.lineStart}`;
   return "File";
-}
-
-function lineRangeLabel(
-  start: number | undefined,
-  end: number | undefined,
-  prefix = "",
-): string | null {
-  if (!start) return null;
-  if (end && end !== start) return `${prefix}L${start}-L${end}`;
-  return `${prefix}L${start}`;
-}
-
-function titleCase(value: string): string {
-  return value ? `${value[0]?.toUpperCase()}${value.slice(1)}` : value;
 }
 
 export function commentsForLine(
