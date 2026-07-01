@@ -382,6 +382,19 @@
   color: #202833;
 }
 
+.diffViewer :global(.rendered-change-preview .markdown-document pre) {
+  margin: 0;
+  border-color: #d8e0ea;
+  background: #eef3f7;
+  color: #202833;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.diffViewer :global(.rendered-change-preview .markdown-document pre code) {
+  color: #202833;
+}
+
 .diffViewer :global(.rendered-change-preview .markdown-document p) {
   color: #566171;
 }

@@ -184,6 +184,7 @@
         "Review/Diff States/DiffCommentOnAddedLine",
         "Review/Diff States/DiffCommentOnRemovedLine",
         "Review/Diff States/RenderedMarkdownComment",
+        "Review/Diff States/RenderedMarkdownCodeFenceReplacement",
         "Review/Diff States/RenderedHtmlComment",
         "Review/Diff States/Unavailable",
         "Review/Diff States/BinaryDiff",
@@ -191,7 +192,8 @@
       ],
       "interactionStories": [
         "Review/Diff States/DiffCommentOnAddedLine",
-        "Review/Diff States/RenderedMarkdownComment"
+        "Review/Diff States/RenderedMarkdownComment",
+        "Review/Diff States/RenderedMarkdownCodeFenceReplacement"
       ]
     },
     {

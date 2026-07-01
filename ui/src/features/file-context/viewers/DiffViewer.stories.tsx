@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
+import type { TextDiff } from "../../../domain/change-review.js";
 import {
   commentsForPath,
   htmlDiff,
@@ -35,6 +36,27 @@ const meta = {
 
 export default meta;
 type Story = StoryObj<typeof meta>;
+
+const fencedCodeMarkdownDiff: TextDiff = {
+  path: sampleFiles.markdown.path,
+  status: "available",
+  baseLabel: "HEAD",
+  baseRef: "HEAD",
+  compareLabel: "working tree",
+  diffHash: "diff-markdown-code-fence-42",
+  content: [
+    "diff --git a/docs/product-review.md b/docs/product-review.md",
+    "index 3030303..4040404 100644",
+    "--- a/docs/product-review.md",
+    "+++ b/docs/product-review.md",
+    "@@ -1,4 +1,4 @@",
+    " ```ts",
+    " const unchanged = true;",
+    "-console.log('old');",
+    "+console.log('new');",
+    " ```",
+  ].join("\n"),
+};
 
 export const DiffCommentOnAddedLine: Story = {
   name: "Added diff line opens an inline review thread",
@@ -245,6 +267,45 @@ export const RenderedMarkdownComment: Story = {
     expect(cardsCanvas.getAllByLabelText("Source hunk preview").length).toBe(
       sourcePreviews.length,
     );
+  },
+};
+
+export const RenderedMarkdownCodeFenceReplacement: Story = {
+  tags: ["interaction"],
+  args: {
+    path: sampleFiles.markdown.path,
+    renderKind: "markdown",
+    file: sampleFiles.markdown,
+    diff: fencedCodeMarkdownDiff,
+    comments: [],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const cardsRegion = canvas.getByRole("region", {
+      name: `Rendered Markdown change cards for ${sampleFiles.markdown.path}`,
+    });
+    await expect(cardsRegion).toBeVisible();
+
+    const card = within(cardsRegion).getByRole("article", {
+      name: "Changed rendered block 1-4",
+    });
+    await expect(card).toBeVisible();
+    await expect(card).toHaveTextContent("Before · HEAD");
+    await expect(card).toHaveTextContent("After · working tree");
+
+    const panes = card.querySelectorAll<HTMLElement>(".rendered-change-pane");
+    expect(panes).toHaveLength(2);
+    await expect(panes[0]!).toHaveTextContent("console.log('old');");
+    await expect(panes[0]!).not.toHaveTextContent("console.log('new');");
+    await expect(panes[1]!).toHaveTextContent("console.log('new');");
+    await expect(panes[1]!).not.toHaveTextContent("console.log('old');");
+
+    await expect(
+      within(card).getByLabelText("Source hunk preview"),
+    ).toHaveTextContent("console.log('old');");
+    await expect(
+      within(card).getByLabelText("Source hunk preview"),
+    ).toHaveTextContent("console.log('new');");
   },
 };
 
