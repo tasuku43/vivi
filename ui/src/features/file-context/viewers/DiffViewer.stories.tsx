@@ -340,20 +340,16 @@ export const RenderedMarkdownComment: Story = {
         },
       },
     });
-    const sourcePreviews = cardsCanvas.getAllByLabelText("Source hunk preview");
-    expect(sourcePreviews.length).toBeGreaterThan(0);
+    expect(cardsCanvas.queryByLabelText("Source hunk preview")).toBeNull();
     const toggle = cardsCanvas.getAllByRole("button", {
-      name: "Hide source hunk",
+      name: "Show source hunk",
     })[0];
     expect(toggle).toBeDefined();
     await userEvent.click(toggle!);
-    expect(cardsCanvas.getAllByLabelText("Source hunk preview").length).toBe(
-      sourcePreviews.length - 1,
-    );
+    const sourcePreviews = cardsCanvas.getAllByLabelText("Source hunk preview");
+    expect(sourcePreviews.length).toBe(1);
     await userEvent.click(toggle!);
-    expect(cardsCanvas.getAllByLabelText("Source hunk preview").length).toBe(
-      sourcePreviews.length,
-    );
+    expect(cardsCanvas.queryByLabelText("Source hunk preview")).toBeNull();
   },
 };
 
@@ -387,12 +383,12 @@ export const RenderedMarkdownCodeFenceReplacement: Story = {
     await expect(panes[1]!).toHaveTextContent("console.log('new');");
     await expect(panes[1]!).not.toHaveTextContent("console.log('old');");
 
-    await expect(
-      within(card).getByLabelText("Source hunk preview"),
-    ).toHaveTextContent("console.log('old');");
-    await expect(
-      within(card).getByLabelText("Source hunk preview"),
-    ).toHaveTextContent("console.log('new');");
+    await userEvent.click(
+      within(card).getByRole("button", { name: "Show source hunk" }),
+    );
+    const sourceHunk = within(card).getByLabelText("Source hunk preview");
+    await expect(sourceHunk).toHaveTextContent("console.log('old');");
+    await expect(sourceHunk).toHaveTextContent("console.log('new');");
 
     await userEvent.click(
       within(card).getByRole("button", {

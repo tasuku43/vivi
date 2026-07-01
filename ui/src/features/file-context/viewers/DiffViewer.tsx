@@ -1103,7 +1103,7 @@ function RenderedChangePane({
 }
 
 function SourceHunkPreview({ rows }: { rows: RenderedDiffRow[] }) {
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(false);
   return (
     <section className="rendered-change-source">
       <button

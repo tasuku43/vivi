@@ -4468,8 +4468,9 @@ it("renders HEAD diffs inside the file viewer surface", () => {
   expect(html).toContain("Before · HEAD");
   expect(html).toContain("After · working tree");
   expect(html).toContain("source diff remains canonical");
-  expect(html).toContain("rendered-change-source-row remove");
-  expect(html).toContain("rendered-change-source-row add");
+  expect(html).toContain("Show source hunk");
+  expect(html).not.toContain("rendered-change-source-row remove");
+  expect(html).not.toContain("rendered-change-source-row add");
   expect(html).not.toContain("Focus changes");
   expect(html).not.toContain("diff-line-no");
   expect(html).not.toContain("rendered-diff-pane");
@@ -4504,8 +4505,9 @@ it("renders Markdown diffs as intact rendered blocks", () => {
   expect(html).toContain("<pre><code");
   expect(html).toContain("console.log(&#39;old&#39;)");
   expect(html).toContain("console.log(&#39;new&#39;)");
-  expect(html).toContain("rendered-change-source-row remove");
-  expect(html).toContain("rendered-change-source-row add");
+  expect(html).toContain("Show source hunk");
+  expect(html).not.toContain("rendered-change-source-row remove");
+  expect(html).not.toContain("rendered-change-source-row add");
 });
 
 it("keeps additions inside surrounding Markdown code fences", () => {
@@ -4535,7 +4537,8 @@ it("keeps additions inside surrounding Markdown code fences", () => {
   expect(html).toContain("rendered-change-card added");
   expect(html).toContain("fuga");
   expect(html).toContain("src/ui -&gt; React SPA");
-  expect(html).toContain("rendered-change-source-row add");
+  expect(html).toContain("Show source hunk");
+  expect(html).not.toContain("rendered-change-source-row add");
   expect(html).not.toContain("<p>fuga</p>");
 });
 
@@ -5040,8 +5043,9 @@ it("renders HTML diffs as rendered snippets without line numbers", () => {
   expect(html).toContain("Before · HEAD");
   expect(html).toContain("After · working tree");
   expect(html).toContain("HTML diff line preview");
-  expect(html).toContain("rendered-change-source-row remove");
-  expect(html).toContain("rendered-change-source-row add");
+  expect(html).toContain("Show source hunk");
+  expect(html).not.toContain("rendered-change-source-row remove");
+  expect(html).not.toContain("rendered-change-source-row add");
   expect(html).not.toContain("diff-line-no");
   expect(html).not.toContain("diff-inline-row");
 });
