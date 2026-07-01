@@ -1,7 +1,6 @@
 import { createHighlighterCore, type HighlighterCore } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 import type { LanguageRegistration } from "@shikijs/types";
-import darkPlus from "@shikijs/themes/dark-plus";
 import githubDark from "@shikijs/themes/github-dark";
 import githubLight from "@shikijs/themes/github-light";
 import lightPlus from "@shikijs/themes/light-plus";
@@ -67,7 +66,7 @@ export async function highlightCode(
 
 function getHighlighter(): Promise<HighlighterCore> {
   highlighterPromise ??= createHighlighterCore({
-    themes: [darkPlus, githubDark, githubLight, lightPlus],
+    themes: [githubDark, githubLight, lightPlus],
     langs: [],
     engine: createJavaScriptRegexEngine(),
   });
@@ -93,7 +92,7 @@ function shikiThemeForLanguage(
   theme: ResolvedTheme,
 ): string {
   if (language === "html" || language === "xml") {
-    return theme === "light" ? "light-plus" : "dark-plus";
+    return theme === "light" ? "light-plus" : "github-dark";
   }
   return theme === "light" ? "github-light" : "github-dark";
 }

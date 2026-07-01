@@ -28,7 +28,7 @@ it("loads syntax languages on demand and falls back for unknown languages", asyn
   expect(fallback).toContain("plain text");
 });
 
-it("uses a markup-focused theme for HTML and XML source", async () => {
+it("uses readable markup themes for HTML and XML source", async () => {
   const html = await highlightCode(
     '<main class="review-card">Review</main>',
     "html",
@@ -40,7 +40,9 @@ it("uses a markup-focused theme for HTML and XML source", async () => {
     "light",
   );
 
-  expect(html).toContain("dark-plus");
+  expect(html).toContain("github-dark");
+  expect(html).not.toContain("dark-plus");
+  expect(html).toContain("#E1E4E8");
   expect(html).toContain("review-card");
   expect(xml).toContain("light-plus");
   expect(xml).toContain("viewBox");
