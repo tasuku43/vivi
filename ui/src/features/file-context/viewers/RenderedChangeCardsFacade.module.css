@@ -86,33 +86,31 @@
   min-width: 0;
 }
 
-.summaryGrid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+.summaryBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
   margin-bottom: 14px;
-}
-
-.summaryTile {
-  min-height: 66px;
   border: 1px solid var(--vivi-color-border-default);
   border-radius: 8px;
   background: var(--vivi-color-surface-panel);
-  padding: 10px 12px;
+  color: var(--vivi-color-content-muted);
+  font-size: 12px;
+  padding: 8px 10px;
 }
 
-.summaryTile b {
-  display: block;
+.summaryBar strong {
   color: var(--vivi-color-content-primary);
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1;
 }
 
-.summaryTile span {
-  display: block;
-  margin-top: 6px;
-  color: var(--vivi-color-content-muted);
-  font-size: 12px;
+.summaryBar span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cardStack {
@@ -427,8 +425,16 @@
 
   .toolbar,
   .layout,
-  .summaryGrid,
   .beforeAfter {
     grid-template-columns: 1fr;
+  }
+
+  .summaryBar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .summaryBar span {
+    white-space: normal;
   }
 }

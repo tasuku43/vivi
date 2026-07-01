@@ -394,6 +394,11 @@ export const RenderedChangeCards: Story = {
     await expect(
       canvas.getByTestId("rendered-change-cards-subtitle"),
     ).toHaveTextContent("source diff remains canonical");
+    await expect(
+      canvas.getByLabelText("Rendered diff summary"),
+    ).toHaveTextContent(
+      "unchanged rendered blocks stay out of the review path",
+    );
 
     const addedStatus = canvas.getByRole("button", {
       name: "Select Added review contract",

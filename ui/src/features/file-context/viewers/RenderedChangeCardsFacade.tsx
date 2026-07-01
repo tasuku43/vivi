@@ -54,11 +54,6 @@ export function RenderedChangeCardsFacade({
   const [sourceVisible, setSourceVisible] = useState<Record<string, boolean>>(
     Object.fromEntries(cards.map((card) => [card.id, true])),
   );
-  const replacementCount = cards.filter(
-    (card) => card.before && card.after,
-  ).length;
-  const commentCount = cards.filter((card) => card.comment).length;
-  const hiddenBlockCount = 4;
 
   return (
     <section
@@ -84,20 +79,12 @@ export function RenderedChangeCardsFacade({
 
       <div className={styles.layout}>
         <div className={styles.cardColumn}>
-          <div
-            className={styles.summaryGrid}
-            aria-label="Rendered diff summary"
-          >
-            <SummaryTile value={cards.length} label="rendered change cards" />
-            <SummaryTile value={replacementCount} label="replacement pairs" />
-            <SummaryTile
-              value={commentCount}
-              label="comments mapped to cards"
-            />
-            <SummaryTile
-              value={hiddenBlockCount}
-              label="unchanged blocks hidden"
-            />
+          <div className={styles.summaryBar} aria-label="Rendered diff summary">
+            <strong>{cards.length}</strong>
+            <span>
+              rendered change cards · source diff remains canonical · unchanged
+              rendered blocks stay out of the review path
+            </span>
           </div>
 
           <div className={styles.cardStack}>
@@ -121,15 +108,6 @@ export function RenderedChangeCardsFacade({
         </div>
       </div>
     </section>
-  );
-}
-
-function SummaryTile({ value, label }: { value: number; label: string }) {
-  return (
-    <div className={styles.summaryTile}>
-      <b>{value}</b>
-      <span>{label}</span>
-    </div>
   );
 }
 
