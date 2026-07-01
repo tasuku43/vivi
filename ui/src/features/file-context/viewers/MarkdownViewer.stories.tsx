@@ -627,7 +627,7 @@ export const RenderedMarkerPlacement: Story = {
 
 export const RenderedMarkdownMultipleLineThreads: Story = {
   name: "Rendered Markdown shows multiple current line threads",
-  tags: ["current-ui-observation"],
+  tags: ["current-ui-observation", "snapshot-ready"],
   args: {
     mode: "rendered",
     file: {
@@ -636,6 +636,16 @@ export const RenderedMarkdownMultipleLineThreads: Story = {
     },
     comments: markerPlacementComments,
     activeCommentId: "comment-md-paragraph-marker",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const paragraph = canvas.getByText(/command palette is modal/);
+    await expect(paragraph).toHaveClass("active-rendered-comment");
+    await expect(
+      canvas.getAllByRole("button", { name: /Open comment thread/ }),
+    ).toHaveLength(4);
+    await waitForRenderedBlockMetricsToSettle(paragraph);
+    canvasElement.dataset.viviSnapshotReady = "true";
   },
 };
 
@@ -760,6 +770,7 @@ async function waitForRenderedBlockMetricsToSettle(
   block: HTMLElement,
 ): Promise<void> {
   let previous = renderedBlockMetricsSignature(block);
+  let stableFrames = 0;
   await waitFor(
     async () => {
       await new Promise<void>((resolve) =>
@@ -768,9 +779,14 @@ async function waitForRenderedBlockMetricsToSettle(
       const current = renderedBlockMetricsSignature(block);
       if (current !== previous) {
         previous = current;
+        stableFrames = 0;
         throw new Error("Rendered block metrics are still settling.");
       }
+      stableFrames += 1;
       previous = current;
+      if (stableFrames < 2) {
+        throw new Error("Rendered block metrics need another stable frame.");
+      }
     },
     { timeout: 1000 },
   );
