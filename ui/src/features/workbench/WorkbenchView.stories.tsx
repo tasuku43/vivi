@@ -36,6 +36,12 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+const getOpenTabButton = (
+  canvasElement: HTMLElement,
+  path: string,
+): HTMLElement | null =>
+  canvasElement.querySelector<HTMLElement>(`[data-tab-path="${path}"]`);
+
 const resolvedWorkbenchHistoryComment: ViviComment = {
   id: "comment-workbench-resolved-history",
   threadId: "thread-workbench-resolved-history",
@@ -94,7 +100,10 @@ export const WorkspaceWithFileTreeAndSelectedFile: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Explorer")).toBeInTheDocument();
     await expect(
-      canvas.getByRole("tab", { name: /WorkbenchContainer.tsx/ }),
+      getOpenTabButton(
+        canvasElement,
+        "ui/src/features/workbench/WorkbenchContainer.tsx",
+      ),
     ).toBeInTheDocument();
     await expect(
       canvasElement.querySelector(".inspector .panel-title > span:first-child"),
@@ -526,7 +535,10 @@ export const MissingSourceRecoversFromReviewQueue: Story = {
 
     await expect(canvas.queryByText("Source missing")).not.toBeInTheDocument();
     await expect(
-      canvas.getByRole("tab", { name: /WorkbenchContainer\.tsx/ }),
+      getOpenTabButton(
+        canvasElement,
+        "ui/src/features/workbench/WorkbenchContainer.tsx",
+      ),
     ).toBeInTheDocument();
     await expect(
       canvas.getByText(/const \[commentsPanelOpen, setCommentsPanelOpen\]/),
@@ -588,7 +600,7 @@ export const ReviewQueueOpenKeepsWorkspaceChrome: Story = {
       .getByText("Explorer")
       .closest<HTMLElement>(".panel-title");
     const tabs = canvas
-      .getByRole("tablist", { name: /Open file tabs/ })
+      .getByRole("group", { name: /Open file tabs/ })
       .closest<HTMLElement>("div");
 
     expect(topbar).not.toBeNull();
@@ -605,7 +617,10 @@ export const ReviewQueueOpenKeepsWorkspaceChrome: Story = {
     expect(tabsRect.height).toBeGreaterThanOrEqual(38);
     expect(tabsRect.height).toBeLessThanOrEqual(40);
     await expect(
-      canvas.getByRole("tab", { name: /WorkbenchContainer\.tsx/ }),
+      getOpenTabButton(
+        canvasElement,
+        "ui/src/features/workbench/WorkbenchContainer.tsx",
+      ),
     ).toBeVisible();
   },
 };

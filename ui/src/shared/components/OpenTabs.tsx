@@ -101,7 +101,7 @@ export function OpenTabs({
     >
       <div
         className={styles.strip}
-        role="tablist"
+        role="group"
         aria-label={tabListLabel}
         onKeyDown={handleTabKeyDown}
       >
@@ -136,8 +136,7 @@ export function OpenTabs({
               <button
                 className={styles.tab}
                 type="button"
-                role="tab"
-                aria-selected={tab.path === activePath}
+                aria-current={tab.path === activePath ? "true" : undefined}
                 tabIndex={tab.path === activePath ? 0 : -1}
                 data-tab-path={tab.path}
                 aria-label={`${tab.path}${tab.isPreview ? " preview" : ""}${tab.changed ? " changed" : ""}${tab.removed ? " removed" : ""}`}
@@ -177,7 +176,10 @@ export function OpenTabs({
                     </span>
                   ) : null}
                   {tab.removed ? (
-                    <span className={styles.removedMark} title="Removed from disk">
+                    <span
+                      className={styles.removedMark}
+                      title="Removed from disk"
+                    >
                       removed
                     </span>
                   ) : null}

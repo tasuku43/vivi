@@ -245,7 +245,7 @@ export const Tabs: Story = {
     activateTab.mockClear();
     const canvas = within(canvasElement);
     await userEvent.click(
-      canvas.getByRole("tab", { name: "docs/product-review.md" }),
+      canvas.getByRole("button", { name: "docs/product-review.md" }),
     );
     await expect(activateTab).toHaveBeenCalledWith("docs/product-review.md");
   },

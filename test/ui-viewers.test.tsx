@@ -263,13 +263,12 @@ it("renders open files as an accessible tab set", () => {
     />,
   );
 
-  expect(html).toContain('role="tablist"');
+  expect(html).toContain('role="group"');
   expect(html).toContain(
     'aria-label="Open file tabs, 2 tabs, active src/app.ts, 1 preview tab, 1 changed tab"',
   );
-  expect(html).toContain('role="tab"');
-  expect(html).toContain('aria-selected="true"');
-  expect(html).toContain('aria-selected="false"');
+  expect(html).toContain('aria-current="true"');
+  expect(html).not.toContain('aria-selected="');
   expect(html).toContain('tabindex="0"');
   expect(html).toContain('tabindex="-1"');
   expect(html).toContain('data-tab-path="src/app.ts"');
