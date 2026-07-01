@@ -165,6 +165,34 @@ export function nextReviewQueueItemPath(
   ]!;
 }
 
+export function nextReviewQueueItemPathAfterCompletion(
+  items: ReviewQueueItem[],
+  completedPath: string,
+  direction: "next" | "previous" = "next",
+): string | null {
+  const reviewable = items.filter(isReviewQueueItemOpenable);
+  if (reviewable.length <= 1) return null;
+  const currentIndex = reviewable.findIndex(
+    (item) => item.path === completedPath,
+  );
+  const remaining = reviewable.filter((item) => item.path !== completedPath);
+  if (!remaining.length) return null;
+  if (currentIndex < 0) {
+    return direction === "previous"
+      ? remaining[remaining.length - 1]!.path
+      : remaining[0]!.path;
+  }
+  const targetIndex =
+    direction === "previous"
+      ? (currentIndex - 1 + reviewable.length) % reviewable.length
+      : (currentIndex + 1) % reviewable.length;
+  const target = reviewable[targetIndex];
+  if (target && target.path !== completedPath) return target.path;
+  return direction === "previous"
+    ? remaining[remaining.length - 1]!.path
+    : remaining[0]!.path;
+}
+
 export function latestUnreadReviewItemPath(
   items: ReviewQueueItem[],
 ): string | null {

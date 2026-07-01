@@ -24,6 +24,7 @@ const shortcutGroups: readonly {
       ["Open next in-review reply", "Cmd/Ctrl Shift I"],
       ["Next review item", "Cmd/Ctrl Shift J"],
       ["Previous review item", "Cmd/Ctrl Shift K"],
+      ["Mark current file reviewed", "Cmd/Ctrl Shift M"],
       ["Return to current thread", "Cmd/Ctrl I"],
       ["Resolve / reopen current thread", "Cmd/Ctrl Shift Enter"],
       ["Archive current thread", "Cmd/Ctrl Shift Backspace"],

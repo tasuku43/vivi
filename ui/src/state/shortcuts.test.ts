@@ -47,4 +47,10 @@ describe("keyboardShortcutAction", () => {
       keyboardShortcutAction(commandEvent({ key: "u", shiftKey: true })),
     ).toBe("open-latest-unread");
   });
+
+  it("maps Cmd/Ctrl+Shift+M to marking the current file reviewed", () => {
+    expect(
+      keyboardShortcutAction(commandEvent({ key: "m", shiftKey: true })),
+    ).toBe("mark-current-reviewed");
+  });
 });
