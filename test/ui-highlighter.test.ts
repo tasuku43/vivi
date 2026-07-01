@@ -20,8 +20,28 @@ it("loads syntax languages on demand and falls back for unknown languages", asyn
   );
 
   expect(highlighted).toContain("<pre");
+  expect(highlighted).toContain("github-dark");
+  expect(highlighted).not.toContain("github-dark-high-contrast");
   expect(highlighted).toContain("const");
   expect(dockerfile).toContain("FROM");
   expect(makefile).toContain("obj-y");
   expect(fallback).toContain("plain text");
+});
+
+it("uses a markup-focused theme for HTML and XML source", async () => {
+  const html = await highlightCode(
+    '<main class="review-card">Review</main>',
+    "html",
+    "dark",
+  );
+  const xml = await highlightCode(
+    '<svg viewBox="0 0 16 16"><path d="M0 0h16v16"/></svg>',
+    "xml",
+    "light",
+  );
+
+  expect(html).toContain("dark-plus");
+  expect(html).toContain("review-card");
+  expect(xml).toContain("light-plus");
+  expect(xml).toContain("viewBox");
 });

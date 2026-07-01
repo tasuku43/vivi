@@ -1,8 +1,10 @@
 import { createHighlighterCore, type HighlighterCore } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 import type { LanguageRegistration } from "@shikijs/types";
+import darkPlus from "@shikijs/themes/dark-plus";
 import githubDark from "@shikijs/themes/github-dark";
 import githubLight from "@shikijs/themes/github-light";
+import lightPlus from "@shikijs/themes/light-plus";
 import type { ResolvedTheme } from "./theme.js";
 
 type SupportedLanguage = keyof typeof languageLoaders;
@@ -59,13 +61,13 @@ export async function highlightCode(
   if (lang !== "text") await loadLanguage(highlighter, lang);
   return highlighter.codeToHtml(code, {
     lang,
-    theme: theme === "light" ? "github-light" : "github-dark",
+    theme: shikiThemeForLanguage(lang, theme),
   });
 }
 
 function getHighlighter(): Promise<HighlighterCore> {
   highlighterPromise ??= createHighlighterCore({
-    themes: [githubDark, githubLight],
+    themes: [darkPlus, githubDark, githubLight, lightPlus],
     langs: [],
     engine: createJavaScriptRegexEngine(),
   });
@@ -84,4 +86,14 @@ async function loadLanguage(
 
 function isSupportedLanguage(language: string): language is SupportedLanguage {
   return language in languageLoaders;
+}
+
+function shikiThemeForLanguage(
+  language: SupportedLanguage | "text",
+  theme: ResolvedTheme,
+): string {
+  if (language === "html" || language === "xml") {
+    return theme === "light" ? "light-plus" : "dark-plus";
+  }
+  return theme === "light" ? "github-light" : "github-dark";
 }
