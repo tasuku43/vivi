@@ -4552,6 +4552,72 @@ it("keeps inline Markdown code inline in rendered diffs", () => {
   expect(html).not.toContain("diff-line-no");
 });
 
+it("labels rendered diff comment markers from any line in the change card", () => {
+  const resolvedRenderedComment: ViviComment = {
+    ...codeLineComment,
+    id: "rendered-card-resolved-root",
+    threadId: "thread-rendered-card-resolved",
+    path: "README.md",
+    viewerKind: "markdown",
+    status: "resolved",
+    anchor: {
+      surface: "rendered",
+      canonical: {
+        path: "README.md",
+        lineStart: 3,
+        lineEnd: 3,
+        quote: "new second sentence",
+      },
+      rendered: {
+        kind: "markdown",
+        blockId: "paragraph-1",
+        sourceLineStart: 2,
+        sourceLineEnd: 3,
+        textQuote: "New first sentence new second sentence",
+      },
+    },
+    body: "Already checked",
+  };
+  const resolvedRenderedReply: ViviComment = {
+    ...resolvedRenderedComment,
+    id: "rendered-card-resolved-reply",
+    body: "Follow-up is complete",
+    createdAt: "2026-01-01T00:02:00.000Z",
+    updatedAt: "2026-01-01T00:02:00.000Z",
+  };
+  const html = renderToStaticMarkup(
+    <DiffViewer
+      path="README.md"
+      renderKind="markdown"
+      comments={[resolvedRenderedComment, resolvedRenderedReply]}
+      activeCommentId={resolvedRenderedReply.id}
+      diff={{
+        path: "README.md",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content: [
+          "@@ -1,4 +1,4 @@",
+          " # Notes",
+          "-Old first sentence",
+          "-old second sentence",
+          "+New first sentence",
+          "+new second sentence",
+          " trailing",
+        ].join("\n"),
+      }}
+    />,
+  );
+
+  expect(html).toContain(
+    'aria-label="Open resolved comment thread on line 3 with 2 messages"',
+  );
+  expect(html).toContain(
+    'title="Open resolved comment thread on line 3 with 2 messages"',
+  );
+  expect(html).toContain('data-comment-id="rendered-card-resolved-reply"');
+});
+
 it("labels terminal diff comment markers as reopenable", () => {
   const resolvedDiffComment: ViviComment = {
     ...codeLineComment,

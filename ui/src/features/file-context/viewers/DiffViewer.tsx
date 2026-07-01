@@ -698,6 +698,7 @@ function RenderedChangeCards({
             card={card}
             renderKind={renderKind}
             comments={comments}
+            activeCommentId={activeCommentId}
             onOpenComment={onOpenComment}
           />
         ))}
@@ -718,19 +719,32 @@ function RenderedChangeCardView({
   card,
   renderKind,
   comments,
+  activeCommentId,
   onOpenComment,
 }: {
   card: RenderedChangeCard;
   renderKind: Exclude<RenderKind, "source">;
   comments: ViviComment[];
+  activeCommentId?: string | null;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
 }) {
   if (!card.before && !card.after) return <DiffGap label="Changed block" />;
   const anchorRow = card.after ?? card.before;
   const range = anchorRow ? currentLineRangeForRenderedRow(anchorRow) : null;
-  const firstComment = range
-    ? commentsForLine(comments, range.start)[0]
+  const commentThread = range
+    ? preferredCodeCommentThread(
+        codeCommentThreads(
+          commentsForLineRange(comments, range.start, range.end),
+        ),
+        activeCommentId,
+      )
     : undefined;
+  const markerComment =
+    (activeCommentId
+      ? commentThread?.comments.find(
+          (comment) => comment.id === activeCommentId,
+        )
+      : undefined) ?? commentThread?.comments[0];
   const cardTitle =
     card.kind === "changed"
       ? "Changed rendered block"
@@ -739,7 +753,7 @@ function RenderedChangeCardView({
         : "Removed rendered block";
   return (
     <article
-      className={`rendered-change-card ${card.kind}${firstComment ? " has-comment" : ""}`}
+      className={`rendered-change-card ${card.kind}${commentThread ? " has-comment" : ""}`}
       aria-label={`${cardTitle} ${anchorRow?.lineLabel ?? ""}`.trim()}
     >
       <div className="rendered-change-card-rail" />
@@ -752,15 +766,22 @@ function RenderedChangeCardView({
             {cardTitle}
             {anchorRow?.lineLabel ? ` · line ${anchorRow.lineLabel}` : ""}
           </span>
-          {firstComment ? (
+          {markerComment && commentThread ? (
             <button
               className="comment-gutter-marker rendered-diff-comment-marker"
               type="button"
-              data-comment-id={firstComment.id}
-              aria-label={`Open comment on line ${range?.start}`}
+              data-comment-id={markerComment.id}
+              aria-label={lineCommentThreadActionLabel(
+                commentThread.lineStart,
+                commentThread,
+              )}
+              title={lineCommentThreadActionLabel(
+                commentThread.lineStart,
+                commentThread,
+              )}
               onClick={(event) =>
                 onOpenComment?.(
-                  firstComment.id,
+                  markerComment.id,
                   rectLikeFromElement(event.currentTarget),
                 )
               }
@@ -799,6 +820,19 @@ function RenderedChangeCardView({
       </div>
     </article>
   );
+}
+
+function commentsForLineRange(
+  comments: ViviComment[],
+  start: number,
+  end: number,
+): ViviComment[] {
+  return comments.filter((comment) => {
+    const commentStart = comment.anchor.canonical.lineStart;
+    if (!commentStart) return false;
+    const commentEnd = comment.anchor.canonical.lineEnd ?? commentStart;
+    return commentStart <= end && commentEnd >= start;
+  });
 }
 
 function RenderedChangePane({
