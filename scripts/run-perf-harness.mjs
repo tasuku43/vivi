@@ -166,6 +166,7 @@ try {
     const operations = numberEnv("VIVI_PERF_AGENT_STORM_OPS", 300);
     const fileCount = numberEnv("VIVI_PERF_AGENT_STORM_FILES", 60);
     const delayMs = numberEnvAllowZero("VIVI_PERF_AGENT_STORM_DELAY_MS", 0);
+    const primeMs = numberEnv("VIVI_PERF_AGENT_STORM_PRIME_MS", 150);
     const stormDirName = `.vivi-perf-agent-storm-${process.pid}-${Date.now()}`;
     const stormDir = path.join(workspaceRoot, stormDirName);
     const expectedPaths = new Set(
@@ -177,6 +178,7 @@ try {
         expectedPaths,
         async () => {
           mkdirSync(stormDir, { recursive: true });
+          await delay(primeMs);
           for (let index = 0; index < operations; index++) {
             const fileIndex = index % fileCount;
             const file = path.join(stormDir, `agent-${String(fileIndex).padStart(3, "0")}.md`);
@@ -205,6 +207,7 @@ try {
         operations,
         fileCount,
         delayMs,
+        primeMs,
         ...observed,
         stormServer: observed.actionStartedAtMs
           ? serverSampler.summarySince("server_agent_storm", observed.actionStartedAtMs)

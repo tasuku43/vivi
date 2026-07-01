@@ -78,6 +78,7 @@ describe("perf summary verifier", () => {
     expect(workflow).toContain("npm run perf:otel");
     expect(workflow).toContain("npm run perf:verify");
     expect(workflow).toContain("VIVI_PERF_REQUIRE_SYNTHETIC");
+    expect(workflow).toContain("VIVI_PERF_AGENT_STORM_DELAY_MS=2");
     expect(workflow).toContain("actions/upload-artifact@");
     expect(workflow).toContain("path: artifacts/perf");
     expect(packageJson.scripts["build:go:otel"]).toContain(

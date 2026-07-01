@@ -64,7 +64,7 @@ jobs:
               echo "VIVI_PERF_BURST_DELAY_MS=10"
               echo "VIVI_PERF_AGENT_STORM_OPS=120"
               echo "VIVI_PERF_AGENT_STORM_FILES=30"
-              echo "VIVI_PERF_AGENT_STORM_DELAY_MS=0"
+              echo "VIVI_PERF_AGENT_STORM_DELAY_MS=2"
               echo "VIVI_PERF_CLI_ITERATIONS=3"
             } >> "$GITHUB_ENV"
           fi

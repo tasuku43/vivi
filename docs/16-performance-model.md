@@ -109,10 +109,11 @@ startup cost and a separate `steadyServer` sample after `/events` reports
 watcher readiness. Burst writes are measured concurrently with SSE reading so
 first-event latency is not hidden behind the write loop. The
 `coding_agent_storm` scenario simulates a coding agent rewriting files as fast
-as the host filesystem accepts them: it creates a temporary directory, performs
-many immediate writes/renames/appends, reads SSE concurrently, and reports
-missing expected paths plus a `stormServer` CPU/RSS window that starts when the
-write action starts. It writes:
+as the host filesystem accepts them: it creates a temporary directory, gives the
+watcher a short `VIVI_PERF_AGENT_STORM_PRIME_MS` window to attach to that new
+directory, performs many immediate writes/renames/appends, reads SSE
+concurrently, and reports missing expected paths plus a `stormServer` CPU/RSS
+window that starts when the write action starts. It writes:
 
 ```text
 artifacts/perf/summary.json
