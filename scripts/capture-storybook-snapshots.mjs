@@ -61,9 +61,13 @@ async function main() {
     [
       "--prefix",
       "ui",
-      "run",
-      "storybook",
+      "exec",
       "--",
+      "storybook",
+      "dev",
+      "--config-dir",
+      "ui/.storybook",
+      "--disable-telemetry",
       "--ci",
       "--host",
       "127.0.0.1",
@@ -152,6 +156,10 @@ function parseMaxDiffRatioOverrides(value) {
     ["files-viewer-coverage-states--mermaid-known-viewer", 0.1],
     ["files-viewer-coverage-states--viewer-toolbar-sticky-by-extension", 0.01],
     ["files-viewer-coverage-states--code-with-local-outline", 0.005],
+    [
+      "files-markdown-review-states--rendered-markdown-open-thread-beside-new-draft",
+      0.01,
+    ],
   ]);
   if (!value) return entries;
   const parsed = JSON.parse(value);

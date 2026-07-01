@@ -2,12 +2,12 @@
   width: 100%;
   margin: 0;
   color: var(--vivi-color-content-primary);
-  line-height: 1.78;
+  line-height: 1.74;
 }
 
 :global(.markdown.markdown-document) {
   width: auto;
-  max-width: min(1120px, max(0px, calc(100vw - 28px)));
+  max-width: 100%;
   overflow-wrap: break-word;
 }
 
@@ -22,7 +22,9 @@
 :global(.markdown h1),
 :global(.markdown h2),
 :global(.markdown h3),
-:global(.markdown h4) {
+:global(.markdown h4),
+:global(.markdown h5),
+:global(.markdown h6) {
   color: var(--vivi-color-content-primary);
   font-weight: 760;
   letter-spacing: 0;
@@ -33,33 +35,42 @@
   margin: 0 0 18px;
   padding-bottom: 18px;
   border-bottom: 1px solid var(--vivi-color-border-default);
-  font-size: 42px;
-  line-height: 1.12;
+  font-size: 34px;
+  line-height: 1.16;
 }
 
 :global(.markdown h2) {
-  margin: 46px 0 14px;
+  margin: 38px 0 12px;
   padding-top: 6px;
-  font-size: 27px;
-  line-height: 1.24;
+  font-size: 23px;
+  line-height: 1.28;
 }
 
 :global(.markdown h3) {
-  margin: 32px 0 10px;
-  font-size: 20px;
+  margin: 28px 0 9px;
+  font-size: 18px;
   line-height: 1.34;
 }
 
 :global(.markdown h4) {
-  margin: 26px 0 8px;
-  font-size: 16px;
+  margin: 24px 0 8px;
+  font-size: 15px;
   line-height: 1.4;
+}
+
+:global(.markdown h5),
+:global(.markdown h6) {
+  margin: 20px 0 7px;
+  color: var(--vivi-color-content-muted);
+  font-size: 13px;
+  line-height: 1.44;
+  text-transform: uppercase;
 }
 
 :global(.markdown p),
 :global(.markdown li) {
   color: var(--vivi-color-content-primary);
-  font-size: 16px;
+  font-size: 15px;
   overflow-wrap: break-word;
 }
 
@@ -84,12 +95,12 @@
 
 :global(.markdown ul),
 :global(.markdown ol) {
-  padding-left: 1.45em;
+  padding-left: 1.38em;
   margin: 14px 0;
 }
 
 :global(.markdown li + li) {
-  margin-top: 7px;
+  margin-top: 6px;
 }
 
 :global(.markdown hr) {
@@ -241,15 +252,15 @@
 
 :global(.markdown blockquote) {
   margin: 24px 0;
-  padding: 4px 0 4px 18px;
-  border-left: 4px solid var(--vivi-color-accent);
+  padding: 4px 0 4px 16px;
+  border-left: 3px solid var(--vivi-color-accent);
   color: var(--vivi-color-content-muted);
 }
 
 :global(.markdown blockquote p) {
   color: var(--vivi-color-content-muted);
-  font-size: 15px;
-  line-height: 1.82;
+  font-size: 14px;
+  line-height: 1.8;
 }
 
 :global(.markdown-callout) {
@@ -288,7 +299,7 @@
 
 :global(.markdown pre) {
   margin: 24px 0;
-  padding: 18px;
+  padding: 16px;
   overflow-x: auto;
   border: 1px solid var(--vivi-color-border-default);
   border-radius: 8px;
@@ -313,6 +324,48 @@
   background: var(--vivi-color-accent-surface-subtle);
   color: var(--vivi-color-accent);
   font-size: 0.88em;
+}
+
+:global(.markdown kbd) {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0.08em 0.42em;
+  border: 1px solid var(--vivi-color-border-default);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--vivi-color-surface-panel-raised);
+  color: var(--vivi-color-content-primary);
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.82em;
+  line-height: 1.45;
+  text-align: center;
+}
+
+:global(.markdown del) {
+  color: var(--vivi-color-content-muted);
+}
+
+:global(.markdown details) {
+  margin: 22px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--vivi-color-border-default);
+  border-radius: 8px;
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel-raised) 58%,
+    transparent
+  );
+}
+
+:global(.markdown summary) {
+  cursor: pointer;
+  color: var(--vivi-color-content-primary);
+  font-weight: 720;
+}
+
+:global(.markdown details > :last-child) {
+  margin-bottom: 0;
 }
 
 :global(.markdown-table-wrap) {
@@ -389,11 +442,22 @@
 
 :global(.markdown input[type="checkbox"]) {
   margin-right: 8px;
+  cursor: default;
+  accent-color: var(--vivi-color-accent);
+}
+
+:global(.markdown input[type="checkbox"]:disabled) {
+  opacity: 1;
+}
+
+:global(.markdown li:has(> input[type="checkbox"])) {
+  list-style: none;
+  margin-left: -1.18em;
 }
 
 @media (max-width: 1040px) {
   :global(.markdown h1) {
-    font-size: 34px;
+    font-size: 31px;
   }
 }
 
@@ -403,7 +467,7 @@
   }
 
   :global(.markdown h2) {
-    font-size: 24px;
+    font-size: 21px;
   }
 
   :global(.markdown-frontmatter-row),

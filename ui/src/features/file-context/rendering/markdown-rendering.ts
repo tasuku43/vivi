@@ -71,14 +71,24 @@ function labelTaskCheckboxes(html: string): string {
   return html.replace(
     /<input\b[^>]*\btype\s*=\s*(?:"checkbox"|'checkbox'|checkbox)[^>]*>/gi,
     (match) => {
-      if (/\baria-label\s*=/.test(match)) return match;
       const checked = /\bchecked(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/i.test(
         match,
       );
       const selfClosing = /\/\s*>$/.test(match);
-      const body = match.replace(/\s*\/?>$/, "");
+      let body = match.replace(/\s*\/?>$/, "");
       const label = checked ? "Completed task" : "Incomplete task";
-      return `${body} aria-label="${label}"${selfClosing ? " />" : ">"}`;
+      if (!/\baria-label\s*=/.test(body)) {
+        body += ` aria-label="${label}"`;
+      }
+      if (!/\baria-readonly\s*=/.test(body)) {
+        body += ' aria-readonly="true"';
+      }
+      if (
+        !/\bdisabled(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/i.test(body)
+      ) {
+        body += " disabled";
+      }
+      return `${body}${selfClosing ? " />" : ">"}`;
     },
   );
 }

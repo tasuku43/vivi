@@ -159,12 +159,14 @@ const value = 1;
     expect(html).toContain("Check paths before serving files.");
   });
 
-  it("labels GitHub task list checkboxes for the rendered reader", () => {
+  it("renders GitHub task list checkboxes as readonly controls for the reader", () => {
     const html = renderMarkdownDocumentHtml(`- [x] Finished item
 - [ ] Pending item`);
 
     expect(html).toContain('aria-label="Completed task"');
     expect(html).toContain('aria-label="Incomplete task"');
+    expect(html.match(/\baria-readonly="true"/g)).toHaveLength(2);
+    expect(html.match(/\bdisabled\b/g)).toHaveLength(2);
   });
 
   it("renders Mermaid fences as safe inline previews with source fallback", () => {

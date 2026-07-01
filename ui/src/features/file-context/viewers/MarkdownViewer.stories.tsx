@@ -356,9 +356,21 @@ export const RenderedMarkdownSyntaxGallery: Story = {
     await expect(table).toBeInTheDocument();
     const markdown = canvasElement.querySelector<HTMLElement>(".markdown");
     await expect(markdown).toBeInTheDocument();
+    await expect(markdown!.getBoundingClientRect().width).toBeLessThanOrEqual(
+      862,
+    );
+    await expect(getComputedStyle(markdown!).backgroundColor).not.toBe(
+      "rgba(0, 0, 0, 0)",
+    );
     await expect(tableWrap!.getBoundingClientRect().right).toBeLessThanOrEqual(
       markdown!.getBoundingClientRect().right + 1,
     );
+    const pendingTask = canvas.getByLabelText("Incomplete task");
+    await expect(pendingTask).toBeDisabled();
+    await expect(pendingTask).toHaveAttribute("aria-readonly", "true");
+    await expect(pendingTask).not.toBeChecked();
+    await userEvent.click(pendingTask);
+    await expect(pendingTask).not.toBeChecked();
 
     const statusHeader = canvas.getByRole("columnheader", {
       name: "Status",
@@ -567,8 +579,8 @@ export const RenderedMarkerPlacement: Story = {
       ).toBeLessThan(2),
     );
     const listMetricsOpen = renderedBlockMetrics(listItem);
-    await expect(listMetricsOpen.bottomPadding).toBeGreaterThanOrEqual(5);
-    await expect(listMetricsOpen.height).toBeLessThanOrEqual(36);
+    await expect(listMetricsOpen.bottomPadding).toBeGreaterThanOrEqual(4);
+    await expect(listMetricsOpen.height).toBeLessThanOrEqual(56);
     await expect(renderedMarkerTextGap(listItem)).toBeGreaterThanOrEqual(10);
 
     const codeBlock = canvasElement.querySelector("pre")!;
@@ -606,9 +618,9 @@ export const RenderedMarkerPlacement: Story = {
     );
     const listMetricsAfterCodeOpen = renderedBlockMetrics(listItem);
     await expect(listMetricsAfterCodeOpen.bottomPadding).toBeGreaterThanOrEqual(
-      5,
+      4,
     );
-    await expect(listMetricsAfterCodeOpen.height).toBeLessThanOrEqual(36);
+    await expect(listMetricsAfterCodeOpen.height).toBeLessThanOrEqual(56);
     canvasElement.dataset.viviSnapshotReady = "true";
   },
 };

@@ -65,6 +65,10 @@
   margin-inline: 24px;
 }
 
+.viewer > :global(.markdown-document) {
+  margin-inline: auto;
+}
+
 .viewer > :last-child,
 .textViewer > :last-child,
 .csvViewer > :last-child,

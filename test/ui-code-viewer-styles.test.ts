@@ -101,7 +101,7 @@ describe("rendered comment block ranges", () => {
       /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-left: calc\(-1\.35em - 8px\);/,
     );
     expect(normalizedRenderedCommentStyles).toMatch(
-      /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-y-pad: 2px;[\s\S]*?--rendered-comment-block-bottom-pad: 1px;[\s\S]*?--rendered-comment-block-top: calc\([\s\S]*?-1 \* var\(--rendered-comment-block-y-pad\)/,
+      /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-y-pad: 3px;[\s\S]*?--rendered-comment-block-bottom-pad: 2px;[\s\S]*?--rendered-comment-block-top: calc\([\s\S]*?-1 \* var\(--rendered-comment-block-y-pad\)/,
     );
     expect(normalizedRenderedCommentStyles).toMatch(
       /li\.vivi-rendered-comment-block:has\(> \.rendered-comment-thread-host\)\s*\{[\s\S]*?--rendered-comment-block-bottom-pad: 11px;/,
