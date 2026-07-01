@@ -927,7 +927,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       reviewCommandActions({
         activeComment:
           activeComment?.path === selectedPath ? activeComment : null,
-        attentionThreadCount: attentionCommentThreadCount,
         canToggleDiff: Boolean(file && supportsDiffMode(file)),
         diffEnabled,
         inReviewReplyTargetCount: inReviewReplyTargets.length,

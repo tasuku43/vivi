@@ -2267,7 +2267,6 @@ it("builds contextual review command palette actions", () => {
   expect(
     reviewCommandActions({
       activeComment,
-      attentionThreadCount: 2,
       canToggleDiff: true,
       diffEnabled: false,
       openThreadTargetCount: 3,
@@ -2327,7 +2326,6 @@ it("builds contextual review command palette actions", () => {
   expect(
     reviewCommandActions({
       activeComment: null,
-      attentionThreadCount: 0,
       canToggleDiff: false,
       diffEnabled: false,
       openThreadTargetCount: 0,
@@ -2338,7 +2336,6 @@ it("builds contextual review command palette actions", () => {
   expect(
     reviewCommandActions({
       activeComment: makeReviewComment("resolved-1", "docs/a.md", "resolved"),
-      attentionThreadCount: 0,
       canToggleDiff: false,
       diffEnabled: false,
       openThreadTargetCount: 0,
@@ -2353,7 +2350,6 @@ it("builds contextual review command palette actions", () => {
   expect(
     reviewCommandActions({
       activeComment: makeReviewComment("archived-1", "docs/a.md", "archived"),
-      attentionThreadCount: 0,
       canToggleDiff: false,
       diffEnabled: false,
       openThreadTargetCount: 0,

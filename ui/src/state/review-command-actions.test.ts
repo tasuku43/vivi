@@ -5,7 +5,6 @@ describe("reviewCommandActions", () => {
   it("offers the active viewer diff toggle with the documented shortcut", () => {
     const actions = reviewCommandActions({
       activeComment: null,
-      attentionThreadCount: 0,
       canToggleDiff: true,
       diffEnabled: false,
       inReviewReplyTargetCount: 0,
@@ -26,7 +25,6 @@ describe("reviewCommandActions", () => {
   it("updates the diff toggle label when diff mode is already enabled", () => {
     const actions = reviewCommandActions({
       activeComment: null,
-      attentionThreadCount: 0,
       canToggleDiff: true,
       diffEnabled: true,
       inReviewReplyTargetCount: 0,
@@ -47,7 +45,6 @@ describe("reviewCommandActions", () => {
   it("does not offer the diff toggle for files without diff support", () => {
     const actions = reviewCommandActions({
       activeComment: null,
-      attentionThreadCount: 0,
       canToggleDiff: false,
       diffEnabled: false,
       inReviewReplyTargetCount: 0,
@@ -64,7 +61,6 @@ describe("reviewCommandActions", () => {
   it("offers separate actions for unseen work and in-review replies", () => {
     const actions = reviewCommandActions({
       activeComment: null,
-      attentionThreadCount: 0,
       canToggleDiff: false,
       diffEnabled: false,
       inReviewReplyTargetCount: 2,

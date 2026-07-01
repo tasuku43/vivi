@@ -6,7 +6,6 @@ const shortcutPrefix = "Cmd/Ctrl";
 
 export interface ReviewCommandActionState {
   activeComment: ViviComment | null;
-  attentionThreadCount: number;
   canToggleDiff: boolean;
   diffEnabled: boolean;
   openThreadTargetCount: number;
@@ -17,7 +16,6 @@ export interface ReviewCommandActionState {
 
 export function reviewCommandActions({
   activeComment,
-  attentionThreadCount,
   canToggleDiff,
   diffEnabled,
   inReviewReplyTargetCount,
