@@ -13,6 +13,7 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { chromium } from "playwright";
 
+import { isTransientBrowserWorkspaceError } from "./perf-harness-browser.mjs";
 import {
   aggregateProcessSummaries,
   summarizeProcessSamples,
@@ -632,10 +633,29 @@ async function waitForEventsReady(baseURL) {
 }
 
 async function runBrowserWorkspaceScenario(baseURL, workspace) {
+  const maxAttempts = numberEnv("VIVI_PERF_BROWSER_ATTEMPTS", 3);
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await runBrowserWorkspaceScenarioAttempt(baseURL, workspace);
+    } catch (error) {
+      lastError = error;
+      if (attempt === maxAttempts || !isTransientBrowserWorkspaceError(error)) {
+        throw error;
+      }
+      await delay(500 * attempt);
+    }
+  }
+  throw lastError;
+}
+
+async function runBrowserWorkspaceScenarioAttempt(baseURL, workspace) {
   const openedPath = firstExistingRelativePath(workspace.absoluteRoot, [
     "README.md",
+    "pending-review.md",
     "Makefile",
     "Kconfig",
+    "dir-000/file-000.md",
     "init/main.c",
     "kernel/sched/core.c",
   ]);
@@ -647,8 +667,11 @@ async function runBrowserWorkspaceScenario(baseURL, workspace) {
   try {
     const url = openedPath ? `${baseURL}/?path=${encodeURIComponent(openedPath)}` : baseURL;
     const started = Date.now();
-    await page.goto(url, { waitUntil: "domcontentloaded" });
-    await page.waitForSelector('aside[aria-label="File explorer"]', { timeout: 20_000 });
+    const response = await page.goto(url, { waitUntil: "domcontentloaded" });
+    if (response && !response.ok()) {
+      throw new Error(`front workspace navigation failed with ${response.status()}`);
+    }
+    await waitForBrowserWorkspaceReady(page);
     await page.waitForTimeout(500);
     const afterLoad = await collectBrowserMetrics(page, client);
     const modifier = process.platform === "darwin" ? "Meta" : "Control";
@@ -669,6 +692,30 @@ async function runBrowserWorkspaceScenario(baseURL, workspace) {
   } finally {
     await browser.close();
   }
+}
+
+async function waitForBrowserWorkspaceReady(page) {
+  await page
+    .waitForFunction(
+      () => {
+        const bodyText = document.body?.innerText ?? "";
+        return Boolean(
+          document.querySelector('aside[aria-label="File explorer"]') ||
+            document.querySelector('[aria-label^="Workspace status"]') ||
+            bodyText.includes("Explorer") ||
+            bodyText.includes("Workspace"),
+        );
+      },
+      undefined,
+      { timeout: 20_000 },
+    )
+    .catch((error) => {
+      throw new Error(
+        `timed out waiting for Vivi workspace chrome: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    });
 }
 
 async function collectBrowserMetrics(page, client) {
