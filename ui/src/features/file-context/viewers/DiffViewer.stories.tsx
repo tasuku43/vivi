@@ -322,6 +322,7 @@ export const RenderedMarkdownCodeFenceReplacement: Story = {
 };
 
 export const RenderedHtmlComment: Story = {
+  tags: ["interaction"],
   args: {
     path: sampleFiles.html.path,
     renderKind: "html",
@@ -329,6 +330,25 @@ export const RenderedHtmlComment: Story = {
     diff: htmlDiff,
     comments: commentsForPath(sampleFiles.html.path),
     activeCommentId: "comment-html-rendered",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const cardsRegion = canvas.getByRole("region", {
+      name: `Rendered HTML change cards for ${sampleFiles.html.path}`,
+    });
+    await expect(cardsRegion).toBeVisible();
+    const changedCard = within(cardsRegion).getByRole("article", {
+      name: "Changed rendered block 6-7",
+    });
+    await expect(changedCard).toBeVisible();
+    await expect(
+      within(changedCard).getByRole("article", {
+        name: "Comment thread for line 7",
+      }),
+    ).toBeVisible();
+    await expect(changedCard).toHaveTextContent(
+      "HTML rendered comments should be visible as source-mapped review metadata.",
+    );
   },
 };
 

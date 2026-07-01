@@ -1271,11 +1271,35 @@ export function buildRenderedHtmlRows(
     const previous = grouped[grouped.length - 1];
     if (row.kind !== "gap" && previous?.kind === row.kind) {
       previous.source = `${previous.source}\n${row.source}`;
+      previous.lineLabel = mergeRenderedLineLabels(
+        previous.lineLabel,
+        row.lineLabel,
+      );
       continue;
     }
     grouped.push({ ...row });
   }
   return grouped.filter((row) => row.source.trim().length > 0);
+}
+
+function mergeRenderedLineLabels(first: string, second: string): string {
+  const firstRange = renderedLineLabelRange(first);
+  const secondRange = renderedLineLabelRange(second);
+  if (!firstRange || !secondRange) return first;
+  const start = Math.min(firstRange.start, secondRange.start);
+  const end = Math.max(firstRange.end, secondRange.end);
+  return start === end ? String(start) : `${start}-${end}`;
+}
+
+function renderedLineLabelRange(
+  label: string,
+): { start: number; end: number } | null {
+  const match = /^(\d+)(?:-(\d+))?$/.exec(label);
+  if (!match) return null;
+  const start = Number(match[1]);
+  const end = Number(match[2] ?? match[1]);
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end)) return null;
+  return { start, end };
 }
 
 export function buildRenderedChangeCards(

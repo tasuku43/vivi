@@ -5040,6 +5040,63 @@ it("renders HTML diffs as rendered snippets without line numbers", () => {
   expect(html).not.toContain("diff-inline-row");
 });
 
+it("shows rendered HTML comments on grouped change cards", () => {
+  const htmlComment: ViviComment = {
+    ...codeLineComment,
+    id: "rendered-html-comment",
+    threadId: "thread-rendered-html-comment",
+    path: "index.html",
+    viewerKind: "html",
+    anchor: {
+      surface: "rendered",
+      canonical: {
+        path: "index.html",
+        lineStart: 7,
+        lineEnd: 7,
+        quote: "Approve local preview",
+      },
+      rendered: {
+        kind: "html",
+        blockId: "review-button",
+        sourceLineStart: 7,
+        sourceLineEnd: 7,
+        textQuote: "Approve local preview",
+      },
+    },
+    body: "The grouped HTML card should keep line 7 comments visible.",
+  };
+  const html = renderToStaticMarkup(
+    <DiffViewer
+      path="index.html"
+      renderKind="html"
+      comments={[htmlComment]}
+      activeCommentId={htmlComment.id}
+      diff={{
+        path: "index.html",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content: [
+          "@@ -4,4 +4,5 @@",
+          ' <main class="review-card">',
+          "  <h1>Review Preview</h1>",
+          "- <p>Comments map back to source blocks.</p>",
+          "+ <p>Rendered HTML comments map back to source blocks.</p>",
+          "+ <button>Approve local preview</button>",
+          " </main>",
+        ].join("\n"),
+      }}
+    />,
+  );
+
+  expect(html).toContain("Changed rendered block · line 6-7");
+  expect(html).toContain("rendered-change-card changed has-comment");
+  expect(html).toContain('aria-expanded="true"');
+  expect(html).toContain(
+    "The grouped HTML card should keep line 7 comments visible.",
+  );
+});
+
 it("groups consecutive rendered HTML diff rows", () => {
   expect(
     buildRenderedHtmlRows([
@@ -5048,7 +5105,11 @@ it("groups consecutive rendered HTML diff rows", () => {
       { kind: "add", lineLabel: "1", source: "<h1>New</h1>" },
     ]),
   ).toEqual([
-    { kind: "remove", lineLabel: "1", source: "<h1>Old</h1>\n<p>Before</p>" },
+    {
+      kind: "remove",
+      lineLabel: "1-2",
+      source: "<h1>Old</h1>\n<p>Before</p>",
+    },
     { kind: "add", lineLabel: "1", source: "<h1>New</h1>" },
   ]);
 });
