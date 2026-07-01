@@ -2323,7 +2323,7 @@ it("renders draft and published messages in the same inline thread", () => {
   expect(html).toContain(">Resolve</button>");
 });
 
-it("renders draft review publishing states inside the comments hub", () => {
+it("renders draft review publishing states inside the review thread inbox", () => {
   const draft = {
     id: "draft-1",
     path: "src/app.ts",
@@ -2490,7 +2490,7 @@ it("renders draft review publishing states inside the comments hub", () => {
   expect(successHtml).toContain("visible to agents");
 });
 
-it("renders pending drafts inside the comments hub", () => {
+it("renders pending drafts inside the review thread inbox", () => {
   const draft = {
     id: "draft-1",
     path: "src/app.ts",

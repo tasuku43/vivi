@@ -63,7 +63,7 @@ Run `task check` before handing off a coding pass.
 Use Storybook for stable, domain-shaped UI states:
 
 - workspace states, file tree, tabs, topbar, statusbar
-- Review Queue states, Comments inbox states, agent activity, draft review states
+- Review Queue states, review thread inbox states, agent activity, draft review states
 - inline comment states and rendered/source comment affordances
 - Markdown, HTML, code, structured/text, image, Mermaid, and binary viewer states
 - source and rendered diff states
