@@ -2,9 +2,11 @@
   --source-comment-surface-module: 1;
   --source-comment-anchor-width: 2px;
   --source-comment-highlight-active-mix: 56%;
+  --source-comment-highlight-gutter-mix: 44%;
   --source-comment-highlight-surface-mix: 40%;
   --source-comment-highlight-end: 92%;
   --source-comment-active-highlight-mix: 74%;
+  --source-comment-active-gutter-mix: 56%;
   --source-comment-active-fade-mix: 44%;
   --source-comment-row-outline-mix: 0%;
 }
@@ -12,9 +14,11 @@
 :global(.source-comment-surface.markdown-source) {
   --source-comment-anchor-width: 3px;
   --source-comment-highlight-active-mix: 100%;
+  --source-comment-highlight-gutter-mix: 54%;
   --source-comment-highlight-surface-mix: 72%;
   --source-comment-highlight-end: 78%;
   --source-comment-active-highlight-mix: 88%;
+  --source-comment-active-gutter-mix: 64%;
   --source-comment-active-fade-mix: 60%;
   --source-comment-row-outline-mix: 34%;
 }
@@ -33,7 +37,10 @@
   --source-line-gutter-width: 64px;
   position: relative;
   display: grid;
-  grid-template-columns: var(--source-line-gutter-width) max-content minmax(0, 1fr);
+  grid-template-columns: var(--source-line-gutter-width) max-content minmax(
+      0,
+      1fr
+    );
   min-height: 23px;
   color: var(--vivi-color-content-primary);
 }
@@ -59,9 +66,15 @@
 :global(.code-line.drafting-comment) {
   background: linear-gradient(
     90deg,
-    transparent 0 var(--source-line-gutter-width),
     color-mix(
-      in srgb,
+        in srgb,
+        var(--vivi-color-comment-surface)
+          var(--source-comment-highlight-gutter-mix),
+        transparent
+      )
+      0 var(--source-line-gutter-width),
+    color-mix(
+        in srgb,
         var(--vivi-color-comment-surface-active)
           var(--source-comment-highlight-active-mix),
         transparent
@@ -107,13 +120,19 @@
 :global(.code-line.active-comment) {
   background: linear-gradient(
     90deg,
-    transparent 0 var(--source-line-gutter-width),
     color-mix(
-      in srgb,
-      var(--vivi-color-comment-surface-active)
-        var(--source-comment-active-highlight-mix),
-      var(--vivi-color-accent-surface-subtle)
-    )
+        in srgb,
+        var(--vivi-color-comment-surface-active)
+          var(--source-comment-active-gutter-mix),
+        transparent
+      )
+      0 var(--source-line-gutter-width),
+    color-mix(
+        in srgb,
+        var(--vivi-color-comment-surface-active)
+          var(--source-comment-active-highlight-mix),
+        var(--vivi-color-accent-surface-subtle)
+      )
       var(--source-line-gutter-width),
     color-mix(
         in srgb,

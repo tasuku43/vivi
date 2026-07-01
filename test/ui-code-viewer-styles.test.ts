@@ -46,17 +46,28 @@ const normalizedRenderedCommentStyles = normalizeCssModuleGlobals(
 
 describe("code viewer line actions", () => {
   it("keeps the comment action on a fixed gutter rail", () => {
-    expect(sourceLineStyles).toContain(
-      "--source-line-gutter-width: 64px;",
+    expect(sourceLineStyles).toContain("--source-line-gutter-width: 64px;");
+    expect(sourceLineStyles).toMatch(
+      /grid-template-columns:\s*var\(--source-line-gutter-width\) max-content minmax\(\s*0,\s*1fr\s*\);/,
     );
-    expect(sourceLineStyles).toContain(
-      "grid-template-columns: var(--source-line-gutter-width) max-content minmax(0, 1fr);",
-    );
-    expect(sourceLineStyles).toContain(
-      "--source-line-gutter-width: 48px;",
-    );
+    expect(sourceLineStyles).toContain("--source-line-gutter-width: 48px;");
     expect(sourceLineStyles).toMatch(
       /\.code-line-comment-action \{[\s\S]*?position: absolute;[\s\S]*?left: 1px;[\s\S]*?width: 28px;[\s\S]*?height: 24px;/,
+    );
+  });
+
+  it("bridges source comment highlights through the gutter", () => {
+    expect(sourceLineStyles).toContain(
+      "--source-comment-highlight-gutter-mix: 44%;",
+    );
+    expect(sourceLineStyles).toContain(
+      "--source-comment-active-gutter-mix: 56%;",
+    );
+    expect(sourceLineStyles).toMatch(
+      /\.code-line\.has-comment,[\s\S]*?\.code-line\.drafting-comment \{[\s\S]*?var\(--source-comment-highlight-gutter-mix\),[\s\S]*?0 var\(--source-line-gutter-width\),/,
+    );
+    expect(sourceLineStyles).toMatch(
+      /\.code-line\.active-comment \{[\s\S]*?var\(--source-comment-active-gutter-mix\),[\s\S]*?0 var\(--source-line-gutter-width\),/,
     );
   });
 });
