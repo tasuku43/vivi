@@ -7,7 +7,6 @@ import {
 } from "../domain/comments.js";
 import type { FilePayload, FsNode } from "../domain/fs-node.js";
 import { CommandPalette } from "../features/command-palette/CommandPalette.js";
-import { InlineCommentCard } from "../features/comments/components/InlineCommentCard.js";
 import { FileViewer } from "../features/file-context/components/FileViewer.js";
 import { Inspector } from "../features/review-queue/Inspector.js";
 import { ShortcutHelp } from "../shared/components/ShortcutHelp.js";
@@ -84,7 +83,6 @@ export interface ReviewWorkbenchStoryProps {
   pendingFilePath?: string;
   reviewQueueOpenFile?: FilePayload;
   activeCommentId?: string | null;
-  inlineComment?: ViviComment | null;
   inspectorTitle?: ReactNode;
   compactInspector?: boolean;
   reviewLoading?: boolean;
@@ -115,7 +113,6 @@ export function ReviewWorkbenchStory({
   pendingFilePath,
   reviewQueueOpenFile,
   activeCommentId = null,
-  inlineComment = null,
   inspectorTitle,
   compactInspector = false,
   reviewLoading = false,
@@ -537,16 +534,6 @@ export function ReviewWorkbenchStory({
         open={storyShortcutHelpOpen}
         onClose={() => setStoryShortcutHelpOpen(false)}
       />
-      {inlineComment ? (
-        <aside aria-label="Floating comment preview">
-          <InlineCommentCard
-            comment={inlineComment}
-            rect={{ left: 720, top: 168, width: 220, height: 26 }}
-            onClose={noop}
-            onStatusChange={noop}
-          />
-        </aside>
-      ) : null}
     </div>
   );
 }

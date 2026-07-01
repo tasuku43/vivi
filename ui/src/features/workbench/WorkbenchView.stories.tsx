@@ -262,7 +262,6 @@ export const FileWithOpenComments: Story = {
   args: {
     file: sampleFiles.code,
     activeCommentId: "comment-workbench-open-1",
-    inlineComment: sampleComments[0],
   },
 };
 
@@ -274,6 +273,9 @@ export const FileWithDraftComments: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await expect(
+      canvas.queryByLabelText("Floating comment preview"),
+    ).not.toBeInTheDocument();
     const inspector = within(
       canvas.getByRole("complementary", { name: "Review inspector" }),
     );
@@ -287,7 +289,6 @@ export const DraftAndOpenThreadMixedState: Story = {
   args: {
     file: sampleFiles.code,
     activeCommentId: "draft:draft-review-1",
-    inlineComment: sampleComments[0],
     draftComments: sampleDraftComments,
   },
 };
@@ -382,7 +383,6 @@ export const AgentReplyVisible: Story = {
   args: {
     file: sampleFiles.code,
     activeCommentId: "comment-workbench-agent-1",
-    inlineComment: sampleComments[1],
   },
 };
 
