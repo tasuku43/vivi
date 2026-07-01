@@ -792,11 +792,16 @@ function RenderedChangeCardView({
 }) {
   if (!card.before && !card.after) return <DiffGap label="Changed block" />;
   const anchorRow = card.after ?? card.before;
-  const range = anchorRow ? currentLineRangeForRenderedRow(anchorRow) : null;
-  const commentThread = range
+  const commentRange = renderedCommentLineRangeForCard(card);
+  const commentThread = commentRange
     ? preferredCodeCommentThread(
         codeCommentThreads(
-          commentsForRenderedDiffLineRange(comments, range.start, range.end),
+          commentsForRenderedDiffLineRange(
+            comments,
+            commentRange.start,
+            commentRange.end,
+            commentRange.side,
+          ),
         ),
         activeCommentId,
       )
@@ -888,9 +893,11 @@ function commentsForRenderedDiffLineRange(
   comments: ViviComment[],
   start: number,
   end: number,
+  side: "old" | "new",
 ): ViviComment[] {
   return comments.filter((comment) => {
     if (comment.anchor.surface === "source") return false;
+    if (comment.anchor.diff && comment.anchor.diff.side !== side) return false;
     const commentStart = comment.anchor.canonical.lineStart;
     if (!commentStart) return false;
     const commentEnd = comment.anchor.canonical.lineEnd ?? commentStart;
@@ -909,7 +916,7 @@ function RenderedChangePane({
   tone: "old" | "new";
   renderKind: Exclude<RenderKind, "source">;
 }) {
-  const range = currentLineRangeForRenderedRow(row);
+  const range = selectableRenderedLineRangeForRow(row);
   return (
     <section className="rendered-change-pane">
       <p className="rendered-change-pane-label">{label}</p>
@@ -968,10 +975,26 @@ function DiffGap({ label }: { label: string }) {
   );
 }
 
-function currentLineRangeForRenderedRow(
+function renderedCommentLineRangeForCard(
+  card: RenderedChangeCard,
+): { start: number; end: number; side: "old" | "new" } | null {
+  const row = card.after ?? card.before;
+  if (!row) return null;
+  const range = lineRangeForRenderedRow(row);
+  if (!range) return null;
+  return { ...range, side: card.after ? "new" : "old" };
+}
+
+function selectableRenderedLineRangeForRow(
   row: RenderedDiffRow,
 ): { start: number; end: number } | null {
   if (row.kind !== "context" && row.kind !== "add") return null;
+  return lineRangeForRenderedRow(row);
+}
+
+function lineRangeForRenderedRow(
+  row: RenderedDiffRow,
+): { start: number; end: number } | null {
   const match = /^(\d+)(?:-(\d+))?$/.exec(row.lineLabel);
   if (!match) return null;
   const start = Number(match[1]);
