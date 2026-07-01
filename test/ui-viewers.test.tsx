@@ -347,6 +347,8 @@ it("renders the shortcut guide as one bundled reference", () => {
   expect(html).toContain("Cmd/Ctrl Shift U");
   expect(html).toContain("Cmd/Ctrl Shift J");
   expect(html).toContain("Cmd/Ctrl Shift K");
+  expect(html).toContain("Cmd/Ctrl Shift M");
+  expect(html).toContain("Mark current file reviewed");
   expect(html).not.toContain("Cmd/Ctrl Alt R");
   expect(html).not.toContain("Cmd/Ctrl Alt T");
   expect(html).not.toContain("Cmd/Ctrl Alt M");
@@ -1495,6 +1497,9 @@ it("keeps current-file review status compact in the viewer toolbar", () => {
   expect(html).toContain('aria-label="Review state: Queued"');
   expect(html).toContain("Queued");
   expect(html).toContain("Mark as reviewed");
+  expect(html).toContain(
+    'aria-keyshortcuts="Meta+Shift+M Control+Shift+M"',
+  );
   expect(html).not.toContain("Current file</span>");
   expect(html).not.toContain("Review 1 open");
 });

@@ -94,6 +94,7 @@ import {
 import {
   buildReviewQueueItems,
   latestUnreadReviewItemPath,
+  nextReviewQueueItemPathAfterCompletion,
   nextReviewQueueItemPath,
   summarizeReviewQueue,
   syncUnreadReviewPaths,
@@ -961,6 +962,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       reviewCommandActions({
         activeComment:
           activeComment?.path === selectedPath ? activeComment : null,
+        canMarkCurrentReviewPathReviewed: canAcceptReviewPath(selectedPath),
         canToggleDiff: Boolean(file && supportsDiffMode(file)),
         diffEnabled,
         inReviewReplyTargetCount: inReviewReplyTargets.length,
@@ -975,7 +977,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       file,
       inReviewReplyTargets.length,
       openThreadTargets.length,
+      reviewChanges,
       reviewItems.length,
+      reviewStateByPath,
       selectedPath,
       unreadReviewPathSet.size,
     ],
@@ -1343,6 +1347,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     if (id === "open-latest-unread") openLatestUnreadReviewFile();
     if (id === "open-in-review-reply")
       openMovedTarget(inReviewReplyTargets, "next");
+    if (id === "mark-current-reviewed") markReviewPathReviewedAndAdvance();
     if (id === "open-next-review") openReviewQueueFile("next");
     if (id === "focus-review-queue") focusReviewQueue();
     if (id === "open-next-thread") openMovedTarget(openThreadTargets, "next");
@@ -1433,6 +1438,23 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     setUnreadReviewPaths((paths) =>
       paths.filter((candidate) => candidate !== path),
     );
+  }
+
+  function canAcceptReviewPath(path: string | null): boolean {
+    if (!path || reviewStateForPath(path) !== "queued") return false;
+    return reviewChanges.some((change) => change.path === path);
+  }
+
+  function markReviewPathReviewedAndAdvance(path = selectedPath) {
+    if (!path) return;
+    if (!canAcceptReviewPath(path)) return;
+    const nextPath = nextReviewQueueItemPathAfterCompletion(
+      reviewItems,
+      path,
+      "next",
+    );
+    acceptReviewPath(path);
+    if (nextPath) openReviewQueueItem(nextPath, "preview");
   }
 
   function restoreAcceptedReviewPath(path: string) {
@@ -2201,6 +2223,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       if (action === "open-latest-unread") openLatestUnreadReviewFile();
       if (action === "open-in-review-reply")
         openMovedTarget(inReviewReplyTargets, "next");
+      if (action === "mark-current-reviewed")
+        markReviewPathReviewedAndAdvance();
       if (action === "open-next-review") openReviewQueueFile("next");
       if (action === "open-previous-review") openReviewQueueFile("previous");
       if (action === "open-next-thread")
@@ -2804,9 +2828,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                     paneFile?.path ? reviewStateForPath(paneFile.path) : null
                   }
                   onMarkReviewed={
-                    paneFile?.path &&
-                    reviewStateForPath(paneFile.path) === "queued"
-                      ? () => acceptReviewPath(paneFile.path)
+                    paneFile?.path && canAcceptReviewPath(paneFile.path)
+                      ? () => markReviewPathReviewedAndAdvance(paneFile.path)
                       : undefined
                   }
                   activeCommentId={activeCommentId}

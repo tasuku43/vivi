@@ -133,6 +133,7 @@ import {
   activityNeedsHumanAttention,
   buildReviewQueueItems,
   latestUnreadReviewItemPath,
+  nextReviewQueueItemPathAfterCompletion,
   nextReviewQueueItemPath,
   pinActiveReviewQueueItem,
   reviewQueueItemHasAgentReply,
@@ -917,6 +918,9 @@ it("maps workspace keyboard shortcuts to app actions", () => {
   expect(
     keyboardShortcutAction({ ...command, key: "C", shiftKey: true }),
   ).toBeNull();
+  expect(keyboardShortcutAction({ ...command, key: "M", shiftKey: true })).toBe(
+    "mark-current-reviewed",
+  );
   expect(keyboardShortcutAction({ ...command, key: "U", shiftKey: true })).toBe(
     "open-latest-unread",
   );
@@ -2173,6 +2177,15 @@ it("navigates the prioritized work queue and keeps read receipts low-noise", () 
   expect(nextReviewQueueItemPath(items, "README.md", "next")).toBe(
     "src/app.ts",
   );
+  expect(nextReviewQueueItemPathAfterCompletion(items, "README.md")).toBe(
+    "src/app.ts",
+  );
+  expect(nextReviewQueueItemPathAfterCompletion(items, "src/app.ts")).toBe(
+    "README.md",
+  );
+  expect(
+    nextReviewQueueItemPathAfterCompletion([items[0]!], "README.md"),
+  ).toBeNull();
   expect(latestUnreadReviewItemPath(items)).toBe("README.md");
   expect(reviewQueuePosition(items, "src/app.ts")).toMatchObject({
     activePath: "src/app.ts",
@@ -2349,6 +2362,7 @@ it("builds contextual review command palette actions", () => {
   expect(
     reviewCommandActions({
       activeComment,
+      canMarkCurrentReviewPathReviewed: true,
       canToggleDiff: true,
       diffEnabled: false,
       openThreadTargetCount: 3,
@@ -2380,6 +2394,11 @@ it("builds contextual review command palette actions", () => {
       shortcut: "Cmd/Ctrl Shift U",
     },
     {
+      id: "mark-current-reviewed",
+      label: "Mark current file reviewed",
+      shortcut: "Cmd/Ctrl Shift M",
+    },
+    {
       id: "open-next-review",
       label: "Next review item",
       shortcut: "Cmd/Ctrl Shift J",
@@ -2408,6 +2427,7 @@ it("builds contextual review command palette actions", () => {
   expect(
     reviewCommandActions({
       activeComment: null,
+      canMarkCurrentReviewPathReviewed: false,
       canToggleDiff: false,
       diffEnabled: false,
       openThreadTargetCount: 0,
@@ -2418,6 +2438,7 @@ it("builds contextual review command palette actions", () => {
   expect(
     reviewCommandActions({
       activeComment: makeReviewComment("resolved-1", "docs/a.md", "resolved"),
+      canMarkCurrentReviewPathReviewed: false,
       canToggleDiff: false,
       diffEnabled: false,
       openThreadTargetCount: 0,
@@ -2432,6 +2453,7 @@ it("builds contextual review command palette actions", () => {
   expect(
     reviewCommandActions({
       activeComment: makeReviewComment("archived-1", "docs/a.md", "archived"),
+      canMarkCurrentReviewPathReviewed: false,
       canToggleDiff: false,
       diffEnabled: false,
       openThreadTargetCount: 0,

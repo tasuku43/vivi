@@ -12,6 +12,7 @@ export type KeyboardShortcutAction =
   | "open-latest-unread"
   | "open-next-review"
   | "open-previous-review"
+  | "mark-current-reviewed"
   | "open-next-thread"
   | "open-previous-thread"
   | "open-next-search-result"
@@ -52,6 +53,7 @@ export function keyboardShortcutAction(
   if (event.shiftKey && key === "u") return "open-latest-unread";
   if (event.shiftKey && key === "j") return "open-next-review";
   if (event.shiftKey && key === "k") return "open-previous-review";
+  if (event.shiftKey && key === "m") return "mark-current-reviewed";
   if (!event.shiftKey && key === "]") return "open-next-thread";
   if (!event.shiftKey && key === "[") return "open-previous-thread";
   if (!event.shiftKey && key === "g") return "open-next-search-result";

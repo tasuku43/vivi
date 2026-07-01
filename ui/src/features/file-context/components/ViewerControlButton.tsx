@@ -98,6 +98,8 @@ export function ViewerToolbar({
           <button
             className={cx(styles.markReviewedButton, "mark-reviewed-button")}
             type="button"
+            aria-keyshortcuts="Meta+Shift+M Control+Shift+M"
+            title="Mark as reviewed (Cmd/Ctrl Shift M)"
             onClick={header.onMarkReviewed}
           >
             Mark as reviewed

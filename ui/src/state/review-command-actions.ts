@@ -8,6 +8,7 @@ export interface ReviewCommandActionState {
   activeComment: ViviComment | null;
   canToggleDiff: boolean;
   diffEnabled: boolean;
+  canMarkCurrentReviewPathReviewed: boolean;
   openThreadTargetCount: number;
   inReviewReplyTargetCount: number;
   reviewItemCount: number;
@@ -17,6 +18,7 @@ export interface ReviewCommandActionState {
 export function reviewCommandActions({
   activeComment,
   canToggleDiff,
+  canMarkCurrentReviewPathReviewed,
   diffEnabled,
   inReviewReplyTargetCount,
   openThreadTargetCount,
@@ -71,6 +73,16 @@ export function reviewCommandActions({
 
   if (reviewItemCount) {
     actions.push(
+      ...(canMarkCurrentReviewPathReviewed
+        ? [
+            {
+              id: "mark-current-reviewed",
+              label: "Mark current file reviewed",
+              detail: "Hide this reviewed change and open the next review item",
+              shortcut: `${shortcutPrefix} Shift M`,
+            },
+          ]
+        : []),
       {
         id: "open-next-review",
         label: "Next review item",
