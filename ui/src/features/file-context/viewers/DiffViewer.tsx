@@ -977,7 +977,7 @@ export function buildRenderedDiffRows(
 
     if (isFenceStart(line.text)) {
       const block = collectFencedDiffBlock(visible, index);
-      rows.push(renderedFencedCodeRow(block.lines));
+      rows.push(...renderedFencedCodeRows(block.lines));
       index = block.nextIndex;
       continue;
     }
@@ -1176,7 +1176,25 @@ function collectFencedDiffBlock(
   return { lines: block, nextIndex: index };
 }
 
+function renderedFencedCodeRows(
+  lines: Array<ParsedDiffLine & { kind: "context" | "add" | "remove" }>,
+): RenderedDiffRow[] {
+  const kind = diffKindForLines(lines);
+  if (kind !== "mixed") return [renderedFencedCodeRow(kind, lines)];
+  return [
+    renderedFencedCodeRow(
+      "remove",
+      lines.filter((line) => line.kind !== "add"),
+    ),
+    renderedFencedCodeRow(
+      "add",
+      lines.filter((line) => line.kind !== "remove"),
+    ),
+  ];
+}
+
 function renderedFencedCodeRow(
+  kind: RenderedDiffRow["kind"],
   lines: Array<ParsedDiffLine & { kind: "context" | "add" | "remove" }>,
 ): RenderedDiffRow {
   const source = lines.map((line) => line.text).join("\n");
@@ -1186,8 +1204,8 @@ function renderedFencedCodeRow(
     closingIndex > 0 ? lines.slice(1, closingIndex) : lines.slice(1);
   const language = opening.replace(/^(```+|~~~+)/, "").trim() || "text";
   return {
-    kind: diffKindForLines(lines),
-    lineLabel: lineLabelForRenderedKind(diffKindForLines(lines), lines),
+    kind,
+    lineLabel: lineLabelForRenderedKind(kind, lines),
     source,
     html: `<pre><code class="language-${escapeHtmlAttribute(language)}">${contentLines
       .map(
