@@ -64,6 +64,7 @@ import {
   buildRenderedHtmlRows,
   diffCommentContextForRange,
   DiffViewer,
+  renderedDiffSelectionLineRange,
 } from "../ui/src/features/file-context/viewers/DiffViewer.js";
 import { HtmlViewer } from "../ui/src/features/file-context/viewers/HtmlViewer.js";
 import { ImageViewer } from "../ui/src/features/file-context/viewers/ImageViewer.js";
@@ -4696,6 +4697,39 @@ it("preserves unified diff metadata for selected diff comment drafts", () => {
     hunkId: "@@ -10,1 +20,2 @@",
     diffHash: "sha256:diff",
   });
+});
+
+it("keeps rendered diff selection ranges across multiline change cards", () => {
+  const html = renderToStaticMarkup(
+    <DiffViewer
+      path="README.md"
+      renderKind="markdown"
+      diff={{
+        path: "README.md",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content: [
+          "@@ -1,4 +1,4 @@",
+          " # Notes",
+          "-Old first sentence",
+          "-old second sentence",
+          "+New first sentence",
+          "+new second sentence",
+          " trailing",
+        ].join("\n"),
+      }}
+    />,
+  );
+
+  expect(html).toContain('data-current-line="2"');
+  expect(html).toContain('data-current-line-end="3"');
+  expect(
+    renderedDiffSelectionLineRange([
+      { dataset: { currentLine: "2", currentLineEnd: "3" } },
+      { dataset: { currentLine: "7", currentLineEnd: "8" } },
+    ]),
+  ).toEqual({ start: 2, end: 8 });
 });
 
 it("labels terminal diff comment markers as reopenable", () => {

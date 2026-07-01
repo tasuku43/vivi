@@ -648,27 +648,22 @@ function RenderedChangeCards({
     const blocks = Array.from(
       cardListRef.current.querySelectorAll<HTMLElement>("[data-current-line]"),
     ).filter((block) => range.intersectsNode(block));
-    const lines = blocks
-      .map((block) => Number(block.dataset.currentLine))
-      .filter((line) => Number.isSafeInteger(line));
-    if (!lines.length) {
+    const selectedLineRange = renderedDiffSelectionLineRange(blocks);
+    if (!selectedLineRange) {
       setSelectionComment(null);
       return;
     }
+    const { start: lineStart, end: lineEnd } = selectedLineRange;
     setSelectionComment({
       draft: diffCommentDraft(
         file,
-        Math.min(...lines),
-        Math.max(...lines),
+        lineStart,
+        lineEnd,
         blocks.some((block) => block.dataset.changeKind === "added")
           ? "added"
           : "context",
         text,
-        diffCommentContextForRange(
-          diff,
-          Math.min(...lines),
-          Math.max(...lines),
-        ),
+        diffCommentContextForRange(diff, lineStart, lineEnd),
       ),
       rect: rectFromRange(range),
     });
@@ -755,6 +750,31 @@ function hunkIdForDiffRange(
 
 function fallbackHunkIdForRange(start: number, end: number): string {
   return `@@ -0 +${start},${end - start + 1} @@`;
+}
+
+type RenderedDiffSelectionBlock = {
+  dataset: {
+    currentLine?: string;
+    currentLineEnd?: string;
+  };
+};
+
+export function renderedDiffSelectionLineRange(
+  blocks: RenderedDiffSelectionBlock[],
+): { start: number; end: number } | null {
+  const ranges = blocks.flatMap((block) => {
+    const start = Number(block.dataset.currentLine);
+    const end = Number(
+      block.dataset.currentLineEnd ?? block.dataset.currentLine,
+    );
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end)) return [];
+    return [{ start, end }];
+  });
+  if (!ranges.length) return null;
+  return {
+    start: Math.min(...ranges.map((range) => range.start)),
+    end: Math.max(...ranges.map((range) => range.end)),
+  };
 }
 
 function RenderedChangeCardView({
@@ -896,6 +916,7 @@ function RenderedChangePane({
       <div
         className={`rendered-change-preview ${tone}`}
         data-current-line={range?.start}
+        data-current-line-end={range?.end}
         data-change-kind={tone === "new" ? "added" : "context"}
       >
         <RenderedDiffLine renderKind={renderKind} source={row.source} />
