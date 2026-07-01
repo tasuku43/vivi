@@ -1,6 +1,6 @@
 {
-  "storyId": "review-comments-inbox-states--workspace-comments",
-  "story": "Review/Comments Inbox States/WorkspaceComments",
+  "storyId": "review-review-thread-inbox-states--workspace-comments",
+  "story": "Review/Review Thread Inbox States/WorkspaceComments",
   "viewport": "desktop",
   "width": 1440,
   "height": 1000,

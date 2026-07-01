@@ -1,6 +1,6 @@
 {
-  "storyId": "review-comments-inbox-states--many-comments",
-  "story": "Review/Comments Inbox States/ManyComments",
+  "storyId": "review-review-thread-inbox-states--many-comments",
+  "story": "Review/Review Thread Inbox States/ManyComments",
   "viewport": "desktop",
   "width": 1440,
   "height": 1000,

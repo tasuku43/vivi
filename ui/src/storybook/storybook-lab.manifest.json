@@ -77,7 +77,7 @@
       "id": "review-navigation",
       "label": "Review navigation",
       "stage": "storybook-facade",
-      "intent": "Keep Review Queue, comments inbox, unread activity, and agent replies visible as the primary right-inspector workflow.",
+      "intent": "Keep Review Queue, review thread inbox, unread activity, and agent replies visible as the primary right-inspector workflow.",
       "reviewFocus": [
         "open review work is easier to find than completed history",
         "agent activity is visible without creating false unread work",
@@ -88,13 +88,13 @@
         "Review/Queue States/InReviewFileThreadExpansion",
         "Review/Queue States/ReviewQueueItemWithLatestAgentActivity",
         "Review/Queue States/GitReviewUnavailable",
-        "Review/Comments Inbox States/WorkspaceComments",
-        "Review/Comments Inbox States/AgentActivityVisible",
+        "Review/Review Thread Inbox States/WorkspaceComments",
+        "Review/Review Thread Inbox States/AgentActivityVisible",
         "Review/Activity States/CommentsWatchDisconnected"
       ],
       "interactionStories": [
         "Review/Queue States/InReviewFileThreadExpansionInteraction",
-        "Review/Comments Inbox States/WorkspaceComments"
+        "Review/Review Thread Inbox States/WorkspaceComments"
       ]
     },
     {
@@ -114,15 +114,15 @@
         "Review/Inline Comment States/AgentHasReadThread",
         "Review/Inline Comment States/AgentHasReplied",
         "Review/Inline Comment States/SelfCommentOwnership",
-        "Review/Comments Inbox States/PendingDrafts",
-        "Review/Comments Inbox States/PendingDraftPublishFailure",
-        "Review/Comments Inbox States/PublishedDraftBatch"
+        "Review/Review Thread Inbox States/PendingDrafts",
+        "Review/Review Thread Inbox States/PendingDraftPublishFailure",
+        "Review/Review Thread Inbox States/PublishedDraftBatch"
       ],
       "interactionStories": [
         "Review/Inline Comment States/Open",
         "Review/Inline Comment States/NewLineComment",
         "Review/Inline Comment States/SelfCommentOwnership",
-        "Review/Comments Inbox States/PendingDrafts"
+        "Review/Review Thread Inbox States/PendingDrafts"
       ]
     },
     {
@@ -238,10 +238,10 @@
         "Workspace/Workbench States/EmptyWorkspace",
         "Workspace/Workbench States/ManyFilesManyComments",
         "Review/Queue States/ManyFiles",
-        "Review/Comments Inbox States/ManyComments",
-        "Review/Comments Inbox States/ManyPendingDrafts",
-        "Review/Comments Inbox States/NoMatchingComments",
-        "Review/Comments Inbox States/EmptyPendingDrafts"
+        "Review/Review Thread Inbox States/ManyComments",
+        "Review/Review Thread Inbox States/ManyPendingDrafts",
+        "Review/Review Thread Inbox States/NoMatchingComments",
+        "Review/Review Thread Inbox States/EmptyPendingDrafts"
       ],
       "interactionStories": []
     }

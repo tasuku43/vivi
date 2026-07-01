@@ -1,6 +1,6 @@
 {
-  "storyId": "review-comments-inbox-states--agent-activity-visible",
-  "story": "Review/Comments Inbox States/AgentActivityVisible",
+  "storyId": "review-review-thread-inbox-states--agent-activity-visible",
+  "story": "Review/Review Thread Inbox States/AgentActivityVisible",
   "viewport": "desktop",
   "width": 1440,
   "height": 1000,

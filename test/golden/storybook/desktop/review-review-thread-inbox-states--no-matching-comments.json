@@ -1,6 +1,6 @@
 {
-  "storyId": "review-comments-inbox-states--no-matching-comments",
-  "story": "Review/Comments Inbox States/NoMatchingComments",
+  "storyId": "review-review-thread-inbox-states--no-matching-comments",
+  "story": "Review/Review Thread Inbox States/NoMatchingComments",
   "viewport": "desktop",
   "width": 1440,
   "height": 1000,

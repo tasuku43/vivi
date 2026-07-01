@@ -14,7 +14,7 @@ import {
 } from "../../storybook/fixtures/review-lab.js";
 
 const meta = {
-  title: "Review/Comments Inbox States",
+  title: "Review/Review Thread Inbox States",
   component: CommentsPanel,
   parameters: {
     layout: "fullscreen",

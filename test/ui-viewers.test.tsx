@@ -2711,7 +2711,7 @@ it("marks workspace comment rows when the source path is missing", () => {
   );
 });
 
-it("maps comments inbox arrow keys to stable thread rows", () => {
+it("maps review thread inbox arrow keys to stable thread rows", () => {
   expect(commentInboxKeyboardTarget("ArrowDown", -1, 3)).toBe(0);
   expect(commentInboxKeyboardTarget("ArrowDown", 0, 3)).toBe(1);
   expect(commentInboxKeyboardTarget("ArrowDown", 2, 3)).toBe(2);
@@ -2933,7 +2933,7 @@ it("returns to the exact active comment from the workspace comment current stop"
   ]);
 });
 
-it("treats comments inbox filters as pressed state controls", () => {
+it("treats review thread inbox filters as pressed state controls", () => {
   const selected: string[] = [];
   const panel = CommentsPanel({
     open: true,
@@ -3117,7 +3117,7 @@ it("shows path matches while searching the review inbox", () => {
   expect(html).toContain('matched path, src/app.ts"');
 });
 
-it("scopes comments inbox filter counts to the current search", () => {
+it("scopes review thread inbox filter counts to the current search", () => {
   const otherOpenComment: ViviComment = {
     ...codeLineComment,
     id: "comment-other-open",
@@ -3294,7 +3294,7 @@ it("surfaces attention-needed comment threads first in the review inbox", () => 
   expect(attentionHtml).not.toContain("src/app.ts");
 });
 
-it("uses the latest authoritative status for comments inbox threads", () => {
+it("uses the latest authoritative status for review thread inbox threads", () => {
   const comments = [
     { ...codeLineComment, threadId: "thread-1", status: "open" as const },
     {
@@ -3344,7 +3344,7 @@ it("uses the latest authoritative status for comments inbox threads", () => {
   expect(resolvedHtml).toContain("Resolved after the follow-up.");
 });
 
-it("hides archived comment threads from the comments inbox", () => {
+it("hides archived comment threads from the review thread inbox", () => {
   const archivedComment: ViviComment = {
     ...codeLineComment,
     id: "comment-archived",
@@ -3375,7 +3375,7 @@ it("hides archived comment threads from the comments inbox", () => {
   expect(html).not.toContain('aria-label="Show 1 archived thread"');
 });
 
-it("uses comments inbox empty states as review guidance", () => {
+it("uses review thread inbox empty states as review guidance", () => {
   const attentionHtml = renderToStaticMarkup(
     <CommentsPanel
       open

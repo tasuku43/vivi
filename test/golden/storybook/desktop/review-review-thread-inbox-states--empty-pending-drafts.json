@@ -1,6 +1,6 @@
 {
-  "storyId": "review-comments-inbox-states--empty-pending-drafts",
-  "story": "Review/Comments Inbox States/EmptyPendingDrafts",
+  "storyId": "review-review-thread-inbox-states--empty-pending-drafts",
+  "story": "Review/Review Thread Inbox States/EmptyPendingDrafts",
   "viewport": "desktop",
   "width": 1440,
   "height": 1000,
