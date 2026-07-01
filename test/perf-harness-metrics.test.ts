@@ -5,6 +5,7 @@ import {
   summarizeProcessSamples,
   summarizeProcessSamplesSince,
 } from "../scripts/perf-harness-metrics.mjs";
+import { isTransientBrowserWorkspaceError } from "../scripts/perf-harness-browser.mjs";
 
 describe("perf harness process metrics", () => {
   it("summarizes full process samples and steady-state windows separately", () => {
@@ -57,5 +58,20 @@ describe("perf harness process metrics", () => {
       cpuPercent: { count: 2, min: 2, max: 4, avg: 3 },
       cpuTimeMs: { count: 2, min: 10, max: 20, avg: 15 },
     });
+  });
+
+  it("retries transient browser workspace readiness failures only", () => {
+    expect(
+      isTransientBrowserWorkspaceError(
+        new Error(
+          "timed out waiting for Vivi workspace chrome: page.waitForFunction: Timeout 20000ms exceeded.",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      isTransientBrowserWorkspaceError(
+        new Error("front workspace navigation failed with 500"),
+      ),
+    ).toBe(false);
   });
 });

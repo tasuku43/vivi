@@ -1,0 +1,78 @@
+name: Performance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "Perf harness profile to run."
+        required: true
+        default: ci
+        type: choice
+        options:
+          - ci
+          - large
+
+permissions: read-all
+
+jobs:
+  perf-harness:
+    runs-on: macos-15
+    timeout-minutes: 15
+    env:
+      LANG: "en_US.UTF-8"
+      LC_ALL: "en_US.UTF-8"
+      TZ: "Asia/Tokyo"
+      VIVI_PERF_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'ci' }}
+      VIVI_PERF_RUN_NAME: github-actions-${{ github.run_id }}-${{ github.run_attempt }}
+      VIVI_PERF_REQUIRE_SYNTHETIC: "1"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache: false
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Select perf profile
+        run: |
+          if [ "$VIVI_PERF_PROFILE" = "large" ]; then
+            {
+              echo "VIVI_PERF_DIRS=48"
+              echo "VIVI_PERF_FILES_PER_DIR=50"
+              echo "VIVI_PERF_IDLE_MS=3500"
+              echo "VIVI_PERF_BURST_CHANGES=50"
+              echo "VIVI_PERF_BURST_DELAY_MS=10"
+              echo "VIVI_PERF_AGENT_STORM_OPS=300"
+              echo "VIVI_PERF_AGENT_STORM_FILES=60"
+              echo "VIVI_PERF_AGENT_STORM_DELAY_MS=0"
+              echo "VIVI_PERF_CLI_ITERATIONS=5"
+              echo "VIVI_PERF_MAX_RUN_DURATION_MS=240000"
+            } >> "$GITHUB_ENV"
+          else
+            {
+              echo "VIVI_PERF_DIRS=18"
+              echo "VIVI_PERF_FILES_PER_DIR=30"
+              echo "VIVI_PERF_IDLE_MS=2000"
+              echo "VIVI_PERF_BURST_CHANGES=15"
+              echo "VIVI_PERF_BURST_DELAY_MS=10"
+              echo "VIVI_PERF_AGENT_STORM_OPS=120"
+              echo "VIVI_PERF_AGENT_STORM_FILES=30"
+              echo "VIVI_PERF_AGENT_STORM_DELAY_MS=2"
+              echo "VIVI_PERF_CLI_ITERATIONS=3"
+            } >> "$GITHUB_ENV"
+          fi
+      - run: npm run perf:otel
+      - run: npm run perf:verify
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: perf-harness-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/perf
+          if-no-files-found: error
