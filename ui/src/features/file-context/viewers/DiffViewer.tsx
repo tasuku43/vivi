@@ -1138,6 +1138,7 @@ function SourceHunkPreview({
       <div
         id={previewId}
         className="rendered-change-source-rows"
+        role="region"
         aria-label="Source hunk preview"
         hidden={!visible}
       >

@@ -4476,6 +4476,7 @@ it("renders HEAD diffs inside the file viewer surface", () => {
     'aria-controls="rendered-change-source-changed-0-1-1"',
   );
   expect(html).toContain('id="rendered-change-source-changed-0-1-1"');
+  expect(html).toContain('role="region"');
   expect(html).toContain('hidden="">');
   expect(html).not.toContain("rendered-change-source-row remove");
   expect(html).not.toContain("rendered-change-source-row add");
@@ -4521,6 +4522,7 @@ it("renders Markdown diffs as intact rendered blocks", () => {
     'aria-controls="rendered-change-source-changed-0-1-3-1-3"',
   );
   expect(html).toContain('id="rendered-change-source-changed-0-1-3-1-3"');
+  expect(html).toContain('role="region"');
   expect(html).not.toContain("rendered-change-source-row remove");
   expect(html).not.toContain("rendered-change-source-row add");
 });
@@ -4558,6 +4560,7 @@ it("keeps additions inside surrounding Markdown code fences", () => {
   );
   expect(html).toContain('aria-controls="rendered-change-source-added-0-1-5"');
   expect(html).toContain('id="rendered-change-source-added-0-1-5"');
+  expect(html).toContain('role="region"');
   expect(html).not.toContain("rendered-change-source-row add");
   expect(html).not.toContain("<p>fuga</p>");
 });
@@ -5071,6 +5074,7 @@ it("renders HTML diffs as rendered snippets without line numbers", () => {
     'aria-controls="rendered-change-source-changed-0-1-2-1-2"',
   );
   expect(html).toContain('id="rendered-change-source-changed-0-1-2-1-2"');
+  expect(html).toContain('role="region"');
   expect(html).not.toContain("rendered-change-source-row remove");
   expect(html).not.toContain("rendered-change-source-row add");
   expect(html).not.toContain("diff-line-no");

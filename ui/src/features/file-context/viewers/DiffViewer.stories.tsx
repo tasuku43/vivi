@@ -363,6 +363,9 @@ export const RenderedMarkdownComment: Story = {
     await waitFor(() => {
       expect(sourcePreview).not.toHaveAttribute("hidden");
     });
+    expect(
+      cardsCanvas.getByRole("region", { name: "Source hunk preview" }).id,
+    ).toBe(previewId);
     await userEvent.click(
       cardsCanvas.getByRole("button", { name: /Hide source hunk for/ }),
     );
@@ -429,6 +432,9 @@ export const RenderedMarkdownCodeFenceReplacement: Story = {
     );
     expect(sourceHunk).not.toBeNull();
     expect(sourceHunk!.id).toBe(sourceHunkId);
+    expect(
+      within(card).getByRole("region", { name: "Source hunk preview" }).id,
+    ).toBe(sourceHunkId);
     await expect(sourceHunk).toHaveTextContent("console.log('old');");
     await expect(sourceHunk).toHaveTextContent("console.log('new');");
   },
