@@ -24,7 +24,7 @@ A build is acceptable when a user can:
 16. Use Review Queue as a deduplicated file list for paths that need review, primarily from the HEAD diff when Git is available and from collapsed watcher signals otherwise.
 17. Toggle Markdown and HTML between rendered/preview and source modes.
 18. Toggle read-only diff-from-`HEAD` independently from rendered/source mode, including with Cmd/Ctrl + D.
-19. See source/code diffs as inline highlighted line rows, and rendered Markdown/HTML diffs as rendered visual panes.
+19. See source/code diffs as inline highlighted line rows, and rendered Markdown/HTML diffs as rendered change cards with clear Added/Removed/Changed meaning and accessible source hunk context.
 20. Keep image, text/log, and structured file previews readable without implying editing.
 21. See Git changes and files with open human/agent threads in one prioritized Review Queue, with compact thread/message counts, latest attributed activity, and seen/unseen progress.
 22. Move through the Review Queue with Cmd/Ctrl + Shift + J/K, jump to unseen work with Cmd/Ctrl + Shift + U, and jump to in-review replies with Cmd/Ctrl + Shift + I.
@@ -58,6 +58,6 @@ Add or update tests for:
 - Review Queue rendering, HEAD-change lifecycle, watcher-event deduplication, and SSE event transport.
 - agent-aware Review Queue derivation, lifecycle-safe activity display, seen/unseen priority, and next/previous keyboard navigation.
 - JSON/structured formatting and text wrap behavior where feasible.
-- diff-from-`HEAD` toggle rendering inside the open file surface, including inline source/code diffs, rendered Markdown/HTML diffs, and shortcut behavior.
+- diff-from-`HEAD` toggle rendering inside the open file surface, including inline source/code diffs, rendered Markdown/HTML change cards, and shortcut behavior.
 
 Add an E2E test that starts the server against a fixture directory and verifies the UI can load the tree, open a Markdown file, open an HTML file, and receive at least one simulated filesystem event.
