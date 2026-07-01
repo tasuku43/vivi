@@ -4722,6 +4722,57 @@ it("shows old-side diff comments on removed rendered change cards", () => {
   expect(html).toContain('data-comment-id="rendered-removed-old-side"');
 });
 
+it("keeps rendered comments out of old-side removed change cards", () => {
+  const renderedComment: ViviComment = {
+    ...codeLineComment,
+    id: "rendered-comment-on-removed-line",
+    threadId: "thread-rendered-comment-on-removed-line",
+    path: "README.md",
+    viewerKind: "markdown",
+    anchor: {
+      surface: "rendered",
+      canonical: {
+        path: "README.md",
+        lineStart: 3,
+        lineEnd: 3,
+        quote: "removed second sentence",
+      },
+      rendered: {
+        kind: "markdown",
+        blockId: "paragraph-removed",
+        sourceLineStart: 3,
+        sourceLineEnd: 3,
+        textQuote: "removed second sentence",
+      },
+    },
+    body: "Rendered comments belong to the current rendered surface.",
+  };
+  const html = renderToStaticMarkup(
+    <DiffViewer
+      path="README.md"
+      renderKind="markdown"
+      comments={[renderedComment]}
+      diff={{
+        path: "README.md",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content: [
+          "@@ -2,2 +2,0 @@",
+          "-Removed first sentence",
+          "-removed second sentence",
+        ].join("\n"),
+      }}
+    />,
+  );
+
+  expect(html).toContain("rendered-change-card removed");
+  expect(html).not.toContain("rendered-change-card removed has-comment");
+  expect(html).not.toContain(
+    'data-comment-id="rendered-comment-on-removed-line"',
+  );
+});
+
 it("preserves unified diff metadata for selected diff comment drafts", () => {
   const context = diffCommentContextForRange(
     {

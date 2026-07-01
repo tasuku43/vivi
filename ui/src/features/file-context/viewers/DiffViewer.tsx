@@ -898,6 +898,7 @@ function commentsForRenderedDiffLineRange(
   return comments.filter((comment) => {
     if (comment.anchor.surface === "source") return false;
     if (comment.anchor.diff && comment.anchor.diff.side !== side) return false;
+    if (!comment.anchor.diff && side === "old") return false;
     const commentStart = comment.anchor.canonical.lineStart;
     if (!commentStart) return false;
     const commentEnd = comment.anchor.canonical.lineEnd ?? commentStart;
