@@ -319,6 +319,41 @@ func TestHandlerPublishesDraftReviewCommentsAsHiddenBatch(t *testing.T) {
 	}
 }
 
+func TestHandlerPreservesDraftReviewCommentThreadID(t *testing.T) {
+	root := t.TempDir()
+	dataDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# Vivi\n\nHello\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fsys, _ := workspace.New(workspace.Options{Root: root})
+	reviewer, _ := gitreview.New(root, time.Second)
+	store, _ := comments.NewStore(dataDir)
+	handler := NewHandler(application.NewService(application.Options{Workspace: fsys, Git: reviewer, Comments: store}), func(*http.Request) bool { return true })
+
+	threadID := "draft-thread:root-draft:source-anchor"
+	created := graphql(t, handler, map[string]any{
+		"operationName": "CreateDraftReviewComment",
+		"query":         `mutation CreateDraftReviewComment($input: DraftReviewCommentInput!) { createDraftReviewComment(input: $input) { id threadId path body } }`,
+		"variables": map[string]any{"input": map[string]any{
+			"threadId": threadID,
+			"path":     "README.md",
+			"body":     "Follow-up draft",
+			"anchor":   map[string]any{"surface": "source", "canonical": map[string]any{"path": "README.md", "lineStart": float64(3), "lineEnd": float64(3)}},
+		}},
+	})["createDraftReviewComment"].(map[string]any)
+	if created["threadId"] != threadID {
+		t.Fatalf("draft threadId = %#v, want %q", created["threadId"], threadID)
+	}
+
+	listed := graphql(t, handler, map[string]any{
+		"operationName": "Drafts",
+		"query":         `query Drafts { draftReviewComments { id threadId body } }`,
+	})["draftReviewComments"].([]any)
+	if len(listed) != 1 || listed[0].(map[string]any)["threadId"] != threadID {
+		t.Fatalf("listed drafts = %#v", listed)
+	}
+}
+
 func graphql(t *testing.T, handler http.Handler, request map[string]any) map[string]any {
 	return graphqlWithHeaders(t, handler, request, nil)
 }

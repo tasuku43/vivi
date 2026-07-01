@@ -154,6 +154,7 @@
       "interactionStories": [
         "Files/Code Review States/SourceWithOpenThread",
         "Files/Code Review States/SourceWithStackedLineThreads",
+        "Files/Code Review States/DraftOnlyThreadFollowUpKeepsThreadId",
         "Files/Markdown Review States/RenderedBlockClickDraft",
         "Files/Markdown Review States/RenderedMarkdownSyntaxGallery",
         "Files/Markdown Review States/RenderedMarkdownOpenThreadBesideNewDraft",

@@ -474,6 +474,64 @@ func TestStorePublishesDraftWithThreadIDAsReply(t *testing.T) {
 	}
 }
 
+func TestStorePublishesDraftOnlyThreadRepliesTogether(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	anchor := map[string]any{
+		"surface": "source",
+		"canonical": map[string]any{
+			"path":      "README.md",
+			"lineStart": float64(4),
+			"lineEnd":   float64(4),
+			"quote":     "same line",
+		},
+	}
+	root, err := store.CreateDraft(map[string]any{
+		"path": "README.md", "body": "First private note", "source": "human", "anchor": anchor,
+	}, "sha256:readme", "markdown")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateDraft(map[string]any{
+		"threadId": "draft-thread:" + stringValue(root["id"]) + ":source-anchor",
+		"path":     "README.md",
+		"body":     "Second private note in the same draft thread",
+		"source":   "human",
+		"anchor": map[string]any{
+			"surface": "source",
+			"canonical": map[string]any{
+				"path":      "README.md",
+				"lineStart": float64(4),
+				"lineEnd":   float64(4),
+				"quote":     "same line with refreshed context",
+			},
+		},
+	}, "sha256:readme", "markdown"); err != nil {
+		t.Fatal(err)
+	}
+
+	batch, err := store.PublishDrafts(nil, map[string]any{"id": "human:tasuku", "kind": "human", "displayName": "Tasuku"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	threads := batch["threads"].([]map[string]any)
+	if len(threads) != 1 {
+		t.Fatalf("published draft-only reply threads = %#v", threads)
+	}
+	messages := threads[0]["comments"].([]map[string]any)
+	if len(messages) != 2 {
+		t.Fatalf("published draft-only reply messages = %#v", messages)
+	}
+	threadID := stringValue(threads[0]["id"])
+	for _, message := range messages {
+		if stringValue(message["threadId"]) != threadID {
+			t.Fatalf("message split from draft-only thread %s: %#v", threadID, messages)
+		}
+	}
+}
+
 func TestStoreKeepsDraftsWhenPublishFails(t *testing.T) {
 	store, err := NewStore(t.TempDir())
 	if err != nil {

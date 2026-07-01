@@ -301,28 +301,39 @@ func (store *Store) PublishDrafts(ids []string, actor map[string]any) (map[strin
 	batchActor := normalizeActor(actor)
 	threadCreatedInBatch := map[string]bool{}
 	newThreadIDByDraftGroup := map[string]string{}
+	selectedDraftIDs := map[string]struct{}{}
+	for _, draft := range selected {
+		selectedDraftIDs[stringValue(draft["id"])] = struct{}{}
+	}
 	impactedThreadIDs := map[string]struct{}{}
 	for _, draft := range selected {
 		threadID := strings.TrimSpace(stringValue(draft["threadId"]))
 		if threadID != "" {
 			thread := existingByID[threadID]
-			if thread == nil {
+			if thread != nil {
+				if stringValue(thread["status"]) != "open" {
+					return nil, errors.New("draft target thread must be open")
+				}
+			} else if targetDraftID := draftOnlyThreadTargetDraftID(threadID); targetDraftID != "" {
+				if _, ok := selectedDraftIDs[targetDraftID]; !ok {
+					return nil, errors.New("draft target thread not found")
+				}
+				threadID = newThreadIDForDraftGroup(draftOnlyThreadGroupKey(targetDraftID), newThreadIDByDraftGroup, threadCreatedInBatch)
+				draft = copyMap(draft)
+				draft["threadId"] = threadID
+			} else {
 				return nil, errors.New("draft target thread not found")
 			}
-			if stringValue(thread["status"]) != "open" {
-				return nil, errors.New("draft target thread must be open")
-			}
 		} else {
-			groupKey, err := draftPublishThreadGroupKey(draft)
-			if err != nil {
-				return nil, err
-			}
-			threadID = newThreadIDByDraftGroup[groupKey]
+			threadID = newThreadIDByDraftGroup[draftOnlyThreadGroupKey(stringValue(draft["id"]))]
 			if threadID == "" {
-				threadID = randomID()
-				newThreadIDByDraftGroup[groupKey] = threadID
-				threadCreatedInBatch[threadID] = true
+				groupKey, err := draftPublishThreadGroupKey(draft)
+				if err != nil {
+					return nil, err
+				}
+				threadID = newThreadIDForDraftGroup(groupKey, newThreadIDByDraftGroup, threadCreatedInBatch)
 			}
+			newThreadIDByDraftGroup[draftOnlyThreadGroupKey(stringValue(draft["id"]))] = threadID
 			draft = copyMap(draft)
 			draft["threadId"] = threadID
 		}
@@ -900,6 +911,33 @@ func draftPublishThreadGroupKey(draft map[string]any) (string, error) {
 		return "", err
 	}
 	return string(bytes), nil
+}
+
+func newThreadIDForDraftGroup(groupKey string, threadIDByGroup map[string]string, threadCreatedInBatch map[string]bool) string {
+	threadID := threadIDByGroup[groupKey]
+	if threadID != "" {
+		return threadID
+	}
+	threadID = randomID()
+	threadIDByGroup[groupKey] = threadID
+	threadCreatedInBatch[threadID] = true
+	return threadID
+}
+
+func draftOnlyThreadGroupKey(draftID string) string {
+	return "draft-thread:" + draftID
+}
+
+func draftOnlyThreadTargetDraftID(threadID string) string {
+	if !strings.HasPrefix(threadID, "draft-thread:") {
+		return ""
+	}
+	withoutPrefix := strings.TrimPrefix(threadID, "draft-thread:")
+	separatorIndex := strings.Index(withoutPrefix, ":")
+	if separatorIndex <= 0 {
+		return ""
+	}
+	return withoutPrefix[:separatorIndex]
 }
 
 func actorForDraft(draft map[string]any, fallback map[string]any) map[string]any {

@@ -295,6 +295,62 @@ export const SourceDraftOnExistingLineStaysSeparate: Story = {
   },
 };
 
+export const DraftOnlyThreadFollowUpKeepsThreadId: Story = {
+  tags: ["interaction"],
+  args: {
+    selectedRange: null,
+    comments: [
+      draftReviewCommentAsViviComment({
+        ...sampleDraftComments[0]!,
+        id: "draft-only-root-follow-up",
+        path: sampleFiles.code.path,
+        viewerKind: "text",
+        anchor: {
+          surface: "source",
+          canonical: {
+            path: sampleFiles.code.path,
+            lineStart: 10,
+            lineEnd: 10,
+            quote:
+              "return client.publishDraftReviewComments({ actor: humanTasuku });",
+            fileHash: sampleFiles.code.etag,
+          },
+        },
+        body: "First pending note in a draft-only thread.",
+      }),
+    ],
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const followUpBody = "Second pending note in the same draft-only thread.";
+    const expectedThreadId =
+      'draft-thread:draft-only-root-follow-up:["ui/src/features/workbench/WorkbenchContainer.tsx","source",10,10,null,null,null,null,null,null,null,null,null,null]';
+    await userEvent.click(
+      canvas.getByRole("button", {
+        name: "Open comment thread on line 10 with 1 message",
+      }),
+    );
+    await expect(canvas.getByText("Pending draft")).toBeVisible();
+    await userEvent.type(
+      canvas.getByLabelText("Continue thread"),
+      followUpBody,
+    );
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Add follow-up" }),
+    );
+
+    const calls = (args.onCreateComment as unknown as {
+      mock: { calls: unknown[][] };
+    }).mock.calls;
+    await expect(args.onCreateComment).toHaveBeenCalled();
+    await expect(calls).toHaveLength(1);
+    await expect(calls[0]?.[0]).toMatchObject({
+      threadId: expectedThreadId,
+    });
+    await expect(calls[0]?.[1]).toBe(followUpBody);
+  },
+};
+
 export const SourceThreadReplyStaysFocusedOnExistingLine: Story = {
   name: "Code line keeps replies focused on the existing thread",
   tags: ["interaction"],

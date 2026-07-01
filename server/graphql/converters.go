@@ -273,6 +273,9 @@ func draftReviewCommentInputMap(input model.DraftReviewCommentInput) map[string]
 		"anchor": input.Anchor,
 		"body":   input.Body,
 	}
+	if input.ThreadID != nil {
+		result["threadId"] = *input.ThreadID
+	}
 	if input.ViewerKind != nil {
 		result["viewerKind"] = *input.ViewerKind
 	}
