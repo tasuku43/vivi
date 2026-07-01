@@ -4617,6 +4617,9 @@ it("labels rendered diff comment markers from any line in the change card", () =
   expect(html).toContain(
     'title="Open resolved comment thread on line 3 with 2 messages"',
   );
+  expect(html).toContain('aria-expanded="true"');
+  expect(html).toContain("Already checked");
+  expect(html).toContain("Follow-up is complete");
   expect(html).toContain('data-comment-id="rendered-card-resolved-reply"');
 });
 
@@ -4719,6 +4722,8 @@ it("shows old-side diff comments on removed rendered change cards", () => {
   expect(html).toContain(
     'aria-label="Open comment thread on line 3 with 1 message"',
   );
+  expect(html).toContain('aria-expanded="true"');
+  expect(html).toContain("This removed sentence still needs review history.");
   expect(html).toContain('data-comment-id="rendered-removed-old-side"');
 });
 

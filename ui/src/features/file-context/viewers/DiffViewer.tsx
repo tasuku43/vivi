@@ -116,7 +116,10 @@ export function DiffViewer({
             onCreateComment={onCreateComment}
             comments={comments}
             activeCommentId={activeCommentId}
+            currentActorId={currentActorId}
             onOpenComment={onOpenComment}
+            onCommentStatusChange={onCommentStatusChange}
+            threadActivities={threadActivities}
           />
         )
       ) : null}
@@ -551,7 +554,10 @@ function RenderedDiff({
   onCreateComment,
   comments,
   activeCommentId,
+  currentActorId,
   onOpenComment,
+  onCommentStatusChange,
+  threadActivities,
 }: {
   diff: TextDiff;
   renderKind: Exclude<RenderKind, "source">;
@@ -559,7 +565,10 @@ function RenderedDiff({
   onCreateComment?: CommentCreateHandler;
   comments: ViviComment[];
   activeCommentId?: string | null;
+  currentActorId?: string;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
+  onCommentStatusChange?: CommentStatusChangeHandler;
+  threadActivities: Record<string, CommentActivitySummary>;
 }) {
   const rows = buildRenderedDiffRows(
     parseUnifiedDiff(diff.content),
@@ -586,7 +595,10 @@ function RenderedDiff({
       onCreateComment={onCreateComment}
       comments={comments}
       activeCommentId={activeCommentId}
+      currentActorId={currentActorId}
       onOpenComment={onOpenComment}
+      onCommentStatusChange={onCommentStatusChange}
+      threadActivities={threadActivities}
     />
   );
 }
@@ -599,7 +611,10 @@ function RenderedChangeCards({
   onCreateComment,
   comments,
   activeCommentId,
+  currentActorId,
   onOpenComment,
+  onCommentStatusChange,
+  threadActivities,
 }: {
   diff: TextDiff;
   renderKind: Exclude<RenderKind, "source">;
@@ -608,13 +623,29 @@ function RenderedChangeCards({
   onCreateComment?: CommentCreateHandler;
   comments: ViviComment[];
   activeCommentId?: string | null;
+  currentActorId?: string;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
+  onCommentStatusChange?: CommentStatusChangeHandler;
+  threadActivities: Record<string, CommentActivitySummary>;
 }) {
   const cardListRef = useRef<HTMLDivElement | null>(null);
   const [selectionComment, setSelectionComment] = useState<{
     draft: CommentDraft;
     rect: DOMRectLike;
   } | null>(null);
+  const [openThreadKeys, setOpenThreadKeys] = useState<string[]>([]);
+
+  function toggleCommentThread(thread: CodeCommentThreadModel) {
+    setOpenThreadKeys((keys) =>
+      keys.includes(thread.key)
+        ? keys.filter((key) => key !== thread.key)
+        : [...keys, thread.key],
+    );
+  }
+
+  function closeCommentThread(threadKey: string) {
+    setOpenThreadKeys((keys) => keys.filter((key) => key !== threadKey));
+  }
 
   useEffect(() => {
     if (!activeCommentId) return;
@@ -690,7 +721,14 @@ function RenderedChangeCards({
             renderKind={renderKind}
             comments={comments}
             activeCommentId={activeCommentId}
+            openThreadKeys={openThreadKeys}
+            currentActorId={currentActorId}
             onOpenComment={onOpenComment}
+            onToggleCommentThread={toggleCommentThread}
+            onCloseCommentThread={closeCommentThread}
+            onCreateComment={onCreateComment}
+            onCommentStatusChange={onCommentStatusChange}
+            threadActivities={threadActivities}
           />
         ))}
       </div>
@@ -782,13 +820,27 @@ function RenderedChangeCardView({
   renderKind,
   comments,
   activeCommentId,
+  openThreadKeys,
+  currentActorId,
   onOpenComment,
+  onToggleCommentThread,
+  onCloseCommentThread,
+  onCreateComment,
+  onCommentStatusChange,
+  threadActivities,
 }: {
   card: RenderedChangeCard;
   renderKind: Exclude<RenderKind, "source">;
   comments: ViviComment[];
   activeCommentId?: string | null;
+  openThreadKeys: string[];
+  currentActorId?: string;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
+  onToggleCommentThread: (thread: CodeCommentThreadModel) => void;
+  onCloseCommentThread: (threadKey: string) => void;
+  onCreateComment?: CommentCreateHandler;
+  onCommentStatusChange?: CommentStatusChangeHandler;
+  threadActivities: Record<string, CommentActivitySummary>;
 }) {
   if (!card.before && !card.after) return <DiffGap label="Changed block" />;
   const anchorRow = card.after ?? card.before;
@@ -812,12 +864,23 @@ function RenderedChangeCardView({
           (comment) => comment.id === activeCommentId,
         )
       : undefined) ?? commentThread?.comments[0];
+  const activeThreadOpen = Boolean(
+    activeCommentId &&
+    commentThread?.comments.some((comment) => comment.id === activeCommentId),
+  );
+  const threadOpen = Boolean(
+    commentThread &&
+    (activeThreadOpen || openThreadKeys.includes(commentThread.key)),
+  );
   const cardTitle =
     card.kind === "changed"
       ? "Changed rendered block"
       : card.kind === "added"
         ? "Added rendered block"
         : "Removed rendered block";
+  const threadPanelId = commentThread
+    ? renderedChangeThreadPanelId(commentThread.key)
+    : undefined;
   return (
     <article
       className={`rendered-change-card ${card.kind}${commentThread ? " has-comment" : ""}`}
@@ -838,6 +901,8 @@ function RenderedChangeCardView({
               className="comment-gutter-marker rendered-diff-comment-marker"
               type="button"
               data-comment-id={markerComment.id}
+              aria-expanded={threadOpen}
+              aria-controls={threadPanelId}
               aria-label={lineCommentThreadActionLabel(
                 commentThread.lineStart,
                 commentThread,
@@ -846,12 +911,13 @@ function RenderedChangeCardView({
                 commentThread.lineStart,
                 commentThread,
               )}
-              onClick={(event) =>
+              onClick={(event) => {
+                onToggleCommentThread(commentThread);
                 onOpenComment?.(
                   markerComment.id,
                   rectLikeFromElement(event.currentTarget),
-                )
-              }
+                );
+              }}
             />
           ) : null}
         </header>
@@ -884,9 +950,50 @@ function RenderedChangeCardView({
           ) : null}
         </div>
         <SourceHunkPreview rows={card.sourceRows} />
+        {commentThread && threadOpen ? (
+          <div className="rendered-change-comment-thread" id={threadPanelId}>
+            <CodeCommentThread
+              thread={commentThread}
+              draft={draftForExistingThread(commentThread)}
+              activity={threadActivityForCommentThread(
+                commentThread,
+                threadActivities,
+              )}
+              activeCommentId={activeCommentId}
+              currentActorId={currentActorId}
+              onCreateComment={onCreateComment}
+              onStatusChange={onCommentStatusChange}
+              onClose={() => onCloseCommentThread(commentThread.key)}
+            />
+          </div>
+        ) : null}
       </div>
     </article>
   );
+}
+
+function renderedChangeThreadPanelId(threadKey: string): string {
+  return `rendered-change-thread-${encodeURIComponent(threadKey)}`;
+}
+
+function draftForExistingThread(thread: CodeCommentThreadModel): CommentDraft {
+  const firstComment = thread.comments[0];
+  const threadId = firstComment?.threadId ?? firstComment?.id;
+  return {
+    threadId,
+    path: firstComment?.path ?? "",
+    viewerKind: firstComment?.viewerKind ?? "code",
+    anchor: firstComment?.anchor,
+  };
+}
+
+function threadActivityForCommentThread(
+  thread: CodeCommentThreadModel,
+  threadActivities: Record<string, CommentActivitySummary>,
+): CommentActivitySummary | undefined {
+  const firstComment = thread.comments[0];
+  const threadId = firstComment?.threadId ?? firstComment?.id;
+  return threadId ? threadActivities[threadId] : undefined;
 }
 
 function commentsForRenderedDiffLineRange(

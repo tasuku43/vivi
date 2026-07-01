@@ -253,6 +253,18 @@ export const RenderedMarkdownComment: Story = {
     await expect(cardsRegion).toHaveTextContent(
       "source diff remains canonical",
     );
+    const activeCard = cardsCanvas.getByRole("article", {
+      name: "Added rendered block 7",
+    });
+    const activeCardCanvas = within(activeCard);
+    await expect(
+      activeCardCanvas.getByRole("article", {
+        name: "Comment thread for line 7",
+      }),
+    ).toBeVisible();
+    await expect(activeCard).toHaveTextContent(
+      "This sentence captures the feedback layer well; keep it visible in the inspector outline story.",
+    );
     const sourcePreviews = cardsCanvas.getAllByLabelText("Source hunk preview");
     expect(sourcePreviews.length).toBeGreaterThan(0);
     const toggle = cardsCanvas.getAllByRole("button", {
