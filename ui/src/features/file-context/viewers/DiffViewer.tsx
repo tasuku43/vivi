@@ -924,6 +924,7 @@ function RenderedChangeCardView({
                 type="button"
                 aria-label={addCommentLabel}
                 title={addCommentLabel}
+                onMouseUp={(event) => event.stopPropagation()}
                 onClick={(event) =>
                   onStartCardComment(card, event.currentTarget)
                 }
