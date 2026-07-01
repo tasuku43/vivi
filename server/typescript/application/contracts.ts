@@ -23,6 +23,7 @@ import type {
   DraftReviewComment,
   ViviComment,
 } from "../domain/comments.js";
+import type { ReviewLedgerSnapshot } from "../domain/review-ledger.js";
 
 export interface FileSystemPort {
   readTree(): Promise<TreeSnapshot>;
@@ -104,10 +105,19 @@ export interface CommentStorePort {
   ): Promise<CommentThreadActivityEvent>;
 }
 
+export interface ReviewLedgerPort {
+  readReviewLedger(now?: Date): Promise<ReviewLedgerSnapshot>;
+  saveReviewLedger(
+    snapshot: ReviewLedgerSnapshot,
+    now?: Date,
+  ): Promise<ReviewLedgerSnapshot>;
+}
+
 export interface ViewerServiceOptions {
   fileSystem: FileSystemPort;
   watcher?: WatcherPort;
   changeReview?: ChangeReviewPort;
   commentStore?: CommentStorePort;
+  reviewLedger?: ReviewLedgerPort;
   reviewActor?: CommentActor;
 }

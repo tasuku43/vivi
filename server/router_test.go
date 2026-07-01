@@ -1,10 +1,14 @@
 package server
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/tasuku43/vivi/server/application"
+	"github.com/tasuku43/vivi/server/reviewledger"
 )
 
 func TestLegacyDataRoutesAreNotServed(t *testing.T) {
@@ -40,6 +44,35 @@ func TestHTMLPreviewCSPIncludesSandbox(t *testing.T) {
 	scriptPolicy := htmlPreviewCSP(true, "nonce")
 	if !strings.Contains(scriptPolicy, "sandbox allow-same-origin allow-scripts") {
 		t.Fatalf("script CSP = %q, want opt-in scripts in sandbox", scriptPolicy)
+	}
+}
+
+func TestReviewLedgerRouteStoresWorkspaceScopedSnapshot(t *testing.T) {
+	ledger, err := reviewledger.NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := &Server{
+		app:     application.NewService(application.Options{ReviewLedger: ledger}),
+		options: Options{Host: "127.0.0.1"},
+	}
+	body := []byte(`{"decisions":[{"path":"src/app.ts","fingerprint":"f1","reason":"accepted_change","createdAt":"2026-07-01T00:00:00Z"}],"receipts":[]}`)
+	put := httptest.NewRequest(http.MethodPut, "/api/v1/review-ledger", bytes.NewReader(body))
+	put.Host = "127.0.0.1"
+	put.Header.Set("content-type", "application/json")
+	putResponse := httptest.NewRecorder()
+	server.route(putResponse, put)
+	if putResponse.Code != http.StatusOK {
+		t.Fatalf("put status = %d body = %s", putResponse.Code, putResponse.Body.String())
+	}
+
+	getResponse := httptest.NewRecorder()
+	server.route(getResponse, httptest.NewRequest(http.MethodGet, "/api/v1/review-ledger", nil))
+	if getResponse.Code != http.StatusOK {
+		t.Fatalf("get status = %d", getResponse.Code)
+	}
+	if !strings.Contains(getResponse.Body.String(), `"fingerprint":"f1"`) {
+		t.Fatalf("ledger response = %s", getResponse.Body.String())
 	}
 }
 

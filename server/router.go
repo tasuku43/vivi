@@ -31,6 +31,8 @@ func (server *Server) route(w http.ResponseWriter, r *http.Request) {
 		server.handleRawPreview(w, r)
 	case r.URL.Path == "/events":
 		server.handleEvents(w, r)
+	case r.URL.Path == "/api/v1/review-ledger":
+		server.handleReviewLedger(w, r)
 	case strings.HasPrefix(r.URL.Path, "/api/"):
 		http.NotFound(w, r)
 	default:

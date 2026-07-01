@@ -16,6 +16,7 @@ import type {
   ViviComment,
 } from "../../domain/comments.js";
 import type { FileContext } from "../../domain/file-context.js";
+import type { ReviewLedgerSnapshot } from "../../domain/review-ledger.js";
 import type {
   FsEvent,
   TreeSnapshot,
@@ -51,6 +52,8 @@ export interface ViviClient {
   exportComments(input?: CommentExportFilters): Promise<string>;
   getDraftReviewComments(input?: { path?: string }): Promise<DraftReviewComment[]>;
   getReviewQueue(): Promise<ChangeReviewSummary>;
+  getReviewLedger(): Promise<ReviewLedgerSnapshot>;
+  saveReviewLedger(input: ReviewLedgerSnapshot): Promise<ReviewLedgerSnapshot>;
   getDiff(input: { path: string; base?: string }): Promise<TextDiff>;
   createComment(input: CreateCommentInput): Promise<ViviComment>;
   createDraftReviewComment(

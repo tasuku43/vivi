@@ -64,6 +64,17 @@ const reviewQueue = {
     { path: "README.md", status: "modified" as const, kind: "file" as const },
   ],
 };
+const reviewLedger = {
+  decisions: [
+    {
+      path: "README.md",
+      fingerprint: "fingerprint-1",
+      reason: "accepted_change" as const,
+      createdAt: "2026-07-01T00:00:00.000Z",
+    },
+  ],
+  receipts: [],
+};
 
 it("assembles FileContext through GraphQL while keeping DTOs behind ViviClient", async () => {
   const request = vi.fn<typeof fetch>(async (_input, init) => {
@@ -103,6 +114,27 @@ it("assembles FileContext through GraphQL while keeping DTOs behind ViviClient",
   });
 
   expect(request.mock.calls.map(([url]) => String(url))).toEqual(["/graphql"]);
+});
+
+it("uses the review ledger REST endpoint beside GraphQL data APIs", async () => {
+  const request = vi.fn<typeof fetch>(async (input, init) => {
+    expect(String(input)).toBe("/api/v1/review-ledger");
+    if (init?.method === "PUT") {
+      expect(JSON.parse(String(init.body))).toEqual(reviewLedger);
+    }
+    return Response.json(reviewLedger);
+  });
+  const client = new GraphqlViviClient({ fetch: request });
+
+  await expect(client.getReviewLedger()).resolves.toEqual(reviewLedger);
+  await expect(client.saveReviewLedger(reviewLedger)).resolves.toEqual(
+    reviewLedger,
+  );
+
+  expect(request.mock.calls.map(([, init]) => init?.method ?? "GET")).toEqual([
+    "GET",
+    "PUT",
+  ]);
 });
 
 it("uses GraphQL mutations for comment creation and status updates", async () => {

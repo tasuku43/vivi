@@ -26,6 +26,7 @@ import (
 	"github.com/tasuku43/vivi/server/comments"
 	"github.com/tasuku43/vivi/server/gitreview"
 	vivigraphql "github.com/tasuku43/vivi/server/graphql"
+	"github.com/tasuku43/vivi/server/reviewledger"
 	"github.com/tasuku43/vivi/server/workspace"
 	uiassets "github.com/tasuku43/vivi/ui"
 )
@@ -36,6 +37,7 @@ type Options struct {
 	Workspace        *workspace.FS
 	Git              *gitreview.Reviewer
 	Comments         *comments.Store
+	ReviewLedger     *reviewledger.Store
 	AllowHTMLScripts bool
 	ReviewActor      *workspace.Actor
 }
@@ -56,10 +58,11 @@ type Server struct {
 func Start(ctx context.Context, options Options) (*Server, error) {
 	mux := http.NewServeMux()
 	app := application.NewService(application.Options{
-		Workspace:   options.Workspace,
-		Git:         options.Git,
-		Comments:    options.Comments,
-		ReviewActor: options.ReviewActor,
+		Workspace:    options.Workspace,
+		Git:          options.Git,
+		Comments:     options.Comments,
+		ReviewLedger: options.ReviewLedger,
+		ReviewActor:  options.ReviewActor,
 	})
 	server := &Server{
 		options:     options,
@@ -204,6 +207,37 @@ func (server *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 				flusher.Flush()
 			}
 		}
+	}
+}
+
+func (server *Server) handleReviewLedger(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		snapshot, err := server.app.ReadReviewLedger(time.Now().UTC())
+		if err != nil {
+			writeError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, snapshot)
+	case http.MethodPut:
+		if !safeJSONWriteRequest(r, server.options.Host) {
+			writeError(w, r, fmt.Errorf("unsafe review ledger write request"))
+			return
+		}
+		var snapshot reviewledger.Snapshot
+		if err := readJSON(r, &snapshot); err != nil {
+			writeError(w, r, err)
+			return
+		}
+		saved, err := server.app.SaveReviewLedger(snapshot, time.Now().UTC())
+		if err != nil {
+			writeError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, saved)
+	default:
+		w.Header().Set("allow", "GET, PUT")
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 	}
 }
 
@@ -421,7 +455,7 @@ func statusLabel(err error, status int) string {
 
 func readJSON(r *http.Request, target any) error {
 	if !strings.Contains(strings.ToLower(r.Header.Get("content-type")), "application/json") {
-		return fmt.Errorf("comment write APIs require application/json")
+		return fmt.Errorf("write APIs require application/json")
 	}
 	decoder := json.NewDecoder(io.LimitReader(r.Body, 1024*1024))
 	return decoder.Decode(target)

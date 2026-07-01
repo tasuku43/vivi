@@ -7,6 +7,7 @@ import {
   NodeCommentStore,
   workspaceViviDataDir,
 } from "../../server/typescript/infrastructure/node-comment-store.js";
+import { NodeReviewLedgerStore } from "../../server/typescript/infrastructure/node-review-ledger-store.js";
 import { NodeFileSystem } from "../../server/typescript/infrastructure/node-file-system.js";
 import { NodeWatcher } from "../../server/typescript/infrastructure/node-watcher.js";
 import { startHttpServer } from "../../server/typescript/http/http-server.js";
@@ -89,14 +90,19 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   });
   const watcher = new NodeWatcher({ rootDir });
   const changeReview = new GitChangeReview({ rootDir });
+  const workspaceDataDir = workspaceViviDataDir(rootDir);
   const commentStore = new NodeCommentStore({
-    dataDir: workspaceViviDataDir(rootDir),
+    dataDir: workspaceDataDir,
+  });
+  const reviewLedger = new NodeReviewLedgerStore({
+    dataDir: workspaceDataDir,
   });
   const service = new ViewerService({
     fileSystem,
     watcher,
     changeReview,
     commentStore,
+    reviewLedger,
   });
   const server = await startHttpServer({
     host: options.host,

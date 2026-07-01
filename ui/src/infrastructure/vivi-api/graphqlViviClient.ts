@@ -10,6 +10,7 @@ import type {
   CreateCommentInput,
   CommentThreadActivityEvent,
 } from "../../domain/comments.js";
+import type { ReviewLedgerSnapshot } from "../../domain/review-ledger.js";
 import {
   adaptGraphqlComment,
   adaptGraphqlCommentThread,
@@ -187,6 +188,20 @@ export class GraphqlViviClient implements ViviClient {
       query: print(ViviReviewQueueDocument),
     });
     return adaptGraphqlReviewQueue(data.reviewQueue);
+  }
+
+  async getReviewLedger(): Promise<ReviewLedgerSnapshot> {
+    return this.getJson<ReviewLedgerSnapshot>("/api/v1/review-ledger");
+  }
+
+  async saveReviewLedger(
+    input: ReviewLedgerSnapshot,
+  ): Promise<ReviewLedgerSnapshot> {
+    return this.getJson<ReviewLedgerSnapshot>("/api/v1/review-ledger", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
   }
 
   async getDiff(input: { path: string; base?: string }) {
@@ -380,6 +395,14 @@ export class GraphqlViviClient implements ViviClient {
       throw new Error("/graphql response did not include data");
     }
     return payload.data;
+  }
+
+  private async getJson<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const response = await this.request(this.url(path), init);
+    if (!response.ok) {
+      throw new Error(`${path} request failed: ${response.status}`);
+    }
+    return response.json() as Promise<T>;
   }
 
   private url(path: string) {

@@ -34,6 +34,7 @@ import {
   reviewFileStateLabel,
   reviewFileStateTone,
   reviewQueueItemState,
+  type ReviewReceiptEntry,
 } from "../../state/review-state.js";
 import { gitReviewUnavailableGuidance } from "../../state/git-review-refresh.js";
 import type { OutlineHeading } from "../../state/outline.js";
@@ -45,6 +46,7 @@ interface Props {
   file: FilePayload | null;
   fileRemoved?: boolean;
   acceptedReviewChanges?: ReviewChangeItem[];
+  reviewReceipts?: ReviewReceiptEntry[];
   reviewChanges: ReviewChangeItem[];
   reviewItems?: ReviewQueueItem[];
   reviewLoading?: boolean;
@@ -89,6 +91,7 @@ interface PendingDraftThreadGroup {
 export function Inspector({
   file,
   acceptedReviewChanges = [],
+  reviewReceipts,
   reviewChanges,
   reviewItems,
   reviewLoading = false,
@@ -114,6 +117,8 @@ export function Inspector({
     (thread) =>
       thread.status !== "open" && !knownMissingCommentPaths.has(thread.path),
   );
+  const usesReceiptHistory = reviewReceipts !== undefined;
+  const reviewedReceipts = reviewReceipts ?? [];
   const queueItems: ReviewQueueItem[] =
     reviewItems ??
     reviewChanges.map((change) => ({
@@ -130,12 +135,14 @@ export function Inspector({
       (item.pendingDraftCount ?? 0) > 0,
   ).length;
   const queuePosition = reviewQueuePosition(queueItems, activePath);
-  const hiddenReviewWork =
-    hiddenReviewThreads.length + acceptedReviewChanges.length;
+  const hiddenReviewWork = usesReceiptHistory
+    ? reviewedReceipts.length
+    : hiddenReviewThreads.length + acceptedReviewChanges.length;
   const hiddenReviewSummary = hiddenReviewHistorySummary(hiddenReviewWork);
-  const hiddenReviewPreviewCount =
-    Math.min(acceptedReviewChanges.length, 4) +
-    Math.min(hiddenReviewThreads.length, 4);
+  const hiddenReviewPreviewCount = usesReceiptHistory
+    ? Math.min(reviewedReceipts.length, 4)
+    : Math.min(acceptedReviewChanges.length, 4) +
+      Math.min(hiddenReviewThreads.length, 4);
   const hiddenReviewMoreCount = hiddenReviewWork - hiddenReviewPreviewCount;
   const queuedItems = queueItems.filter(
     (item) => reviewQueueItemState(item) === "queued",
@@ -591,46 +598,70 @@ export function Inspector({
                   <small>{hiddenReviewSummary}</small>
                 </summary>
                 <div className="hidden-review-history-list">
-                  {acceptedReviewChanges.slice(0, 4).map((change) => (
-                    <button
-                      className="hidden-review-history-item accepted"
-                      key={`accepted:${change.path}`}
-                      type="button"
-                      aria-label={`Move reviewed change ${change.path} back to the review queue`}
-                      onClick={() => onRestoreAcceptedReviewPath?.(change.path)}
-                    >
-                      <CommentStatusBadge status="reviewed">
-                        Reviewed
-                      </CommentStatusBadge>
-                      <strong>{basenameForPath(change.path)}</strong>
-                      <span>marked reviewed</span>
-                      <small>{reviewPathLabel(change)}</small>
-                    </button>
-                  ))}
-                  {hiddenReviewThreads.slice(0, 4).map((thread) => {
-                    const primaryComment = thread.comments[0]!;
-                    const latestComment =
-                      thread.comments[thread.comments.length - 1] ??
-                      primaryComment;
-                    return (
-                      <button
-                        className={`hidden-review-history-item ${thread.status}`}
-                        key={thread.id}
-                        type="button"
-                        aria-label={`Open reviewed ${statusLabel(thread.status)} thread in ${thread.path}, ${commentLineLabel(primaryComment)}`}
-                        onClick={() => onOpenComment?.(primaryComment)}
-                      >
-                        <CommentStatusBadge status={thread.status}>
-                          {statusLabel(thread.status)}
-                        </CommentStatusBadge>
-                        <strong>{surfaceLabel(primaryComment)}</strong>
-                        <span>{commentLineLabel(primaryComment)}</span>
-                        <small>
-                          {truncateCommentPreview(latestComment.body, 72)}
-                        </small>
-                      </button>
-                    );
-                  })}
+                  {usesReceiptHistory
+                    ? reviewedReceipts.slice(0, 4).map((receipt) => (
+                        <button
+                          className={`hidden-review-history-item ${receipt.reason}`}
+                          key={receipt.id}
+                          type="button"
+                          aria-label={`Open recently reviewed ${receipt.path}`}
+                          onClick={() => onOpenEventPath(receipt.path)}
+                        >
+                          <CommentStatusBadge status="reviewed">
+                            Reviewed
+                          </CommentStatusBadge>
+                          <strong>{basenameForPath(receipt.path)}</strong>
+                          <span>{reviewReceiptReasonLabel(receipt)}</span>
+                          <small>{receipt.path}</small>
+                        </button>
+                      ))
+                    : null}
+                  {!usesReceiptHistory
+                    ? acceptedReviewChanges.slice(0, 4).map((change) => (
+                        <button
+                          className="hidden-review-history-item accepted"
+                          key={`accepted:${change.path}`}
+                          type="button"
+                          aria-label={`Move reviewed change ${change.path} back to the review queue`}
+                          onClick={() =>
+                            onRestoreAcceptedReviewPath?.(change.path)
+                          }
+                        >
+                          <CommentStatusBadge status="reviewed">
+                            Reviewed
+                          </CommentStatusBadge>
+                          <strong>{basenameForPath(change.path)}</strong>
+                          <span>marked reviewed</span>
+                          <small>{reviewPathLabel(change)}</small>
+                        </button>
+                      ))
+                    : null}
+                  {!usesReceiptHistory
+                    ? hiddenReviewThreads.slice(0, 4).map((thread) => {
+                        const primaryComment = thread.comments[0]!;
+                        const latestComment =
+                          thread.comments[thread.comments.length - 1] ??
+                          primaryComment;
+                        return (
+                          <button
+                            className={`hidden-review-history-item ${thread.status}`}
+                            key={thread.id}
+                            type="button"
+                            aria-label={`Open reviewed ${statusLabel(thread.status)} thread in ${thread.path}, ${commentLineLabel(primaryComment)}`}
+                            onClick={() => onOpenComment?.(primaryComment)}
+                          >
+                            <CommentStatusBadge status={thread.status}>
+                              {statusLabel(thread.status)}
+                            </CommentStatusBadge>
+                            <strong>{surfaceLabel(primaryComment)}</strong>
+                            <span>{commentLineLabel(primaryComment)}</span>
+                            <small>
+                              {truncateCommentPreview(latestComment.body, 72)}
+                            </small>
+                          </button>
+                        );
+                      })
+                    : null}
                   {hiddenReviewMoreCount ? (
                     <span className="hidden-review-history-more">
                       {hiddenReviewMoreCount} more reviewed
@@ -693,6 +724,13 @@ export function Inspector({
 
 function hiddenReviewHistorySummary(count: number): string {
   return `${count} reviewed`;
+}
+
+function reviewReceiptReasonLabel(receipt: ReviewReceiptEntry): string {
+  if (receipt.reason === "accepted_change") return "marked reviewed";
+  if (receipt.reason === "threads_resolved") return "feedback resolved";
+  if (receipt.reason === "drafts_cleared") return "drafts cleared";
+  return "change cleared";
 }
 
 function reviewQueueItemAriaLabel(

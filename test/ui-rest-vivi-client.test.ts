@@ -40,6 +40,17 @@ const diff = {
   compareLabel: "working tree",
   content: "+# Vivi",
 };
+const reviewLedger = {
+  decisions: [
+    {
+      path: "README.md",
+      fingerprint: "fingerprint-1",
+      reason: "accepted_change" as const,
+      createdAt: "2026-07-01T00:00:00.000Z",
+    },
+  ],
+  receipts: [],
+};
 
 it("assembles FileContext while keeping REST calls behind ViviClient", async () => {
   const request = vi.fn<typeof fetch>(async (input) => {
@@ -81,6 +92,26 @@ it("groups REST comments into compatibility comment threads", async () => {
   ).resolves.toEqual([commentThread]);
   expect(request.mock.calls.map(([url]) => String(url))).toEqual([
     "/api/v1/comments?path=README.md",
+  ]);
+});
+
+it("loads and saves the review ledger through the REST compatibility client", async () => {
+  const request = vi.fn<typeof fetch>(async (_input, init) => {
+    if (init?.method === "PUT") {
+      expect(JSON.parse(String(init.body))).toEqual(reviewLedger);
+    }
+    return Response.json(reviewLedger);
+  });
+  const client = new RestViviClient({ fetch: request });
+
+  await expect(client.getReviewLedger()).resolves.toEqual(reviewLedger);
+  await expect(client.saveReviewLedger(reviewLedger)).resolves.toEqual(
+    reviewLedger,
+  );
+
+  expect(request.mock.calls.map(([url]) => String(url))).toEqual([
+    "/api/v1/review-ledger",
+    "/api/v1/review-ledger",
   ]);
 });
 

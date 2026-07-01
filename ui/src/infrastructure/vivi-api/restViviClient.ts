@@ -7,6 +7,7 @@ import {
   type CommentExportFilters,
   type CreateCommentInput,
 } from "../../domain/comments.js";
+import type { ReviewLedgerSnapshot } from "../../domain/review-ledger.js";
 import {
   adaptComment,
   adaptConfig,
@@ -122,6 +123,20 @@ export class RestViviClient implements ViviClient {
     return adaptReviewQueue(
       await this.getJson<RestReviewQueueDto>("/api/changes"),
     );
+  }
+
+  async getReviewLedger(): Promise<ReviewLedgerSnapshot> {
+    return this.getJson<ReviewLedgerSnapshot>("/api/v1/review-ledger");
+  }
+
+  async saveReviewLedger(
+    input: ReviewLedgerSnapshot,
+  ): Promise<ReviewLedgerSnapshot> {
+    return this.getJson<ReviewLedgerSnapshot>("/api/v1/review-ledger", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
   }
 
   async getDiff(input: { path: string; base?: string }) {

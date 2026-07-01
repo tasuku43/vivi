@@ -19,6 +19,7 @@ import (
 	"github.com/tasuku43/vivi/server"
 	"github.com/tasuku43/vivi/server/comments"
 	"github.com/tasuku43/vivi/server/gitreview"
+	"github.com/tasuku43/vivi/server/reviewledger"
 	"github.com/tasuku43/vivi/server/workspace"
 )
 
@@ -119,7 +120,12 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
-	commentStore, err := comments.NewStore(comments.WorkspaceDataDir(workspaceFS.Config().Root))
+	workspaceDataDir := comments.WorkspaceDataDir(workspaceFS.Config().Root)
+	commentStore, err := comments.NewStore(workspaceDataDir)
+	if err != nil {
+		return err
+	}
+	reviewLedger, err := reviewledger.NewStore(workspaceDataDir)
 	if err != nil {
 		return err
 	}
@@ -131,6 +137,7 @@ func run(args []string) error {
 		Workspace:        workspaceFS,
 		Git:              reviewer,
 		Comments:         commentStore,
+		ReviewLedger:     reviewLedger,
 		AllowHTMLScripts: *allowHTMLScripts,
 		ReviewActor:      reviewActorFromFlag(*actor),
 	}, !portExplicit && *port == 4317)

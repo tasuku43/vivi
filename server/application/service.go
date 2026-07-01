@@ -2,9 +2,11 @@ package application
 
 import (
 	"context"
+	"time"
 
 	"github.com/tasuku43/vivi/server/comments"
 	"github.com/tasuku43/vivi/server/gitreview"
+	"github.com/tasuku43/vivi/server/reviewledger"
 	"github.com/tasuku43/vivi/server/workspace"
 )
 
@@ -16,6 +18,7 @@ type Service struct {
 	Review        *ReviewService
 	Search        *SearchService
 	Preview       *PreviewService
+	ReviewLedger  *ReviewLedgerService
 	Event         *EventService
 	ActivityEvent *ActivityEventService
 	ReviewActor   *workspace.Actor
@@ -27,6 +30,7 @@ type Options struct {
 	Workspace                       *workspace.FS
 	Git                             *gitreview.Reviewer
 	Comments                        *comments.Store
+	ReviewLedger                    *reviewledger.Store
 	ReviewActor                     *workspace.Actor
 	ThreadActivityObserverFactories []ThreadActivityObserverFactory
 }
@@ -58,6 +62,7 @@ func NewService(options Options) *Service {
 		Comment:       &CommentService{workspace: options.Workspace, comments: options.Comments},
 		CommentThread: &CommentService{workspace: options.Workspace, comments: options.Comments},
 		Review:        &ReviewService{git: options.Git},
+		ReviewLedger:  &ReviewLedgerService{ledger: options.ReviewLedger},
 		Search:        &SearchService{workspace: options.Workspace},
 		Preview:       &PreviewService{workspace: options.Workspace},
 		Event:         NewEventService(),
@@ -109,6 +114,14 @@ func (service *Service) SearchText(query string, limit int) (workspace.TextSearc
 
 func (service *Service) ReadChanges(ctx context.Context) gitreview.Summary {
 	return service.Review.ReadChanges(ctx)
+}
+
+func (service *Service) ReadReviewLedger(now time.Time) (reviewledger.Snapshot, error) {
+	return service.ReviewLedger.Snapshot(now)
+}
+
+func (service *Service) SaveReviewLedger(snapshot reviewledger.Snapshot, now time.Time) (reviewledger.Snapshot, error) {
+	return service.ReviewLedger.Save(snapshot, now)
 }
 
 func (service *Service) ReadDiffBases(ctx context.Context) gitreview.DiffBaseSummary {

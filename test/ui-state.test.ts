@@ -142,7 +142,14 @@ import {
 } from "../ui/src/state/review-queue.js";
 import { summarizeReviewLifecycle } from "../ui/src/state/review-lifecycle.js";
 import { buildReviewNextAction } from "../ui/src/state/review-next-action.js";
-import { reviewQueueItemState } from "../ui/src/state/review-state.js";
+import {
+  compactReviewDecisions,
+  compactReviewReceipts,
+  createReviewReceipt,
+  reviewDecisionPathSet,
+  reviewQueueItemState,
+  visibleReviewReceipts,
+} from "../ui/src/state/review-state.js";
 import {
   agentReplyNavigationTargets,
   commentActivityThreadTargets,
@@ -1999,6 +2006,90 @@ it("keeps accepted change-only files out of the review queue until a thread open
     change: changes[0],
     threadCounts: { open: 1, resolved: 0, archived: 0 },
   });
+});
+
+it("separates review decisions from short-lived reviewed receipts", () => {
+  const currentFingerprints = new Map([
+    ["src/accepted.ts", "fingerprint-current"],
+  ]);
+  const decisions = [
+    {
+      path: "src/accepted.ts",
+      fingerprint: "fingerprint-current",
+      reason: "accepted_change" as const,
+      createdAt: "2026-07-01T00:00:00.000Z",
+    },
+  ];
+  const visibleReceipt = createReviewReceipt({
+    path: "src/accepted.ts",
+    reason: "accepted_change",
+    now: Date.parse("2026-07-01T00:00:00.000Z"),
+    visibleMs: 10 * 60 * 1000,
+    fingerprint: "fingerprint-current",
+  });
+
+  expect(reviewDecisionPathSet(decisions, currentFingerprints)).toEqual(
+    new Set(["src/accepted.ts"]),
+  );
+  expect(
+    visibleReviewReceipts(
+      [visibleReceipt],
+      Date.parse("2026-07-01T00:05:00.000Z"),
+      new Set(),
+    ).map((receipt) => receipt.path),
+  ).toEqual(["src/accepted.ts"]);
+  expect(
+    visibleReviewReceipts(
+      [visibleReceipt],
+      Date.parse("2026-07-01T00:11:00.000Z"),
+      new Set(),
+    ),
+  ).toEqual([]);
+  expect(reviewDecisionPathSet(decisions, currentFingerprints)).toEqual(
+    new Set(["src/accepted.ts"]),
+  );
+});
+
+it("lets new diff fingerprints bypass old reviewed decisions", () => {
+  const decisions = [
+    {
+      path: "src/accepted.ts",
+      fingerprint: "fingerprint-old",
+      reason: "accepted_change" as const,
+      createdAt: "2026-07-01T00:00:00.000Z",
+    },
+  ];
+  const currentFingerprints = new Map([
+    ["src/accepted.ts", "fingerprint-new"],
+  ]);
+
+  expect(reviewDecisionPathSet(decisions, currentFingerprints)).toEqual(
+    new Set(),
+  );
+  expect(compactReviewDecisions(decisions, currentFingerprints)).toEqual([]);
+});
+
+it("hides reviewed receipts when active review attention returns", () => {
+  const receipt = createReviewReceipt({
+    path: "src/accepted.ts",
+    reason: "threads_resolved",
+    now: Date.parse("2026-07-01T00:00:00.000Z"),
+    threadIds: ["thread-1"],
+  });
+
+  expect(
+    visibleReviewReceipts(
+      [receipt],
+      Date.parse("2026-07-01T00:02:00.000Z"),
+      new Set(["src/accepted.ts"]),
+    ),
+  ).toEqual([]);
+  expect(
+    compactReviewReceipts(
+      [receipt],
+      Date.parse("2026-07-03T00:00:00.000Z"),
+    ),
+  ).toEqual([]);
 });
 
 it("keeps completed thread paths out of the active review queue until reopened", () => {

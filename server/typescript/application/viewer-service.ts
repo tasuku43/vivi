@@ -29,6 +29,7 @@ import {
   searchFilePayload,
   type TextSearchResult,
 } from "../domain/search.js";
+import type { ReviewLedgerSnapshot } from "../domain/review-ledger.js";
 import type { ViewerServiceOptions } from "./contracts.js";
 import { randomUUID } from "node:crypto";
 
@@ -37,6 +38,7 @@ export class ViewerService {
   private readonly watcher?: ViewerServiceOptions["watcher"];
   private readonly changeReview?: ViewerServiceOptions["changeReview"];
   private readonly commentStore?: ViewerServiceOptions["commentStore"];
+  private readonly reviewLedger?: ViewerServiceOptions["reviewLedger"];
   private readonly reviewActor?: ViewerServiceOptions["reviewActor"];
   private subscribers = new Set<(event: FsEvent) => void>();
   private activitySubscribers = new Set<
@@ -48,6 +50,7 @@ export class ViewerService {
     this.watcher = options.watcher;
     this.changeReview = options.changeReview;
     this.commentStore = options.commentStore;
+    this.reviewLedger = options.reviewLedger;
     this.reviewActor = options.reviewActor;
   }
 
@@ -150,6 +153,24 @@ export class ViewerService {
         reason: "Git change review is unavailable for this workspace.",
         changes: [],
       })
+    );
+  }
+
+  async readReviewLedger(now = new Date()): Promise<ReviewLedgerSnapshot> {
+    return (
+      (await this.reviewLedger?.readReviewLedger(now)) ?? {
+        decisions: [],
+        receipts: [],
+      }
+    );
+  }
+
+  async saveReviewLedger(
+    snapshot: ReviewLedgerSnapshot,
+    now = new Date(),
+  ): Promise<ReviewLedgerSnapshot> {
+    return (
+      (await this.reviewLedger?.saveReviewLedger(snapshot, now)) ?? snapshot
     );
   }
 

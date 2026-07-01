@@ -12,6 +12,7 @@ import type { AddressInfo, Socket } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ViewerService } from "../application/viewer-service.js";
+import type { ReviewLedgerSnapshot } from "../domain/review-ledger.js";
 import {
   normalizeCommentFilters,
   type CommentActor,
@@ -194,6 +195,23 @@ async function routeRequest(
       "cache-control": "no-store",
     });
     res.end(body ? `${body}\n` : "");
+    return;
+  }
+
+  if (url.pathname === "/api/v1/review-ledger" && req.method === "GET") {
+    sendJson(res, 200, await options.service.readReviewLedger());
+    return;
+  }
+
+  if (url.pathname === "/api/v1/review-ledger" && req.method === "PUT") {
+    assertSafeJsonWriteRequest(req, options);
+    sendJson(
+      res,
+      200,
+      await options.service.saveReviewLedger(
+        (await readJson(req)) as ReviewLedgerSnapshot,
+      ),
+    );
     return;
   }
 

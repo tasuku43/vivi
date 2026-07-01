@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/tasuku43/vivi/server/comments"
 	"github.com/tasuku43/vivi/server/gitreview"
+	"github.com/tasuku43/vivi/server/reviewledger"
 	"github.com/tasuku43/vivi/server/workspace"
 )
 
@@ -14,6 +16,7 @@ type WorkspaceService struct{ workspace *workspace.FS }
 type FileService struct{ workspace *workspace.FS }
 type SearchService struct{ workspace *workspace.FS }
 type ReviewService struct{ git *gitreview.Reviewer }
+type ReviewLedgerService struct{ ledger *reviewledger.Store }
 type PreviewService struct{ workspace *workspace.FS }
 
 func (s *WorkspaceService) Config() workspace.Config { return s.workspace.Config() }
@@ -43,6 +46,18 @@ func (s *ReviewService) ReadDiffBases(ctx context.Context) gitreview.DiffBaseSum
 }
 func (s *ReviewService) ReadDiff(ctx context.Context, path, base string) gitreview.TextDiff {
 	return s.git.ReadDiff(ctx, path, base)
+}
+func (s *ReviewLedgerService) Snapshot(now time.Time) (reviewledger.Snapshot, error) {
+	if s.ledger == nil {
+		return reviewledger.Snapshot{}, nil
+	}
+	return s.ledger.Snapshot(now)
+}
+func (s *ReviewLedgerService) Save(snapshot reviewledger.Snapshot, now time.Time) (reviewledger.Snapshot, error) {
+	if s.ledger == nil {
+		return snapshot, nil
+	}
+	return s.ledger.Save(snapshot, now)
 }
 func (s *PreviewService) Config() workspace.Config { return s.workspace.Config() }
 
