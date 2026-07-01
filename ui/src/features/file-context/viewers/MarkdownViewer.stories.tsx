@@ -683,6 +683,7 @@ export const RenderedMarkdownOpenThreadBesideNewDraft: Story = {
         ),
       ).toBeGreaterThan(0),
     );
+    await waitForRenderedBlockMetricsToSettle(listItem);
     canvasElement.dataset.viviSnapshotReady = "true";
   },
 };
@@ -753,6 +754,39 @@ function renderedMarkerTextGap(block: HTMLElement): number {
   return (
     marker.getBoundingClientRect().left - firstReadableTextRect(block).right
   );
+}
+
+async function waitForRenderedBlockMetricsToSettle(
+  block: HTMLElement,
+): Promise<void> {
+  let previous = renderedBlockMetricsSignature(block);
+  await waitFor(
+    async () => {
+      await new Promise<void>((resolve) =>
+        window.requestAnimationFrame(() => resolve()),
+      );
+      const current = renderedBlockMetricsSignature(block);
+      if (current !== previous) {
+        previous = current;
+        throw new Error("Rendered block metrics are still settling.");
+      }
+      previous = current;
+    },
+    { timeout: 1000 },
+  );
+}
+
+function renderedBlockMetricsSignature(block: HTMLElement): string {
+  const blockRect = block.getBoundingClientRect();
+  const beforeStyle = getComputedStyle(block, "::before");
+  return [
+    Math.round(blockRect.top),
+    Math.round(blockRect.height),
+    beforeStyle.top,
+    beforeStyle.height,
+    beforeStyle.bottom,
+    block.style.getPropertyValue("--rendered-comment-block-bottom"),
+  ].join("|");
 }
 
 function clickRenderedBlock(element: Element, init: MouseEventInit = {}): void {
