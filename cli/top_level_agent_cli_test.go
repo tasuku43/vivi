@@ -56,7 +56,7 @@ func TestTopLevelInboxReadsOpenThreadsPassivelyAndWithReadReceipt(t *testing.T) 
 	}
 }
 
-func TestTopLevelInboxWatchEmitsInitialSnapshotThenHumanCommentDiffs(t *testing.T) {
+func TestTopLevelInboxWatchInitialEmitsStartupSnapshotThenHumanCommentDiffs(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	serverURL := newTopLevelAgentTestServer(t)
@@ -79,7 +79,7 @@ func TestTopLevelInboxWatchEmitsInitialSnapshotThenHumanCommentDiffs(t *testing.
 	}()
 	done := make(chan error, 1)
 	go func() {
-		err := runTopLevelAgentCommand(ctx, []string{"inbox", serverURL, "--watch", "--interval", "10ms"}, writer)
+		err := runTopLevelAgentCommand(ctx, []string{"inbox", serverURL, "--watch", "--initial", "--interval", "10ms"}, writer)
 		_ = writer.Close()
 		done <- err
 	}()
@@ -106,6 +106,62 @@ func TestTopLevelInboxWatchEmitsInitialSnapshotThenHumanCommentDiffs(t *testing.
 	}
 	if err := <-errs; err != nil {
 		t.Fatalf("scan watch output: %v", err)
+	}
+}
+
+func TestTopLevelInboxWatchSuppressesStartupSnapshotByDefault(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	serverURL := newTopLevelAgentTestServer(t)
+	thread := createTopLevelAgentThread(t, ctx, serverURL, "README.md", "既存の依頼")
+
+	reader, writer := io.Pipe()
+	lines := make(chan map[string]any, 8)
+	errs := make(chan error, 1)
+	go func() {
+		scanner := bufio.NewScanner(reader)
+		for scanner.Scan() {
+			var decoded map[string]any
+			if err := json.Unmarshal(scanner.Bytes(), &decoded); err != nil {
+				errs <- err
+				return
+			}
+			lines <- decoded
+		}
+		errs <- scanner.Err()
+	}()
+	done := make(chan error, 1)
+	go func() {
+		err := runTopLevelAgentCommand(ctx, []string{"inbox", serverURL, "--watch", "--interval", "10ms"}, writer)
+		_ = writer.Close()
+		done <- err
+	}()
+
+	assertNoTopLevelInboxLine(t, lines, 80*time.Millisecond)
+
+	addTopLevelAgentThreadComment(t, ctx, serverURL, thread.ID, "待受開始後の追記", "human")
+	followup := receiveTopLevelInboxLine(t, lines, time.Second)
+	if followup["id"] != thread.ID || followup["body"] != "待受開始後の追記" {
+		t.Fatalf("follow-up inbox line = %#v", followup)
+	}
+
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatalf("watch returned error: %v", err)
+	}
+	if err := <-errs; err != nil {
+		t.Fatalf("scan watch output: %v", err)
+	}
+}
+
+func TestTopLevelInboxInitialRequiresWatch(t *testing.T) {
+	var stdout bytes.Buffer
+	err := runTopLevelAgentCommand(context.Background(), []string{"inbox", "http://127.0.0.1:4317", "--initial"}, &stdout)
+	if err == nil || err.Error() != "error: inbox --initial requires --watch" {
+		t.Fatalf("error = %v", err)
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("validation should not write stdout, got %q", stdout.String())
 	}
 }
 

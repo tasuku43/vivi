@@ -4,6 +4,7 @@ import {
   codeCommentThreads,
   draftReviewCommentAsViviComment,
   draftForCommentComposerIntent,
+  matchingOpenThreadForDraft,
   matchingDraftPreviewThread,
 } from "./comments.js";
 
@@ -141,5 +142,42 @@ describe("draftReviewCommentAsViviComment", () => {
         localDraftThread,
       )?.comments[0]?.id,
     ).toBe("draft:saved");
+  });
+
+  it("matches a new composer draft to an existing open thread on the same anchor", () => {
+    const draftOnExistingAnchor = {
+      path: "README.md",
+      viewerKind: "markdown" as const,
+      anchor,
+    };
+
+    expect(
+      matchingOpenThreadForDraft(
+        codeCommentThreads([existingComment]),
+        draftOnExistingAnchor,
+      )?.comments[0]?.id,
+    ).toBe(existingComment.id);
+  });
+
+  it("does not match closed threads when a same-anchor composer starts", () => {
+    const resolvedComment = {
+      ...existingComment,
+      id: "comment-resolved",
+      threadId: "thread-resolved",
+      status: "resolved" as const,
+      updatedAt: "2026-06-20T09:20:00.000Z",
+    };
+    const draftOnResolvedAnchor = {
+      path: "README.md",
+      viewerKind: "markdown" as const,
+      anchor,
+    };
+
+    expect(
+      matchingOpenThreadForDraft(
+        codeCommentThreads([resolvedComment]),
+        draftOnResolvedAnchor,
+      ),
+    ).toBeUndefined();
   });
 });

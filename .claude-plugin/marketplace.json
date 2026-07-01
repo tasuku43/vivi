@@ -1,0 +1,21 @@
+{
+  "name": "vivi-agent-extensions",
+  "owner": {
+    "name": "Vivi"
+  },
+  "description": "Agent-loop plugins for operating Vivi browser comments while coding.",
+  "plugins": [
+    {
+      "name": "vivi-agent-loop",
+      "displayName": "Vivi Agent Loop",
+      "source": "./agent-extensions/claude/vivi-agent-loop",
+      "description": "Coordinate live Vivi browser comments, bounded inbox listening, and multi-agent handoffs while coding.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Vivi"
+      },
+      "category": "Productivity",
+      "tags": ["vivi", "comments", "agent-loop"]
+    }
+  ]
+}

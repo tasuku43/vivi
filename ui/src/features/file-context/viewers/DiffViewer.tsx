@@ -15,6 +15,7 @@ import {
   diffCommentDraft,
   lineCommentThreadActionLabel,
   matchingDraftPreviewThread,
+  matchingOpenThreadForDraft,
   preferredCodeCommentThread,
   rectLikeFromElement,
   scheduleSelectionCommentUpdate,
@@ -281,6 +282,22 @@ function SourceDiff({
         ? "added"
         : "context");
     const key = codeCommentThreadKey(diff.path, lineStart, lineEnd);
+    const draft = diffCommentDraft(file, lineStart, lineEnd, changeKind, quote, {
+      base: diff.baseRef ?? diff.baseLabel,
+      ref: diff.compareLabel,
+      hunkId: hunkIdForLines(lines, lineStart, lineEnd),
+      diffHash: diff.diffHash,
+    });
+    const existingThread = matchingOpenThreadForDraft(commentThreads, draft);
+    if (existingThread) {
+      setDraftThreads((items) =>
+        items.filter((item) => item.thread.key !== existingThread.key),
+      );
+      setOpenThreadKeys((keys) =>
+        keys.includes(existingThread.key) ? keys : [...keys, existingThread.key],
+      );
+      return;
+    }
     const nextDraftThread: DiffDraftThread = {
       thread: {
         key,
@@ -290,12 +307,7 @@ function SourceDiff({
         status: "open",
         comments: [],
       },
-      draft: diffCommentDraft(file, lineStart, lineEnd, changeKind, quote, {
-        base: diff.baseRef ?? diff.baseLabel,
-        ref: diff.compareLabel,
-        hunkId: hunkIdForLines(lines, lineStart, lineEnd),
-        diffHash: diff.diffHash,
-      }),
+      draft,
     };
     setDraftThreads((items) => [
       ...items.filter((item) => item.thread.key !== key),

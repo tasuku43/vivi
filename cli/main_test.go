@@ -14,7 +14,7 @@ func TestHelpTextSurfacesAgentCommentsLoop(t *testing.T) {
 	help := helpText()
 	for _, command := range []string{
 		"vivi - local review adapter",
-		"vivi inbox <url> [--watch] [--read-as codex|claude]",
+		"vivi inbox <url> [--watch] [--initial] [--read-as codex|claude]",
 		"vivi claim <url> <thread-id> --actor codex|claude",
 		"vivi release <url> <thread-id> --actor codex|claude [--body <text>|--body-file <path|->]",
 		"vivi reply <url> <thread-id> --actor codex|claude (--body <text>|--body-file <path|->) [--resolve|--archive]",
@@ -26,6 +26,7 @@ func TestHelpTextSurfacesAgentCommentsLoop(t *testing.T) {
 		"Agent:",
 		"vivi inbox <url>",
 		"vivi inbox <url> --watch",
+		"vivi inbox <url> --watch --initial",
 		"vivi inbox <url> --read-as codex",
 		"vivi reply <url> <thread-id> --actor codex --body <text>",
 		"Changed-file context:",

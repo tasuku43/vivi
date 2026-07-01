@@ -29,6 +29,7 @@ type topLevelAgentOptions struct {
 	ReadAs   simpleAgentActor
 	Body     string
 	Watch    bool
+	Initial  bool
 	Interval time.Duration
 	Resolve  bool
 	Archive  bool
@@ -81,7 +82,9 @@ func runTopLevelInbox(ctx context.Context, args []string, stdout io.Writer) erro
 	flags := flag.NewFlagSet("vivi inbox", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	readAs := flags.String("read-as", "", "mark returned threads as read by codex or claude")
-	watch := flags.Bool("watch", false, "keep polling and emit only new comment diffs after the first snapshot")
+	watch := flags.Bool("watch", false, "keep polling and emit new comment diffs")
+	initial := flags.Bool("initial", false, "with --watch, emit the current open inbox before waiting for new comments")
+	noInitial := flags.Bool("no-initial", false, "deprecated no-op; --watch now skips the initial snapshot by default")
 	interval := flags.Duration("interval", 2*time.Second, "watch polling interval")
 	flagArgs, positional := splitTopLevelAgentFlagsAndPositionals(args)
 	if err := flags.Parse(flagArgs); err != nil {
@@ -91,12 +94,18 @@ func runTopLevelInbox(ctx context.Context, args []string, stdout io.Writer) erro
 	if len(positional) != 1 {
 		return errors.New("error: inbox requires <url>")
 	}
-	options := topLevelAgentOptions{URL: strings.TrimRight(positional[0], "/"), Watch: *watch, Interval: *interval}
+	options := topLevelAgentOptions{URL: strings.TrimRight(positional[0], "/"), Watch: *watch, Initial: *initial, Interval: *interval}
 	if err := validateTopLevelURL(options.URL); err != nil {
 		return err
 	}
 	if options.Watch && options.Interval <= 0 {
 		return errors.New("error: inbox --watch requires a positive --interval")
+	}
+	if options.Initial && !options.Watch {
+		return errors.New("error: inbox --initial requires --watch")
+	}
+	if *noInitial && !options.Watch {
+		return errors.New("error: inbox --no-initial requires --watch")
 	}
 	if strings.TrimSpace(*readAs) != "" {
 		actor, err := parseSimpleAgentActor(*readAs)
@@ -257,7 +266,10 @@ func topLevelInboxWatch(ctx context.Context, stdout io.Writer, options topLevelA
 			continue
 		}
 		ordered := orderCommentThreadsForAgent(threads)
-		changed := topLevelInboxChangedThreads(ordered, seen, first)
+		changed := []commentThreadOutput{}
+		if !first || options.Initial {
+			changed = topLevelInboxChangedThreads(ordered, seen, first)
+		}
 		if len(changed) > 0 {
 			if options.ReadAs.Name != "" {
 				cursor := topLevelInboxCursor(changed)

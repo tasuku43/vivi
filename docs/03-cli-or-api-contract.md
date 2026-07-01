@@ -20,6 +20,7 @@ vivi [root] --max-file-size 1048576
 vivi [root] --allow-html-scripts
 vivi inbox http://127.0.0.1:4317
 vivi inbox http://127.0.0.1:4317 --watch
+vivi inbox http://127.0.0.1:4317 --watch --initial
 vivi inbox http://127.0.0.1:4317 --read-as codex
 vivi claim http://127.0.0.1:4317 <thread-id> --actor codex
 vivi release http://127.0.0.1:4317 <thread-id> --actor codex
@@ -111,9 +112,11 @@ handoff. After the local server is listening, Vivi emits one JSON object on
 stdout with `event: "vivi_server_ready"`, the selected root, the resolved server
 URL, and `suggestedCommands` that already include that resolved URL. Server
 launch does not choose an agent identity. The primary startup suggestion is the
-top-level `inbox <url> --watch` command, which emits the current open inbox and
-then emits only new open threads or newer human comments for that specific Vivi
-server. `review queue` remains available as optional changed-file context, and
+top-level `inbox <url> --watch` command, which emits human comments observed
+after the listener starts for that specific Vivi server. Use plain
+`inbox <url>` for a current open-inbox snapshot, or add `--initial` when a
+watcher should also emit the startup snapshot before waiting for new comments.
+`review queue` remains available as optional changed-file context, and
 `comments doctor` remains the online readiness and recovery check.
 The top-level `vivi --help` output presents the CLI as human launch, agent
 loop, changed-file context, and debug/recovery lanes, so a CLI user can choose
@@ -127,6 +130,7 @@ The first user-facing agent surface is intentionally small:
 ```bash
 vivi inbox <url>
 vivi inbox <url> --watch
+vivi inbox <url> --watch --initial
 vivi inbox <url> --read-as codex
 vivi claim <url> <thread-id> --actor codex
 vivi release <url> <thread-id> --actor codex [--body <text>|--body-file <path|->]
@@ -136,9 +140,10 @@ vivi reply <url> <thread-id> --actor codex (--body <text>|--body-file <path|->) 
 `inbox` requires an explicit URL because multiple Vivi servers may run at the
 same time. Plain `inbox <url>` is passive and does not send actor headers or
 create read receipts. `inbox <url> --watch` is the resident agent intake mode:
-the first emission is the current open inbox; subsequent polls emit only
-threads that are newly open or whose latest human comment changed since the
-last emission. Agent replies do not cause another inbox emission by themselves.
+it emits threads that are newly open or whose latest human comment changed
+after the listener starts. Use plain `inbox <url>` for a current open-inbox
+snapshot, or add `--initial` when the watcher should also emit that startup
+snapshot before waiting. Agent replies do not cause another inbox emission by themselves.
 Use `--read-as codex` or `--read-as claude` only when the browser should show
 that a named agent read the thread.
 

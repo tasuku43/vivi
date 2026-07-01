@@ -49,7 +49,7 @@ it(
     expect(result.stdout).toContain("Human:");
     expect(result.stdout).toContain("Agent:");
     expect(result.stdout).toContain(
-      "vivi inbox <url> [--watch] [--read-as codex|claude]",
+      "vivi inbox <url> [--watch] [--initial] [--read-as codex|claude]",
     );
     expect(result.stdout).toContain(
       "vivi reply <url> <thread-id> --actor codex|claude",

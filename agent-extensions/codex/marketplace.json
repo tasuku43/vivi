@@ -1,0 +1,20 @@
+{
+  "name": "vivi-agent-extensions",
+  "interface": {
+    "displayName": "Vivi Agent Extensions"
+  },
+  "plugins": [
+    {
+      "name": "vivi-agent-loop",
+      "source": {
+        "source": "local",
+        "path": "./vivi-agent-loop"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

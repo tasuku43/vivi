@@ -17,6 +17,7 @@ import {
   lineCommentThreadActionLabel,
   lineRangeForQuote,
   matchingDraftPreviewThread,
+  matchingOpenThreadForDraft,
   nextDeferredSourceHighlightState,
   preferredCodeCommentThread,
   rectLikeFromElement,
@@ -116,7 +117,7 @@ export function SourceCommentSurface({
       );
     }
   }
-  if (!hasDraftThreads && expandActiveCommentThread && activeThread) {
+  if (expandActiveCommentThread && activeThread) {
     visibleThreadKeys.add(activeThread.key);
   }
 
@@ -262,6 +263,29 @@ export function SourceCommentSurface({
       normalized.start,
       normalized.end,
     );
+    const draft = sourceCommentDraft(file, normalized, quote);
+    const existingThread = matchingOpenThreadForDraft(commentThreads, draft);
+    if (existingThread) {
+      setDraftThreads((items) =>
+        items.filter((item) => item.thread.key !== existingThread.key),
+      );
+      setOpenThreads((items) =>
+        items.some((item) => item.key === existingThread.key)
+          ? items
+          : [
+              ...items,
+              {
+                key: existingThread.key,
+                path: existingThread.path,
+                lineStart: existingThread.lineStart,
+                lineEnd: existingThread.lineEnd,
+              },
+            ],
+      );
+      setAnchorLine(normalized.start);
+      onSelectionChange(normalized);
+      return;
+    }
     const nextDraftThread: SourceDraftThread = {
       thread: {
         key,
@@ -271,7 +295,7 @@ export function SourceCommentSurface({
         status: "open",
         comments: [],
       },
-      draft: sourceCommentDraft(file, normalized, quote),
+      draft,
     };
     setOpenThreads([]);
     setDraftThreads((items) => [

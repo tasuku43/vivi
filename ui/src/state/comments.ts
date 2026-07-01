@@ -274,6 +274,23 @@ export function preferredCodeCommentThread(
   );
 }
 
+export function matchingOpenThreadForDraft(
+  threads: CodeCommentThread[],
+  draft: CommentDraft,
+): CodeCommentThread | undefined {
+  const draftKey = commentAnchorThreadKey(draft.path, draft.anchor);
+  const sameAnchorThreads = threads.filter(
+    (thread) =>
+      thread.status === "open" &&
+      thread.comments.some(
+        (comment) =>
+          !isDraftThreadComment(comment) &&
+          commentAnchorThreadKey(comment.path, comment.anchor) === draftKey,
+      ),
+  );
+  return preferredCodeCommentThread(sameAnchorThreads, draft.threadId);
+}
+
 export function lineCommentThreadActionLabel(
   lineNumber: number,
   thread?: CodeCommentThread,

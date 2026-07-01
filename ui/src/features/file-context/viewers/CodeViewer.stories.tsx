@@ -482,6 +482,56 @@ export const SourceCommentActionDragSelectsRange: Story = {
   },
 };
 
+export const SourceActiveThreadStaysVisibleBesideDraft: Story = {
+  name: "Code active thread stays visible beside a new draft",
+  tags: ["interaction"],
+  args: {
+    selectedRange: null,
+    activeCommentId: "comment-source-active-visible-10",
+    comments: [
+      {
+        ...sampleComments[0]!,
+        id: "comment-source-active-visible-10",
+        threadId: "thread-source-active-visible-10",
+        anchor: {
+          surface: "source",
+          canonical: {
+            path: sampleFiles.code.path,
+            lineStart: 10,
+            lineEnd: 10,
+            quote:
+              "return client.publishDraftReviewComments({ actor: humanTasuku });",
+            fileHash: sampleFiles.code.etag,
+          },
+        },
+        body: "Active thread should remain visible while a new draft is open.",
+      },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByText(
+        "Active thread should remain visible while a new draft is open.",
+      ),
+    ).toBeVisible();
+
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Add comment on line 6" }),
+    );
+
+    await expect(
+      canvas.getByRole("article", { name: "Comment thread for line 6" }),
+    ).toBeVisible();
+    await expect(
+      canvas.getByText(
+        "Active thread should remain visible while a new draft is open.",
+      ),
+    ).toBeVisible();
+    await expect(canvas.getByLabelText("New line comment")).toBeVisible();
+  },
+};
+
 export const SavedInlineDraftRemainsVisible: Story = {
   tags: ["interaction"],
   args: {
