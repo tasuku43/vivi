@@ -3,8 +3,8 @@ import { resolveWorkspaceLink } from "../ui/src/state/workspace-links.js";
 
 describe("resolveWorkspaceLink", () => {
   it("resolves links relative to the current file", () => {
-    expect(resolveWorkspaceLink("README.md", "docs/00-product-thesis.md")).toBe(
-      "docs/00-product-thesis.md",
+    expect(resolveWorkspaceLink("README.md", "docs/product/00-product-thesis.md")).toBe(
+      "docs/product/00-product-thesis.md",
     );
     expect(resolveWorkspaceLink("docs/guide/index.md", "../api.md")).toBe(
       "docs/api.md",

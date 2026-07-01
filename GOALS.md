@@ -17,5 +17,5 @@ Near-term goals:
 - Use watcher events and file versions or hashes to keep open previews fresh.
 - Keep the CLI/API contracts documented and covered by tests.
 
-Non-goals stay in `docs/07-non-goals.md`; the broader product context is in
-`docs/01-product-brief.md`.
+Non-goals stay in `docs/product/07-non-goals.md`; the broader product context is in
+`docs/product/01-product-brief.md`.

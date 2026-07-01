@@ -45,7 +45,7 @@ modal  : Cmd/Ctrl + K command palette
 
 ## Implementation guidance
 
-Use the mockups as product intent, not as literal CSS requirements. Implement the React UI through components and state boundaries that preserve the architecture in `docs/14-architecture.md`.
+Use the mockups as product intent, not as literal CSS requirements. Implement the React UI through components and state boundaries that preserve the architecture in `docs/architecture/14-architecture.md`.
 
 Early implementation should prioritize:
 

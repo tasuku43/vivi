@@ -40,8 +40,8 @@ Observed shape:
 - The ready/doctor suggested command is machine-complete but visually long
   because it carries actor kind, URL, client event id, JSON mode, and history
   limits.
-- README still contains older `--wait --idle-events --idle-on-change` guidance,
-  while current help and tests prefer quiet `--loop`.
+- README and the CLI contract now present the top-level `inbox`/`reply` facade
+  first, with `comments work --loop` kept as the compact resident adapter loop.
 - `comments`, `watch`, `follow`, `claim`, `mine`, `check`, `protocol`,
   `schema`, receipt verification, and guarded writes are all available. Many
   are useful protocol primitives, but the first-time agent experience still has
@@ -330,7 +330,8 @@ The strongest near-term direction is B with the language of C:
   `--resolve` or `--archive` side effects that match GUI lifecycle language,
 - reduce startup JSON to a short `primaryCommand` summary while preserving full
   `suggestedCommands` for machines,
-- sync README to the current compact `--loop` path,
+- keep README and the CLI contract centered on the top-level `inbox`/`reply`
+  facade while preserving `comments work --loop` for adapter authors,
 - keep `watch`, `follow`, `claim`, `protocol`, `schema`, and receipts as
   advanced adapter tools, not first-screen concepts.
 
