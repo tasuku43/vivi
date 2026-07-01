@@ -342,7 +342,7 @@ export const RenderedMarkdownComment: Story = {
     });
     expect(cardsCanvas.queryByLabelText("Source hunk preview")).toBeNull();
     const toggle = cardsCanvas.getAllByRole("button", {
-      name: "Show source hunk",
+      name: /Show source hunk for/,
     })[0];
     expect(toggle).toBeDefined();
     await userEvent.click(toggle!);
@@ -384,7 +384,9 @@ export const RenderedMarkdownCodeFenceReplacement: Story = {
     await expect(panes[1]!).not.toHaveTextContent("console.log('old');");
 
     await userEvent.click(
-      within(card).getByRole("button", { name: "Show source hunk" }),
+      within(card).getByRole("button", {
+        name: "Show source hunk for Changed rendered block line 1-4",
+      }),
     );
     const sourceHunk = within(card).getByLabelText("Source hunk preview");
     await expect(sourceHunk).toHaveTextContent("console.log('old');");

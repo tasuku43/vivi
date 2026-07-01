@@ -898,6 +898,9 @@ function RenderedChangeCardView({
   const addCommentLabel = `Add comment to ${cardTitle}${
     anchorRow?.lineLabel ? ` line ${anchorRow.lineLabel}` : ""
   }`;
+  const sourceHunkLabel = `${cardTitle}${
+    anchorRow?.lineLabel ? ` line ${anchorRow.lineLabel}` : ""
+  }`;
   return (
     <article
       className={`rendered-change-card ${card.kind}${commentThread ? " has-comment" : ""}`}
@@ -981,7 +984,7 @@ function RenderedChangeCardView({
             />
           ) : null}
         </div>
-        <SourceHunkPreview rows={card.sourceRows} />
+        <SourceHunkPreview rows={card.sourceRows} label={sourceHunkLabel} />
         {commentThread && threadOpen ? (
           <div className="rendered-change-comment-thread" id={threadPanelId}>
             <CodeCommentThread
@@ -1102,12 +1105,19 @@ function RenderedChangePane({
   );
 }
 
-function SourceHunkPreview({ rows }: { rows: RenderedDiffRow[] }) {
+function SourceHunkPreview({
+  rows,
+  label,
+}: {
+  rows: RenderedDiffRow[];
+  label: string;
+}) {
   const [visible, setVisible] = useState(false);
   return (
     <section className="rendered-change-source">
       <button
         type="button"
+        aria-label={`${visible ? "Hide" : "Show"} source hunk for ${label}`}
         aria-expanded={visible}
         onClick={() => setVisible((value) => !value)}
       >
