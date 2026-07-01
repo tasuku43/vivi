@@ -85,7 +85,7 @@ export const sampleWorkspaceTree: TreeSnapshot = {
               4_120,
             ),
             fileNode(
-              "ui/src/features/comments/components/DraftReviewTray.tsx",
+              "ui/src/features/comments/components/CodeCommentThread.tsx",
               "code",
               3_944,
             ),

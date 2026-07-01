@@ -15,7 +15,6 @@ import {
   CommentsPanel,
   commentInboxKeyboardTarget,
 } from "../ui/src/features/comments/components/CommentsPanel.js";
-import { DraftReviewTray } from "../ui/src/features/comments/components/DraftReviewTray.js";
 import { CommandPalette } from "../ui/src/features/command-palette/CommandPalette.js";
 import {
   activeFileReviewStop,
@@ -2310,20 +2309,7 @@ it("renders draft and published messages in the same inline thread", () => {
   expect(html).toContain(">Resolve</button>");
 });
 
-it("renders the empty draft review tray as a compact tab only", () => {
-  const html = renderToStaticMarkup(<DraftReviewTray drafts={[]} />);
-
-  expect(html).toContain("draft-review-tab empty");
-  expect(html).toContain(">Drafts <strong>0</strong>");
-  expect(html).toContain(
-    'aria-label="Open Draft Review tray, no unpublished comments"',
-  );
-  expect(html).toContain("<strong>0</strong>");
-  expect(html).not.toContain("draft-review-panel");
-  expect(html).not.toContain("No draft comments.");
-});
-
-it("renders draft review tray editing, success, and publish failure states", () => {
+it("renders draft review publishing states inside the comments hub", () => {
   const draft = {
     id: "draft-1",
     path: "src/app.ts",
@@ -2350,49 +2336,44 @@ it("renders draft review tray editing, success, and publish failure states", () 
     },
   };
 
-  const editingHtml = renderToStaticMarkup(
-    <DraftReviewTray
-      drafts={[draft, renderedDraft]}
-      initialEditingDraftId={draft.id}
+  const draftHubHtml = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={[]}
+      draftComments={[draft, renderedDraft]}
+      query=""
+      statusFilter="drafts"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+      onOpenDraft={() => undefined}
+      onDeleteDraft={() => undefined}
+      onPublishDrafts={() => undefined}
     />,
   );
-  expect(editingHtml).toContain("textarea");
-  expect(editingHtml).toContain("Review drafts");
-  expect(editingHtml).toContain(
-    'aria-label="Close Draft Review tray, 2 unpublished comments kept private until publish"',
+  expect(draftHubHtml).toContain("Comments Hub");
+  expect(draftHubHtml).toContain("2 pending drafts ready");
+  expect(draftHubHtml).toContain(
+    "Will publish as 2 open threads across 2 files",
   );
-  expect(editingHtml).toContain(
-    'title="2 unpublished comments kept private until publish"',
+  expect(draftHubHtml).toContain("Keep this draft visible on publish failure");
+  expect(draftHubHtml).toContain(
+    'aria-label="Open pending draft in src/app.ts, source, L2, not agent-visible until publish"',
   );
-  expect(editingHtml).toContain("Keep this draft visible on publish failure");
-  expect(editingHtml).toContain(
-    'aria-label="Open pending draft in src/app.ts, source, L2, kept private until publish"',
-  );
-  expect(editingHtml).toContain(
-    'title="Open pending draft in src/app.ts, source, L2, kept private until publish"',
-  );
-  expect(editingHtml).toContain('id="draft-edit-hint-draft-1"');
-  expect(editingHtml).toContain("This draft stays private until published.");
-  expect(editingHtml).toContain(
-    'aria-label="Edit pending draft comment for src/app.ts"',
-  );
-  expect(editingHtml).toContain('aria-describedby="draft-edit-hint-draft-1"');
-  expect(editingHtml).toContain("Publish review comments");
-  expect(editingHtml).toContain(
+  expect(draftHubHtml).toContain("markdown rendered");
+  expect(draftHubHtml).toContain("source");
+  expect(draftHubHtml).toContain("Not agent-visible");
+  expect(draftHubHtml).toContain("Publish review comments");
+  expect(draftHubHtml).toContain(
     'title="Publish 2 draft comments as 2 open threads across 2 files"',
   );
-  expect(editingHtml).toContain(
-    "Publish 2 draft comments as 2 open threads across 2 files",
-  );
-  expect(editingHtml).toContain("2 open threads");
-  expect(editingHtml).toContain("across 2 files");
-  expect(editingHtml).toContain("visible to agents as active review work");
-  expect(editingHtml).toContain("markdown rendered");
-  expect(editingHtml).toContain("source");
 
   const sameThreadHtml = renderToStaticMarkup(
-    <DraftReviewTray
-      drafts={[
+    <CommentsPanel
+      open
+      comments={[]}
+      draftComments={[
         { ...draft, threadId: "thread-a" },
         {
           ...draft,
@@ -2403,16 +2384,36 @@ it("renders draft review tray editing, success, and publish failure states", () 
           updatedAt: "2026-06-20T00:01:00.000Z",
         },
       ]}
+      query=""
+      statusFilter="drafts"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+      onOpenDraft={() => undefined}
+      onDeleteDraft={() => undefined}
+      onPublishDrafts={() => undefined}
     />,
   );
-  expect(sameThreadHtml).toContain("2 unpublished comments");
+  expect(sameThreadHtml).toContain("2 pending drafts ready");
   expect(sameThreadHtml).toContain("1 open thread");
   expect(sameThreadHtml).not.toContain("2 open threads");
 
   const failedHtml = renderToStaticMarkup(
-    <DraftReviewTray
-      drafts={[draft]}
-      publishError="The selected target thread is no longer open."
+    <CommentsPanel
+      open
+      comments={[]}
+      draftComments={[draft]}
+      draftPublishError="The selected target thread is no longer open."
+      query=""
+      statusFilter="drafts"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+      onOpenDraft={() => undefined}
+      onDeleteDraft={() => undefined}
+      onPublishDrafts={() => undefined}
     />,
   );
   expect(failedHtml).toContain("Publish failed. Drafts were kept.");
@@ -2420,52 +2421,59 @@ it("renders draft review tray editing, success, and publish failure states", () 
   expect(failedHtml).toContain("Keep this draft visible on publish failure");
 
   const publishingHtml = renderToStaticMarkup(
-    <DraftReviewTray drafts={[draft]} publishing />,
+    <CommentsPanel
+      open
+      comments={[]}
+      draftComments={[draft]}
+      draftPublishing
+      query=""
+      statusFilter="drafts"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+      onOpenDraft={() => undefined}
+      onDeleteDraft={() => undefined}
+      onPublishDrafts={() => undefined}
+    />,
   );
   expect(publishingHtml).toContain("Publishing...");
   expect(publishingHtml).toContain("Publishing draft review comments");
   expect(publishingHtml).toContain("disabled");
 
   const emptyOpenHtml = renderToStaticMarkup(
-    <DraftReviewTray drafts={[]} initialOpen />,
+    <CommentsPanel
+      open
+      comments={[]}
+      draftComments={[]}
+      query=""
+      statusFilter="drafts"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+    />,
   );
-  expect(emptyOpenHtml).toContain("No draft comments to publish");
-  expect(emptyOpenHtml).toContain("No unpublished comments");
-  expect(emptyOpenHtml).toContain("disabled");
+  expect(emptyOpenHtml).toContain("No pending drafts");
+  expect(emptyOpenHtml).not.toContain("Draft publish summary");
+  expect(emptyOpenHtml).not.toContain("Publish review comments");
 
   const successHtml = renderToStaticMarkup(
-    <DraftReviewTray drafts={[]} publishedBatchId="review-batch-test-1" />,
+    <CommentsPanel
+      open
+      comments={[]}
+      draftComments={[]}
+      publishedBatchId="review-batch-test-1"
+      query=""
+      statusFilter="drafts"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+    />,
   );
   expect(successHtml).toContain("Published review batch review-batch-test-1");
   expect(successHtml).toContain("visible to agents");
-});
-
-it("renders draft review items with their full surface context", () => {
-  const draft = {
-    id: "draft-1",
-    path: "README.md",
-    viewerKind: "markdown" as const,
-    anchor: {
-      ...codeLineComment.anchor,
-      surface: "rendered" as const,
-      rendered: {
-        kind: "markdown" as const,
-        blockId: "p-intro",
-        textQuote: "Intro copy",
-      },
-    },
-    body: "Rendered draft",
-    source: "human" as const,
-    createdAt: "2026-06-20T00:00:00.000Z",
-    updatedAt: "2026-06-20T00:00:00.000Z",
-  };
-  const html = renderToStaticMarkup(
-    <DraftReviewTray drafts={[draft]} initialOpen />,
-  );
-
-  expect(html).toContain("README.md");
-  expect(html).toContain("markdown rendered");
-  expect(html).toContain("Rendered draft");
 });
 
 it("renders pending drafts inside the comments hub", () => {

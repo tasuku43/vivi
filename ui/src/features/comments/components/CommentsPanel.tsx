@@ -382,7 +382,7 @@ export function CommentsPanel({
                   role="listitem"
                   aria-posinset={index + 1}
                   aria-setsize={matchingDrafts.length}
-                  key={draft.id}
+                  key={`${draft.id}:${commentAnchorThreadKey(draft.path, draft.anchor)}:${index}`}
                 >
                   <button
                     className="global-comment-row draft"
@@ -516,7 +516,7 @@ export function CommentsPanel({
                 role="listitem"
                 aria-posinset={index + 1}
                 aria-setsize={visibleThreads.length}
-                key={thread.threadId}
+                key={`${thread.threadId}:${thread.path}:${index}`}
               >
                 <button
                   className={`global-comment-row ${thread.status}${thread.needsAttention ? " needs-attention" : ""}${active ? " active" : ""}`}
@@ -617,8 +617,8 @@ export function CommentsPanel({
                     </span>
                     {activity?.inline.length ? (
                       <span className="comment-activity-summary compact">
-                        {activity.inline.map((label) => (
-                          <span key={label}>{label}</span>
+                        {activity.inline.map((label, activityIndex) => (
+                          <span key={`${label}:${activityIndex}`}>{label}</span>
                         ))}
                         {activity.timeline.length > activity.inline.length ? (
                           <span>

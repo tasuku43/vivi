@@ -4,10 +4,12 @@ import { expect, fn, userEvent, within } from "storybook/test";
 import { CommentsPanel } from "./components/CommentsPanel.js";
 import { InlineCommentCard } from "./components/InlineCommentCard.js";
 import {
+  manyDraftReviewComments,
   manyReviewComments,
   sampleComments,
   sampleDraftComments,
   sampleFiles,
+  samplePublishedReviewBatch,
   sampleThreadActivities,
 } from "../../storybook/fixtures/review-lab.js";
 
@@ -141,6 +143,47 @@ export const PendingDrafts: Story = {
       canvas.getAllByRole("button", { name: /Open pending draft in/ })[0]!,
     );
     await expect(args.onOpenDraft).toHaveBeenCalled();
+  },
+};
+
+export const EmptyPendingDrafts: Story = {
+  args: {
+    draftComments: [],
+    statusFilter: "drafts",
+  },
+};
+
+export const PendingDraftPublishFailure: Story = {
+  args: {
+    draftComments: sampleDraftComments,
+    draftPublishError: "The selected target thread is no longer open.",
+    statusFilter: "drafts",
+  },
+};
+
+export const PublishedDraftBatch: Story = {
+  args: {
+    draftComments: [],
+    publishedBatchId: samplePublishedReviewBatch.reviewBatchId,
+    statusFilter: "drafts",
+  },
+};
+
+export const ManyPendingDrafts: Story = {
+  tags: ["interaction"],
+  args: {
+    draftComments: manyDraftReviewComments,
+    statusFilter: "drafts",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("22 pending drafts ready")).toBeVisible();
+    const list = canvasElement.querySelector<HTMLElement>(
+      ".global-comments-list",
+    );
+    await expect(list).toBeInTheDocument();
+    await expect(list).toHaveAttribute("role", "list");
+    expect(list!.scrollHeight).toBeGreaterThan(list!.clientHeight);
   },
 };
 

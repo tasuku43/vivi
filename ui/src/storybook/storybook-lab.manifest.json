@@ -24,7 +24,6 @@
     "ui/src/features/comments/Activity.stories.tsx",
     "ui/src/features/comments/CodeCommentThread.stories.tsx",
     "ui/src/features/comments/CommentsPanel.stories.tsx",
-    "ui/src/features/comments/DraftReviewTray.stories.tsx",
     "ui/src/features/file-context/FileContextPane.stories.tsx",
     "ui/src/features/file-context/components/FileViewer.stories.tsx",
     "ui/src/features/file-context/viewers/CodeViewer.stories.tsx",
@@ -115,15 +114,15 @@
         "Review/Inline Comment States/AgentHasReadThread",
         "Review/Inline Comment States/AgentHasReplied",
         "Review/Inline Comment States/SelfCommentOwnership",
-        "Review/Draft Review States/PublishCtaEnabled",
-        "Review/Draft Review States/PublishFailure",
-        "Review/Draft Review States/PublishedStateWithOpenThreads"
+        "Review/Comments Inbox States/PendingDrafts",
+        "Review/Comments Inbox States/PendingDraftPublishFailure",
+        "Review/Comments Inbox States/PublishedDraftBatch"
       ],
       "interactionStories": [
         "Review/Inline Comment States/Open",
         "Review/Inline Comment States/NewLineComment",
         "Review/Inline Comment States/SelfCommentOwnership",
-        "Review/Draft Review States/PublishCtaEnabled"
+        "Review/Comments Inbox States/PendingDrafts"
       ]
     },
     {
@@ -237,9 +236,9 @@
         "Workspace/Workbench States/ManyFilesManyComments",
         "Review/Queue States/ManyFiles",
         "Review/Comments Inbox States/ManyComments",
-        "Review/Draft Review States/ManyDrafts",
+        "Review/Comments Inbox States/ManyPendingDrafts",
         "Review/Comments Inbox States/NoMatchingComments",
-        "Review/Draft Review States/EmptyDrafts"
+        "Review/Comments Inbox States/EmptyPendingDrafts"
       ],
       "interactionStories": []
     }

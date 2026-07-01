@@ -11,7 +11,6 @@ import { NodeFileSystem } from "../../server/typescript/infrastructure/node-file
 import { startHttpServer } from "../../server/typescript/http/http-server.js";
 import { CommentedSourceLines } from "../../ui/src/features/comments/components/CommentedSourceLines.js";
 import { CommentsPanel } from "../../ui/src/features/comments/components/CommentsPanel.js";
-import { DraftReviewTray } from "../../ui/src/features/comments/components/DraftReviewTray.js";
 import { Inspector } from "../../ui/src/features/review-queue/Inspector.js";
 import { renderedCommentDraft } from "../../ui/src/state/comments.js";
 
@@ -290,9 +289,11 @@ it("creates a comment from the UI anchor model and renders it after retrieval", 
   expect(sourceHtml).toContain("has-comment");
   expect(sourceHtml).toContain(`data-comment-id="${created.id}"`);
 
-  const draftTrayHtml = renderToStaticMarkup(
-    <DraftReviewTray
-      drafts={[
+  const draftHubHtml = renderToStaticMarkup(
+    <CommentsPanel
+      open
+      comments={[]}
+      draftComments={[
         {
           id: "draft-1",
           path: "README.md",
@@ -304,11 +305,20 @@ it("creates a comment from the UI anchor model and renders it after retrieval", 
           updatedAt: "2026-06-20T00:00:00.000Z",
         },
       ]}
+      query=""
+      statusFilter="drafts"
+      onQueryChange={() => undefined}
+      onStatusFilterChange={() => undefined}
+      onClose={() => undefined}
+      onOpenComment={() => undefined}
+      onOpenDraft={() => undefined}
+      onDeleteDraft={() => undefined}
+      onPublishDrafts={() => undefined}
     />,
   );
-  expect(draftTrayHtml).toContain("Draft Review");
-  expect(draftTrayHtml).toContain("Publish review comments");
-  expect(draftTrayHtml).toContain("Unpublished batch note");
+  expect(draftHubHtml).toContain("Comments Hub");
+  expect(draftHubHtml).toContain("Publish review comments");
+  expect(draftHubHtml).toContain("Unpublished batch note");
 });
 
 async function fetchJson<T>(route: string): Promise<T> {
