@@ -694,6 +694,7 @@ export const RenderedMarkdownOpenThreadBesideNewDraft: Story = {
       ).toBeGreaterThan(0),
     );
     await waitForRenderedBlockMetricsToSettle(listItem);
+    await waitForRenderedSnapshotLayoutToSettle(canvasElement);
     canvasElement.dataset.viviSnapshotReady = "true";
   },
 };
@@ -784,7 +785,7 @@ async function waitForRenderedBlockMetricsToSettle(
       }
       stableFrames += 1;
       previous = current;
-      if (stableFrames < 2) {
+      if (stableFrames < 4) {
         throw new Error("Rendered block metrics need another stable frame.");
       }
     },
@@ -803,6 +804,57 @@ function renderedBlockMetricsSignature(block: HTMLElement): string {
     beforeStyle.bottom,
     block.style.getPropertyValue("--rendered-comment-block-bottom"),
   ].join("|");
+}
+
+async function waitForRenderedSnapshotLayoutToSettle(
+  root: HTMLElement,
+): Promise<void> {
+  let previous = renderedSnapshotLayoutSignature(root);
+  let stableFrames = 0;
+  await waitFor(
+    async () => {
+      await new Promise<void>((resolve) =>
+        window.requestAnimationFrame(() => resolve()),
+      );
+      const current = renderedSnapshotLayoutSignature(root);
+      if (current !== previous) {
+        previous = current;
+        stableFrames = 0;
+        throw new Error("Rendered snapshot layout is still settling.");
+      }
+      stableFrames += 1;
+      previous = current;
+      if (stableFrames < 4) {
+        throw new Error("Rendered snapshot layout needs another stable frame.");
+      }
+    },
+    { timeout: 1500 },
+  );
+}
+
+function renderedSnapshotLayoutSignature(root: HTMLElement): string {
+  return Array.from(
+    root.querySelectorAll<HTMLElement>(
+      [
+        ".vivi-rendered-comment-block",
+        ".rendered-comment-thread-host",
+        ".rendered-comment-thread",
+      ].join(","),
+    ),
+  )
+    .map((element) => {
+      const rect = element.getBoundingClientRect();
+      return [
+        element.localName,
+        element.className,
+        Math.round(rect.left),
+        Math.round(rect.top),
+        Math.round(rect.width),
+        Math.round(rect.height),
+        element.style.getPropertyValue("--rendered-comment-block-bottom"),
+      ].join(":");
+    })
+    .join("|");
 }
 
 function clickRenderedBlock(element: Element, init: MouseEventInit = {}): void {
