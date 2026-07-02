@@ -5,7 +5,6 @@ const root = process.cwd();
 const required = [
   "README.md",
   "AGENTS.md",
-  "GOALS.md",
   "Makefile",
   "Taskfile.yml",
   "package.json",
@@ -46,6 +45,7 @@ const required = [
   "docs/operations/27-install.md",
   "docs/release/releasing.md",
   "docs/release/homebrew/vivi.rb",
+  ".agents/plugins/marketplace.json",
   "SECURITY.md",
   "evals/cases/basic-tree.json",
   "evals/run-evals.ts",
@@ -95,6 +95,11 @@ if (existsSync(packagePath)) {
 for (const file of forbiddenFileNames) {
   if (existsSync(path.join(root, file)))
     errors.push(`forbidden prompt-like file exists: ${file}`);
+}
+if (existsSync(path.join(root, "agent-extensions/codex/marketplace.json"))) {
+  errors.push(
+    "Codex marketplace catalog must live at .agents/plugins/marketplace.json",
+  );
 }
 
 const releaseWorkflowPath = path.join(root, ".github/workflows/release.yml");

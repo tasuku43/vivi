@@ -22,9 +22,10 @@ describe current behavior or product intent.
 
 Use these documents first when behavior changes:
 
-- `GOALS.md`: durable product goal and non-goal pointer.
 - `README.md`: public orientation, install, usage, and repository map.
 - `docs/README.md`: documentation category map.
+- `docs/product/00-product-thesis.md` and `docs/product/01-product-brief.md`: product
+  philosophy, positioning, and durable product goal.
 - `docs/contracts/03-cli-or-api-contract.md`: CLI, GraphQL, HTTP resource, event, and
   removed REST migration contracts.
 - `docs/architecture/14-architecture.md`: package boundaries and dependency direction.
@@ -40,8 +41,6 @@ Use these documents first when behavior changes:
 
 ## Supporting reference
 
-- `docs/product/00-product-thesis.md` and `docs/product/01-product-brief.md`: product
-  philosophy and positioning.
 - `docs/product/02-requirements.md`, `docs/contracts/04-data-model.md`, `docs/engineering/05-evaluation.md`,
   `docs/contracts/08-provider-or-adapter-contracts.md`, `docs/engineering/13-test-and-eval-strategy.md`,
   `docs/architecture/16-performance-model.md`, `docs/engineering/19-viewer-extension-guide.md`,

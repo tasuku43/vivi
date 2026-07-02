@@ -18,7 +18,9 @@ import {
   codeCommentThreads,
   draftReviewCommentAsViviComment,
   flushDeferredSourceHighlightState,
+  matchingOpenThreadForDraft,
   nextDeferredSourceHighlightState,
+  renderedCommentDraft,
   sourceLineCommentDraft,
 } from "../ui/src/state/comments.js";
 
@@ -69,12 +71,12 @@ it("defers source highlight replacement while text selection is active", () => {
     visible: highlighted,
     pending: highlighted,
   });
-  expect(
-    nextDeferredSourceHighlightState(initial, highlighted, false),
-  ).toEqual({
-    visible: highlighted,
-    pending: highlighted,
-  });
+  expect(nextDeferredSourceHighlightState(initial, highlighted, false)).toEqual(
+    {
+      visible: highlighted,
+      pending: highlighted,
+    },
+  );
 });
 
 it("detects lightweight JavaScript and TypeScript symbols", () => {
@@ -293,6 +295,63 @@ it("keeps same-anchor draft review comments as separate draft threads", () => {
       (thread) => thread.comments.length === 1 && thread.comments[0]?.draft,
     ),
   ).toBe(true);
+});
+
+it("matches rendered drafts to open threads by canonical line when rendered selectors drift", () => {
+  const file = {
+    path: "AGENTS.md",
+    viewerKind: "markdown" as const,
+    encoding: "utf8" as const,
+    content: "# Agent instructions\n",
+    etag: "sha256:agents",
+    size: 21,
+    mtimeMs: 1,
+  };
+  const existingAnchor = {
+    surface: "rendered" as const,
+    canonical: {
+      path: "AGENTS.md",
+      lineStart: 1,
+      lineEnd: 1,
+      quote: "# Agent instructions",
+      fileHash: "sha256:agents",
+    },
+    rendered: {
+      kind: "markdown" as const,
+      blockId: "vivi-block-1",
+      selector: "#agent",
+      textQuote: "Agent",
+      sourceLineStart: 1,
+      sourceLineEnd: 1,
+    },
+  };
+  const threads = codeCommentThreads([
+    {
+      id: "comment-l1-root",
+      threadId: "thread-l1",
+      path: "AGENTS.md",
+      viewerKind: "markdown",
+      anchor: existingAnchor,
+      body: "First L1 note.",
+      status: "open",
+      createdAt: "2026-07-02T01:00:00.000Z",
+      updatedAt: "2026-07-02T01:00:00.000Z",
+    },
+  ]);
+  const draft = renderedCommentDraft(file, "markdown", {
+    text: "Agent instructions",
+    blockId: "vivi-block-1",
+    selector: "#agent-instructions",
+    sourceLineStart: 1,
+    sourceLineEnd: 1,
+    sourceQuote: "# Agent instructions",
+  });
+
+  expect(matchingOpenThreadForDraft(threads, draft)?.comments[0]).toMatchObject(
+    {
+      threadId: "thread-l1",
+    },
+  );
 });
 
 it("records and summarizes recent review events by file path", () => {

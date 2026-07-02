@@ -90,7 +90,8 @@
         "Review/Activity States/CommentsWatchDisconnected"
       ],
       "interactionStories": [
-        "Review/Queue States/InReviewFileThreadExpansionInteraction"
+        "Review/Queue States/InReviewFileThreadExpansionInteraction",
+        "Workspace/Workbench States/InspectorThreadClickOpensRenderedMarkdownThread"
       ]
     },
     {
@@ -150,6 +151,7 @@
         "Files/Markdown Review States/RenderedBlockClickDraft",
         "Files/Markdown Review States/RenderedMarkdownSyntaxGallery",
         "Files/Markdown Review States/RenderedMarkdownOpenThreadBesideNewDraft",
+        "Files/Markdown Review States/RenderedSameAnchorFollowUpKeepsThreadId",
         "Files/Markdown Review States/RenderedListDraftFormsDoNotBridge",
         "Files/Markdown Review States/RenderedMarkerPlacement",
         "Files/Markdown Review States/RenderedMarkdownComment",
@@ -158,6 +160,7 @@
         "Files/HTML Preview States/PreviewMultipleRenderedHtmlLineThreads",
         "Files/HTML Preview States/PreviewDraftComposerReplacesTarget",
         "Files/HTML Preview States/SourceHtmlComment",
+        "Files/Viewer Coverage States/JsonSourceCommentsUseInlineThread",
         "Files/Open File Surface States/HtmlSource",
         "Files/Viewer Coverage States/ViewerToolbarStickyByExtension"
       ]

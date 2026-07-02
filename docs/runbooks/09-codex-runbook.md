@@ -7,7 +7,7 @@ This file is context for coding agents. It is not a ready-to-send first prompt.
 Before making changes, read:
 
 - `AGENTS.md`
-- `GOALS.md`
+- `docs/product/00-product-thesis.md`
 - `README.md`
 - `docs/product/01-product-brief.md`
 - `docs/contracts/03-cli-or-api-contract.md`

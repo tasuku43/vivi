@@ -100,7 +100,7 @@ describe("rendered comment block ranges", () => {
 
   it("centers rendered comment surfaces around Markdown headings", () => {
     expect(normalizedRenderedCommentStyles).toMatch(
-      /h1\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-top: -4px;[\s\S]*?--rendered-comment-block-bottom: 14px;/,
+      /h1\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-top: -7px;[\s\S]*?--rendered-comment-block-bottom: 12px;/,
     );
     expect(normalizedRenderedCommentStyles).toMatch(
       /h2\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-bottom: -6px;/,
@@ -109,10 +109,10 @@ describe("rendered comment block ranges", () => {
 
   it("paints list markers inside the highlight without moving the list item", () => {
     expect(normalizedRenderedCommentStyles).toMatch(
-      /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-left: calc\(-1\.35em - 8px\);/,
+      /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-left: calc\(-1\.05em - 8px\);/,
     );
     expect(normalizedRenderedCommentStyles).toMatch(
-      /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-y-pad: 3px;[\s\S]*?--rendered-comment-block-bottom-pad: 2px;[\s\S]*?--rendered-comment-block-top: calc\([\s\S]*?-1 \* var\(--rendered-comment-block-y-pad\)/,
+      /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-y-pad: 5px;[\s\S]*?--rendered-comment-block-bottom-pad: var\(--rendered-comment-block-y-pad\);[\s\S]*?--rendered-comment-block-top: calc\([\s\S]*?-1 \* var\(--rendered-comment-block-y-pad\)/,
     );
     expect(normalizedRenderedCommentStyles).toMatch(
       /li\.vivi-rendered-comment-block:has\(> \.rendered-comment-thread-host\)\s*\{[\s\S]*?--rendered-comment-block-bottom-pad: 11px;/,

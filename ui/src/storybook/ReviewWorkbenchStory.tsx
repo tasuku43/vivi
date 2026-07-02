@@ -185,6 +185,18 @@ export function ReviewWorkbenchStory({
     setStoryActiveCommentId(null);
   }
 
+  function openStoryComment(comment: ViviComment) {
+    const fixtureFile = Object.values(sampleFiles).find(
+      (item) => item.path === comment.path,
+    );
+    if (fixtureFile && fixtureFile.path !== storyFile?.path) {
+      setStoryFile(fixtureFile);
+      setStoryState("ready");
+      setStoryViewerSourceMissing(false);
+    }
+    setStoryActiveCommentId(comment.id);
+  }
+
   const selectedPath = storyFile?.path ?? pendingFilePath ?? null;
   const visibleComments = visibleThreadComments(comments);
   const activeTabs =
@@ -470,6 +482,7 @@ export function ReviewWorkbenchStory({
           onOpenAllChanged={noop}
           onPublishDrafts={noop}
           onRevealInTree={noop}
+          onOpenComment={openStoryComment}
           onOpenDraft={noop}
         />
       </div>

@@ -416,6 +416,60 @@ export const MarkdownRenderedReviewMode: Story = {
   },
 };
 
+export const InspectorThreadClickOpensRenderedMarkdownThread: Story = {
+  name: "Inspector thread click opens rendered Markdown thread",
+  tags: ["interaction"],
+  args: {
+    file: sampleFiles.markdown,
+    viewerMode: "rendered",
+    activeCommentId: null,
+    draftComments: [],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.queryByRole("article", {
+        name: "Comment thread for line 7",
+      }),
+    ).not.toBeInTheDocument();
+
+    const inspector = within(
+      canvas.getByRole("complementary", { name: "Review inspector" }),
+    );
+    const markdownReviewItem = canvasElement
+      .querySelector<HTMLElement>('[data-review-path="docs/product-review.md"]')
+      ?.closest<HTMLElement>(".review-queue-item");
+    expect(markdownReviewItem).not.toBeNull();
+    if (!markdownReviewItem) return;
+    const threadToggle = markdownReviewItem?.querySelector<HTMLElement>(
+      'label[for^="review-queue-item-"][class~="review-thread-count-toggle"]',
+    );
+    expect(threadToggle).not.toBeNull();
+    if (!threadToggle) return;
+    await userEvent.click(threadToggle);
+
+    const threadRow = markdownReviewItem.querySelector<HTMLElement>(
+      ".review-thread-hairline-row",
+    );
+    expect(threadRow).not.toBeNull();
+    if (!threadRow) return;
+    expect(threadRow.getAttribute("aria-label")).toMatch(
+      /Open Open thread in docs\/product-review\.md/,
+    );
+    await userEvent.click(threadRow);
+
+    const thread = canvas.getByRole("article", {
+      name: "Comment thread for line 7",
+    });
+    await expect(
+      within(thread).getByText(/This sentence captures the feedback layer/),
+    ).toBeVisible();
+    await expect(
+      within(thread).getByPlaceholderText("Add a follow-up"),
+    ).toBeVisible();
+  },
+};
+
 export const ManyFilesManyComments: Story = {
   args: {
     file: sampleFiles.code,

@@ -284,6 +284,7 @@ export function FileViewer({
         <LazyViewerFallback path={file.path}>
           <JsonViewer
             file={file}
+            initialMode={viewerMode === "source" ? "source" : undefined}
             theme={theme}
             diff={diff}
             diffLoading={diffLoading}
@@ -292,7 +293,12 @@ export function FileViewer({
             onCreateComment={onCreateComment}
             comments={comments}
             activeCommentId={activeCommentId}
+            expandActiveCommentThread={expandActiveCommentThread}
+            currentActorId={currentActorId}
             onOpenComment={onOpenComment}
+            onCloseComment={onCloseComment}
+            onCommentStatusChange={onCommentStatusChange}
+            threadActivities={threadActivities}
           />
         </LazyViewerFallback>
       </FileViewerFrame>

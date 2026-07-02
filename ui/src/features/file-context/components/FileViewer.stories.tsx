@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, waitFor } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import type { FilePayload } from "../../../domain/fs-node.js";
 import {
   commentsForPath,
@@ -135,6 +135,36 @@ export const HtmlWithOpenLocalOutline: Story = {
 export const JsonKnownViewer: Story = {
   args: {
     file: sampleFiles.json,
+  },
+};
+
+export const JsonSourceCommentsUseInlineThread: Story = {
+  tags: ["interaction"],
+  args: {
+    file: sampleFiles.json,
+    viewerMode: "source",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector(".source-comment-surface"),
+      ).toBeInTheDocument(),
+    );
+    const lineAction = await waitFor(() => {
+      const action = canvasElement.querySelector<HTMLButtonElement>(
+        `[data-testid="line-comment-action"][data-comment-surface="source"][data-line="2"][data-path="${sampleFiles.json.path}"]`,
+      );
+      expect(action).toBeInTheDocument();
+      return action!;
+    });
+    await expect(lineAction).toBeInTheDocument();
+    await userEvent.click(lineAction);
+
+    await expect(
+      canvas.getByRole("article", { name: "Comment thread for line 2" }),
+    ).toBeVisible();
+    await expect(canvas.getByLabelText("New line comment")).toBeVisible();
   },
 };
 

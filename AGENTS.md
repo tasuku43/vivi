@@ -4,7 +4,7 @@ This repository is a scaffold for `vivi`, a CLI that launches a local browser SP
 
 ## Operating mode
 
-Move the repository toward the ideal state described in `GOALS.md` and `docs/product/01-product-brief.md`. Implement in small vertical slices. Each behavior change must be paired with at least one of:
+Move the repository toward the ideal state described in `docs/product/00-product-thesis.md` and `docs/product/01-product-brief.md`. Implement in small vertical slices. Each behavior change must be paired with at least one of:
 
 - a domain unit test,
 - an app/use-case test,

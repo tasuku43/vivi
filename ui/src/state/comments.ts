@@ -164,6 +164,19 @@ export function commentAnchorThreadKey(
   ]);
 }
 
+export function canonicalCommentAnchorThreadKey(
+  path: string,
+  anchor: CommentAnchor,
+): string {
+  const canonical = anchor.canonical;
+  return JSON.stringify([
+    path,
+    anchor.surface,
+    canonical.lineStart ?? null,
+    canonical.lineEnd ?? canonical.lineStart ?? null,
+  ]);
+}
+
 export function draftReviewCommentAsViviComment(
   draft: DraftReviewComment,
   _publishedComments?: ViviComment[],
@@ -272,13 +285,19 @@ export function matchingOpenThreadForDraft(
   draft: CommentDraft,
 ): CodeCommentThread | undefined {
   const draftKey = commentAnchorThreadKey(draft.path, draft.anchor);
+  const canonicalDraftKey = canonicalCommentAnchorThreadKey(
+    draft.path,
+    draft.anchor,
+  );
   const sameAnchorThreads = threads.filter(
     (thread) =>
       thread.status === "open" &&
       thread.comments.some(
         (comment) =>
           !isDraftThreadComment(comment) &&
-          commentAnchorThreadKey(comment.path, comment.anchor) === draftKey,
+          (commentAnchorThreadKey(comment.path, comment.anchor) === draftKey ||
+            canonicalCommentAnchorThreadKey(comment.path, comment.anchor) ===
+              canonicalDraftKey),
       ),
   );
   return preferredCodeCommentThread(sameAnchorThreads, draft.threadId);

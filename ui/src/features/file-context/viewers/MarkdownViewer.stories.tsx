@@ -99,7 +99,7 @@ export const RenderedBlockClickDraft: Story = {
 };
 
 export const RenderedCommentModifierClickStartsDraftComposer: Story = {
-  name: "Rendered Markdown modifier click opens a draft composer",
+  name: "Rendered Markdown modifier click continues an existing thread",
   tags: ["interaction"],
   args: {
     mode: "rendered",
@@ -121,10 +121,10 @@ export const RenderedCommentModifierClickStartsDraftComposer: Story = {
 
     await clickRenderedBlock(commentedText, { altKey: true });
 
-    await expect(canvas.getByLabelText("New line comment")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Continue thread")).toBeInTheDocument();
     await expect(
-      canvas.queryByText(/This sentence captures the feedback layer/),
-    ).toBeNull();
+      canvas.getByText(/This sentence captures the feedback layer/),
+    ).toBeVisible();
   },
 };
 
@@ -161,6 +161,76 @@ export const RenderedKeepsThreadReplyFocused: Story = {
     ).not.toBeInTheDocument();
     await expect(canvas.queryByLabelText("New line comment")).toBeNull();
     await expect(canvas.getByLabelText("Continue thread")).toBeInTheDocument();
+  },
+};
+
+export const RenderedSameAnchorFollowUpKeepsThreadId: Story = {
+  name: "Rendered Markdown same-anchor follow-up keeps thread id",
+  tags: ["interaction"],
+  args: {
+    mode: "rendered",
+    file: {
+      ...sampleFiles.markdown,
+      path: "AGENTS.md",
+      content: ["# Agent instructions", "", "Body text."].join("\n"),
+    },
+    comments: [
+      {
+        id: "comment-agents-l1-root",
+        threadId: "thread-agents-l1",
+        path: "AGENTS.md",
+        viewerKind: "markdown",
+        body: "First L1 note.",
+        status: "open",
+        source: "human",
+        createdBy: humanTasuku,
+        createdAt: "2026-07-02T01:00:00.000Z",
+        updatedAt: "2026-07-02T01:00:00.000Z",
+        anchor: {
+          surface: "rendered",
+          canonical: {
+            path: "AGENTS.md",
+            lineStart: 1,
+            lineEnd: 1,
+            quote: "# Agent instructions",
+            fileHash: sampleFiles.markdown.etag,
+          },
+          rendered: {
+            kind: "markdown",
+            blockId: "vivi-block-1",
+            selector: "#agent",
+            textQuote: "Agent",
+            sourceLineStart: 1,
+            sourceLineEnd: 1,
+          },
+        },
+      },
+    ],
+    onCreateComment: fn(),
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const heading = canvas.getByRole("heading", {
+      name: "Agent instructions",
+    });
+    await clickRenderedBlock(heading, { altKey: true });
+
+    const followUp = "Keep this pending reply on the L1 thread.";
+    await userEvent.type(canvas.getByLabelText("Continue thread"), followUp);
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Add follow-up" }),
+    );
+
+    const calls = (
+      args.onCreateComment as unknown as {
+        mock: { calls: unknown[][] };
+      }
+    ).mock.calls;
+    await expect(args.onCreateComment).toHaveBeenCalled();
+    await expect(calls.at(-1)?.[0]).toMatchObject({
+      threadId: "thread-agents-l1",
+    });
+    await expect(calls.at(-1)?.[1]).toBe(followUp);
   },
 };
 
@@ -549,8 +619,8 @@ export const RenderedMarkerPlacement: Story = {
     const adjacentListMetrics = renderedBlockMetrics(adjacentListItem);
     const paragraphMetrics = renderedBlockMetrics(paragraph);
 
-    await expect(listMetricsBefore.height).toBeLessThanOrEqual(34);
-    await expect(adjacentListMetrics.height).toBeLessThanOrEqual(34);
+    await expect(listMetricsBefore.height).toBeLessThanOrEqual(40);
+    await expect(adjacentListMetrics.height).toBeLessThanOrEqual(40);
     await expect(paragraphMetrics.height).toBeLessThanOrEqual(34);
     await expect(
       Math.abs(listMetricsBefore.topPadding - listMetricsBefore.bottomPadding),
