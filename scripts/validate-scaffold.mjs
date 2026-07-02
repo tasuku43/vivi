@@ -5,7 +5,6 @@ const root = process.cwd();
 const required = [
   "README.md",
   "AGENTS.md",
-  "GOALS.md",
   "Makefile",
   "Taskfile.yml",
   "package.json",
