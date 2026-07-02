@@ -90,7 +90,8 @@
         "Review/Activity States/CommentsWatchDisconnected"
       ],
       "interactionStories": [
-        "Review/Queue States/InReviewFileThreadExpansionInteraction"
+        "Review/Queue States/InReviewFileThreadExpansionInteraction",
+        "Workspace/Workbench States/InspectorThreadClickOpensRenderedMarkdownThread"
       ]
     },
     {

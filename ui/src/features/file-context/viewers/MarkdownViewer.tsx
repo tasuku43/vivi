@@ -324,6 +324,39 @@ export function MarkdownViewer({
     onCloseComment?.();
   };
 
+  useEffect(() => {
+    if (mode !== "rendered" || diffEnabled || !activeCommentId) return;
+    const markdown = markdownRef.current;
+    if (!markdown) return;
+    const comment = visibleRenderedComments.find(
+      (item) => item.id === activeCommentId,
+    );
+    if (!comment) return;
+    const summary = renderedCommentSummaryForComment(comment, "markdown");
+    if (!summary) return;
+    const blocks = findBlocksForRenderedComment(markdown, summary);
+    if (!blocks.length) return;
+    const target = targetForRenderedCommentBlocks(blocks);
+    if (!target) return;
+    const threadId = comment.threadId ?? comment.id;
+    const key = JSON.stringify(["thread", threadId]);
+    if (
+      renderedThreadTargets.some(
+        (item) => renderedThreadTargetKey(file.path, item) === key,
+      )
+    ) {
+      return;
+    }
+    openRenderedDraft(target, blocks, comment);
+  }, [
+    activeCommentId,
+    diffEnabled,
+    file.path,
+    mode,
+    renderedThreadTargets,
+    visibleRenderedComments,
+  ]);
+
   const onRenderedClick = (event: MouseEvent<HTMLElement>) => {
     if (
       event.target instanceof Element &&
