@@ -95,7 +95,7 @@
 
 :global(.markdown ul),
 :global(.markdown ol) {
-  padding-left: 1.38em;
+  padding-left: 1.05em;
   margin: 14px 0;
 }
 

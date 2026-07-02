@@ -96,9 +96,9 @@
 }
 
 :global(.markdown li.vivi-rendered-comment-block) {
-  --rendered-comment-block-left: calc(-1.35em - 8px);
-  --rendered-comment-block-y-pad: 3px;
-  --rendered-comment-block-bottom-pad: 2px;
+  --rendered-comment-block-left: calc(-1.05em - 8px);
+  --rendered-comment-block-y-pad: 5px;
+  --rendered-comment-block-bottom-pad: var(--rendered-comment-block-y-pad);
   --rendered-comment-block-top: calc(-1 * var(--rendered-comment-block-y-pad));
   --rendered-comment-marker-top: calc(0.85em + 1px);
 }
@@ -146,8 +146,8 @@
 }
 
 :global(.markdown h1.vivi-rendered-comment-block) {
-  --rendered-comment-block-top: -4px;
-  --rendered-comment-block-bottom: 14px;
+  --rendered-comment-block-top: -7px;
+  --rendered-comment-block-bottom: 12px;
 }
 
 :global(.markdown h2.vivi-rendered-comment-block) {

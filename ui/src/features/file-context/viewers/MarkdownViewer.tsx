@@ -18,6 +18,7 @@ import {
   scheduleSelectionCommentUpdate,
   sourceTextForLineRange,
   latestPublishedStatus,
+  matchingOpenThreadForDraft,
   visibleThreadComments,
   type CodeCommentThread as CodeCommentThreadModel,
   type CommentCreateHandler,
@@ -239,24 +240,29 @@ export function MarkdownViewer({
     const hostBlock = blocks.at(-1);
     if (!hostBlock) return;
     const { host, mount } = createRenderedThreadHost(hostBlock);
+    const draft = renderedCommentDraft(file, "markdown", {
+      text: target.text,
+      blockId: target.blockId,
+      selector: target.selector,
+      sourceLineStart: target.sourceLineStart,
+      sourceLineEnd: target.sourceLineEnd,
+      sourceQuote: sourceTextForLineRange(
+        file.content,
+        sourceRangeForTarget(target),
+      ),
+    });
+    const existingThreadId =
+      comment?.threadId ??
+      comment?.id ??
+      matchingOpenRenderedThreadId(file.path, draft, visibleRenderedComments);
     const nextTarget: MarkdownRenderedThreadTarget = {
       blockId: target.blockId,
       blockIds: target.blockIds,
       host,
       mount,
       draft: {
-        ...renderedCommentDraft(file, "markdown", {
-          text: target.text,
-          blockId: target.blockId,
-          selector: target.selector,
-          sourceLineStart: target.sourceLineStart,
-          sourceLineEnd: target.sourceLineEnd,
-          sourceQuote: sourceTextForLineRange(
-            file.content,
-            sourceRangeForTarget(target),
-          ),
-        }),
-        threadId: comment?.threadId ?? comment?.id,
+        ...draft,
+        threadId: existingThreadId,
       },
     };
     const key = renderedThreadTargetKey(file.path, nextTarget);
@@ -624,6 +630,44 @@ function commentsForRenderedTarget(
   return [];
 }
 
+function matchingOpenRenderedThreadId(
+  path: string,
+  draft: CommentDraft,
+  comments: ViviComment[],
+): string | undefined {
+  const thread = matchingOpenThreadForDraft(
+    renderedThreadModelsForComments(path, comments),
+    draft,
+  );
+  return thread?.comments[0]?.threadId ?? thread?.comments[0]?.id;
+}
+
+function renderedThreadModelsForComments(
+  path: string,
+  comments: ViviComment[],
+): CodeCommentThreadModel[] {
+  const byThread = new Map<string, ViviComment[]>();
+  for (const comment of comments) {
+    if (comment.path !== path || comment.anchor.surface !== "rendered") {
+      continue;
+    }
+    const threadId = comment.threadId ?? comment.id;
+    byThread.set(threadId, [...(byThread.get(threadId) ?? []), comment]);
+  }
+  return [...byThread.entries()].map(([threadId, threadComments]) =>
+    renderedThreadModel(
+      path,
+      {
+        path,
+        viewerKind: "markdown",
+        threadId,
+        anchor: threadComments[0]!.anchor,
+      },
+      threadComments,
+    ),
+  );
+}
+
 function renderedThreadModel(
   path: string,
   draft: CommentDraft,
@@ -651,5 +695,5 @@ function renderedThreadTargetKey(
   const lineEnd = target.draft.anchor.canonical.lineEnd ?? lineStart;
   return target.draft.threadId
     ? JSON.stringify(["thread", target.draft.threadId])
-    : JSON.stringify([path, lineStart, lineEnd, target.blockIds.join("|")]);
+    : JSON.stringify([path, lineStart, lineEnd]);
 }

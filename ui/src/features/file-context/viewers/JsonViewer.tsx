@@ -1,18 +1,15 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import type { TextDiff } from "../../../domain/change-review.js";
 import type { ViviComment } from "../../../domain/comments.js";
 import type { FilePayload } from "../../../domain/fs-node.js";
-import {
-  lineRangeForQuote,
-  scheduleSelectionCommentUpdate,
-  selectionCommentTargetInElement,
-  sourceCommentDraft,
-  type CommentCreateHandler,
-  type CommentDraft,
+import type { CommentActivitySummary } from "../../../state/comment-activity.js";
+import type { LineRange } from "../../../state/code-viewer.js";
+import type {
+  CommentCreateHandler,
+  CommentStatusChangeHandler,
 } from "../../../state/comments.js";
 import type { ResolvedTheme } from "../../../state/theme.js";
-import { CommentedSourceLines } from "../../comments/components/CommentedSourceLines.js";
-import { SelectionCommentComposer } from "../../comments/components/SelectionCommentComposer.js";
+import { SourceCommentSurface } from "../../comments/components/SourceCommentSurface.js";
 import {
   DiffToggleButton,
   ViewerToolbar,
@@ -24,6 +21,7 @@ import surfaceStyles from "./ViewerSurface.module.css";
 
 export function JsonViewer({
   file,
+  initialMode,
   theme = "dark",
   diff,
   diffLoading,
@@ -32,9 +30,15 @@ export function JsonViewer({
   onCreateComment,
   comments = [],
   activeCommentId,
+  expandActiveCommentThread = true,
+  currentActorId,
   onOpenComment,
+  onCloseComment,
+  onCommentStatusChange,
+  threadActivities = {},
 }: {
   file: FilePayload;
+  initialMode?: "tree" | "source";
   theme?: ResolvedTheme;
   diff?: TextDiff | null;
   diffLoading?: boolean;
@@ -43,33 +47,20 @@ export function JsonViewer({
   onCreateComment?: CommentCreateHandler;
   comments?: ViviComment[];
   activeCommentId?: string | null;
+  expandActiveCommentThread?: boolean;
+  currentActorId?: string;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
+  onCloseComment?: () => void;
+  onCommentStatusChange?: CommentStatusChangeHandler;
+  threadActivities?: Record<string, CommentActivitySummary>;
 }) {
-  const [mode, setMode] = useState<"tree" | "source">("tree");
-  const [selectionComment, setSelectionComment] = useState<{
-    draft: CommentDraft;
-    rect: DOMRectLike;
-  } | null>(null);
-  const sourceRef = useRef<HTMLDivElement | null>(null);
+  const [mode, setMode] = useState<"tree" | "source">(initialMode ?? "tree");
+  const [selectedRange, setSelectedRange] = useState<LineRange | null>(null);
   const parsed = useMemo(() => parseJson(file.content), [file.content]);
   const source = parsed.ok
     ? `${JSON.stringify(parsed.value, null, 2)}\n`
     : file.content;
-  const updateSourceSelectionComment = () => {
-    const selection = selectionCommentTargetInElement(sourceRef.current);
-    if (!selection) {
-      setSelectionComment(null);
-      return;
-    }
-    setSelectionComment({
-      draft: sourceCommentDraft(
-        file,
-        lineRangeForQuote(source, selection.text),
-        selection.text,
-      ),
-      rect: selection.rect,
-    });
-  };
+  const sourceFile: FilePayload = { ...file, content: source };
 
   return (
     <section className={`${surfaceStyles.jsonViewer} json-viewer`}>
@@ -114,32 +105,33 @@ export function JsonViewer({
           onCreateComment={onCreateComment}
           comments={comments}
           activeCommentId={activeCommentId}
+          expandActiveCommentThread={expandActiveCommentThread}
+          currentActorId={currentActorId}
           onOpenComment={onOpenComment}
+          onCommentStatusChange={onCommentStatusChange}
+          threadActivities={threadActivities}
         />
       ) : mode === "tree" && parsed.ok ? (
         <div className={`${surfaceStyles.jsonTree} json-tree`}>
           <JsonNode name={file.path} value={parsed.value} depth={0} />
         </div>
       ) : (
-        <CommentedSourceLines
-          content={source}
+        <SourceCommentSurface
+          file={sourceFile}
           className={`markdown-source ${surfaceStyles.markdownSource}`}
-          containerRef={sourceRef}
+          selectedRange={selectedRange}
           comments={comments}
           activeCommentId={activeCommentId}
+          expandActiveCommentThread={expandActiveCommentThread}
+          currentActorId={currentActorId}
+          onSelectionChange={setSelectedRange}
+          onCreateComment={onCreateComment}
           onOpenComment={onOpenComment}
-          onMouseUp={() =>
-            scheduleSelectionCommentUpdate(updateSourceSelectionComment)
-          }
-          onKeyUp={updateSourceSelectionComment}
+          onCloseComment={onCloseComment}
+          onCommentStatusChange={onCommentStatusChange}
+          threadActivities={threadActivities}
         />
       )}
-      <SelectionCommentComposer
-        draft={selectionComment?.draft ?? null}
-        rect={selectionComment?.rect ?? null}
-        onSave={onCreateComment}
-        onDismiss={() => setSelectionComment(null)}
-      />
     </section>
   );
 }
@@ -175,7 +167,10 @@ function JsonNode({
 
   if (Array.isArray(value)) {
     return (
-      <details className={`${surfaceStyles.jsonNode} json-node`} open={depth < 2}>
+      <details
+        className={`${surfaceStyles.jsonNode} json-node`}
+        open={depth < 2}
+      >
         <summary>
           <span className={`${surfaceStyles.jsonKey} json-key`}>{name}</span>
           <span className={`${surfaceStyles.jsonValue} json-value`}>
@@ -199,7 +194,10 @@ function JsonNode({
   if (value && typeof value === "object") {
     const entries = Object.entries(value as Record<string, unknown>);
     return (
-      <details className={`${surfaceStyles.jsonNode} json-node`} open={depth < 2}>
+      <details
+        className={`${surfaceStyles.jsonNode} json-node`}
+        open={depth < 2}
+      >
         <summary>
           <span className={`${surfaceStyles.jsonKey} json-key`}>{name}</span>
           <span className={`${surfaceStyles.jsonValue} json-value`}>
@@ -244,8 +242,10 @@ function formatJsonScalar(value: unknown): string {
 }
 
 function jsonValueClassName(value: unknown): string {
-  if (typeof value === "string") return `${surfaceStyles.jsonValueString} string`;
-  if (typeof value === "number") return `${surfaceStyles.jsonValueNumber} number`;
+  if (typeof value === "string")
+    return `${surfaceStyles.jsonValueString} string`;
+  if (typeof value === "number")
+    return `${surfaceStyles.jsonValueNumber} number`;
   if (typeof value === "boolean")
     return `${surfaceStyles.jsonValueBoolean} boolean`;
   if (value === null) return `${surfaceStyles.jsonValueNull} null`;
