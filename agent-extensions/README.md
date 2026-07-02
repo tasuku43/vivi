@@ -17,7 +17,7 @@ Then install `vivi-agent-loop` from the `vivi-agent-extensions` marketplace.
 For local development:
 
 ```bash
-codex plugin marketplace add ./agent-extensions/codex
+codex plugin marketplace add .
 ```
 
 See [codex/README.md](codex/README.md) for structure and design notes.

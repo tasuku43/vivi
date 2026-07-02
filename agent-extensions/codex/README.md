@@ -15,13 +15,13 @@ Then install `vivi-agent-loop` from the `vivi-agent-extensions` marketplace in t
 For sparse marketplace setups, this directory also contains a local catalog:
 
 ```bash
-codex plugin marketplace add <owner>/<repo> --sparse agent-extensions/codex
+codex plugin marketplace add <owner>/<repo> --sparse .agents/plugins
 ```
 
 For local development:
 
 ```bash
-codex plugin marketplace add ./agent-extensions/codex
+codex plugin marketplace add .
 ```
 
 ## Architecture
@@ -29,9 +29,6 @@ codex plugin marketplace add ./agent-extensions/codex
 ```text
 .agents/plugins/marketplace.json
   remote repository entrypoint for Codex
-
-agent-extensions/codex/marketplace.json
-  local or sparse marketplace entrypoint
 
 agent-extensions/codex/vivi-agent-loop/
   .codex-plugin/plugin.json
