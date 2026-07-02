@@ -118,8 +118,8 @@ it("keeps the public README on the Vivi binary distribution path", () => {
 
 it("documents npm as a local Go CLI delegate, not a TypeScript CLI path", () => {
   const readme = readFileSync("README.md", "utf8");
-  const install = readFileSync("docs/27-install.md", "utf8");
-  const cliContract = readFileSync("docs/03-cli-or-api-contract.md", "utf8");
+  const install = readFileSync("docs/operations/27-install.md", "utf8");
+  const cliContract = readFileSync("docs/contracts/03-cli-or-api-contract.md", "utf8");
 
   for (const text of [readme, install]) {
     expect(text).toContain("canonical Go CLI");
@@ -150,7 +150,7 @@ it("publishes Go binary release artifacts without npm or Docker publishing", () 
 
 it("keeps Homebrew and mise install paths on the vivi command", () => {
   const formula = readFileSync("docs/release/homebrew/vivi.rb", "utf8");
-  const install = readFileSync("docs/27-install.md", "utf8");
+  const install = readFileSync("docs/operations/27-install.md", "utf8");
   const oldLowerName = ["path", "lens"].join("");
 
   expect(formula).toContain("class Vivi < Formula");

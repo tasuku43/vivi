@@ -2,7 +2,7 @@
 
 This document describes how Vivi runs after the Go CLI has started a local
 workspace server and delivered the browser SPA. It complements
-`docs/14-architecture.md`, which defines package boundaries and dependency
+`docs/architecture/14-architecture.md`, which defines package boundaries and dependency
 rules.
 
 ## Runtime shape
@@ -20,7 +20,7 @@ cli/main.go
 server.Start
   - bind local HTTP listener
   - build application.Service
-  - serve UI assets, REST compatibility routes, GraphQL, and SSE
+  - serve UI assets, GraphQL, preview/resource routes, review ledger, and SSE
   - start workspace watcher runtime
   |
   v

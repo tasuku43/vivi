@@ -37,5 +37,5 @@ open a Homebrew formula update PR against `tasuku43/homebrew-tap`.
 
 The workflow pins every Action to a commit SHA, grants write permissions only to
 the checksums/release job, and uses a GitHub App token scoped only to the Homebrew
-tap. See `docs/21-supply-chain-security.md` for the dependency and release
+tap. See `docs/engineering/21-supply-chain-security.md` for the dependency and release
 integrity policy.

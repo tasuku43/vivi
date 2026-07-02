@@ -10,7 +10,7 @@ cli/     Go process entrypoint and server composition
 ```
 
 For the runtime flow between the CLI, Go server, workspace watcher, event
-delivery, and browser state, see `docs/25-runtime-architecture.md`.
+delivery, and browser state, see `docs/architecture/25-runtime-architecture.md`.
 
 The project remains one Go module. `cli` may start `server`; `server` does not
 depend on `cli`. The server may serve the generated `ui/dist` asset package but
@@ -48,9 +48,11 @@ methods, including `getFileContext`, `getCommentThreads`, and `exportComments`;
 only infrastructure clients know endpoint paths, transport DTOs, `fetch`, or
 `EventSource`. `GraphqlViviClient` is the normal browser data path and adapts
 GraphQL response shapes before returning domain types. `RestViviClient` is a
-compatibility-only adapter and is not wired into browser startup. The Go runtime
-returns 404 for legacy `/api/*` data routes. Generated operation types stay
-inside infrastructure and are converted by GraphQL adapters before reaching
+development compatibility adapter and is not wired into browser startup. The Go
+runtime returns 404 for removed legacy `/api/*` data routes, while HTTP remains
+the transport for preview resources, raw bytes, workspace events, static assets,
+and the local review-ledger route. Generated operation types stay inside
+infrastructure and are converted by GraphQL adapters before reaching
 application or domain code.
 
 ESLint enforces the dangerous boundaries: features/application cannot import
@@ -76,13 +78,14 @@ Both checks are part of `task check` through `test:architecture` and `test:go`.
 
 The Go server keeps a lightweight application service in `server/application`.
 HTTP transports call that service rather than reaching directly into workspace,
-Git review, or comment stores. Comment thread grouping and export live behind
-that service boundary, so GraphQL resolvers and REST compatibility routes share
-the same behavior. `server/graphql/schema.graphqls` is implemented with
-generated `gqlgen` transport code, and REST data routes remain thin
-compatibility wrappers. Existing REST routes, path containment, preview safety,
-comments, git review, search, diff, and SSE behavior remain the contract during
-the migration.
+Git review, or comment stores. Comment thread grouping, export, Git review,
+search, diff, and workspace reads live behind that service boundary, so GraphQL
+resolvers and HTTP resource routes reuse application behavior instead of
+duplicating policy. `server/graphql/schema.graphqls` is implemented with
+generated `gqlgen` transport code and is the browser data contract. The removed
+legacy REST data routes are documented in `docs/contracts/03-cli-or-api-contract.md` only
+as migration history. Path containment, preview safety, comments, git review,
+search, diff, and SSE behavior remain contract surfaces.
 
 ## Extension points
 

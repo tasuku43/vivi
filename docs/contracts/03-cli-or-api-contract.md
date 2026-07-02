@@ -1780,8 +1780,8 @@ agent comments CLI.
 
 `commentExport` exposes the comment export data path through GraphQL. The
 current supported format is `jsonl`, returned as `CommentExport.content` with
-`contentType: "application/x-ndjson; charset=utf-8"`. The REST export route
-stays available as a compatibility wrapper.
+`contentType: "application/x-ndjson; charset=utf-8"`. Former REST comment
+export routes are no longer served by the Go runtime.
 
 Comment activity is read-only in the GraphQL schema. `commentThreadActivities`
 returns bounded history and `commentThreadActivity` streams new events. Thread
@@ -1795,8 +1795,8 @@ resource metadata and URLs, while `/preview/html` and `/preview/raw/*` continue
 to serve sandboxed iframe/raw bytes with the existing security headers and
 script opt-in behavior.
 
-The REST routes below remain available as compatibility wrappers during the
-GraphQL migration.
+The former REST data routes below remain in this document as migration history
+for older clients and architectural audits.
 
 ## Removed legacy REST data API
 
@@ -1985,7 +1985,7 @@ values for those attributes are not trusted. The existing iframe sandbox and
 script opt-in policy remain in force.
 
 New clients use explicit thread ids for conversations. Anchor grouping is a
-legacy UI fallback only. See `docs/22-comment-thread-lifecycle.md`.
+legacy UI fallback only. See `docs/contracts/22-comment-thread-lifecycle.md`.
 
 ### `POST /api/v1/comments`
 
