@@ -304,6 +304,49 @@ export const InReviewFileThreadExpansionInteraction: Story = {
   },
 };
 
+export const InReviewReadReceiptPlayground: Story = {
+  tags: ["interaction"],
+  render: () => <InReviewReadReceiptPlaygroundFacade />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("region", { name: "Review states" }),
+    ).toHaveTextContent("In Review");
+    await expect(
+      canvas.getByRole("button", {
+        name: "Show receipt threads for docs/product-review.md",
+      }),
+    ).toHaveTextContent("2 open · 1 pending");
+    await expect(
+      canvas.getByRole("button", {
+        name: "Publish pending thread docs/product-review.md L18",
+      }),
+    ).toBeVisible();
+    await expect(
+      canvas.getByText("Codex replied · unread by you"),
+    ).toBeVisible();
+
+    await userEvent.click(
+      canvas.getByRole("button", {
+        name: "Publish pending thread docs/product-review.md L18",
+      }),
+    );
+    await expect(
+      canvas.getByRole("group", {
+        name: "1 unread replies, 1 pending threads",
+      }),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByText("published · not read by agent"),
+    ).toBeVisible();
+    await expect(
+      canvas.getByRole("button", {
+        name: "Show receipt threads for docs/product-review.md",
+      }),
+    ).toHaveTextContent("3 open");
+  },
+};
+
 export const ReviewQueueItemWithLatestAgentActivity: Story = {
   name: "Queue item shows latest agent activity",
   args: {
@@ -1217,4 +1260,445 @@ function InReviewThreadExpansionFacade() {
       </div>
     </aside>
   );
+}
+
+type ReadReceiptThreadState =
+  | "pending"
+  | "not-read"
+  | "agent-read"
+  | "agent-replied"
+  | "human-read"
+  | "resolved";
+
+interface ReadReceiptThread {
+  id: string;
+  path: string;
+  kind: string;
+  location: string;
+  surface: string;
+  preview: string;
+  actor: string;
+  state: ReadReceiptThreadState;
+}
+
+const initialReadReceiptThreads: ReadReceiptThread[] = [
+  {
+    id: "product-l7",
+    path: "docs/product-review.md",
+    kind: "MD",
+    location: "L7",
+    surface: "Rendered Markdown",
+    preview: "Keep the feedback layer visible in the inspector outline story.",
+    actor: "Codex",
+    state: "agent-replied",
+  },
+  {
+    id: "product-l18",
+    path: "docs/product-review.md",
+    kind: "MD",
+    location: "L18",
+    surface: "Source",
+    preview: "Mention the agent-readable contract before the diff example.",
+    actor: "Claude Code",
+    state: "pending",
+  },
+  {
+    id: "product-l31",
+    path: "docs/product-review.md",
+    kind: "MD",
+    location: "L31",
+    surface: "Rendered Markdown",
+    preview: "Keep the draft visibility note near the reviewer workflow.",
+    actor: "Claude Code",
+    state: "agent-read",
+  },
+  {
+    id: "thread-code-l9",
+    path: "ui/src/features/comments/components/CodeCommentThread.tsx",
+    kind: "TSX",
+    location: "L9",
+    surface: "Source",
+    preview: "Pending follow-up copy for the inline thread composer.",
+    actor: "Codex",
+    state: "pending",
+  },
+  {
+    id: "thread-workbench-l42",
+    path: "ui/src/features/workbench/WorkbenchContainer.tsx",
+    kind: "TSX",
+    location: "L42",
+    surface: "Source",
+    preview: "Make the active review stop survive queue movement.",
+    actor: "Claude Code",
+    state: "not-read",
+  },
+];
+
+function InReviewReadReceiptPlaygroundFacade() {
+  const [threads, setThreads] = useState<ReadReceiptThread[]>(
+    () => initialReadReceiptThreads,
+  );
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(
+    () => new Set(["docs/product-review.md"]),
+  );
+  const [openedFile, setOpenedFile] = useState("docs/product-review.md");
+  const [openedThread, setOpenedThread] = useState("product-l7");
+
+  const visibleThreads = threads.filter((thread) => thread.state !== "resolved");
+  const grouped = readReceiptGroups(visibleThreads);
+  const pendingCount = visibleThreads.filter(
+    (thread) => thread.state === "pending",
+  ).length;
+  const unreadReplyCount = visibleThreads.filter(
+    (thread) => thread.state === "agent-replied",
+  ).length;
+  const openCount = visibleThreads.filter(
+    (thread) => thread.state !== "pending",
+  ).length;
+  const reviewedCount = threads.filter(
+    (thread) => thread.state === "resolved",
+  ).length;
+
+  function updateThread(id: string, state: ReadReceiptThreadState) {
+    setThreads((current) =>
+      current.map((thread) =>
+        thread.id === id ? { ...thread, state } : thread,
+      ),
+    );
+    setOpenedThread(id);
+  }
+
+  function togglePath(path: string) {
+    setExpandedPaths((current) => {
+      const next = new Set(current);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+    setOpenedFile(path);
+  }
+
+  return (
+    <aside
+      className={`${sharedUiStyles.inspector} inspector review-thread-pattern-a`}
+      aria-label="Review inspector"
+    >
+      <div
+        className={`${sharedUiStyles.panelTitle} panel-title review-panel-title`}
+      >
+        <span className="review-panel-heading">
+          <span>Review</span>
+          <strong>{unreadReplyCount} need my read</strong>
+        </span>
+        <button
+          className={`${sharedUiStyles.commandButton} ${sharedUiStyles.commandButtonSecondary} command-button command-button-secondary review-next-action`}
+          type="button"
+          onClick={() => {
+            const nextReply =
+              visibleThreads.find((thread) => thread.state === "agent-replied") ??
+              visibleThreads.find((thread) => thread.state === "pending") ??
+              visibleThreads[0];
+            if (nextReply) {
+              setOpenedFile(nextReply.path);
+              setOpenedThread(nextReply.id);
+              setExpandedPaths((current) => new Set(current).add(nextReply.path));
+            }
+          }}
+        >
+          Next
+        </button>
+      </div>
+      <div className="inspect-body">
+        <div className="inspector-review-mode">
+          <section className="review-state-summary" aria-label="Review states">
+            <span className="review-state-card queued">
+              <strong>1</strong>
+              <span>Queued</span>
+            </span>
+            <span className="review-state-card reviewing">
+              <strong>{grouped.length}</strong>
+              <span>In Review</span>
+            </span>
+            <span className="review-state-card reviewed">
+              <strong>{reviewedCount}</strong>
+              <span>Reviewed</span>
+            </span>
+          </section>
+          <div
+            className="review-queue"
+            role="group"
+            aria-label={`${unreadReplyCount} unread replies, ${pendingCount} pending threads`}
+          >
+            <details className="review-state-section queued" open>
+              <summary>
+                <span>Queued</span>
+                <small>1 file waiting for review</small>
+              </summary>
+              <div className="review-state-section-list">
+                <button className="change-open" type="button">
+                  <span
+                    className={`${sharedUiStyles.muted} unread-dot muted`}
+                    aria-hidden="true"
+                  />
+                  <span className="change-main">
+                    <span className="change-heading">
+                      <span className="change-kind">MD</span>
+                      <b>README.md</b>
+                    </span>
+                    <small className="review-thread-summary">
+                      read git · no open
+                    </small>
+                  </span>
+                  <span className="diff-stat">
+                    <span className="diff-add">+8</span>
+                    <span className="diff-remove">-2</span>
+                  </span>
+                </button>
+              </div>
+            </details>
+
+            <details className="review-state-section reviewing" open>
+              <summary>
+                <span>In Review</span>
+                <small>
+                  {unreadReplyCount} replies · {pendingCount} pending
+                </small>
+              </summary>
+              <div className="review-state-section-list">
+                {grouped.map((group) => {
+                  const expanded = expandedPaths.has(group.path);
+                  const active = openedFile === group.path;
+                  const rowAttention = group.threads.some(
+                    (thread) => thread.state === "agent-replied",
+                  );
+                  const groupPendingCount = group.threads.filter(
+                    (thread) => thread.state === "pending",
+                  ).length;
+                  const groupOpenCount = group.threads.length - groupPendingCount;
+                  return (
+                    <div
+                      className={`review-thread-expand-file${active ? " active" : ""}`}
+                      key={group.path}
+                    >
+                      <button
+                        className={`change-open${active ? " active" : ""} has-open-threads${rowAttention ? " has-agent-reply" : ""}`}
+                        type="button"
+                        aria-current={active ? "true" : undefined}
+                        aria-label={`Review queue item, modified ${group.path}${active ? ", current review file" : ""}`}
+                        onClick={() => {
+                          setOpenedFile(group.path);
+                          setExpandedPaths((current) =>
+                            new Set(current).add(group.path),
+                          );
+                        }}
+                      >
+                        <span
+                          className={
+                            rowAttention
+                              ? "unread-dot agent-reply"
+                              : `${sharedUiStyles.muted} unread-dot muted`
+                          }
+                          aria-hidden="true"
+                        />
+                        <span className="change-main">
+                          <span className="change-heading">
+                            <span className="change-kind">{group.kind}</span>
+                            <b>{readReceiptBasename(group.path)}</b>
+                          </span>
+                          <small className="review-thread-summary">
+                            {readReceiptGroupSummary(group.threads)}
+                          </small>
+                        </span>
+                        <span
+                          className="review-thread-count-space"
+                          aria-hidden="true"
+                        />
+                      </button>
+                      <button
+                        className={`review-thread-count-toggle${groupPendingCount ? " pending" : ""}${rowAttention ? " reply" : ""}`}
+                        type="button"
+                        aria-expanded={expanded}
+                        aria-label={`Show receipt threads for ${group.path}`}
+                        onClick={() => togglePath(group.path)}
+                      >
+                        {groupOpenCount} open
+                        {groupPendingCount ? ` · ${groupPendingCount} pending` : ""}
+                      </button>
+                      {expanded ? (
+                        <div
+                          className="review-thread-hairline-list"
+                          aria-label={`Receipt thread states for ${group.path}`}
+                        >
+                          {group.threads.map((thread) => (
+                            <div
+                              className="review-thread-hairline-item"
+                              key={thread.id}
+                            >
+                              <button
+                                className={`review-thread-hairline-row ${
+                                  openedThread === thread.id ? "active" : ""
+                                }${
+                                  thread.state === "pending"
+                                    ? " has-publish-action"
+                                    : ""
+                                }`}
+                                type="button"
+                                aria-label={`Open ${readReceiptStateLabel(
+                                  thread.state,
+                                )} item, ${thread.path}, ${thread.location}, ${thread.surface}`}
+                                onClick={() => {
+                                  setOpenedFile(thread.path);
+                                  setOpenedThread(thread.id);
+                                }}
+                              >
+                                <span className="review-thread-hairline-main">
+                                  <span className="review-thread-hairline-title">
+                                    <span>
+                                      {thread.location} · {thread.surface}
+                                    </span>
+                                    <span
+                                      className={`review-thread-status-badge ${readReceiptStatusTone(
+                                        thread.state,
+                                      )}`}
+                                    >
+                                      {readReceiptStatusLabel(thread.state)}
+                                    </span>
+                                  </span>
+                                  <span className="review-thread-hairline-preview">
+                                    {thread.preview}
+                                  </span>
+                                  <span className="review-thread-hairline-meta">
+                                    {readReceiptMeta(thread)}
+                                  </span>
+                                </span>
+                              </button>
+                              {thread.state === "pending" ? (
+                               <button
+                                  className="review-thread-publish-button"
+                                  type="button"
+                                  aria-label={`Publish pending thread ${thread.path} ${thread.location}`}
+                                  onClick={() => updateThread(thread.id, "not-read")}
+                               >
+                                  Publish
+                               </button>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
+
+            <details className="review-state-section reviewed">
+              <summary>
+                <span>Reviewed</span>
+                <small>{reviewedCount} reviewed</small>
+              </summary>
+            </details>
+          </div>
+          <p
+            className={`${sharedUiStyles.srOnly} sr-only`}
+            role="status"
+            aria-label="Opened file"
+          >
+            {openedFile}
+          </p>
+          <p
+            className={`${sharedUiStyles.srOnly} sr-only`}
+            role="status"
+            aria-label="Opened thread"
+          >
+            {openedThread}
+          </p>
+          <p
+            className={`${sharedUiStyles.srOnly} sr-only`}
+            role="status"
+            aria-label="Receipt counts"
+          >
+            {unreadReplyCount} unread replies, {pendingCount} pending,{" "}
+            {openCount} open
+          </p>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function readReceiptGroups(threads: ReadReceiptThread[]) {
+  const groups = new Map<
+    string,
+    { path: string; kind: string; threads: ReadReceiptThread[] }
+  >();
+  for (const thread of threads) {
+    const current = groups.get(thread.path);
+    if (current) current.threads.push(thread);
+    else {
+      groups.set(thread.path, {
+        path: thread.path,
+        kind: thread.kind,
+        threads: [thread],
+      });
+    }
+  }
+  return [...groups.values()];
+}
+
+function readReceiptBasename(path: string): string {
+  return path.split("/").at(-1) ?? path;
+}
+
+function readReceiptGroupSummary(threads: ReadReceiptThread[]): string {
+  const unreadReplies = threads.filter(
+    (thread) => thread.state === "agent-replied",
+  ).length;
+  const pending = threads.filter((thread) => thread.state === "pending").length;
+  const read = threads.filter((thread) => thread.state === "agent-read").length;
+  const notRead = threads.filter((thread) => thread.state === "not-read").length;
+  if (unreadReplies) return `${unreadReplies} agent reply · needs my read`;
+  if (pending) return `${pending} pending · not agent-visible`;
+  if (read) return `${read} read receipt · waiting on reply`;
+  if (notRead) return "not read by agent · still open";
+  return "reply read by you";
+}
+
+function readReceiptStateLabel(state: ReadReceiptThreadState): string {
+  if (state === "pending") return "pending";
+  if (state === "agent-replied") return "unread reply";
+  if (state === "agent-read") return "agent-read";
+  if (state === "human-read") return "reply-read";
+  if (state === "resolved") return "resolved";
+  return "not-read";
+}
+
+function readReceiptStatusLabel(state: ReadReceiptThreadState): string {
+  if (state === "pending") return "Pending";
+  if (state === "not-read") return "Not read";
+  if (state === "agent-read") return "Agent read";
+  if (state === "agent-replied") return "Unread reply";
+  if (state === "human-read") return "Reply read";
+  if (state === "resolved") return "Resolved";
+  return "Open";
+}
+
+function readReceiptStatusTone(state: ReadReceiptThreadState): string {
+  if (state === "pending") return "pending";
+  if (state === "agent-replied") return "reply-unread";
+  if (state === "agent-read") return "agent-read";
+  if (state === "human-read") return "reply-read";
+  if (state === "resolved") return "resolved";
+  return "not-read";
+}
+
+function readReceiptMeta(thread: ReadReceiptThread): string {
+  if (thread.state === "pending") return "not agent-visible · publishes as open";
+  if (thread.state === "not-read") return "published · not read by agent";
+  if (thread.state === "agent-read")
+    return `${thread.actor} read · waiting on reply`;
+  if (thread.state === "agent-replied")
+    return `${thread.actor} replied · unread by you`;
+  if (thread.state === "human-read") return "reply read by you";
+  return "resolved · hidden from active queue";
 }

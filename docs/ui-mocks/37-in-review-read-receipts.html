@@ -1,0 +1,1170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>37 In Review read receipts - Vivi mock</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --vivi-color-background: #081018;
+        --vivi-color-surface-panel: #0f1a22;
+        --vivi-color-surface-panel-raised: #14212b;
+        --vivi-color-surface-reader: #09131b;
+        --vivi-color-content-primary: #eef4f7;
+        --vivi-color-content-muted: #9cabb5;
+        --vivi-color-content-subtle: #71828d;
+        --vivi-color-border-default: #233641;
+        --vivi-color-border-soft: rgba(255, 255, 255, 0.08);
+        --vivi-color-accent: #75c7d3;
+        --vivi-color-accent-border: #477985;
+        --vivi-color-accent-surface: rgba(89, 168, 181, 0.13);
+        --vivi-color-accent-surface-subtle: rgba(89, 168, 181, 0.08);
+        --vivi-color-comment-text: #aee9df;
+        --vivi-color-comment-border: #4f8d84;
+        --vivi-color-comment-surface: rgba(83, 151, 142, 0.16);
+        --vivi-color-review-unread: #d7b56d;
+        --vivi-color-review-unread-surface: rgba(215, 181, 109, 0.12);
+        --vivi-color-diff-add: #71d99a;
+        --vivi-color-diff-remove: #ff8585;
+        --shadow: 0 22px 80px rgba(0, 0, 0, 0.34);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--vivi-color-background);
+        color: var(--vivi-color-content-primary);
+      }
+
+      body {
+        padding: 24px;
+      }
+
+      button,
+      textarea {
+        font: inherit;
+      }
+
+      .page {
+        display: grid;
+        gap: 20px;
+        max-width: 1460px;
+        margin: 0 auto;
+      }
+
+      .intro {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 20px;
+        align-items: end;
+      }
+
+      .kicker,
+      .label {
+        color: var(--vivi-color-content-subtle);
+        font-size: 11px;
+        font-weight: 820;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        margin-top: 4px;
+        font-size: 28px;
+        letter-spacing: 0;
+      }
+
+      .intro p {
+        max-width: 880px;
+        margin-top: 8px;
+        color: var(--vivi-color-content-muted);
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      .jump {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: end;
+        gap: 8px;
+      }
+
+      .jump a,
+      .pill,
+      .badge,
+      .keycap {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        border: 1px solid var(--vivi-color-border-soft);
+        border-radius: 999px;
+        padding: 0 8px;
+        color: var(--vivi-color-content-muted);
+        font-size: 11px;
+        font-weight: 760;
+        text-decoration: none;
+      }
+
+      .jump a:hover {
+        border-color: var(--vivi-color-accent-border);
+        color: var(--vivi-color-content-primary);
+      }
+
+      .guidance {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        overflow: hidden;
+        border: 1px solid var(--vivi-color-border-default);
+        border-radius: 8px;
+        background: var(--vivi-color-surface-panel);
+      }
+
+      .guidance div {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+        padding: 12px;
+        border-right: 1px solid var(--vivi-color-border-soft);
+      }
+
+      .guidance div:last-child {
+        border-right: 0;
+      }
+
+      .guidance strong {
+        font-size: 12px;
+      }
+
+      .guidance span {
+        color: var(--vivi-color-content-muted);
+        font-size: 11.5px;
+        line-height: 1.45;
+      }
+
+      .concept {
+        display: grid;
+        grid-template-columns: 292px minmax(0, 1fr);
+        overflow: hidden;
+        border: 1px solid var(--vivi-color-border-default);
+        border-radius: 8px;
+        background: var(--vivi-color-surface-panel);
+        box-shadow: var(--shadow);
+      }
+
+      .brief {
+        display: grid;
+        align-content: start;
+        gap: 12px;
+        padding: 18px;
+        border-right: 1px solid var(--vivi-color-border-default);
+      }
+
+      .brief h2 {
+        font-size: 22px;
+        letter-spacing: 0;
+      }
+
+      .brief p,
+      .brief li {
+        color: var(--vivi-color-content-muted);
+        font-size: 12.5px;
+        line-height: 1.55;
+      }
+
+      .brief ul {
+        display: grid;
+        gap: 7px;
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      .scores {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .pill.good {
+        border-color: color-mix(
+          in srgb,
+          var(--vivi-color-comment-border) 54%,
+          var(--vivi-color-border-soft)
+        );
+        background: var(--vivi-color-comment-surface);
+        color: var(--vivi-color-comment-text);
+      }
+
+      .pill.warn {
+        border-color: color-mix(
+          in srgb,
+          var(--vivi-color-review-unread) 48%,
+          var(--vivi-color-border-soft)
+        );
+        background: var(--vivi-color-review-unread-surface);
+        color: var(--vivi-color-review-unread);
+      }
+
+      .mock-area {
+        display: grid;
+        place-items: start end;
+        min-height: 670px;
+        padding: 34px;
+        background: var(--vivi-color-surface-reader);
+      }
+
+      .inspector {
+        width: 396px;
+        min-height: 620px;
+        overflow: hidden;
+        border-left: 1px solid var(--vivi-color-border-default);
+        background: var(--vivi-color-surface-panel);
+      }
+
+      .review-panel-title {
+        min-height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--vivi-color-border-default);
+      }
+
+      .review-panel-heading {
+        display: grid;
+        gap: 2px;
+      }
+
+      .review-panel-heading span {
+        color: var(--vivi-color-content-muted);
+        font-size: 12px;
+        font-weight: 560;
+      }
+
+      .review-panel-heading strong {
+        color: var(--vivi-color-content-primary);
+        font-size: 15px;
+        line-height: 1.2;
+      }
+
+      .command-button {
+        min-height: 28px;
+        border: 1px solid var(--vivi-color-border-default);
+        border-radius: 7px;
+        background: var(--vivi-color-surface-panel-raised);
+        color: var(--vivi-color-content-primary);
+        padding: 5px 9px;
+        font-size: 12px;
+      }
+
+      .review-state-summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        border-bottom: 1px solid var(--vivi-color-border-default);
+      }
+
+      .review-state-card {
+        display: grid;
+        gap: 3px;
+        border-right: 1px solid var(--vivi-color-border-soft);
+        padding: 10px 12px;
+        color: var(--vivi-color-content-muted);
+      }
+
+      .review-state-card:last-child {
+        border-right: 0;
+      }
+
+      .review-state-card strong {
+        color: var(--vivi-color-content-primary);
+        font-size: 18px;
+        line-height: 1;
+      }
+
+      .review-state-card span {
+        overflow: hidden;
+        font-size: 11px;
+        font-weight: 720;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .review-state-section {
+        border-bottom: 1px solid var(--vivi-color-border-default);
+      }
+
+      .review-state-section summary,
+      .section-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 34px;
+        padding: 0 14px;
+        color: var(--vivi-color-content-primary);
+        font-size: 12px;
+        font-weight: 820;
+        list-style: none;
+      }
+
+      .review-state-section summary small,
+      .section-heading small {
+        color: var(--vivi-color-content-muted);
+        font-size: 11px;
+        font-weight: 560;
+      }
+
+      .change-open {
+        width: 100%;
+        min-width: 0;
+        display: grid;
+        grid-template-columns: 10px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 3px 8px;
+        min-height: 56px;
+        border: 0;
+        border-top: 1px solid var(--vivi-color-border-soft);
+        border-radius: 0;
+        background: transparent;
+        color: var(--vivi-color-content-primary);
+        padding: 10px 14px;
+        text-align: left;
+      }
+
+      .change-open.has-open-threads {
+        box-shadow: inset 2px 0 0
+          color-mix(
+            in srgb,
+            var(--vivi-color-content-muted) 34%,
+            transparent
+          );
+      }
+
+      .change-open.has-agent-reply {
+        background: linear-gradient(
+          90deg,
+          color-mix(
+            in srgb,
+            var(--vivi-color-comment-surface) 42%,
+            transparent
+          ),
+          transparent 58%
+        );
+        box-shadow: inset 2px 0 0 var(--vivi-color-comment-border);
+      }
+
+      .change-open.active {
+        background: linear-gradient(
+          90deg,
+          color-mix(
+            in srgb,
+            var(--vivi-color-accent-surface-subtle) 78%,
+            transparent
+          ),
+          transparent 62%
+        );
+        box-shadow: inset 2px 0 0 var(--vivi-color-accent);
+      }
+
+      .change-open.active.has-open-threads {
+        background: linear-gradient(
+          90deg,
+          color-mix(
+            in srgb,
+            var(--vivi-color-comment-surface) 48%,
+            transparent
+          ),
+          transparent 62%
+        );
+        box-shadow: inset 2px 0 0 var(--vivi-color-comment-border);
+      }
+
+      .unread-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--vivi-color-accent);
+        box-shadow: 0 0 0 2px
+          color-mix(in srgb, var(--vivi-color-accent) 16%, transparent);
+      }
+
+      .unread-dot.agent-reply {
+        width: 9px;
+        height: 9px;
+        background: var(--vivi-color-comment-text);
+        box-shadow:
+          0 0 0 3px
+            color-mix(
+              in srgb,
+              var(--vivi-color-comment-border) 22%,
+              transparent
+            ),
+          0 0 16px
+            color-mix(
+              in srgb,
+              var(--vivi-color-comment-border) 42%,
+              transparent
+            );
+      }
+
+      .unread-dot.muted {
+        background: color-mix(
+          in srgb,
+          var(--vivi-color-content-muted) 58%,
+          transparent
+        );
+        box-shadow: 0 0 0 1px
+          color-mix(
+            in srgb,
+            var(--vivi-color-content-muted) 16%,
+            transparent
+          );
+      }
+
+      .change-main,
+      .thread-main {
+        min-width: 0;
+        display: grid;
+        gap: 3px;
+      }
+
+      .change-heading,
+      .thread-title {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .change-kind {
+        flex: 0 0 auto;
+        min-width: 24px;
+        border: 1px solid var(--vivi-color-border-soft);
+        border-radius: 5px;
+        background: color-mix(
+          in srgb,
+          var(--vivi-color-surface-panel-raised) 72%,
+          transparent
+        );
+        color: var(--vivi-color-content-muted);
+        font-size: 9px;
+        font-weight: 860;
+        line-height: 1;
+        padding: 3px 4px;
+        text-align: center;
+      }
+
+      .change-open b,
+      .thread-title b {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--vivi-color-content-primary);
+        font-size: 12px;
+        line-height: 1.25;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .change-open small,
+      .review-thread-summary,
+      .thread-row small {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--vivi-color-content-muted);
+        font-size: 10.5px;
+        line-height: 1.25;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .review-thread-count-space {
+        width: 72px;
+      }
+
+      .review-thread-count-toggle,
+      .receipt-chip {
+        min-height: 24px;
+        border: 1px solid var(--vivi-color-border-soft);
+        border-radius: 999px;
+        background: color-mix(
+          in srgb,
+          var(--vivi-color-surface-panel-raised) 72%,
+          transparent
+        );
+        color: var(--vivi-color-content-muted);
+        font-size: 10.5px;
+        font-weight: 760;
+        padding: 0 8px;
+        white-space: nowrap;
+      }
+
+      .review-thread-count-toggle.reply,
+      .receipt-chip.reply {
+        border-color: color-mix(
+          in srgb,
+          var(--vivi-color-comment-border) 56%,
+          var(--vivi-color-border-soft)
+        );
+        background: var(--vivi-color-comment-surface);
+        color: var(--vivi-color-comment-text);
+      }
+
+      .review-thread-count-toggle.pending {
+        border-color: color-mix(
+          in srgb,
+          var(--vivi-color-review-unread) 58%,
+          var(--vivi-color-border-soft)
+        );
+        background: var(--vivi-color-review-unread-surface);
+        color: var(--vivi-color-review-unread);
+      }
+
+      .review-thread-expand-file {
+        position: relative;
+      }
+
+      .review-thread-expand-file .review-thread-count-toggle {
+        position: absolute;
+        top: 16px;
+        right: 14px;
+      }
+
+      .review-thread-hairline-list {
+        display: grid;
+        gap: 0;
+        padding: 0 0 8px 32px;
+      }
+
+      .thread-row {
+        display: grid;
+        grid-template-columns: 10px minmax(0, 1fr) auto;
+        align-items: start;
+        gap: 8px;
+        padding: 8px 14px 8px 0;
+        border-top: 1px solid var(--vivi-color-border-soft);
+      }
+
+      .thread-row.reply {
+        background: linear-gradient(
+          90deg,
+          color-mix(
+            in srgb,
+            var(--vivi-color-comment-surface) 34%,
+            transparent
+          ),
+          transparent 72%
+        );
+      }
+
+      .thread-row .unread-dot {
+        margin-top: 7px;
+      }
+
+      .thread-preview {
+        overflow: hidden;
+        color: var(--vivi-color-content-primary);
+        font-size: 11.5px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .activity-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        padding: 8px 14px;
+        border-top: 1px solid var(--vivi-color-border-soft);
+      }
+
+      .comment-frame {
+        width: 500px;
+        align-self: center;
+        justify-self: center;
+        overflow: hidden;
+        border: 1px solid var(--vivi-color-comment-border);
+        border-radius: 7px;
+        background: var(--vivi-color-surface-panel);
+        box-shadow: var(--shadow);
+      }
+
+      .code-comment-thread-header {
+        min-height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--vivi-color-border-default);
+      }
+
+      .code-comment-thread-header > div {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .comment-status {
+        border: 1px solid var(--vivi-color-comment-border);
+        border-radius: 999px;
+        color: var(--vivi-color-comment-text);
+        font-size: 10px;
+        font-weight: 800;
+        padding: 2px 7px;
+      }
+
+      .comment-activity-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--vivi-color-border-default);
+      }
+
+      .comment-activity-summary span {
+        border: 1px solid var(--vivi-color-border-soft);
+        border-radius: 999px;
+        color: var(--vivi-color-content-muted);
+        font-size: 11px;
+        padding: 3px 7px;
+      }
+
+      .comment-activity-summary .new {
+        border-color: color-mix(
+          in srgb,
+          var(--vivi-color-comment-border) 56%,
+          var(--vivi-color-border-soft)
+        );
+        color: var(--vivi-color-comment-text);
+      }
+
+      .message {
+        display: grid;
+        gap: 6px;
+        padding: 12px;
+        border-bottom: 1px solid var(--vivi-color-border-default);
+      }
+
+      .message.reply {
+        background: linear-gradient(
+          90deg,
+          color-mix(
+            in srgb,
+            var(--vivi-color-comment-surface) 42%,
+            transparent
+          ),
+          transparent 68%
+        );
+      }
+
+      .message-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--vivi-color-content-muted);
+        font-size: 11.5px;
+      }
+
+      .message-meta strong {
+        color: var(--vivi-color-content-primary);
+        font-size: 12px;
+      }
+
+      .message p {
+        color: var(--vivi-color-content-primary);
+        font-size: 12.5px;
+        line-height: 1.45;
+      }
+
+      .new-boundary {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        color: var(--vivi-color-comment-text);
+        font-size: 10.5px;
+        font-weight: 820;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+      }
+
+      .new-boundary::before,
+      .new-boundary::after {
+        content: "";
+        height: 1px;
+        background: color-mix(
+          in srgb,
+          var(--vivi-color-comment-border) 50%,
+          transparent
+        );
+      }
+
+      .composer {
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+      }
+
+      textarea {
+        min-height: 58px;
+        border: 1px solid var(--vivi-color-border-default);
+        border-radius: 7px;
+        background: #071018;
+        color: var(--vivi-color-content-primary);
+        padding: 8px;
+        resize: vertical;
+      }
+
+      .hint {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--vivi-color-content-muted);
+        font-size: 11.5px;
+      }
+
+      @media (max-width: 1040px) {
+        body {
+          padding: 14px;
+        }
+
+        .intro,
+        .concept,
+        .guidance {
+          grid-template-columns: 1fr;
+        }
+
+        .brief {
+          border-right: 0;
+          border-bottom: 1px solid var(--vivi-color-border-default);
+        }
+
+        .mock-area {
+          place-items: start stretch;
+          padding: 16px;
+        }
+
+        .inspector,
+        .comment-frame {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="intro">
+        <div>
+          <div class="kicker">Vivi concept mock 37, golden-path aligned</div>
+          <h1>In Review read receipts and unread agent replies</h1>
+          <p>
+            This revision keeps the existing Storybook golden path intact:
+            flat Review Queue rows, muted read receipts, the existing
+            agent-reply dot, hairline thread expansion, and inline thread
+            activity pills. It explores copy and density, not a new dashboard.
+          </p>
+        </div>
+        <nav class="jump" aria-label="Concept jump links">
+          <a href="#concept-a">A Row copy</a>
+          <a href="#concept-b">B Thread expansion</a>
+          <a href="#concept-c">C Open thread</a>
+        </nav>
+      </header>
+
+      <section class="guidance" aria-label="Golden path constraints">
+        <div>
+          <strong>Reference stories</strong>
+          <span>InReviewFileThreadExpansion, LatestAgentActivity</span>
+        </div>
+        <div>
+          <strong>Do preserve</strong>
+          <span>396px inspector, flat rows, left state rail, tiny pills</span>
+        </div>
+        <div>
+          <strong>Do not add</strong>
+          <span>separate inbox dashboard, card stacks, large badges</span>
+        </div>
+        <div>
+          <strong>State rule</strong>
+          <span>agent read is quiet; agent reply creates human attention</span>
+        </div>
+      </section>
+
+      <section class="concept" id="concept-a">
+        <aside class="brief">
+          <div class="label">Concept A</div>
+          <h2>Row Copy Only</h2>
+          <p>
+            The smallest compatible move: keep the current In Review row shape
+            and change only the dot, summary copy, and count pill.
+          </p>
+          <div class="scores">
+            <span class="pill good">Lowest risk</span>
+            <span class="pill good">Matches snapshots</span>
+            <span class="pill warn">Less detail</span>
+          </div>
+          <ul>
+            <li>Agent read receipts use the existing muted dot.</li>
+            <li>Unread agent replies use existing `.unread-dot.agent-reply`.</li>
+            <li>`Ctrl Shift I` should target the first row with reply attention.</li>
+          </ul>
+        </aside>
+        <div class="mock-area">
+          <aside class="inspector" aria-label="Review inspector">
+            <div class="review-panel-title">
+              <div class="review-panel-heading">
+                <span>Review</span>
+                <strong>2 need action</strong>
+              </div>
+              <button class="command-button" type="button">Next</button>
+            </div>
+            <section class="review-state-summary" aria-label="Review states">
+              <span class="review-state-card queued">
+                <strong>0</strong>
+                <span>Queued</span>
+              </span>
+              <span class="review-state-card reviewing">
+                <strong>4</strong>
+                <span>In Review</span>
+              </span>
+              <span class="review-state-card reviewed">
+                <strong>5</strong>
+                <span>Reviewed</span>
+              </span>
+            </section>
+            <details class="review-state-section" open>
+              <summary><span>Queued</span><small>No queued files</small></summary>
+              <button class="change-open" type="button">
+                <span class="unread-dot muted"></span>
+                <span class="change-main">
+                  <span class="change-heading">
+                    <span class="change-kind">MD</span>
+                    <b>No queued files</b>
+                  </span>
+                  <small class="review-thread-summary"
+                    >New HEAD evidence will appear here.</small
+                  >
+                </span>
+              </button>
+            </details>
+            <details class="review-state-section" open>
+              <summary>
+                <span>In Review</span><small>2 replies need my read</small>
+              </summary>
+              <div class="review-thread-expand-file">
+                <button class="change-open has-agent-reply active" type="button">
+                  <span class="unread-dot agent-reply"></span>
+                  <span class="change-main">
+                    <span class="change-heading">
+                      <span class="change-kind">MD</span>
+                      <b>agent-handoff.md</b>
+                    </span>
+                    <small class="review-thread-summary"
+                      >Codex replied 12d ago - needs decision</small
+                    >
+                  </span>
+                  <span class="review-thread-count-space"></span>
+                </button>
+                <button class="review-thread-count-toggle reply" type="button">
+                  1 reply
+                </button>
+              </div>
+              <div class="review-thread-expand-file">
+                <button class="change-open has-agent-reply" type="button">
+                  <span class="unread-dot agent-reply"></span>
+                  <span class="change-main">
+                    <span class="change-heading">
+                      <span class="change-kind">TSX</span>
+                      <b>WorkbenchContainer.tsx</b>
+                    </span>
+                    <small class="review-thread-summary"
+                      >Claude Code replied - unread by you</small
+                    >
+                  </span>
+                  <span class="review-thread-count-space"></span>
+                </button>
+                <button class="review-thread-count-toggle reply" type="button">
+                  2 replies
+                </button>
+              </div>
+              <div class="review-thread-expand-file">
+                <button class="change-open has-open-threads" type="button">
+                  <span class="unread-dot muted"></span>
+                  <span class="change-main">
+                    <span class="change-heading">
+                      <span class="change-kind">MD</span>
+                      <b>product-review.md</b>
+                    </span>
+                    <small class="review-thread-summary"
+                      >Claude Code read - waiting on reply</small
+                    >
+                  </span>
+                  <span class="review-thread-count-space"></span>
+                </button>
+                <button class="review-thread-count-toggle" type="button">
+                  2 open
+                </button>
+              </div>
+              <div class="review-thread-expand-file">
+                <button class="change-open has-open-threads" type="button">
+                  <span class="unread-dot muted"></span>
+                  <span class="change-main">
+                    <span class="change-heading">
+                      <span class="change-kind">TS</span>
+                      <b>CodeCommentThread.tsx</b>
+                    </span>
+                    <small class="review-thread-summary"
+                      >not read by agent - still open</small
+                    >
+                  </span>
+                  <span class="review-thread-count-space"></span>
+                </button>
+                <button class="review-thread-count-toggle pending" type="button">
+                  1 open
+                </button>
+              </div>
+            </details>
+            <details class="review-state-section">
+              <summary><span>Reviewed</span><small>5 reviewed</small></summary>
+            </details>
+          </aside>
+        </div>
+      </section>
+
+      <section class="concept" id="concept-b">
+        <aside class="brief">
+          <div class="label">Concept B</div>
+          <h2>Thread Expansion Receipts</h2>
+          <p>
+            Keep the same queue rows, but when the file is expanded show each
+            thread's receipt state in the existing hairline list.
+          </p>
+          <div class="scores">
+            <span class="pill good">Still local to In Review</span>
+            <span class="pill good">Better attribution</span>
+            <span class="pill warn">One click deeper</span>
+          </div>
+          <ul>
+            <li>File row stays compact and scannable.</li>
+            <li>Thread rows distinguish `unread reply`, `agent read`, and `not read`.</li>
+            <li>No new top-level section is introduced.</li>
+          </ul>
+        </aside>
+        <div class="mock-area">
+          <aside class="inspector" aria-label="Review inspector">
+            <div class="review-panel-title">
+              <div class="review-panel-heading">
+                <span>Review</span>
+                <strong>3 in review</strong>
+              </div>
+              <button class="command-button" type="button">Next</button>
+            </div>
+            <section class="review-state-summary" aria-label="Review states">
+              <span class="review-state-card queued">
+                <strong>1</strong>
+                <span>Queued</span>
+              </span>
+              <span class="review-state-card reviewing">
+                <strong>3</strong>
+                <span>In Review</span>
+              </span>
+              <span class="review-state-card reviewed">
+                <strong>5</strong>
+                <span>Reviewed</span>
+              </span>
+            </section>
+            <details class="review-state-section" open>
+              <summary><span>Queued</span><small>1 file waiting</small></summary>
+              <button class="change-open" type="button">
+                <span class="unread-dot muted"></span>
+                <span class="change-main">
+                  <span class="change-heading">
+                    <span class="change-kind">MD</span>
+                    <b>README.md</b>
+                  </span>
+                  <small class="review-thread-summary">read git - no open</small>
+                </span>
+                <span class="diff-stat">
+                  <span style="color: var(--vivi-color-diff-add)">+8</span>
+                  <span style="color: var(--vivi-color-diff-remove)">-2</span>
+                </span>
+              </button>
+            </details>
+            <details class="review-state-section" open>
+              <summary><span>In Review</span><small>1 reply - 2 waiting</small></summary>
+              <div class="review-thread-expand-file">
+                <button class="change-open has-agent-reply active" type="button">
+                  <span class="unread-dot agent-reply"></span>
+                  <span class="change-main">
+                    <span class="change-heading">
+                      <span class="change-kind">MD</span>
+                      <b>agent-handoff.md</b>
+                    </span>
+                    <small class="review-thread-summary"
+                      >1 unread reply - 1 read receipt</small
+                    >
+                  </span>
+                  <span class="review-thread-count-space"></span>
+                </button>
+                <button class="review-thread-count-toggle reply" type="button">
+                  2 open
+                </button>
+                <div class="review-thread-hairline-list">
+                  <div class="thread-row reply">
+                    <span class="unread-dot agent-reply"></span>
+                    <span class="thread-main">
+                      <span class="thread-title">
+                        <b>L12 - Rendered Markdown</b>
+                      </span>
+                      <span class="thread-preview"
+                        >Codex replied with implementation notes.</span
+                      >
+                      <small>agent reply - unread by you</small>
+                    </span>
+                    <span class="receipt-chip reply">Unread</span>
+                  </div>
+                  <div class="thread-row">
+                    <span class="unread-dot muted"></span>
+                    <span class="thread-main">
+                      <span class="thread-title">
+                        <b>L18 - Source</b>
+                      </span>
+                      <span class="thread-preview"
+                        >Mention the agent-readable contract earlier.</span
+                      >
+                      <small>Claude Code read - waiting on reply</small>
+                    </span>
+                    <span class="receipt-chip">Read</span>
+                  </div>
+                </div>
+              </div>
+              <div class="review-thread-expand-file">
+                <button class="change-open has-open-threads" type="button">
+                  <span class="unread-dot muted"></span>
+                  <span class="change-main">
+                    <span class="change-heading">
+                      <span class="change-kind">TS</span>
+                      <b>CodeCommentThread.tsx</b>
+                    </span>
+                    <small class="review-thread-summary"
+                      >not read by agent - no new movement</small
+                    >
+                  </span>
+                  <span class="review-thread-count-space"></span>
+                </button>
+                <button class="review-thread-count-toggle" type="button">
+                  1 open
+                </button>
+              </div>
+            </details>
+            <details class="review-state-section">
+              <summary><span>Reviewed</span><small>5 reviewed</small></summary>
+            </details>
+          </aside>
+        </div>
+      </section>
+
+      <section class="concept" id="concept-c">
+        <aside class="brief">
+          <div class="label">Concept C</div>
+          <h2>Open Thread Boundary</h2>
+          <p>
+            Use the existing inline thread card as the place for exact
+            conversation truth. The queue gets the user to the thread; the
+            thread shows what is new to the human.
+          </p>
+          <div class="scores">
+            <span class="pill good">Matches inline snapshots</span>
+            <span class="pill good">Precise read boundary</span>
+            <span class="pill warn">Not visible until opened</span>
+          </div>
+          <ul>
+            <li>Activity pills stay in the current thread header area.</li>
+            <li>Read receipts stay quiet beside other activity.</li>
+            <li>The only new element is a thin `New to you` divider.</li>
+          </ul>
+        </aside>
+        <div class="mock-area">
+          <article class="comment-frame" aria-label="Comment thread">
+            <header class="code-comment-thread-header">
+              <div>
+                <span style="color: var(--vivi-color-comment-text)">o</span>
+                <strong>Lines 9-12</strong>
+                <span style="color: var(--vivi-color-content-muted); font-size: 12px"
+                  >3 messages</span
+                >
+                <span class="comment-status">Open</span>
+              </div>
+              <span style="color: var(--vivi-color-content-muted)">x</span>
+            </header>
+            <div class="comment-activity-summary" aria-label="Thread activity">
+              <span>Claude Code read 19m ago</span>
+              <span class="new">Codex replied 18m ago</span>
+              <span>3 events</span>
+            </div>
+            <section class="message">
+              <div class="message-meta">
+                <strong>Started by Tasuku</strong>
+                <time>Jun 20, 06:10 PM</time>
+                <span class="receipt-chip">Published</span>
+              </div>
+              <p>
+                Please make In Review show whether the agent actually read the
+                thread.
+              </p>
+            </section>
+            <div class="activity-strip">
+              <span class="receipt-chip">Read by Claude Code</span>
+              <span class="receipt-chip">Waiting on agent reply</span>
+            </div>
+            <div class="new-boundary">New to you</div>
+            <section class="message reply">
+              <div class="message-meta">
+                <strong>Reply by Codex</strong>
+                <time>Jun 20, 06:12 PM</time>
+                <span class="receipt-chip reply">Unread</span>
+              </div>
+              <p>
+                I can keep the existing queue row and add a focused receipt
+                state in the thread expansion.
+              </p>
+            </section>
+            <form class="composer">
+              <div class="hint">
+                <span class="unread-dot agent-reply"></span>
+                <strong style="color: var(--vivi-color-comment-text)"
+                  >Continue thread</strong
+                >
+              </div>
+              <textarea aria-label="Continue thread" placeholder="Add a follow-up"></textarea>
+              <p class="hint">
+                <span class="keycap">Cmd/Ctrl Enter</span>
+                to add follow-up
+                <span>Esc closes</span>
+              </p>
+            </form>
+          </article>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
