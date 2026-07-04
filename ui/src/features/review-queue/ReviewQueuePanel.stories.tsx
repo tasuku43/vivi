@@ -151,6 +151,22 @@ export const ReviewQueueItemWithOpenThreads: Story = {
       canvasElement.querySelector(`#${descriptionId}`),
     ).toHaveTextContent("open");
     await expect(
+      canvas.getByText("Unread reply", {
+        selector: ".review-thread-status-badge",
+      }),
+    ).toBeVisible();
+    await expect(
+      canvas.getByText("Codex replied · unread by you"),
+    ).toBeVisible();
+    await expect(
+      canvas.getByText("Agent read", {
+        selector: ".review-thread-status-badge",
+      }),
+    ).toBeVisible();
+    await expect(
+      canvas.getByText("Claude Code read · waiting on reply"),
+    ).toBeVisible();
+    await expect(
       canvas.queryByTestId("review-open-comments-panel"),
     ).not.toBeInTheDocument();
   },

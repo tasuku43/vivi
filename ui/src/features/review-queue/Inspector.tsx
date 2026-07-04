@@ -9,7 +9,10 @@ import {
 import styles from "./Inspector.module.css";
 import type { FilePayload } from "../../domain/fs-node.js";
 import type { CommentActivitySummary } from "../../state/comment-activity.js";
-import { activityLabel } from "../../state/comment-activity.js";
+import {
+  activityLabel,
+  commentThreadReviewReceipt,
+} from "../../state/comment-activity.js";
 import type { LineRange } from "../../state/code-viewer.js";
 import {
   commentLineLabel,
@@ -103,6 +106,7 @@ export function Inspector({
   reviewComments = comments,
   draftComments = [],
   knownMissingCommentPaths = emptyMissingCommentPaths,
+  threadActivities = {},
   activeCommentId = null,
   activePath = file?.path ?? null,
   onOpenEventPath,
@@ -333,6 +337,10 @@ export function Inspector({
               const quoteLines = reviewThreadQuoteLines(primaryComment.anchor);
               const sourceLineLabel = commentLineLabel(primaryComment);
               const pendingDrafts = itemDraftsByThreadId.get(thread.id) ?? [];
+              const threadReceipt = commentThreadReviewReceipt(
+                thread,
+                threadActivities[thread.id]?.timeline,
+              );
               const activeThread = thread.comments.some(
                 (comment) => comment.id === activeCommentId,
               );
@@ -346,16 +354,16 @@ export function Inspector({
                   <button
                     className={`review-thread-hairline-row${activeThread || activePendingDraft ? " active" : ""}${pendingDrafts.length ? " has-publish-action" : ""}`}
                     type="button"
-                    aria-label={`Open ${statusLabel(thread.status)} thread in ${thread.path}, ${sourceLineLabel}${pendingDrafts.length ? `, ${pendingDraftCountLabel(pendingDrafts.length)}` : ""}`}
+                    aria-label={`Open ${threadReceipt.ariaLabel} thread in ${thread.path}, ${sourceLineLabel}${pendingDrafts.length ? `, ${pendingDraftCountLabel(pendingDrafts.length)}` : ""}`}
                     onClick={() => onOpenComment?.(primaryComment)}
                   >
                     <span className="review-thread-hairline-main">
                       <span className="review-thread-hairline-title">
                         <span>{sourceLineLabel}</span>
                         <span
-                          className={`review-thread-status-badge ${thread.status}`}
+                          className={`review-thread-status-badge ${threadReceipt.state}`}
                         >
-                          {statusLabel(thread.status)}
+                          {threadReceipt.label}
                         </span>
                         {pendingDrafts.length ? (
                           <span className="review-thread-status-badge pending">
@@ -376,6 +384,7 @@ export function Inspector({
                       <span className="review-thread-hairline-meta">
                         {[
                           totalMessageCountLabel(thread.comments.length),
+                          threadReceipt.meta,
                           pendingDrafts.length
                             ? `${pendingDraftCountLabel(pendingDrafts.length)} not agent-visible`
                             : "",

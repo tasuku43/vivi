@@ -80,11 +80,13 @@
       "reviewFocus": [
         "open review work is easier to find than completed history",
         "agent activity is visible without creating false unread work",
+        "per-thread agent read and reply-read states remain visible inside in-review files",
         "queue rows expose enough metadata to choose the next file"
       ],
       "requiredStories": [
         "Review/Queue States/ReviewQueueItemWithOpenThreads",
         "Review/Queue States/InReviewFileThreadExpansion",
+        "Review/Queue States/InReviewReadReceiptPlayground",
         "Review/Queue States/ReviewQueueItemWithLatestAgentActivity",
         "Review/Queue States/GitReviewUnavailable",
         "Review/Activity States/CommentsWatchDisconnected"
