@@ -7,7 +7,7 @@ toolchain go1.26.4
 require (
 	github.com/99designs/gqlgen v0.17.93
 	github.com/fsnotify/fsnotify v1.10.1
-	github.com/vektah/gqlparser/v2 v2.5.35
+	github.com/vektah/gqlparser/v2 v2.5.36
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.44.0
 	go.opentelemetry.io/otel/sdk v1.44.0
