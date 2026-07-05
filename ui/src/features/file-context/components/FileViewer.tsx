@@ -4,8 +4,6 @@ import type { TextDiff } from "../../../domain/change-review.js";
 import type { ViviComment } from "../../../domain/comments.js";
 import type { FilePayload } from "../../../domain/fs-node.js";
 import type { CommentActivitySummary } from "../../../state/comment-activity.js";
-import { CsvViewer, isDelimitedPath } from "../viewers/CsvViewer.js";
-import { DiffViewer } from "../viewers/DiffViewer.js";
 import { BinaryMetadataViewer } from "../viewers/BinaryMetadataViewer.js";
 import surfaceStyles from "../viewers/ViewerSurface.module.css";
 import {
@@ -64,6 +62,16 @@ const JsonViewer = lazy(() =>
 const MermaidViewer = lazy(() =>
   import("../viewers/MermaidViewer.js").then((module) => ({
     default: module.MermaidViewer,
+  })),
+);
+const CsvViewer = lazy(() =>
+  import("../viewers/CsvViewer.js").then((module) => ({
+    default: module.CsvViewer,
+  })),
+);
+const DiffViewer = lazy(() =>
+  import("../viewers/DiffViewer.js").then((module) => ({
+    default: module.DiffViewer,
   })),
 );
 const TextViewer = lazy(() =>
@@ -355,18 +363,20 @@ export function FileViewer({
   if (file.viewerKind === "text" && isDelimitedPath(file.path))
     return (
       <FileViewerFrame {...frameProps}>
-        <CsvViewer
-          file={file}
-          theme={theme}
-          diff={diff}
-          diffLoading={diffLoading}
-          diffEnabled={diffEnabled}
-          onDiffToggle={onDiffToggle}
-          onCreateComment={onCreateComment}
-          comments={comments}
-          activeCommentId={activeCommentId}
-          onOpenComment={onOpenComment}
-        />
+        <LazyViewerFallback path={file.path}>
+          <CsvViewer
+            file={file}
+            theme={theme}
+            diff={diff}
+            diffLoading={diffLoading}
+            diffEnabled={diffEnabled}
+            onDiffToggle={onDiffToggle}
+            onCreateComment={onCreateComment}
+            comments={comments}
+            activeCommentId={activeCommentId}
+            onOpenComment={onOpenComment}
+          />
+        </LazyViewerFallback>
       </FileViewerFrame>
     );
   if (file.viewerKind === "image")
@@ -437,25 +447,31 @@ export function FileViewer({
           onToggle={onDiffToggle}
         />
         {diffEnabled ? (
-          <DiffViewer
-            path={file.path}
-            diff={diff ?? null}
-            loading={diffLoading}
-            renderKind="source"
-            theme={theme}
-            onCreateComment={onCreateComment}
-            file={file}
-            comments={comments}
-            activeCommentId={activeCommentId}
-            currentActorId={currentActorId}
-            onOpenComment={onOpenComment}
-          />
+          <LazyViewerFallback path={file.path}>
+            <DiffViewer
+              path={file.path}
+              diff={diff ?? null}
+              loading={diffLoading}
+              renderKind="source"
+              theme={theme}
+              onCreateComment={onCreateComment}
+              file={file}
+              comments={comments}
+              activeCommentId={activeCommentId}
+              currentActorId={currentActorId}
+              onOpenComment={onOpenComment}
+            />
+          </LazyViewerFallback>
         ) : (
           <p>This file type is not supported yet.</p>
         )}
       </div>
     </FileViewerFrame>
   );
+}
+
+function isDelimitedPath(path: string): boolean {
+  return /\.(csv|tsv)$/i.test(path);
 }
 
 function FileViewerFrame({

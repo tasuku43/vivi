@@ -1716,7 +1716,7 @@ it("renders image diffs as binary or source diff status in the image viewer", ()
   expect(html).not.toContain("image-stage");
 });
 
-it("renders generic diffs for unsupported file types", () => {
+it("defers generic diffs for unsupported file types until the diff viewer loads", () => {
   const html = renderToStaticMarkup(
     <FileViewer
       file={{
@@ -1740,9 +1740,7 @@ it("renders generic diffs for unsupported file types", () => {
     />,
   );
 
-  expect(html).toContain('aria-label="Diff from HEAD for artifact.unknown"');
-  expect(html).toContain("diff-inline-row remove");
-  expect(html).toContain("diff-inline-row add");
+  expect(html).toContain("Loading preview for artifact.unknown...");
   expect(html).not.toContain("This file type is not supported yet.");
 });
 
