@@ -454,7 +454,7 @@ export const InspectorThreadClickOpensRenderedMarkdownThread: Story = {
     expect(threadRow).not.toBeNull();
     if (!threadRow) return;
     expect(threadRow.getAttribute("aria-label")).toMatch(
-      /Open Open thread in docs\/product-review\.md/,
+      /Open read by agent thread in docs\/product-review\.md/,
     );
     await userEvent.click(threadRow);
 

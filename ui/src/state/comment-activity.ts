@@ -1,5 +1,6 @@
 import type {
   CommentActor,
+  CommentThread,
   CommentThreadActivityEvent,
   CommentThreadActivityType,
   ViviComment,
@@ -21,6 +22,19 @@ export interface CommentActivityRefreshTarget {
   shouldRefresh: boolean;
   path: string | null;
   shouldMarkUnread: boolean;
+}
+
+export type CommentThreadReviewReceiptState =
+  | "not-read"
+  | "agent-read"
+  | "reply-unread"
+  | "reply-read";
+
+export interface CommentThreadReviewReceipt {
+  state: CommentThreadReviewReceiptState;
+  label: string;
+  meta: string;
+  ariaLabel: string;
 }
 
 export const emptyCommentActivityState: CommentActivityState = {
@@ -116,6 +130,61 @@ export function commentActivityShouldMarkUnread(
   return event.type !== "thread_read";
 }
 
+export function commentThreadReviewReceipt(
+  thread: CommentThread,
+  events: CommentThreadActivityEvent[] | undefined,
+): CommentThreadReviewReceipt {
+  const timeline = [...(events ?? [])].sort((a, b) =>
+    b.createdAt.localeCompare(a.createdAt),
+  );
+  const latestAgentReply = latestEvent(timeline, (event) =>
+    isAgentCommentAdded(event),
+  );
+  const latestHumanRead = latestEvent(timeline, (event) =>
+    isHumanThreadRead(event),
+  );
+  if (
+    latestAgentReply &&
+    (!latestHumanRead || latestAgentReply.createdAt > latestHumanRead.createdAt)
+  ) {
+    return {
+      state: "reply-unread",
+      label: "Unread reply",
+      meta: `${actorLabel(latestAgentReply.actor)} replied · unread by you`,
+      ariaLabel: "unread agent reply",
+    };
+  }
+  if (latestAgentReply && latestHumanRead) {
+    return {
+      state: "reply-read",
+      label: "Reply read",
+      meta: `${actorLabel(latestAgentReply.actor)} reply read by you`,
+      ariaLabel: "agent reply read by you",
+    };
+  }
+
+  const latestAgentRead = latestEvent(timeline, (event) =>
+    isAgentThreadRead(event),
+  );
+  if (latestAgentRead) {
+    return {
+      state: "agent-read",
+      label: "Agent read",
+      meta: `${actorLabel(latestAgentRead.actor)} read · waiting on reply`,
+      ariaLabel: "read by agent",
+    };
+  }
+
+  return {
+    state: "not-read",
+    label: "Not read",
+    meta: thread.comments.some((comment) => comment.reviewBatchId)
+      ? "published · not read by agent"
+      : "not read by agent · still open",
+    ariaLabel: "not read by agent",
+  };
+}
+
 export function actorLabel(actor: CommentActor): string {
   if (actor.displayName?.trim()) return actor.displayName.trim();
   if (actor.kind === "claude-code") return "Claude Code";
@@ -168,4 +237,23 @@ function actorKey(actor: CommentActor): string {
 function maxIso(a: string | undefined, b: string): string {
   if (!a) return b;
   return a.localeCompare(b) >= 0 ? a : b;
+}
+
+function latestEvent(
+  timeline: CommentThreadActivityEvent[],
+  predicate: (event: CommentThreadActivityEvent) => boolean,
+): CommentThreadActivityEvent | undefined {
+  return timeline.find(predicate);
+}
+
+function isAgentCommentAdded(event: CommentThreadActivityEvent): boolean {
+  return event.type === "comment_added" && event.actor.kind !== "human";
+}
+
+function isAgentThreadRead(event: CommentThreadActivityEvent): boolean {
+  return event.type === "thread_read" && event.actor.kind !== "human";
+}
+
+function isHumanThreadRead(event: CommentThreadActivityEvent): boolean {
+  return event.type === "thread_read" && event.actor.kind === "human";
 }

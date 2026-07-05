@@ -1403,7 +1403,7 @@
 :global(.review-thread-hairline-row.has-publish-action) {
   padding-right: 96px;
 }
-:global(.review-thread-publish-button) {
+:global(.review-thread-hairline-item > .review-thread-publish-button) {
   position: absolute;
   top: 50%;
   right: 14px;
@@ -1487,6 +1487,50 @@
     transparent
   );
   color: var(--vivi-color-comment-text);
+}
+:global(.review-thread-status-badge.not-read) {
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-content-muted) 36%,
+    var(--vivi-color-border-soft)
+  );
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel-raised) 72%,
+    transparent
+  );
+  color: var(--vivi-color-content-muted);
+}
+:global(.review-thread-status-badge.agent-read) {
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-comment-border) 52%,
+    var(--vivi-color-border-soft)
+  );
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-comment-surface) 50%,
+    transparent
+  );
+  color: var(--vivi-color-comment-text);
+}
+:global(.review-thread-status-badge.reply-unread) {
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-accent) 62%,
+    var(--vivi-color-border-soft)
+  );
+  background: color-mix(in srgb, var(--vivi-color-accent) 12%, transparent);
+  color: var(--vivi-color-accent);
+}
+:global(.review-thread-status-badge.reply-read) {
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-content-muted) 34%,
+    var(--vivi-color-border-soft)
+  );
+  background: transparent;
+  color: var(--vivi-color-content-muted);
 }
 :global(.review-thread-status-badge.resolved) {
   border-color: color-mix(

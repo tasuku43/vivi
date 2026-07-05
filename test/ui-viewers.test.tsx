@@ -2715,7 +2715,7 @@ it("expands Review Queue thread lists from the thread badge only", () => {
     };
     return (
       props.className?.split(" ").includes("review-thread-hairline-row") &&
-      props["aria-label"]?.includes("Open Open thread")
+      props["aria-label"]?.includes("Open not read by agent thread")
     );
   });
   (openThread.props as { onClick: () => void }).onClick();
@@ -2733,7 +2733,7 @@ it("expands Review Queue thread lists from the thread badge only", () => {
   expect(html).toContain("Open issue still needs a look.");
   expect(html).toContain("Resolved context should remain visible");
   expect(html).toContain("Archived context should read quietly.");
-  expect(html).toContain('class="review-thread-status-badge open"');
+  expect(html).toContain('class="review-thread-status-badge not-read"');
   expect(html).not.toContain('class="review-thread-status-badge resolved"');
   expect(html).not.toContain('class="review-thread-status-badge archived"');
 });

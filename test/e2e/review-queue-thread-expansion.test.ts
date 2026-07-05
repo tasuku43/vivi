@@ -81,7 +81,7 @@ it(
       .first()
       .waitFor({ state: "visible" });
     expect(await visibleThreadRows.count()).toBe(1);
-    await expectThreadStatuses(readmeFileRow, ["Open"]);
+    await expectThreadStatuses(readmeFileRow, ["Unread reply"]);
   },
   40_000,
 );
