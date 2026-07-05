@@ -1,7 +1,7 @@
 import { WorkbenchContainer } from "../features/workbench/index.js";
-import { GraphqlViviClient } from "../infrastructure/vivi-api/graphqlViviClient.js";
+import { LightGraphqlViviClient } from "../infrastructure/vivi-api/lightGraphqlViviClient.js";
 
-const client = new GraphqlViviClient();
+const client = new LightGraphqlViviClient();
 
 export function App() {
   return <WorkbenchContainer client={client} />;

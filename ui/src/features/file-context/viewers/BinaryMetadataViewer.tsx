@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import type { TextDiff } from "../../../domain/change-review.js";
 import type { ViviComment } from "../../../domain/comments.js";
 import type { FilePayload } from "../../../domain/fs-node.js";
@@ -7,8 +8,12 @@ import {
   DiffToggleButton,
   ViewerToolbar,
 } from "../components/ViewerControlButton.js";
-import { DiffViewer } from "./DiffViewer.js";
 import surfaceStyles from "./ViewerSurface.module.css";
+import viewerMessageStyles from "../../../shared/components/ViewerMessage.module.css";
+
+const DiffViewer = lazy(() =>
+  import("./DiffViewer.js").then((module) => ({ default: module.DiffViewer })),
+);
 
 export function BinaryMetadataViewer({
   file,
@@ -43,18 +48,26 @@ export function BinaryMetadataViewer({
         />
       </ViewerToolbar>
       {diffEnabled ? (
-        <DiffViewer
-          path={file.path}
-          diff={diff ?? null}
-          loading={diffLoading}
-          renderKind="source"
-          theme={theme}
-          onCreateComment={onCreateComment}
-          file={file}
-          comments={comments}
-          activeCommentId={activeCommentId}
-          onOpenComment={onOpenComment}
-        />
+        <Suspense
+          fallback={
+            <div className={`${viewerMessageStyles.empty} empty-viewer`}>
+              Loading diff for {file.path}...
+            </div>
+          }
+        >
+          <DiffViewer
+            path={file.path}
+            diff={diff ?? null}
+            loading={diffLoading}
+            renderKind="source"
+            theme={theme}
+            onCreateComment={onCreateComment}
+            file={file}
+            comments={comments}
+            activeCommentId={activeCommentId}
+            onOpenComment={onOpenComment}
+          />
+        </Suspense>
       ) : (
         <div
           className={`${surfaceStyles.binaryMetadataPanel} binary-metadata-panel`}
