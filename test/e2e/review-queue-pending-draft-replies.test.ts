@@ -59,8 +59,10 @@ it("groups pending draft replies under the existing Review Queue thread", async 
   const rows = readmeFileRow.locator(".review-thread-hairline-row");
   await rows.first().waitFor({ state: "attached" });
   expect(await rows.count()).toBe(1);
+  await expect
+    .poll(async () => (await rows.first().textContent()) ?? "")
+    .toContain("Unread reply");
   const rowText = (await rows.first().textContent()) ?? "";
-  expect(rowText).toContain("Unread reply");
   expect(rowText).toContain("2 pending");
   expect(rowText).toContain("L1");
   expect(rowText).not.toContain("Second pending follow-up.");

@@ -43,6 +43,18 @@ const comment = {
   createdAt: "2026-06-20T00:00:00.000Z",
   updatedAt: "2026-06-20T00:00:00.000Z",
 };
+const activity = {
+  id: "a1",
+  threadId: "t1",
+  type: "comment_added" as const,
+  actor: { id: "codex:run-1", kind: "codex" as const, displayName: "Codex" },
+  commentId: "c1",
+  previousStatus: null,
+  status: null,
+  clientEventId: null,
+  leaseExpiresAt: null,
+  createdAt: "2026-06-20T00:01:00.000Z",
+};
 
 it("uses GraphQL for startup workspace reads without generated document objects", async () => {
   const request = vi.fn<typeof fetch>(async (_input, init) => {
@@ -100,5 +112,26 @@ it("assembles file context through GraphQL", async () => {
     comments: [comment],
     commentThreads: [{ id: "t1", comments: [comment] }],
   });
+  expect(request.mock.calls.map(([url]) => String(url))).toEqual(["/graphql"]);
+});
+
+it("loads comment thread activity through GraphQL", async () => {
+  const request = vi.fn<typeof fetch>(async (_input, init) => {
+    const body = JSON.parse(String(init?.body));
+    expect(body.operationName).toBe("ViviCommentThreadActivities");
+    expect(body.query).toContain("query ViviCommentThreadActivities");
+    expect(body.query).toContain("commentThreadActivities");
+    expect(body.variables).toEqual({ threadId: "t1", first: 12 });
+    return Response.json({
+      data: {
+        commentThreadActivities: [activity],
+      },
+    });
+  });
+  const client = new LightGraphqlViviClient({ fetch: request });
+
+  await expect(
+    client.getCommentThreadActivities({ threadId: "t1", first: 12 }),
+  ).resolves.toEqual([activity]);
   expect(request.mock.calls.map(([url]) => String(url))).toEqual(["/graphql"]);
 });
