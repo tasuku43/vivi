@@ -14201,8 +14201,7 @@ func (ec *executionContext) marshalNCommentActorKind2githubᚗcomᚋtasuku43ᚋv
 }
 
 func (ec *executionContext) unmarshalNCommentActorKind2ᚕgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentActorKindᚄ(ctx context.Context, v any) ([]model.CommentActorKind, error) {
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
+	vSlice := graphql.CoerceList(v)
 	var err error
 	res := make([]model.CommentActorKind, len(vSlice))
 	for i := range vSlice {
@@ -14291,8 +14290,7 @@ func (ec *executionContext) marshalNCommentStatus2githubᚗcomᚋtasuku43ᚋvivi
 }
 
 func (ec *executionContext) unmarshalNCommentStatus2ᚕgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentStatusᚄ(ctx context.Context, v any) ([]model.CommentStatus, error) {
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
+	vSlice := graphql.CoerceList(v)
 	var err error
 	res := make([]model.CommentStatus, len(vSlice))
 	for i := range vSlice {
@@ -14392,8 +14390,7 @@ func (ec *executionContext) marshalNCommentThreadActivityType2githubᚗcomᚋtas
 }
 
 func (ec *executionContext) unmarshalNCommentThreadActivityType2ᚕgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThreadActivityTypeᚄ(ctx context.Context, v any) ([]model.CommentThreadActivityType, error) {
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
+	vSlice := graphql.CoerceList(v)
 	var err error
 	res := make([]model.CommentThreadActivityType, len(vSlice))
 	for i := range vSlice {
@@ -14801,8 +14798,7 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 }
 
 func (ec *executionContext) unmarshalNString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
+	vSlice := graphql.CoerceList(v)
 	var err error
 	res := make([]string, len(vSlice))
 	for i := range vSlice {
@@ -14971,8 +14967,7 @@ func (ec *executionContext) marshalN__DirectiveLocation2string(ctx context.Conte
 }
 
 func (ec *executionContext) unmarshalN__DirectiveLocation2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
+	vSlice := graphql.CoerceList(v)
 	var err error
 	res := make([]string, len(vSlice))
 	for i := range vSlice {
@@ -15226,8 +15221,7 @@ func (ec *executionContext) unmarshalOID2ᚕstringᚄ(ctx context.Context, v any
 	if v == nil {
 		return nil, nil
 	}
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
+	vSlice := graphql.CoerceList(v)
 	var err error
 	res := make([]string, len(vSlice))
 	for i := range vSlice {
