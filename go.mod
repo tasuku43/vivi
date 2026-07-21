@@ -2,7 +2,7 @@ module github.com/tasuku43/vivi
 
 go 1.25.0
 
-toolchain go1.26.4
+toolchain go1.26.5
 
 require (
 	github.com/99designs/gqlgen v0.17.93
