@@ -2,27 +2,33 @@ import { hasCustomMermaidStyle } from "../../../domain/mermaid-preview.js";
 import { viviMermaidThemeVariables } from "../../../domain/mermaid-theme.js";
 import type { ResolvedTheme } from "../../../state/theme.js";
 
+let mermaidRenderQueue: Promise<void> = Promise.resolve();
+let mermaidRenderSequence = 0;
+let mermaidBlockRequestSequence = 0;
+
 export async function renderMermaidSvg(
   source: string,
   id: string,
   theme: ResolvedTheme,
 ): Promise<string> {
-  const mermaid = (await import("mermaid")).default;
-  mermaid.initialize({
-    startOnLoad: false,
-    securityLevel: "strict",
-    theme: hasCustomMermaidStyle(source)
-      ? theme === "dark"
-        ? "dark"
-        : "default"
-      : "base",
-    themeVariables: hasCustomMermaidStyle(source)
-      ? undefined
-      : viviMermaidThemeVariables(theme),
-    flowchart: { htmlLabels: false },
+  return enqueueMermaidRender(async () => {
+    const mermaid = (await import("mermaid")).default;
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+      theme: hasCustomMermaidStyle(source)
+        ? theme === "dark"
+          ? "dark"
+          : "default"
+        : "base",
+      themeVariables: hasCustomMermaidStyle(source)
+        ? undefined
+        : viviMermaidThemeVariables(theme),
+      flowchart: { htmlLabels: false },
+    });
+    const { svg } = await mermaid.render(mermaidRenderInvocationId(id), source);
+    return sanitizeMermaidSvg(svg);
   });
-  const { svg } = await mermaid.render(`vivi-${slugForMarker(id)}`, source);
-  return sanitizeMermaidSvg(svg);
 }
 
 export function renderMermaidBlocks(
@@ -37,16 +43,21 @@ export function renderMermaidBlocks(
     const source = block.dataset.mermaidSource;
     const target = block.querySelector<HTMLElement>(".mermaid-render-target");
     if (!source || !target) continue;
-    if (block.dataset.mermaidStatus === "loading") continue;
     if (
-      block.dataset.mermaidStatus === "rendered" &&
-      block.dataset.mermaidTheme === theme
+      !shouldStartMermaidBlockRender(
+        block.dataset.mermaidStatus,
+        block.dataset.mermaidTheme,
+        theme,
+      )
     ) {
       continue;
     }
 
+    mermaidBlockRequestSequence += 1;
+    const requestKey = `${theme}-${hashString(source)}-${mermaidBlockRequestSequence}`;
     block.dataset.mermaidStatus = "loading";
     block.dataset.mermaidTheme = theme;
+    block.dataset.mermaidRequest = requestKey;
     target.replaceChildren();
     renderMermaidSvg(
       source,
@@ -54,13 +65,28 @@ export function renderMermaidBlocks(
       theme,
     )
       .then((svg) => {
+        if (!block.isConnected || block.dataset.mermaidRequest !== requestKey) {
+          return;
+        }
         target.innerHTML = svg;
         block.dataset.mermaidStatus = "rendered";
       })
       .catch(() => {
+        if (!block.isConnected || block.dataset.mermaidRequest !== requestKey) {
+          return;
+        }
         block.dataset.mermaidStatus = "fallback";
       });
   }
+}
+
+export function shouldStartMermaidBlockRender(
+  status: string | undefined,
+  renderedTheme: string | undefined,
+  nextTheme: ResolvedTheme,
+): boolean {
+  if (renderedTheme !== nextTheme) return true;
+  return status !== "loading" && status !== "rendered";
 }
 
 export function slugForMarker(value: string): string {
@@ -70,6 +96,20 @@ export function slugForMarker(value: string): string {
 
 export function mermaidRenderId(id: string, source: string): string {
   return `${id}-${hashString(source)}`;
+}
+
+export function mermaidRenderInvocationId(id: string): string {
+  mermaidRenderSequence += 1;
+  return `vivi-${slugForMarker(id)}-${mermaidRenderSequence}`;
+}
+
+function enqueueMermaidRender<T>(task: () => Promise<T>): Promise<T> {
+  const result = mermaidRenderQueue.then(task, task);
+  mermaidRenderQueue = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
 }
 
 function hashString(value: string): string {
