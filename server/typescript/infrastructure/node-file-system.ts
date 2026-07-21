@@ -10,6 +10,7 @@ import type {
   ViewerConfig,
 } from "../domain/fs-node.js";
 import {
+  createPathExcluder,
   defaultIgnoredNames,
   isIgnoredPath,
   normalizeRelativePath,
@@ -28,6 +29,7 @@ export interface NodeFileSystemOptions {
   ignoredNames?: Set<string>;
   version?: number;
   includeExtensions?: Set<string>;
+  excludePatterns?: string[];
   maxFileSizeBytes?: number;
   allowHtmlScripts?: boolean;
   fileIndexTtlMs?: number;
@@ -37,6 +39,7 @@ export class NodeFileSystem implements FileSystemPort {
   private readonly rootDir: string;
   private readonly ignoredNames: Set<string>;
   private readonly includeExtensions?: Set<string>;
+  private readonly isExcludedPath: (relativePath: string) => boolean;
   private readonly maxFileSizeBytes: number;
   private readonly allowHtmlScripts: boolean;
   private readonly fileIndexTtlMs: number;
@@ -51,6 +54,7 @@ export class NodeFileSystem implements FileSystemPort {
     this.rootDir = path.resolve(options.rootDir);
     this.ignoredNames = options.ignoredNames ?? defaultIgnoredNames;
     this.includeExtensions = options.includeExtensions;
+    this.isExcludedPath = createPathExcluder(options.excludePatterns);
     this.maxFileSizeBytes = options.maxFileSizeBytes ?? 1024 * 1024;
     this.allowHtmlScripts = options.allowHtmlScripts ?? false;
     this.fileIndexTtlMs = options.fileIndexTtlMs ?? 5_000;
@@ -329,7 +333,7 @@ export class NodeFileSystem implements FileSystemPort {
       const relativePath = relativeDir
         ? `${relativeDir}/${entry.name}`
         : entry.name;
-      if (isIgnoredPath(relativePath, this.ignoredNames)) continue;
+      if (this.isHiddenPath(relativePath)) continue;
 
       const absolutePath = path.join(this.rootDir, relativePath);
       if (!(await this.realPathIsInsideRoot(absolutePath))) continue;
@@ -385,6 +389,8 @@ export class NodeFileSystem implements FileSystemPort {
     const normalized = normalizeRelativePath(input);
     if (!normalized.ok) throw new Error(normalized.reason);
     if (!normalized.relativePath) throw new Error("file path is required");
+    if (this.isExcludedPath(normalized.relativePath))
+      throw new Error("path is excluded");
     if (isIgnoredPath(normalized.relativePath, this.ignoredNames))
       throw new Error("path is ignored");
     if (!this.isIncluded(normalized.relativePath))
@@ -406,6 +412,8 @@ export class NodeFileSystem implements FileSystemPort {
   }> {
     const normalized = normalizeRelativePath(input);
     if (!normalized.ok) throw new Error(normalized.reason);
+    if (normalized.relativePath && this.isExcludedPath(normalized.relativePath))
+      throw new Error("path is excluded");
     if (
       normalized.relativePath &&
       isIgnoredPath(normalized.relativePath, this.ignoredNames)
@@ -433,6 +441,13 @@ export class NodeFileSystem implements FileSystemPort {
     return this.includeExtensions.has(extension);
   }
 
+  private isHiddenPath(relativePath: string): boolean {
+    return (
+      isIgnoredPath(relativePath, this.ignoredNames) ||
+      this.isExcludedPath(relativePath)
+    );
+  }
+
   private async walkFiles(
     relativeDir: string,
     stats: MutableSearchStats,
@@ -451,7 +466,7 @@ export class NodeFileSystem implements FileSystemPort {
       const relativePath = relativeDir
         ? `${relativeDir}/${entry.name}`
         : entry.name;
-      if (isIgnoredPath(relativePath, this.ignoredNames)) continue;
+      if (this.isHiddenPath(relativePath)) continue;
 
       const absolutePath = path.join(this.rootDir, relativePath);
       if (!(await this.realPathIsInsideRoot(absolutePath))) continue;

@@ -16,6 +16,8 @@ vivi [root] --host 127.0.0.1
 vivi [root] --open
 vivi [root] --port 0 --ready-json
 vivi [root] --include md,html,ts,tsx,json
+vivi [root] --exclude package-lock.json --exclude '**/generated/**'
+vivi [root] --exclude 'package-lock.json,snapshots/,**/generated/**'
 vivi [root] --max-file-size 1048576
 vivi [root] --allow-html-scripts
 vivi inbox http://127.0.0.1:4317
@@ -101,6 +103,33 @@ that port cannot be bound.
 Default security posture: local-only, sandboxed HTML preview, local CSS enabled for practical artifact inspection, and HTML script execution disabled. Use `--allow-html-scripts` only when intentionally reviewing generated HTML that needs script execution.
 
 Default rich preview limit: `1048576` bytes. Use `--max-file-size <bytes>` to change it for the current local run.
+
+`--exclude <glob>` removes matching workspace-relative files and directories
+from the file tree, direct file reads, file/text search, watcher events, and the
+Git Review Queue. The flag is repeatable and each value may also be a
+comma-separated list. Matching is case-sensitive, uses `/` separators, and
+supports `*`, `?`, character classes, and `**` across path segments. A pattern
+without `/` matches that basename at any depth; a trailing `/` excludes the
+whole subtree. Exclusion is evaluated after `--include`, so exclusion wins.
+Malformed patterns and patterns containing a `..` segment fail startup.
+
+The server launcher also reads an optional global JSON config from the OS user
+config directory at `vivi/config.json`. Its current public shape is:
+
+```json
+{
+  "exclude": ["package-lock.json", "**/generated/**"]
+}
+```
+
+The resolved default is `~/Library/Application Support/vivi/config.json` on
+macOS, `$XDG_CONFIG_HOME/vivi/config.json` or `~/.config/vivi/config.json` on
+Linux, and `%AppData%\vivi\config.json` on Windows. `VIVI_CONFIG` overrides that
+path; because it is explicit, pointing it to a missing file is an error. A
+missing default file is valid and behaves like an empty config. Global
+`exclude` entries are evaluated together with all CLI `--exclude` entries, so
+the CLI adds temporary exclusions but does not undo global ones. Invalid JSON
+or invalid global exclude globs fail startup and identify the config path.
 
 Pass `--ready-json` when a launcher or coding agent needs a stable startup
 handoff. After the local server is listening, Vivi emits one JSON object on

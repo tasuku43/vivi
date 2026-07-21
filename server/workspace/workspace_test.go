@@ -149,6 +149,57 @@ func TestWatchEntryAppliesIgnoreAndInclusionPolicy(t *testing.T) {
 	}
 }
 
+func TestExcludeGlobWinsOverIncludeAcrossTreeReadAndWatch(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, root, "README.md", []byte("# Visible\n"))
+	mustWrite(t, root, "package-lock.json", []byte("{}\n"))
+	mustWrite(t, root, "src/generated/client.md", []byte("# Generated\n"))
+	mustWrite(t, root, "src/guide.md", []byte("# Guide\n"))
+
+	fsys, err := New(Options{
+		Root:    root,
+		Include: []string{"md", "json"},
+		Exclude: []string{"package-lock.json", "**/generated/**"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tree, err := fsys.ReadTree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	serialized := ""
+	for _, node := range tree.Nodes {
+		serialized += node.Path + "\n"
+		for _, child := range node.Children {
+			serialized += child.Path + "\n"
+			for _, grandchild := range child.Children {
+				serialized += grandchild.Path + "\n"
+			}
+		}
+	}
+	if !strings.Contains(serialized, "README.md") || !strings.Contains(serialized, "src/guide.md") {
+		t.Fatalf("tree lost included files: %s", serialized)
+	}
+	if strings.Contains(serialized, "package-lock.json") || strings.Contains(serialized, "generated") {
+		t.Fatalf("tree included excluded paths: %s", serialized)
+	}
+	if _, err := fsys.ReadFile("package-lock.json"); err == nil || !strings.Contains(err.Error(), "path is excluded") {
+		t.Fatalf("excluded file read error = %v", err)
+	}
+	entries, err := fsys.WatchEntries()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := entries["package-lock.json"]; ok {
+		t.Fatalf("watch entries included excluded file: %#v", entries)
+	}
+	if _, ok := entries["src/generated/client.md"]; ok {
+		t.Fatalf("watch entries included excluded subtree: %#v", entries)
+	}
+}
+
 func TestWatchEntriesUnderScansOnlyRequestedSubtree(t *testing.T) {
 	root := t.TempDir()
 	mustWrite(t, root, "docs/guide.md", []byte("# Guide\n"))

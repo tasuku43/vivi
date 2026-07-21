@@ -70,6 +70,8 @@ func run(args []string) error {
 	portExplicit := hasFlagArg(args, "port")
 	open := flags.Bool("open", false, "open browser after startup")
 	include := flags.String("include", "", "comma-separated extension allow-list")
+	exclude := commaListFlag{}
+	flags.Var(&exclude, "exclude", "workspace-relative glob to exclude (repeatable or comma-separated)")
 	maxFileSize := flags.Int64("max-file-size", 1024*1024, "rich preview byte limit")
 	allowHTMLScripts := flags.Bool("allow-html-scripts", false, "allow scripts in HTML preview for trusted files")
 	noHTMLScripts := flags.Bool("no-html-scripts", false, "keep HTML preview scripts disabled")
@@ -107,16 +109,25 @@ func run(args []string) error {
 	if len(positional) > 0 {
 		root = positional[0]
 	}
+	includeExtensions := parseInclude(*include)
+	excludePatterns, err := configuredExcludePatterns([]string(exclude))
+	if err != nil {
+		return err
+	}
 	workspaceFS, err := workspace.New(workspace.Options{
 		Root:             root,
-		Include:          parseInclude(*include),
+		Include:          includeExtensions,
+		Exclude:          excludePatterns,
 		MaxFileSizeBytes: *maxFileSize,
 		AllowHTMLScripts: *allowHTMLScripts,
 	})
 	if err != nil {
 		return err
 	}
-	reviewer, err := gitreview.New(workspaceFS.Config().Root, *gitTimeout)
+	reviewer, err := gitreview.NewWithOptions(workspaceFS.Config().Root, *gitTimeout, gitreview.Options{
+		Include: includeExtensions,
+		Exclude: excludePatterns,
+	})
 	if err != nil {
 		return err
 	}
@@ -208,7 +219,7 @@ func helpText() string {
 		"vivi - local review adapter",
 		"",
 		"Usage:",
-		"  vivi [root] [--host 127.0.0.1] [--port 4317] [--open] [--include md,html,ts] [--max-file-size 1048576] [--allow-html-scripts]",
+		"  vivi [root] [--host 127.0.0.1] [--port 4317] [--open] [--include md,html,ts] [--exclude package-lock.json,**/generated/**] [--max-file-size 1048576] [--allow-html-scripts]",
 		"  vivi inbox <url> [--read-as codex|claude]",
 		"  vivi reply <url> <thread-id> --actor codex|claude (--body <text>|--body-file <path|->) [--resolve|--archive]",
 		"  vivi review <queue|bases|diff> [options]",
@@ -241,6 +252,7 @@ func helpText() string {
 		"  --port <port>              Port to bind (default: 4317, auto-increments when unavailable; 0 for random)",
 		"  --open                     Open the browser after startup",
 		"  --include <extensions>     Comma-separated extension allow-list",
+		"  --exclude <glob>           Exclude a workspace-relative glob; repeat or comma-separate (wins over --include)",
 		"  --max-file-size <bytes>    Rich preview byte limit",
 		"  --allow-html-scripts       Allow scripts in HTML preview for trusted files",
 		"  --no-html-scripts          Keep HTML preview scripts disabled",
@@ -249,6 +261,10 @@ func helpText() string {
 		"  --ready-json               Print a JSON server-ready event after startup",
 		"  --version                  Print version",
 		"  --help                     Show this help",
+		"",
+		"Global config:",
+		"  <user-config-dir>/vivi/config.json with {\"exclude\":[\"package-lock.json\",\"**/generated/**\"]}",
+		"  Set VIVI_CONFIG to use an explicit config file. Global and CLI excludes are additive.",
 	}, "\n")
 }
 
@@ -376,7 +392,7 @@ func flagRequiresValue(arg string) bool {
 		name = before
 	}
 	switch name {
-	case "host", "port", "include", "max-file-size", "git-review-timeout", "log-level", "actor":
+	case "host", "port", "include", "exclude", "max-file-size", "git-review-timeout", "log-level", "actor":
 		return true
 	default:
 		return false
@@ -392,6 +408,21 @@ func parseInclude(value string) []string {
 		}
 	}
 	return parts
+}
+
+type commaListFlag []string
+
+func (values *commaListFlag) String() string {
+	return strings.Join(*values, ",")
+}
+
+func (values *commaListFlag) Set(value string) error {
+	for _, item := range strings.Split(value, ",") {
+		if item = strings.TrimSpace(item); item != "" {
+			*values = append(*values, item)
+		}
+	}
+	return nil
 }
 
 func openBrowser(rawURL string) error {

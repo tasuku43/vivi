@@ -4,6 +4,7 @@ import { Worker } from "node:worker_threads";
 import type { WatcherPort } from "../application/contracts.js";
 import type { FsEvent, NodeKind } from "../domain/fs-node.js";
 import {
+  createPathExcluder,
   defaultIgnoredNames,
   isIgnoredPath,
   normalizeRelativePath,
@@ -12,6 +13,7 @@ import {
 export interface NodeWatcherOptions {
   rootDir: string;
   ignoredNames?: Set<string>;
+  excludePatterns?: string[];
   debounceMs?: number;
   maxPendingEvents?: number;
   watchStartDelayMs?: number;
@@ -48,6 +50,7 @@ export class NodeWatcher implements WatcherPort {
   private version = 1;
   private readonly rootDir: string;
   private readonly ignoredNames: Set<string>;
+  private readonly isExcludedPath: (relativePath: string) => boolean;
   private readonly debounceMs: number;
   private readonly maxPendingEvents: number;
   private readonly watchStartDelayMs: number;
@@ -62,6 +65,7 @@ export class NodeWatcher implements WatcherPort {
     if (typeof options === "string") {
       this.rootDir = path.resolve(options);
       this.ignoredNames = defaultIgnoredNames;
+      this.isExcludedPath = createPathExcluder();
       this.debounceMs = 50;
       this.maxPendingEvents = 2_000;
       this.watchStartDelayMs = 2_000;
@@ -69,6 +73,7 @@ export class NodeWatcher implements WatcherPort {
     } else {
       this.rootDir = path.resolve(options.rootDir);
       this.ignoredNames = options.ignoredNames ?? defaultIgnoredNames;
+      this.isExcludedPath = createPathExcluder(options.excludePatterns);
       this.debounceMs = options.debounceMs ?? 50;
       this.maxPendingEvents = options.maxPendingEvents ?? 2_000;
       this.watchStartDelayMs = options.watchStartDelayMs ?? 2_000;
@@ -128,6 +133,12 @@ export class NodeWatcher implements WatcherPort {
     relativePath: string,
     onEvent: (event: FsEvent) => void,
   ): void {
+    if (
+      isIgnoredPath(relativePath, this.ignoredNames) ||
+      this.isExcludedPath(relativePath)
+    ) {
+      return;
+    }
     const existing = this.pending.get(relativePath);
     if (existing) clearTimeout(existing);
     else if (this.pending.size >= this.maxPendingEvents) {
@@ -195,7 +206,9 @@ export class NodeWatcher implements WatcherPort {
         withFileTypes: true,
       });
       const visibleEntries = entries.filter(
-        (entry) => !this.ignoredNames.has(entry.name),
+        (entry) =>
+          !this.ignoredNames.has(entry.name) &&
+          !this.isExcludedPath(entry.name),
       );
       return visibleEntries.length <= this.recursiveWatchEntryLimit;
     } catch {

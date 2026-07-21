@@ -33,6 +33,7 @@ vivi [workspace] --host 127.0.0.1
 vivi [workspace] --port 4317
 vivi [workspace] --open
 vivi [workspace] --include md,html,ts
+vivi [workspace] --exclude package-lock.json --exclude '**/generated/**'
 vivi [workspace] --max-file-size 1048576
 vivi [workspace] --allow-html-scripts
 vivi [workspace] --git-review-timeout 2s
@@ -51,6 +52,8 @@ Defaults:
 - workspace: `.`
 - host: `127.0.0.1`
 - port: `4317`
+- path filtering: default ignores, then `--include`, with global-config and CLI
+  excludes taking final precedence
 - HTML scripts: disabled
 - Git review timeout: bounded and cancelable
 - telemetry: none

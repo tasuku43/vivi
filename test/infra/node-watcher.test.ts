@@ -60,6 +60,27 @@ it("bounds pending watcher events during event storms", async () => {
   await watcher.stop();
 });
 
+it("drops watcher events that match configured exclude globs", async () => {
+  vi.useFakeTimers();
+  const watcher = new NodeWatcher({
+    rootDir: ".",
+    excludePatterns: ["package-lock.json", "**/generated/**"],
+  }) as unknown as {
+    queueEvent(path: string, onEvent: () => void): void;
+    stop(): Promise<void>;
+    getMetrics(): { pendingEvents: number; emittedEvents: number };
+  };
+
+  watcher.queueEvent("package-lock.json", () => {});
+  watcher.queueEvent("src/generated/client.ts", () => {});
+
+  expect(watcher.getMetrics()).toMatchObject({
+    pendingEvents: 0,
+    emittedEvents: 0,
+  });
+  await watcher.stop();
+});
+
 it("starts without synchronously opening the recursive watcher", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "vivi-watcher-"));
   const watcher = new NodeWatcher({

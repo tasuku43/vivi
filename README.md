@@ -78,6 +78,8 @@ vivi reply http://127.0.0.1:4317 <thread-id> --actor codex --body "Fixed."
 vivi reply http://127.0.0.1:4317 <thread-id> --actor codex --resolve --body-file /tmp/vivi-reply.md
 vivi review queue --actor codex --json
 vivi . --include md,html,ts,tsx,json,css,png,jpg
+vivi . --exclude package-lock.json --exclude '**/generated/**'
+vivi . --exclude 'package-lock.json,snapshots/,**/generated/**'
 vivi . --max-file-size 2097152
 vivi . --allow-html-scripts
 ```
@@ -89,10 +91,38 @@ Defaults:
   that default is already busy,
 - serves only the selected workspace,
 - ignores `.git`, `node_modules`, and common build caches,
+- loads reusable exclude patterns from the global `vivi/config.json` when it
+  exists,
+- applies repeatable or comma-separated `--exclude <glob>` patterns to the
+  file tree, previews, search, watcher events, and Git Review Queue,
 - renders HTML in a sandboxed iframe,
 - stores browser UI state in `localStorage`,
 - does not store file contents in `localStorage`,
 - sends no telemetry.
+
+`--exclude` patterns are workspace-relative and use `/` separators. `**`
+matches across directories, a pattern without `/` matches that file or
+directory name at any depth, and a trailing `/` excludes the whole subtree.
+Exclusion wins when a path also matches `--include`.
+
+To reuse exclusions across workspaces, create Vivi's global config file in the
+OS user config directory:
+
+```json
+{
+  "exclude": [
+    "package-lock.json",
+    "**/generated/**",
+    "snapshots/"
+  ]
+}
+```
+
+The default path is `~/Library/Application Support/vivi/config.json` on macOS,
+`$XDG_CONFIG_HOME/vivi/config.json` (or `~/.config/vivi/config.json`) on Linux,
+and `%AppData%\vivi\config.json` on Windows. Set `VIVI_CONFIG` to an explicit
+file path when needed. Global and CLI exclusions are additive, and every
+exclusion still wins over `--include`.
 
 ## What Vivi Shows
 

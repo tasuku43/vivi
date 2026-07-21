@@ -58,12 +58,23 @@ type TextDiff struct {
 type Reviewer struct {
 	root           string
 	rootReal       string
+	include        map[string]bool
+	exclude        workspace.PathExcluder
 	timeout        time.Duration
 	maxDiffBytes   int64
 	suppressedTill time.Time
 }
 
+type Options struct {
+	Include []string
+	Exclude []string
+}
+
 func New(root string, timeout time.Duration) (*Reviewer, error) {
+	return NewWithOptions(root, timeout, Options{})
+}
+
+func NewWithOptions(root string, timeout time.Duration, options Options) (*Reviewer, error) {
 	absolute, err := filepath.Abs(root)
 	if err != nil {
 		return nil, err
@@ -75,9 +86,22 @@ func New(root string, timeout time.Duration) (*Reviewer, error) {
 	if timeout <= 0 {
 		timeout = 2 * time.Second
 	}
+	exclude, err := workspace.NewPathExcluder(options.Exclude)
+	if err != nil {
+		return nil, err
+	}
+	include := map[string]bool{}
+	for _, item := range options.Include {
+		item = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(item)), ".")
+		if item != "" {
+			include[item] = true
+		}
+	}
 	return &Reviewer{
 		root:         absolute,
 		rootReal:     rootReal,
+		include:      include,
+		exclude:      exclude,
 		timeout:      timeout,
 		maxDiffBytes: 256 * 1024,
 	}, nil
@@ -115,11 +139,15 @@ func (reviewer *Reviewer) ReadChanges(ctx context.Context) (summary Summary) {
 	workspaceChanges := []Change{}
 	for _, change := range changes {
 		converted, ok := changeToWorkspace(change, prefix)
-		if !ok || isIgnored(converted.Path) {
+		if !ok || reviewer.isIgnored(converted.Path) {
 			continue
 		}
 		classified := reviewer.classify(converted)
-		workspaceChanges = append(workspaceChanges, classified...)
+		for _, item := range classified {
+			if reviewer.isIncluded(item.Path) {
+				workspaceChanges = append(workspaceChanges, item)
+			}
+		}
 	}
 	sort.Slice(workspaceChanges, func(i, j int) bool {
 		return workspaceChanges[i].Path < workspaceChanges[j].Path
@@ -304,7 +332,7 @@ func (reviewer *Reviewer) expandAddedDirectory(relative, absolute string) []Chan
 	changes := []Change{}
 	for _, entry := range entries {
 		childRelative := relative + "/" + entry.Name()
-		if isIgnored(childRelative) {
+		if reviewer.isIgnored(childRelative) {
 			continue
 		}
 		childAbsolute, ok := reviewer.absolutePathForWorkspacePath(childRelative)
@@ -576,6 +604,18 @@ func isIgnored(relative string) bool {
 		}
 	}
 	return false
+}
+
+func (reviewer *Reviewer) isIgnored(relative string) bool {
+	return isIgnored(relative) || reviewer.exclude.Matches(relative)
+}
+
+func (reviewer *Reviewer) isIncluded(relative string) bool {
+	if len(reviewer.include) == 0 {
+		return true
+	}
+	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(relative)), ".")
+	return reviewer.include[ext]
 }
 
 func isEmbeddedRepo(absolute string) bool {

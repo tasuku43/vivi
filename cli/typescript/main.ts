@@ -18,6 +18,7 @@ interface CliOptions {
   port: number;
   open: boolean;
   includeExtensions?: Set<string>;
+  excludePatterns: string[];
   allowHtmlScripts: boolean;
   maxFileSizeBytes?: number;
 }
@@ -52,6 +53,7 @@ export function parseArgs(argv: string[]): CliOptions {
     port: 4317,
     open: false,
     allowHtmlScripts: false,
+    excludePatterns: [],
   };
   const positional: string[] = [];
 
@@ -62,6 +64,8 @@ export function parseArgs(argv: string[]): CliOptions {
     else if (arg === "--open") options.open = true;
     else if (arg === "--include")
       options.includeExtensions = parseInclude(argv[++i] ?? "");
+    else if (arg === "--exclude")
+      options.excludePatterns.push(...parseExclude(argv[++i] ?? ""));
     else if (arg === "--max-file-size")
       options.maxFileSizeBytes = parsePositiveInteger(argv[++i] ?? "");
     else if (arg === "--allow-html-scripts") options.allowHtmlScripts = true;
@@ -85,11 +89,19 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   const fileSystem = new NodeFileSystem({
     rootDir,
     includeExtensions: options.includeExtensions,
+    excludePatterns: options.excludePatterns,
     allowHtmlScripts: options.allowHtmlScripts,
     maxFileSizeBytes: options.maxFileSizeBytes,
   });
-  const watcher = new NodeWatcher({ rootDir });
-  const changeReview = new GitChangeReview({ rootDir });
+  const watcher = new NodeWatcher({
+    rootDir,
+    excludePatterns: options.excludePatterns,
+  });
+  const changeReview = new GitChangeReview({
+    rootDir,
+    includeExtensions: options.includeExtensions,
+    excludePatterns: options.excludePatterns,
+  });
   const workspaceDataDir = workspaceViviDataDir(rootDir);
   const commentStore = new NodeCommentStore({
     dataDir: workspaceDataDir,
@@ -200,13 +212,14 @@ export function helpText(): string {
     "vivi - local review adapter",
     "",
     "Usage:",
-    "  vivi [root] [--host 127.0.0.1] [--port 4317] [--open] [--include md,html,ts] [--max-file-size 1048576] [--allow-html-scripts]",
+    "  vivi [root] [--host 127.0.0.1] [--port 4317] [--open] [--include md,html,ts] [--exclude package-lock.json,**/generated/**] [--max-file-size 1048576] [--allow-html-scripts]",
     "",
     "Options:",
     "  --host <host>              Host to bind (default: 127.0.0.1)",
     "  --port <port>              Port to bind (default: 4317, 0 for random)",
     "  --open                     Open the browser after startup",
     "  --include <extensions>     Comma-separated extension allow-list",
+    "  --exclude <glob>           Exclude a workspace-relative glob; repeat or comma-separate (wins over --include)",
     "  --max-file-size <bytes>    Rich preview byte limit",
     "  --allow-html-scripts       Allow scripts in HTML preview for trusted files",
     "  --version                  Print version",
@@ -221,6 +234,13 @@ function parseInclude(value: string): Set<string> {
       .map((item) => item.trim().toLowerCase().replace(/^\./, ""))
       .filter(Boolean),
   );
+}
+
+function parseExclude(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function parsePositiveInteger(value: string): number | undefined {

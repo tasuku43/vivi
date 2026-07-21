@@ -17,6 +17,7 @@ import {
   type TextDiff,
 } from "../domain/change-review.js";
 import {
+  createPathExcluder,
   defaultIgnoredNames,
   isIgnoredPath,
   normalizeRelativePath,
@@ -33,6 +34,8 @@ const defaultGitStatusFallbackTimeoutMs = 10_000;
 export interface GitChangeReviewOptions {
   rootDir: string;
   ignoredNames?: Set<string>;
+  includeExtensions?: Set<string>;
+  excludePatterns?: string[];
   maxDiffBytes?: number;
   gitCommands?: string[];
   gitTimeoutMs?: number;
@@ -44,6 +47,8 @@ export interface GitChangeReviewOptions {
 export class GitChangeReview implements ChangeReviewPort {
   private readonly rootDir: string;
   private readonly ignoredNames: Set<string>;
+  private readonly includeExtensions?: Set<string>;
+  private readonly isExcludedPath: (relativePath: string) => boolean;
   private readonly maxDiffBytes: number;
   private readonly gitCommands: string[];
   private readonly gitTimeoutMs: number;
@@ -58,6 +63,8 @@ export class GitChangeReview implements ChangeReviewPort {
   constructor(options: GitChangeReviewOptions) {
     this.rootDir = path.resolve(options.rootDir);
     this.ignoredNames = options.ignoredNames ?? defaultIgnoredNames;
+    this.includeExtensions = options.includeExtensions;
+    this.isExcludedPath = createPathExcluder(options.excludePatterns);
     this.maxDiffBytes = options.maxDiffBytes ?? 256 * 1024;
     this.gitCommands = options.gitCommands ?? defaultGitCommands;
     this.gitTimeoutMs =
@@ -105,13 +112,14 @@ export class GitChangeReview implements ChangeReviewPort {
         gitChangeToWorkspaceChange(change, workspace.workspacePrefix),
       )
       .filter((change): change is GitChange => Boolean(change))
-      .filter((change) => this.isReviewablePath(change.path));
+      .filter((change) => !this.isHiddenPath(change.path));
     const changes = (
       await Promise.all(
         workspaceChanges.map((change) => this.classifyChange(change)),
       )
     )
       .flat()
+      .filter((change) => this.isReviewablePath(change.path))
       .sort((a, b) => a.path.localeCompare(b.path));
 
     return {
@@ -331,6 +339,7 @@ export class GitChangeReview implements ChangeReviewPort {
 
   private resolveInsideRoot(
     input: string,
+    applyInclude = true,
   ):
     | { ok: true; absolutePath: string; relativePath: string }
     | { ok: false; reason: string } {
@@ -338,8 +347,12 @@ export class GitChangeReview implements ChangeReviewPort {
     if (!normalized.ok) return { ok: false, reason: normalized.reason };
     if (!normalized.relativePath)
       return { ok: false, reason: "file path is required" };
-    if (!this.isReviewablePath(normalized.relativePath))
+    if (this.isExcludedPath(normalized.relativePath))
+      return { ok: false, reason: "path is excluded" };
+    if (isIgnoredPath(normalized.relativePath, this.ignoredNames))
       return { ok: false, reason: "path is ignored" };
+    if (applyInclude && !this.isIncludedPath(normalized.relativePath))
+      return { ok: false, reason: "path is excluded" };
     const absolutePath = path.resolve(this.rootDir, normalized.relativePath);
     const relativeToRoot = path.relative(this.rootDir, absolutePath);
     if (relativeToRoot.startsWith("..") || path.isAbsolute(relativeToRoot)) {
@@ -377,13 +390,30 @@ export class GitChangeReview implements ChangeReviewPort {
   }
 
   private isReviewablePath(relativePath: string): boolean {
-    return !isIgnoredPath(relativePath, this.ignoredNames);
+    if (this.isHiddenPath(relativePath)) return false;
+    return this.isIncludedPath(relativePath);
+  }
+
+  private isIncludedPath(relativePath: string): boolean {
+    if (!this.includeExtensions?.size) return true;
+    const extension = path
+      .extname(relativePath)
+      .toLowerCase()
+      .replace(/^\./, "");
+    return this.includeExtensions.has(extension);
+  }
+
+  private isHiddenPath(relativePath: string): boolean {
+    return (
+      isIgnoredPath(relativePath, this.ignoredNames) ||
+      this.isExcludedPath(relativePath)
+    );
   }
 
   private async classifyChange(change: GitChange): Promise<GitChange[]> {
     if (change.status !== "added") return [{ ...change, kind: "file" }];
 
-    const resolved = this.resolveInsideRoot(change.path);
+    const resolved = this.resolveInsideRoot(change.path, false);
     if (!resolved.ok) return [{ ...change, kind: "file" }];
     const link = await symlinkTargetPolicy(resolved.absolutePath, this.rootDir);
     if (link.kind === "external") return [];
@@ -417,7 +447,7 @@ export class GitChangeReview implements ChangeReviewPort {
     const changes: GitChange[] = [];
     for (const entry of entries) {
       const childRelativePath = `${relativePath}/${entry.name}`;
-      if (!this.isReviewablePath(childRelativePath)) continue;
+      if (this.isHiddenPath(childRelativePath)) continue;
       const childAbsolutePath = path.join(absolutePath, entry.name);
       if (entry.isSymbolicLink()) {
         const link = await symlinkTargetPolicy(childAbsolutePath, this.rootDir);

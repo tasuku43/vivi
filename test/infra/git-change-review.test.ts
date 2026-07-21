@@ -62,6 +62,32 @@ it("reads uncommitted Git changes and small text diffs", async () => {
   expect(added.content).toContain("+html,ok");
 });
 
+it("excludes configured path globs from review changes and diffs", async () => {
+  await writeFile(path.join(dir, "README.md"), "# After\n");
+  await writeFile(path.join(dir, "package-lock.json"), "{}\n");
+  await writeFile(path.join(dir, "notes.txt"), "not included\n");
+  await mkdir(path.join(dir, "src", "generated"), { recursive: true });
+  await writeFile(
+    path.join(dir, "src", "generated", "client.ts"),
+    "export const generated = true;\n",
+  );
+
+  const review = new GitChangeReview({
+    rootDir: dir,
+    includeExtensions: new Set(["md", "json", "ts"]),
+    excludePatterns: ["package-lock.json", "**/generated/**"],
+  });
+  const changes = await review.readChanges();
+
+  expect(changes.available).toBe(true);
+  expect(changes.changes).toEqual([
+    { path: "README.md", status: "modified", kind: "file" },
+  ]);
+  await expect(review.readDiff("package-lock.json")).resolves.toMatchObject({
+    status: "unavailable",
+  });
+});
+
 it("expands untracked directories into file-level review changes", async () => {
   await mkdir(path.join(dir, "notes", "daily"), { recursive: true });
   await writeFile(path.join(dir, "notes", "daily", "today.md"), "# Today\n");

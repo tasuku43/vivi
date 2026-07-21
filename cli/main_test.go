@@ -32,6 +32,11 @@ func TestHelpTextSurfacesOneShotAgentReview(t *testing.T) {
 		"vivi comments doctor|mine|check|protocol|schema|work|watch ...",
 		"Deeper help:",
 		"--ready-json",
+		"--exclude <glob>",
+		"wins over --include",
+		"<user-config-dir>/vivi/config.json",
+		"VIVI_CONFIG",
+		"Global and CLI excludes are additive",
 	} {
 		if !strings.Contains(help, command) {
 			t.Fatalf("help text did not include %q\n%s", command, help)
@@ -44,6 +49,25 @@ func TestHelpTextSurfacesOneShotAgentReview(t *testing.T) {
 	} {
 		if strings.Contains(help, residentCommand) {
 			t.Fatalf("common help should not recommend resident workflow %q\n%s", residentCommand, help)
+		}
+	}
+}
+
+func TestCommaListFlagAcceptsRepeatedAndCommaSeparatedExcludes(t *testing.T) {
+	values := commaListFlag{}
+	if err := values.Set("package-lock.json, **/generated/**"); err != nil {
+		t.Fatal(err)
+	}
+	if err := values.Set("snapshots/"); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"package-lock.json", "**/generated/**", "snapshots/"}
+	if len(values) != len(want) {
+		t.Fatalf("values = %#v, want %#v", values, want)
+	}
+	for index := range want {
+		if values[index] != want[index] {
+			t.Fatalf("values = %#v, want %#v", values, want)
 		}
 	}
 }

@@ -140,6 +140,7 @@ type FS struct {
 	rootReal         string
 	ignored          map[string]bool
 	include          map[string]bool
+	exclude          PathExcluder
 	maxFileSizeBytes int64
 	allowHTMLScripts bool
 	version          int
@@ -150,6 +151,7 @@ type FS struct {
 type Options struct {
 	Root             string
 	Include          []string
+	Exclude          []string
 	MaxFileSizeBytes int64
 	AllowHTMLScripts bool
 }
@@ -170,6 +172,10 @@ func New(options Options) (*FS, error) {
 			include[item] = true
 		}
 	}
+	exclude, err := NewPathExcluder(options.Exclude)
+	if err != nil {
+		return nil, err
+	}
 	maxSize := options.MaxFileSizeBytes
 	if maxSize <= 0 {
 		maxSize = 1024 * 1024
@@ -179,6 +185,7 @@ func New(options Options) (*FS, error) {
 		rootReal:         rootReal,
 		ignored:          defaultIgnored(),
 		include:          include,
+		exclude:          exclude,
 		maxFileSizeBytes: maxSize,
 		allowHTMLScripts: options.AllowHTMLScripts,
 		version:          1,
@@ -481,7 +488,7 @@ func (fsys *FS) WatchEntriesUnder(relativeDir string) (map[string]WatchEntry, Wa
 	if relative == "" {
 		return fsys.watchEntriesUnder("")
 	}
-	if fsys.isIgnored(relative) {
+	if fsys.isHidden(relative) {
 		return map[string]WatchEntry{}, WatchStats{}, nil
 	}
 	entry, ok, err := fsys.WatchEntry(relative)
@@ -569,7 +576,7 @@ func (fsys *FS) WatchEntry(relativePath string) (WatchEntry, bool, error) {
 	if err != nil {
 		return WatchEntry{}, false, err
 	}
-	if relative != "" && fsys.isIgnored(relative) {
+	if relative != "" && fsys.isHidden(relative) {
 		return WatchEntry{}, false, nil
 	}
 	resolved, err := fsys.resolvePath(relative, false)
@@ -646,6 +653,9 @@ func (fsys *FS) resolvePath(input string, requireNonEmpty bool) (resolvedPath, e
 	if requireNonEmpty && relative == "" {
 		return resolvedPath{}, requestError("file path is required")
 	}
+	if relative != "" && fsys.isExcluded(relative) {
+		return resolvedPath{}, requestError("path is excluded")
+	}
 	if relative != "" && fsys.isIgnored(relative) {
 		return resolvedPath{}, requestError("path is ignored")
 	}
@@ -680,7 +690,7 @@ func (fsys *FS) scan(relativeDir string, parent *string, depth int, stats *TreeS
 		if relativeDir != "" {
 			relative = relativeDir + "/" + entry.Name()
 		}
-		if fsys.isIgnored(relative) {
+		if fsys.isHidden(relative) {
 			continue
 		}
 		absolute, ok := fsys.internalAbsolutePath(relative)
@@ -762,7 +772,7 @@ func (fsys *FS) walkFiles(relativeDir string, stats *SearchStats, onFile func(Fi
 		if relativeDir != "" {
 			relative = relativeDir + "/" + entry.Name()
 		}
-		if fsys.isIgnored(relative) {
+		if fsys.isHidden(relative) {
 			continue
 		}
 		absolute, ok := fsys.internalAbsolutePath(relative)
@@ -853,7 +863,7 @@ func (fsys *FS) walkWatchEntries(relativeDir string, entries map[string]WatchEnt
 		if relativeDir != "" {
 			relative = relativeDir + "/" + entry.Name()
 		}
-		if fsys.isIgnored(relative) {
+		if fsys.isHidden(relative) {
 			continue
 		}
 		absolute, ok := fsys.internalAbsolutePath(relative)
@@ -926,6 +936,14 @@ func (fsys *FS) isIgnored(relative string) bool {
 		}
 	}
 	return false
+}
+
+func (fsys *FS) isExcluded(relative string) bool {
+	return fsys.exclude.Matches(relative)
+}
+
+func (fsys *FS) isHidden(relative string) bool {
+	return fsys.isIgnored(relative) || fsys.isExcluded(relative)
 }
 
 func (fsys *FS) isIncluded(relative string) bool {

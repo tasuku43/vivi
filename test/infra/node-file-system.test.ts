@@ -54,6 +54,30 @@ it("scans a tree and ignores default ignored directories", async () => {
   expect(JSON.stringify(tree)).not.toContain("storybook-static");
 });
 
+it("lets exclude globs override included extensions", async () => {
+  await writeFile(path.join(dir, "package-lock.json"), "{}\n");
+  await mkdir(path.join(dir, "src", "generated"), { recursive: true });
+  await writeFile(
+    path.join(dir, "src", "generated", "client.md"),
+    "# Generated\n",
+  );
+
+  const fs = new NodeFileSystem({
+    rootDir: dir,
+    includeExtensions: new Set(["md", "json"]),
+    excludePatterns: ["package-lock.json", "**/generated/**"],
+  });
+  const tree = JSON.stringify(await fs.readTree());
+
+  expect(tree).toContain("README.md");
+  expect(tree).toContain("docs/guide.md");
+  expect(tree).not.toContain("package-lock.json");
+  expect(tree).not.toContain("generated");
+  await expect(fs.readFile("package-lock.json")).rejects.toThrow(
+    "path is excluded",
+  );
+});
+
 it("reads one directory level without recursively loading child directories", async () => {
   const fs = new NodeFileSystem({ rootDir: dir });
   const root = await fs.readDirectory("", { depth: 1 });

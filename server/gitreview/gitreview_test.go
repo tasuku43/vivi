@@ -140,6 +140,46 @@ func TestReadChangesFallsBackToTrackedStatusWhenUntrackedScanTimesOut(t *testing
 	}
 }
 
+func TestReadChangesExcludesConfiguredGlobPatterns(t *testing.T) {
+	root := t.TempDir()
+	binDir := t.TempDir()
+	fakeGit := filepath.Join(binDir, "git")
+	script := strings.Join([]string{
+		"#!/bin/sh",
+		`if [ "$1" = "rev-parse" ]; then`,
+		`  printf "%s\n" "$PWD"`,
+		"  exit 0",
+		"fi",
+		`if [ "$1" = "status" ]; then`,
+		`  printf ' M README.md\000 M package-lock.json\000 M src/generated/client.go\000 M src/app.ts\000 M notes.txt\000'`,
+		"  exit 0",
+		"fi",
+		`printf "unexpected git args: %s\n" "$*" >&2`,
+		"exit 1",
+		"",
+	}, "\n")
+	if err := os.WriteFile(fakeGit, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	reviewer, err := NewWithOptions(root, 5*time.Second, Options{
+		Include: []string{"md", "json", "go", "ts"},
+		Exclude: []string{"package-lock.json", "**/generated/**"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	summary := reviewer.ReadChanges(context.Background())
+
+	if !summary.Available {
+		t.Fatalf("summary unavailable: %s", summary.Reason)
+	}
+	if len(summary.Changes) != 2 || summary.Changes[0].Path != "README.md" || summary.Changes[1].Path != "src/app.ts" {
+		t.Fatalf("excluded paths remained in review queue: %#v", summary.Changes)
+	}
+}
+
 func shellQuote(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
 }

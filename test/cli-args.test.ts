@@ -11,6 +11,10 @@ it("parses documented CLI switches", () => {
     "--open",
     "--include",
     "md,.html,ts",
+    "--exclude",
+    "package-lock.json, **/generated/**",
+    "--exclude",
+    "snapshots/",
     "--max-file-size",
     "2048",
     "--allow-html-scripts",
@@ -23,6 +27,11 @@ it("parses documented CLI switches", () => {
   expect(args.allowHtmlScripts).toBe(true);
   expect(args.maxFileSizeBytes).toBe(2048);
   expect(args.includeExtensions).toEqual(new Set(["md", "html", "ts"]));
+  expect(args.excludePatterns).toEqual([
+    "package-lock.json",
+    "**/generated/**",
+    "snapshots/",
+  ]);
 });
 
 it("keeps HTML scripts disabled unless explicitly allowed", () => {
@@ -35,5 +44,7 @@ it("shows Vivi command help without the old pre-release name", () => {
   expect(help).toContain("vivi - local review adapter");
   expect(help).toContain("vivi [root]");
   expect(help).toContain("--version");
+  expect(help).toContain("--exclude <glob>");
+  expect(help).toContain("wins over --include");
   expect(help).not.toContain(["path", "lens"].join(""));
 });

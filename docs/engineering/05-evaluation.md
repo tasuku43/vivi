@@ -8,6 +8,9 @@ Minimum acceptable behavior:
 
 - The initial tree includes expected supported files.
 - Ignored directories are omitted by default.
+- Global-config and CLI-supplied exclude globs remove matching paths from tree,
+  preview, watch, search, and Git review surfaces even when the extension is
+  included; both exclusion sources combine additively.
 - File API rejects root escape attempts.
 - Markdown files are classified as Markdown.
 - HTML files are classified as HTML.
