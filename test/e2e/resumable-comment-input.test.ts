@@ -75,3 +75,37 @@ it("restores Source input after reload and clears its composer after publish", a
     .poll(() => page.getByText("Composing", { exact: true }).count())
     .toBe(0);
 }, 40_000);
+
+it("deletes a saved pending comment before publish", async () => {
+  server = await startViviServer({
+    rootDir: fixture.rootDir,
+    gitReviewTimeoutMs: 1_000,
+  });
+  browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  page.setDefaultTimeout(8_000);
+  await page.goto(server.url);
+
+  await page.locator('[data-tree-path="README.md"]').click();
+  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await page.getByRole("button", { name: "Add comment on line 1" }).click();
+  await page
+    .getByRole("textbox", { name: "New line comment" })
+    .fill("Remove this pending thought");
+  await page
+    .getByRole("button", { name: "Save pending draft comment" })
+    .click();
+
+  const deletePending = page.getByRole("button", {
+    name: "Delete pending draft comment 1",
+  });
+  await deletePending.waitFor({ state: "visible" });
+  await deletePending.click();
+
+  await expect.poll(() => deletePending.count()).toBe(0);
+  await expect
+    .poll(() =>
+      page.getByRole("button", { name: "Publish all 1 pending" }).count(),
+    )
+    .toBe(0);
+}, 40_000);

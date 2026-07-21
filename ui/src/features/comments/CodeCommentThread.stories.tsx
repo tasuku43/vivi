@@ -53,6 +53,7 @@ const meta = {
     onClose: fn(),
     onCreateComment: fn(),
     onStatusChange: fn(),
+    onDeleteDraft: fn(),
   },
 } satisfies Meta<typeof CodeCommentThread>;
 
@@ -842,7 +843,7 @@ export const UserWritesOneDraftComment: Story = {
         .threadId,
     },
   },
-  play: async ({ canvasElement }) => {
+  play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     expect(canvas.getAllByText("Pending").length).toBeGreaterThan(0);
     await expect(canvas.getByText("Pending draft")).toBeVisible();
@@ -850,6 +851,12 @@ export const UserWritesOneDraftComment: Story = {
     await expect(canvas.getByLabelText("Continue thread")).toBeVisible();
     await expect(canvas.queryByText("Private draft")).not.toBeInTheDocument();
     await expect(canvas.queryByText("Private")).not.toBeInTheDocument();
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Delete pending draft comment 1" }),
+    );
+    await expect(args.onDeleteDraft).toHaveBeenCalledWith(
+      sampleDraftComments[0]!.id,
+    );
   },
 };
 

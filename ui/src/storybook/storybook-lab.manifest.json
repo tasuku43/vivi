@@ -105,6 +105,7 @@
       "intent": "Represent open, resolved, draft, published, failure, agent-read/reply, and archive-action states without requiring a backend. Archived threads are hidden from the browser UI after the transition.",
       "reviewFocus": [
         "draft comments read as private until publish",
+        "pending drafts can be deleted before publish",
         "open and resolved threads are visually distinct",
         "failure and published states are recoverable and obvious"
       ],
@@ -114,12 +115,14 @@
         "Review/Inline Comment States/Resolved",
         "Review/Inline Comment States/AgentHasReadThread",
         "Review/Inline Comment States/AgentHasReplied",
-        "Review/Inline Comment States/SelfCommentOwnership"
+        "Review/Inline Comment States/SelfCommentOwnership",
+        "Review/Inline Comment States/UserWritesOneDraftComment"
       ],
       "interactionStories": [
         "Review/Inline Comment States/Open",
         "Review/Inline Comment States/NewLineComment",
-        "Review/Inline Comment States/SelfCommentOwnership"
+        "Review/Inline Comment States/SelfCommentOwnership",
+        "Review/Inline Comment States/UserWritesOneDraftComment"
       ]
     },
     {

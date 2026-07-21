@@ -34,7 +34,7 @@ import { SelectionCommentComposer } from "../../comments/components/SelectionCom
 import sharedUiStyles from "../../../shared/styles/SharedUi.module.css";
 import { renderMarkdownDocumentHtml } from "../rendering/markdown-rendering.js";
 import styles from "./DiffViewer.module.css";
-import "./RenderedMarkdown.module.css";
+import renderedMarkdownStyles from "./RenderedMarkdown.module.css";
 
 type RenderKind = "source" | "markdown" | "html";
 type VisibleDiffLine = ParsedDiffLine & {
@@ -1331,7 +1331,7 @@ function RenderedDiffLine({
   if (renderKind === "markdown") {
     return (
       <article
-        className="markdown markdown-document rendered-diff-line"
+        className={`${renderedMarkdownStyles.renderedMarkdownStyles} markdown markdown-document rendered-diff-line`}
         dangerouslySetInnerHTML={{
           __html: renderMarkdownDocumentHtml(source, { commentBlocks: false }),
         }}

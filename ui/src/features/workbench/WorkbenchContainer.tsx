@@ -26,6 +26,7 @@ import {
 import { Inspector } from "../review-queue/Inspector.js";
 import { InlineCommentCard } from "../comments/components/InlineCommentCard.js";
 import { useCommentInputSessions } from "../comments/CommentInputSessionProvider.js";
+import { DraftReviewCommentActionsProvider } from "../comments/DraftReviewCommentActions.js";
 import { CommandPalette } from "../command-palette/CommandPalette.js";
 import { ShortcutHelp } from "../../shared/components/ShortcutHelp.js";
 import { WorkspaceRestoreNotice } from "../../shared/components/WorkspaceRestoreNotice.js";
@@ -2339,295 +2340,302 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }, [manualDraggedTab]);
 
   return (
-    <div
-      className={`${sharedUiStyles.sharedUiStyles} ${sharedUiStyles.appShell} app-shell`}
-    >
-      <Topbar
-        root={config?.root ?? null}
-        themePreference={themePreference}
-        onThemeCycle={() =>
-          setThemePreference((current) => nextThemePreference(current))
-        }
-        onQuickOpen={() => openPalette("file")}
-        onSearchText={() => openPalette("text")}
-        onOpenShortcuts={openShortcutHelp}
-      />
-
+    <DraftReviewCommentActionsProvider onDeleteDraft={deleteDraftReviewComment}>
       <div
-        className={workbenchClassName}
-        style={
-          {
-            "--sidebar-width": `${effectiveSidebarWidth}px`,
-            "--inspector-width": `${inspectorWidth}px`,
-          } as CSSProperties
-        }
+        className={`${sharedUiStyles.sharedUiStyles} ${sharedUiStyles.appShell} app-shell`}
       >
-        {effectiveSidebarVisible ? (
-          <>
-            <button
-              className={`${styles.resizer} ${styles.sidebarResizer}`}
-              type="button"
-              aria-label="Resize sidebar"
-              title="Resize sidebar"
-              onPointerDown={(event) => {
-                event.preventDefault();
-                setResizingWorkbenchPane("sidebar");
-              }}
-              onDoubleClick={() => setSidebarWidth(defaultSidebarWidth)}
-            />
-            <aside
-              className={`${sharedUiStyles.sidebar} sidebar`}
-              aria-label="File explorer"
-            >
-              <div className={`${sharedUiStyles.panelTitle} panel-title`}>
-                <span>Explorer</span>
-                <button
-                  aria-label={explorerFilterLabel(explorerFilterSummary)}
-                  className={
-                    treeChangedOnly
-                      ? `${sharedUiStyles.pill} ${sharedUiStyles.filterPill} ${sharedUiStyles.pillActive} pill filter-pill active`
-                      : `${sharedUiStyles.pill} ${sharedUiStyles.filterPill} pill filter-pill`
-                  }
-                  title={explorerFilterLabel(explorerFilterSummary)}
-                  type="button"
-                  onClick={() => setTreeChangedOnly((value) => !value)}
-                >
-                  {explorerFilterText(explorerFilterSummary)}
-                </button>
-              </div>
-              {tree ? (
-                <TreeSidebar
-                  nodes={sidebarNodes}
-                  selectedPath={selectedPath}
-                  revealPath={treeReveal?.path ?? null}
-                  revealRevision={treeReveal?.revision ?? 0}
-                  changedPaths={changedPathSet}
-                  reviewPaths={reviewPathSet}
-                  reviewStateByPath={reviewStateByPath}
-                  unreadReviewPaths={unreadReviewPathSet}
-                  activePaths={openTabPathSet}
-                  currentStopPath={activeComment?.path ?? null}
-                  commentCountsByPath={treeCommentCountsByPath}
-                  openThreadCountsByPath={treeOpenThreadCountsByPath}
-                  removedPaths={reviewState.removedPaths}
-                  loadingDirectoryPaths={loadingDirectoryPaths}
-                  onLoadDirectory={(path) => loadDirectory(path)}
-                  onSelect={(path) =>
-                    void loadFile(path, layout.activePaneId, "preview").catch(
-                      (err) => setError(String(err)),
-                    )
-                  }
-                  onOpen={(path) =>
-                    void loadFile(path, layout.activePaneId, "normal").catch(
-                      (err) => setError(String(err)),
-                    )
-                  }
-                />
-              ) : (
-                <p className={`${sharedUiStyles.muted} muted`}>
-                  Loading tree...
-                </p>
-              )}
-            </aside>
-          </>
-        ) : null}
-        <button
-          className={`${styles.railToggle} ${styles.sidebarRailToggle}`}
-          type="button"
-          aria-label={
-            effectiveSidebarVisible ? "Collapse sidebar" : "Expand sidebar"
+        <Topbar
+          root={config?.root ?? null}
+          themePreference={themePreference}
+          onThemeCycle={() =>
+            setThemePreference((current) => nextThemePreference(current))
           }
-          aria-keyshortcuts="Meta+B Control+B"
-          title={
-            effectiveSidebarVisible ? "Collapse sidebar" : "Expand sidebar"
-          }
-          onClick={() => setSidebarVisible((visible) => !visible)}
-        >
-          <span
-            className={
-              effectiveSidebarVisible
-                ? `${styles.collapseIcon} ${styles.collapseLeft}`
-                : `${styles.collapseIcon} ${styles.collapseRight}`
-            }
-          />
-        </button>
+          onQuickOpen={() => openPalette("file")}
+          onSearchText={() => openPalette("text")}
+          onOpenShortcuts={openShortcutHelp}
+        />
 
-        <main className={styles.main}>
-          <div
-            className={`${styles.editorGrid}${draggingTab ? ` ${styles.draggingTab}` : ""}`}
+        <div
+          className={workbenchClassName}
+          style={
+            {
+              "--sidebar-width": `${effectiveSidebarWidth}px`,
+              "--inspector-width": `${inspectorWidth}px`,
+            } as CSSProperties
+          }
+        >
+          {effectiveSidebarVisible ? (
+            <>
+              <button
+                className={`${styles.resizer} ${styles.sidebarResizer}`}
+                type="button"
+                aria-label="Resize sidebar"
+                title="Resize sidebar"
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  setResizingWorkbenchPane("sidebar");
+                }}
+                onDoubleClick={() => setSidebarWidth(defaultSidebarWidth)}
+              />
+              <aside
+                className={`${sharedUiStyles.sidebar} sidebar`}
+                aria-label="File explorer"
+              >
+                <div className={`${sharedUiStyles.panelTitle} panel-title`}>
+                  <span>Explorer</span>
+                  <button
+                    aria-label={explorerFilterLabel(explorerFilterSummary)}
+                    className={
+                      treeChangedOnly
+                        ? `${sharedUiStyles.pill} ${sharedUiStyles.filterPill} ${sharedUiStyles.pillActive} pill filter-pill active`
+                        : `${sharedUiStyles.pill} ${sharedUiStyles.filterPill} pill filter-pill`
+                    }
+                    title={explorerFilterLabel(explorerFilterSummary)}
+                    type="button"
+                    onClick={() => setTreeChangedOnly((value) => !value)}
+                  >
+                    {explorerFilterText(explorerFilterSummary)}
+                  </button>
+                </div>
+                {tree ? (
+                  <TreeSidebar
+                    nodes={sidebarNodes}
+                    selectedPath={selectedPath}
+                    revealPath={treeReveal?.path ?? null}
+                    revealRevision={treeReveal?.revision ?? 0}
+                    changedPaths={changedPathSet}
+                    reviewPaths={reviewPathSet}
+                    reviewStateByPath={reviewStateByPath}
+                    unreadReviewPaths={unreadReviewPathSet}
+                    activePaths={openTabPathSet}
+                    currentStopPath={activeComment?.path ?? null}
+                    commentCountsByPath={treeCommentCountsByPath}
+                    openThreadCountsByPath={treeOpenThreadCountsByPath}
+                    removedPaths={reviewState.removedPaths}
+                    loadingDirectoryPaths={loadingDirectoryPaths}
+                    onLoadDirectory={(path) => loadDirectory(path)}
+                    onSelect={(path) =>
+                      void loadFile(path, layout.activePaneId, "preview").catch(
+                        (err) => setError(String(err)),
+                      )
+                    }
+                    onOpen={(path) =>
+                      void loadFile(path, layout.activePaneId, "normal").catch(
+                        (err) => setError(String(err)),
+                      )
+                    }
+                  />
+                ) : (
+                  <p className={`${sharedUiStyles.muted} muted`}>
+                    Loading tree...
+                  </p>
+                )}
+              </aside>
+            </>
+          ) : null}
+          <button
+            className={`${styles.railToggle} ${styles.sidebarRailToggle}`}
+            type="button"
+            aria-label={
+              effectiveSidebarVisible ? "Collapse sidebar" : "Expand sidebar"
+            }
+            aria-keyshortcuts="Meta+B Control+B"
+            title={
+              effectiveSidebarVisible ? "Collapse sidebar" : "Expand sidebar"
+            }
+            onClick={() => setSidebarVisible((visible) => !visible)}
           >
-            {renderLayoutNode(layout.root)}
-          </div>
-        </main>
+            <span
+              className={
+                effectiveSidebarVisible
+                  ? `${styles.collapseIcon} ${styles.collapseLeft}`
+                  : `${styles.collapseIcon} ${styles.collapseRight}`
+              }
+            />
+          </button>
 
-        <button
-          className={`${styles.railToggle} ${styles.inspectorRailToggle}`}
-          type="button"
-          aria-label={
-            effectiveInspectorVisible
-              ? "Collapse inspector"
-              : "Expand inspector"
-          }
-          aria-keyshortcuts="Meta+Shift+\\ Control+Shift+\\"
-          title={
-            effectiveInspectorVisible
-              ? "Collapse inspector"
-              : "Expand inspector"
-          }
-          onClick={() => {
-            if (inspectorCollapsedByViewport) {
-              setCompactInspectorOpen((visible) => !visible);
-            } else {
-              setInspectorVisible((visible) => !visible);
-            }
-          }}
-        >
-          <span
-            className={
+          <main className={styles.main}>
+            <div
+              className={`${styles.editorGrid}${draggingTab ? ` ${styles.draggingTab}` : ""}`}
+            >
+              {renderLayoutNode(layout.root)}
+            </div>
+          </main>
+
+          <button
+            className={`${styles.railToggle} ${styles.inspectorRailToggle}`}
+            type="button"
+            aria-label={
               effectiveInspectorVisible
-                ? `${styles.collapseIcon} ${styles.collapseRight}`
-                : `${styles.collapseIcon} ${styles.collapseLeft}`
+                ? "Collapse inspector"
+                : "Expand inspector"
             }
+            aria-keyshortcuts="Meta+Shift+\\ Control+Shift+\\"
+            title={
+              effectiveInspectorVisible
+                ? "Collapse inspector"
+                : "Expand inspector"
+            }
+            onClick={() => {
+              if (inspectorCollapsedByViewport) {
+                setCompactInspectorOpen((visible) => !visible);
+              } else {
+                setInspectorVisible((visible) => !visible);
+              }
+            }}
+          >
+            <span
+              className={
+                effectiveInspectorVisible
+                  ? `${styles.collapseIcon} ${styles.collapseRight}`
+                  : `${styles.collapseIcon} ${styles.collapseLeft}`
+              }
+            />
+          </button>
+
+          {effectiveInspectorVisible ? (
+            <>
+              <button
+                className={`${styles.resizer} ${styles.inspectorResizer}`}
+                type="button"
+                aria-label="Resize inspector"
+                title="Resize inspector"
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  setResizingWorkbenchPane("inspector");
+                }}
+                onDoubleClick={() => setInspectorWidth(defaultInspectorWidth)}
+              />
+              <Inspector
+                file={file}
+                fileRemoved={activeFileRemoved}
+                reviewChanges={reviewChanges}
+                acceptedReviewChanges={hiddenAcceptedReviewChanges}
+                reviewReceipts={visibleReviewedReceipts}
+                reviewItems={reviewItems}
+                reviewLoading={gitReviewLoading && gitReview === null}
+                reviewUnavailableReason={gitReview?.reason ?? null}
+                reviewDiffStats={reviewDiffStats}
+                loadingReviewDiffs={loadingDiffs}
+                unreadReviewPaths={unreadReviewPathSet}
+                comments={activeFileComments}
+                reviewComments={comments}
+                draftComments={draftComments}
+                unsavedInputCount={
+                  commentInputs.sessions.filter((session) =>
+                    session.body.trim(),
+                  ).length
+                }
+                commentsLoading={commentsLoading}
+                knownMissingCommentPaths={knownMissingCommentPathSet}
+                threadActivities={commentActivitySummaries}
+                activeCommentId={activeCommentId}
+                onOpenComment={openCommentFromPanel}
+                onOpenDraft={(draft) =>
+                  void openDraftReviewComment(draft).catch((err) =>
+                    setError(String(err)),
+                  )
+                }
+                onPublishDrafts={(draftIds) =>
+                  void publishDraftReviewComments(draftIds).catch((err) =>
+                    setError(String(err)),
+                  )
+                }
+                onCommentStatusChange={(id, status) =>
+                  void updateCommentStatus(id, status).catch((err) =>
+                    setError(String(err)),
+                  )
+                }
+                selectedCodeRange={
+                  file?.path ? (codeSelections[file.path] ?? null) : null
+                }
+                outline={activeFileOutline}
+                activeOutlineId={
+                  activeOutlineByPane[layout.activePaneId] ?? null
+                }
+                activePath={selectedPath}
+                refreshedAt={file?.path ? refreshedFiles[file.path] : undefined}
+                activePaneId={layout.activePaneId}
+                onOpenEventPath={(path) => openReviewQueueItem(path, "preview")}
+                onConfirmEventPath={(path) =>
+                  openReviewQueueItem(path, "normal")
+                }
+                onOpenNextUnread={openLatestUnreadReviewFile}
+                onOpenNextChanged={() => openReviewQueueFile("next")}
+                onOpenPreviousChanged={() => openReviewQueueFile("previous")}
+                onOpenAllChanged={openAllChangedFiles}
+                onAcceptReviewPath={acceptReviewPath}
+                onRestoreAcceptedReviewPath={restoreAcceptedReviewPath}
+                onRevealInTree={revealActiveFileInTree}
+                onOutlineSelect={(id) => jumpToOutline(id)}
+              />
+            </>
+          ) : null}
+        </div>
+
+        <WorkspaceStatusbar status={workspaceStatus} />
+
+        <CommandPalette
+          open={paletteOpen}
+          mode={paletteMode}
+          query={paletteQuery}
+          fileResults={fileSearchResults}
+          recentFiles={quickOpenRecentFiles}
+          fileLoading={fileSearchLoading}
+          textResults={textSearchResults}
+          textLoading={textSearchLoading}
+          actions={commandActions}
+          onQueryChange={setPaletteQuery}
+          onModeChange={(mode) => {
+            setPaletteMode(mode);
+            setPaletteQuery("");
+          }}
+          onClose={() => setPaletteOpen(false)}
+          onOpenPath={openFromPalette}
+          onRunAction={runPaletteAction}
+        />
+        <ShortcutHelp
+          open={shortcutHelpOpen}
+          onClose={() => setShortcutHelpOpen(false)}
+        />
+        {restoreNoticeTabCount ? (
+          <WorkspaceRestoreNotice
+            tabCount={restoreNoticeTabCount}
+            onDismiss={() => setRestoreNoticeTabCount(null)}
+            onStartFresh={startFreshWorkspace}
           />
-        </button>
-
-        {effectiveInspectorVisible ? (
-          <>
-            <button
-              className={`${styles.resizer} ${styles.inspectorResizer}`}
-              type="button"
-              aria-label="Resize inspector"
-              title="Resize inspector"
-              onPointerDown={(event) => {
-                event.preventDefault();
-                setResizingWorkbenchPane("inspector");
-              }}
-              onDoubleClick={() => setInspectorWidth(defaultInspectorWidth)}
-            />
-            <Inspector
-              file={file}
-              fileRemoved={activeFileRemoved}
-              reviewChanges={reviewChanges}
-              acceptedReviewChanges={hiddenAcceptedReviewChanges}
-              reviewReceipts={visibleReviewedReceipts}
-              reviewItems={reviewItems}
-              reviewLoading={gitReviewLoading && gitReview === null}
-              reviewUnavailableReason={gitReview?.reason ?? null}
-              reviewDiffStats={reviewDiffStats}
-              loadingReviewDiffs={loadingDiffs}
-              unreadReviewPaths={unreadReviewPathSet}
-              comments={activeFileComments}
-              reviewComments={comments}
-              draftComments={draftComments}
-              unsavedInputCount={
-                commentInputs.sessions.filter((session) => session.body.trim())
-                  .length
-              }
-              commentsLoading={commentsLoading}
-              knownMissingCommentPaths={knownMissingCommentPathSet}
-              threadActivities={commentActivitySummaries}
-              activeCommentId={activeCommentId}
-              onOpenComment={openCommentFromPanel}
-              onOpenDraft={(draft) =>
-                void openDraftReviewComment(draft).catch((err) =>
-                  setError(String(err)),
-                )
-              }
-              onPublishDrafts={(draftIds) =>
-                void publishDraftReviewComments(draftIds).catch((err) =>
-                  setError(String(err)),
-                )
-              }
-              onCommentStatusChange={(id, status) =>
-                void updateCommentStatus(id, status).catch((err) =>
-                  setError(String(err)),
-                )
-              }
-              selectedCodeRange={
-                file?.path ? (codeSelections[file.path] ?? null) : null
-              }
-              outline={activeFileOutline}
-              activeOutlineId={activeOutlineByPane[layout.activePaneId] ?? null}
-              activePath={selectedPath}
-              refreshedAt={file?.path ? refreshedFiles[file.path] : undefined}
-              activePaneId={layout.activePaneId}
-              onOpenEventPath={(path) => openReviewQueueItem(path, "preview")}
-              onConfirmEventPath={(path) => openReviewQueueItem(path, "normal")}
-              onOpenNextUnread={openLatestUnreadReviewFile}
-              onOpenNextChanged={() => openReviewQueueFile("next")}
-              onOpenPreviousChanged={() => openReviewQueueFile("previous")}
-              onOpenAllChanged={openAllChangedFiles}
-              onAcceptReviewPath={acceptReviewPath}
-              onRestoreAcceptedReviewPath={restoreAcceptedReviewPath}
-              onRevealInTree={revealActiveFileInTree}
-              onOutlineSelect={(id) => jumpToOutline(id)}
-            />
-          </>
         ) : null}
+        {pendingRestoreSession ? (
+          <RestoreSessionPrompt
+            tabCount={pendingRestoreSession.openTabs.length}
+            onRestoreAll={() => {
+              applyWorkspaceSession(pendingRestoreSession);
+              setRestoreNoticeTabCount(pendingRestoreSession.openTabs.length);
+              setPendingRestoreSession(null);
+            }}
+            onRestoreActive={() => {
+              const activeOnly = restoreOnlyActiveWorkspaceTab(
+                pendingRestoreSession,
+              );
+              applyWorkspaceSession(activeOnly);
+              setRestoreNoticeTabCount(activeOnly.openTabs.length);
+              setPendingRestoreSession(null);
+            }}
+            onSkip={() => setPendingRestoreSession(null)}
+          />
+        ) : null}
+        <InlineCommentCard
+          comment={usesInlineCommentThread ? null : visibleActiveComment}
+          rect={activeCommentRect}
+          onClose={closeInlineComment}
+          onStatusChange={(id, status) =>
+            void updateCommentStatus(id, status).catch((err) =>
+              setError(String(err)),
+            )
+          }
+        />
       </div>
-
-      <WorkspaceStatusbar status={workspaceStatus} />
-
-      <CommandPalette
-        open={paletteOpen}
-        mode={paletteMode}
-        query={paletteQuery}
-        fileResults={fileSearchResults}
-        recentFiles={quickOpenRecentFiles}
-        fileLoading={fileSearchLoading}
-        textResults={textSearchResults}
-        textLoading={textSearchLoading}
-        actions={commandActions}
-        onQueryChange={setPaletteQuery}
-        onModeChange={(mode) => {
-          setPaletteMode(mode);
-          setPaletteQuery("");
-        }}
-        onClose={() => setPaletteOpen(false)}
-        onOpenPath={openFromPalette}
-        onRunAction={runPaletteAction}
-      />
-      <ShortcutHelp
-        open={shortcutHelpOpen}
-        onClose={() => setShortcutHelpOpen(false)}
-      />
-      {restoreNoticeTabCount ? (
-        <WorkspaceRestoreNotice
-          tabCount={restoreNoticeTabCount}
-          onDismiss={() => setRestoreNoticeTabCount(null)}
-          onStartFresh={startFreshWorkspace}
-        />
-      ) : null}
-      {pendingRestoreSession ? (
-        <RestoreSessionPrompt
-          tabCount={pendingRestoreSession.openTabs.length}
-          onRestoreAll={() => {
-            applyWorkspaceSession(pendingRestoreSession);
-            setRestoreNoticeTabCount(pendingRestoreSession.openTabs.length);
-            setPendingRestoreSession(null);
-          }}
-          onRestoreActive={() => {
-            const activeOnly = restoreOnlyActiveWorkspaceTab(
-              pendingRestoreSession,
-            );
-            applyWorkspaceSession(activeOnly);
-            setRestoreNoticeTabCount(activeOnly.openTabs.length);
-            setPendingRestoreSession(null);
-          }}
-          onSkip={() => setPendingRestoreSession(null)}
-        />
-      ) : null}
-      <InlineCommentCard
-        comment={usesInlineCommentThread ? null : visibleActiveComment}
-        rect={activeCommentRect}
-        onClose={closeInlineComment}
-        onStatusChange={(id, status) =>
-          void updateCommentStatus(id, status).catch((err) =>
-            setError(String(err)),
-          )
-        }
-      />
-    </div>
+    </DraftReviewCommentActionsProvider>
   );
 
   function applyWorkspaceSession(restored: WorkspaceSessionState) {

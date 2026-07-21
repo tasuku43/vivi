@@ -92,9 +92,7 @@ export const RenderedShowsSourceInputReturn: Story = {
       name: "New line comment",
     });
     await userEvent.type(composer, "Keep this visible from Rendered mode");
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Rendered" }),
-    );
+    await userEvent.click(canvas.getByRole("button", { name: "Rendered" }));
 
     const returnButton = canvas.getByRole("button", {
       name: "Return to Source, 1 input in progress",
@@ -448,6 +446,14 @@ export const RenderedMarkdownSyntaxGallery: Story = {
     await expect(
       canvas.getByLabelText("Front matter metadata"),
     ).toBeInTheDocument();
+    const frontMatterRow = canvasElement.querySelector<HTMLElement>(
+      ".markdown-frontmatter-row",
+    );
+    await expect(frontMatterRow).toBeInTheDocument();
+    await expect(getComputedStyle(frontMatterRow!).display).toBe("grid");
+    await expect(
+      getComputedStyle(frontMatterRow!).gridTemplateColumns,
+    ).not.toBe("none");
     await expect(canvas.getByText("visual-regression")).toBeInTheDocument();
     await expect(canvas.getByText("Inline HTML disclosure")).toBeVisible();
     await expect(

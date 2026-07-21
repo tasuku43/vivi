@@ -34,6 +34,7 @@ A build is acceptable when a user can:
 26. Keep resolved threads in the Comments history filter, hide archived threads from the browser UI, and never promote terminal threads into the active Review Queue.
 27. Keep typed comment input when the user clicks elsewhere, switches files or tabs, changes rendered/source mode, reloads the page, or collapses with Escape/close; remove it only through an explicit Discard action or after successful Publish.
 28. Count only saved pending drafts in Publish actions, label unsaved input separately, and require an explicit Re-anchor or Discard decision when the anchored file version changes.
+29. Delete an individual saved pending draft from its comment thread before publishing, without affecting other pending drafts.
 
 ## Evaluation function
 
@@ -64,6 +65,6 @@ Add or update tests for:
 - agent-aware Review Queue derivation, lifecycle-safe activity display, seen/unseen priority, and next/previous keyboard navigation.
 - JSON/structured formatting and text wrap behavior where feasible.
 - diff-from-`HEAD` toggle rendering inside the open file surface, including inline source/code diffs, rendered Markdown/HTML change cards, and shortcut behavior.
-- resumable comment input transitions: outside click, Escape/collapse, navigation and reload restoration, rendered-to-source return, explicit discard, successful save, publish cleanup, and stale-anchor re-anchoring.
+- resumable comment input transitions: outside click, Escape/collapse, navigation and reload restoration, rendered-to-source return, explicit discard, successful save, individual pending-draft deletion, publish cleanup, and stale-anchor re-anchoring.
 
 Add an E2E test that starts the server against a fixture directory and verifies the UI can load the tree, open a Markdown file, open an HTML file, and receive at least one simulated filesystem event.

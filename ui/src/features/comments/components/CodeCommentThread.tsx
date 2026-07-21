@@ -18,6 +18,10 @@ import sharedUiStyles from "../../../shared/styles/SharedUi.module.css";
 import activityStyles from "./CommentActivity.module.css";
 import { CommentStatusBadge } from "./CommentStatusBadge.js";
 import { useCommentInputSession } from "../CommentInputSessionProvider.js";
+import {
+  useDraftReviewCommentDelete,
+  type DraftReviewCommentDeleteHandler,
+} from "../DraftReviewCommentActions.js";
 import styles from "./CodeCommentThread.module.css";
 
 export function CodeCommentThread({
@@ -30,6 +34,7 @@ export function CodeCommentThread({
   activity,
   activeCommentId = null,
   currentActorId,
+  onDeleteDraft,
 }: {
   thread: CodeCommentThreadModel;
   draft: CommentDraft;
@@ -40,6 +45,7 @@ export function CodeCommentThread({
   activity?: CommentActivitySummary;
   activeCommentId?: string | null;
   currentActorId?: string;
+  onDeleteDraft?: DraftReviewCommentDeleteHandler;
 }) {
   const hasThreadMessages = thread.comments.length > 0;
   const hasPublishedComments = thread.comments.some(
@@ -50,7 +56,10 @@ export function CodeCommentThread({
   const body = input.session?.body ?? "";
   const stale = input.session?.status === "stale";
   const [saving, setSaving] = useState(false);
+  const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const inheritedDeleteDraft = useDraftReviewCommentDelete();
+  const deleteDraft = onDeleteDraft ?? inheritedDeleteDraft;
   const threadRef = useRef<HTMLElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const threadStatus: CommentStatus = thread.status;
@@ -113,6 +122,19 @@ export function CodeCommentThread({
     );
     if (first && threadStatus !== status) {
       void onStatusChange?.(first.threadId ?? first.id, status);
+    }
+  }
+
+  async function deletePendingDraft(id: string) {
+    if (!deleteDraft || deletingDraftId) return;
+    setDeletingDraftId(id);
+    setError(null);
+    try {
+      await deleteDraft(id);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setDeletingDraftId(null);
     }
   }
 
@@ -188,6 +210,9 @@ export function CodeCommentThread({
             const active = comment.id === activeCommentId;
             const agent = commentAgentIdentity(comment);
             const draftComment = isDraftThreadComment(comment);
+            const draftId = draftComment
+              ? (comment.draftId ?? comment.id.replace(/^draft:/, ""))
+              : null;
             const currentUserComment =
               Boolean(currentActorId) &&
               comment.createdBy?.id === currentActorId;
@@ -231,6 +256,17 @@ export function CodeCommentThread({
                   )}
                   {!draftComment && comment.status !== "open" ? (
                     <span>{statusLabel(comment.status)}</span>
+                  ) : null}
+                  {draftId && deleteDraft ? (
+                    <button
+                      className="code-thread-comment-delete"
+                      type="button"
+                      aria-label={`Delete pending draft comment ${index + 1}`}
+                      disabled={deletingDraftId === draftId}
+                      onClick={() => void deletePendingDraft(draftId)}
+                    >
+                      {deletingDraftId === draftId ? "Deleting…" : "Delete"}
+                    </button>
                   ) : null}
                 </div>
                 <p>{comment.body}</p>

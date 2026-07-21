@@ -89,6 +89,10 @@
   border-bottom: 1px solid var(--vivi-color-accent-border);
 }
 
+:local(.renderedMarkdownStyles) {
+  --vivi-rendered-markdown-styles: 1;
+}
+
 :global(.markdown a:hover) {
   border-bottom-color: var(--vivi-color-accent);
 }

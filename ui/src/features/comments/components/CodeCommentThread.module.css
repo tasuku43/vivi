@@ -192,6 +192,30 @@
   font-weight: 760;
 }
 
+:global(.code-thread-comment-delete) {
+  margin-left: auto;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--vivi-color-content-muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 680;
+  padding: 3px 6px;
+}
+
+:global(.code-thread-comment-delete:hover),
+:global(.code-thread-comment-delete:focus-visible) {
+  outline: none;
+  background: color-mix(in srgb, var(--vivi-color-danger) 12%, transparent);
+  color: var(--vivi-color-danger);
+}
+
+:global(.code-thread-comment-delete:disabled) {
+  cursor: wait;
+  opacity: 0.62;
+}
+
 :global(.code-thread-current-stop) {
   border: 1px solid var(--vivi-color-accent-border);
   border-radius: 999px;

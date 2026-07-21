@@ -59,7 +59,7 @@ import { renderMermaidBlocks } from "../rendering/mermaid-rendering.js";
 import { DiffViewer } from "./DiffViewer.js";
 import surfaceStyles from "./ViewerSurface.module.css";
 import styles from "./MarkdownViewer.module.css";
-import "./RenderedMarkdown.module.css";
+import renderedMarkdownStyles from "./RenderedMarkdown.module.css";
 
 export {
   injectMermaidPreviewBlocks,
@@ -538,7 +538,7 @@ export function MarkdownViewer({
         />
       ) : mode === "rendered" ? (
         <article
-          className={`${styles.document} markdown markdown-document`}
+          className={`${styles.document} ${renderedMarkdownStyles.renderedMarkdownStyles} markdown markdown-document`}
           ref={markdownRef}
           onMouseUp={() =>
             scheduleSelectionCommentUpdate(updateRenderedSelectionComment)
