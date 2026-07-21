@@ -233,6 +233,40 @@
   padding: 9px;
 }
 
+:global(.code-comment-stale) {
+  display: grid;
+  gap: 5px;
+  margin: 0 0 8px;
+  border: 1px solid
+    color-mix(in srgb, #d99a37 55%, var(--vivi-color-border-default));
+  border-radius: 6px;
+  background: color-mix(in srgb, #d99a37 12%, var(--vivi-color-surface-panel));
+  color: var(--vivi-color-content-primary);
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 8px 9px;
+}
+
+:global(.code-comment-stale > span) {
+  color: var(--vivi-color-content-muted);
+}
+
+:global(.code-comment-stale > div) {
+  display: flex;
+  gap: 6px;
+}
+
+:global(.code-comment-stale button) {
+  border: 1px solid var(--vivi-color-border-default);
+  border-radius: 5px;
+  background: var(--vivi-color-surface-panel-raised);
+  color: var(--vivi-color-content-primary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 4px 7px;
+}
+
 :global(.code-comment-composer-mode) {
   display: inline-flex;
   align-items: center;

@@ -92,7 +92,11 @@ export function ViewerToolbar({
         </span>
       ) : null}
       <div
-        className={cx(styles.actions, "viewer-toolbar-actions", actionsClassName)}
+        className={cx(
+          styles.actions,
+          "viewer-toolbar-actions",
+          actionsClassName,
+        )}
       >
         {header?.reviewState?.state === "queued" && header.onMarkReviewed ? (
           <button
@@ -147,7 +151,9 @@ export function ViewerToolbarLocation({
               key={segment.path}
             >
               {index > 0 ? (
-                <span className={cx(styles.separator, "file-location-separator")}>
+                <span
+                  className={cx(styles.separator, "file-location-separator")}
+                >
                   /
                 </span>
               ) : null}
@@ -253,7 +259,28 @@ export function DiffToggleButton({
       type="button"
       onClick={onToggle}
     >
-      Diff from HEAD
+      {enabled ? "Back to file" : "Diff from HEAD"}
+    </button>
+  );
+}
+
+export function SourceInputReturnButton({
+  count,
+  onReturn,
+}: {
+  count: number;
+  onReturn: () => void;
+}) {
+  if (!count) return null;
+  const inputLabel = count === 1 ? "input" : "inputs";
+  return (
+    <button
+      className={styles.sourceInputReturn}
+      type="button"
+      aria-label={`Return to Source, ${count} ${inputLabel} in progress`}
+      onClick={onReturn}
+    >
+      <span aria-hidden="true">←</span> Source · {count} {inputLabel}
     </button>
   );
 }

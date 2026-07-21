@@ -60,6 +60,7 @@ interface Props {
   comments?: ViviComment[];
   reviewComments?: ViviComment[];
   draftComments?: DraftReviewComment[];
+  unsavedInputCount?: number;
   commentsLoading?: boolean;
   knownMissingCommentPaths?: ReadonlySet<string>;
   threadActivities?: Record<string, CommentActivitySummary>;
@@ -105,6 +106,7 @@ export function Inspector({
   comments = [],
   reviewComments = comments,
   draftComments = [],
+  unsavedInputCount = 0,
   knownMissingCommentPaths = emptyMissingCommentPaths,
   threadActivities = {},
   activeCommentId = null,
@@ -499,7 +501,7 @@ export function Inspector({
           <span>Review</span>
           <strong>
             {needActionCount
-              ? `${needActionCount} need action`
+              ? `${needActionCount} attention ${needActionCount === 1 ? "item" : "items"}`
               : reviewLoading
                 ? "loading"
                 : "clear"}
@@ -509,14 +511,22 @@ export function Inspector({
           <button
             className={`${sharedUiStyles.commandButton} ${sharedUiStyles.commandButtonSecondary} command-button command-button-secondary review-next-action`}
             type="button"
+            aria-label="Open next review queue item"
             onClick={onOpenNextChanged}
           >
-            Next
+            Next queued
           </button>
         ) : null}
       </div>
       <div className="inspect-body">
         <div className="inspector-review-mode">
+          {unsavedInputCount ? (
+            <p className="review-unsaved-input-summary" role="status">
+              <strong>{unsavedInputCount}</strong>{" "}
+              {unsavedInputCount === 1 ? "input" : "inputs"} in progress
+              <span>Not included in Publish until saved.</span>
+            </p>
+          ) : null}
           <section className="review-state-summary" aria-label="Review states">
             {reviewStateSections.map((section) => (
               <span

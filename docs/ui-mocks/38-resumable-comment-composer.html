@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>38 Resumable comment composer - Vivi mock</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #081018;
+        --panel: #0f1a22;
+        --raised: #14212b;
+        --reader: #09131b;
+        --text: #eef4f7;
+        --muted: #9cabb5;
+        --subtle: #71828d;
+        --line: #233641;
+        --soft: rgba(255, 255, 255, 0.08);
+        --accent: #75c7d3;
+        --accent-surface: rgba(89, 168, 181, 0.13);
+        --comment: #aee9df;
+        --comment-line: #4f8d84;
+        --comment-bg: rgba(83, 151, 142, 0.14);
+        --warn: #d7b56d;
+        --warn-bg: rgba(215, 181, 109, 0.12);
+        --danger: #ff9292;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--text);
+      }
+      body {
+        padding: 24px;
+      }
+      button,
+      textarea {
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+      .page {
+        max-width: 1480px;
+        margin: 0 auto;
+        display: grid;
+        gap: 18px;
+      }
+      .intro {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 22px;
+        align-items: end;
+      }
+      .kicker,
+      .eyebrow {
+        color: var(--subtle);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin-top: 4px;
+        font-size: 28px;
+      }
+      .intro p {
+        margin-top: 8px;
+        max-width: 920px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+      .principles {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        justify-content: end;
+      }
+      .pill {
+        border: 1px solid var(--soft);
+        border-radius: 999px;
+        padding: 5px 9px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .pill.good {
+        border-color: var(--comment-line);
+        color: var(--comment);
+        background: var(--comment-bg);
+      }
+      .matrix {
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: var(--panel);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      th,
+      td {
+        padding: 10px 12px;
+        border-right: 1px solid var(--soft);
+        border-bottom: 1px solid var(--soft);
+        text-align: left;
+        vertical-align: top;
+        line-height: 1.45;
+      }
+      th:last-child,
+      td:last-child {
+        border-right: 0;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      th {
+        color: var(--subtle);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      td:first-child {
+        width: 178px;
+        color: var(--text);
+        font-weight: 700;
+      }
+      .concepts {
+        display: grid;
+        gap: 18px;
+      }
+      .concept {
+        display: grid;
+        grid-template-columns: 286px minmax(0, 1fr);
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        overflow: hidden;
+        background: var(--panel);
+      }
+      .concept.recommended {
+        border-color: var(--comment-line);
+      }
+      .brief {
+        padding: 18px;
+        border-right: 1px solid var(--line);
+        display: grid;
+        align-content: start;
+        gap: 12px;
+      }
+      .brief h2 {
+        font-size: 21px;
+      }
+      .brief p,
+      .brief li {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+      .brief ul {
+        display: grid;
+        gap: 6px;
+        margin: 0;
+        padding-left: 18px;
+      }
+      .demo-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .demo-actions button {
+        min-height: 28px;
+        padding: 4px 8px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--raised);
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .demo-actions button:hover {
+        color: var(--text);
+        border-color: var(--accent);
+      }
+      .mock {
+        min-width: 0;
+        min-height: 570px;
+        display: grid;
+        grid-template-rows: 36px 1fr 27px;
+        background: var(--reader);
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 11px;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel);
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .topbar strong {
+        color: var(--text);
+        font-size: 13px;
+      }
+      .topbar .publish {
+        margin-left: auto;
+        border: 1px solid var(--comment-line);
+        border-radius: 6px;
+        background: var(--comment-bg);
+        color: var(--comment);
+        padding: 4px 8px;
+      }
+      .workbench {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 174px minmax(430px, 1fr) 210px;
+      }
+      .tree,
+      .inspector {
+        min-width: 0;
+        background: var(--panel);
+        padding: 10px 8px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .tree {
+        border-right: 1px solid var(--line);
+      }
+      .inspector {
+        border-left: 1px solid var(--line);
+      }
+      .section-title {
+        margin: 2px 5px 8px;
+        color: var(--subtle);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .node,
+      .queue-row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        min-height: 27px;
+        padding: 5px 7px;
+        border-radius: 6px;
+      }
+      .node.active {
+        color: var(--text);
+        background: var(--accent-surface);
+      }
+      .node .dot {
+        margin-left: auto;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--warn);
+      }
+      .viewer {
+        min-width: 0;
+        display: grid;
+        grid-template-rows: 34px 34px 1fr;
+      }
+      .tabs,
+      .toolbar {
+        display: flex;
+        align-items: end;
+        gap: 4px;
+        padding: 0 8px;
+        border-bottom: 1px solid var(--line);
+        background: #0c161f;
+      }
+      .tab {
+        min-height: 28px;
+        padding: 7px 9px;
+        color: var(--muted);
+        font-size: 11px;
+        border-radius: 6px 6px 0 0;
+      }
+      .tab.active {
+        color: var(--text);
+        background: var(--reader);
+        border: 1px solid var(--line);
+        border-bottom-color: var(--reader);
+      }
+      .tab .unsent {
+        margin-left: 5px;
+        color: var(--warn);
+      }
+      .toolbar {
+        align-items: center;
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .doc {
+        overflow: hidden;
+        padding: 20px 28px 28px;
+      }
+      .doc h3 {
+        font-size: 19px;
+        margin-bottom: 12px;
+      }
+      .line {
+        position: relative;
+        min-height: 29px;
+        display: grid;
+        grid-template-columns: 28px 1fr;
+        gap: 9px;
+        align-items: start;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+      .ln {
+        color: var(--subtle);
+        text-align: right;
+      }
+      .line.active {
+        color: var(--text);
+      }
+      .line.active::before {
+        content: "";
+        position: absolute;
+        left: -28px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: var(--comment-line);
+      }
+      .composer {
+        margin: 6px 0 9px 37px;
+        padding: 9px;
+        border: 1px solid var(--comment-line);
+        border-radius: 7px;
+        background: var(--panel);
+      }
+      .composer-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: var(--comment);
+        font-size: 10px;
+        font-weight: 700;
+      }
+      .composer textarea {
+        width: 100%;
+        min-height: 54px;
+        margin-top: 7px;
+        resize: none;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 7px;
+        background: var(--reader);
+        color: var(--text);
+        font-size: 11px;
+      }
+      .composer-foot {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 6px;
+        color: var(--subtle);
+        font-size: 10px;
+      }
+      .composer-foot .save {
+        margin-left: auto;
+        padding: 4px 7px;
+        border: 1px solid var(--comment-line);
+        border-radius: 5px;
+        background: var(--comment-bg);
+        color: var(--comment);
+      }
+      .resume-chip {
+        margin: 5px 0 7px 37px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        width: fit-content;
+        padding: 5px 8px;
+        border: 1px dashed var(--warn);
+        border-radius: 999px;
+        background: var(--warn-bg);
+        color: var(--warn);
+        font-size: 10px;
+      }
+      .draft-card {
+        margin: 7px 0;
+        padding: 8px;
+        border: 1px solid var(--comment-line);
+        border-radius: 6px;
+        background: var(--comment-bg);
+      }
+      .draft-card strong {
+        display: block;
+        color: var(--comment);
+        font-size: 11px;
+      }
+      .draft-card span {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 10px;
+        line-height: 1.4;
+      }
+      .note {
+        padding: 8px;
+        border: 1px solid var(--soft);
+        border-radius: 6px;
+        color: var(--muted);
+        font-size: 10px;
+        line-height: 1.45;
+      }
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 9px;
+        border-top: 1px solid var(--line);
+        background: var(--panel);
+        color: var(--subtle);
+        font-size: 10px;
+      }
+      .status .local {
+        color: var(--warn);
+      }
+      .status .live {
+        margin-left: auto;
+        color: var(--comment);
+      }
+      [data-demo-state="away"] .composer.primary {
+        display: none;
+      }
+      [data-demo-state="typing"] .resume-chip {
+        display: none;
+      }
+      [data-demo-state="restored"] .resume-chip {
+        display: none;
+      }
+      [data-demo-state="away"] .tab.active .unsent {
+        display: inline;
+      }
+      [data-demo-state="typing"] .tab.active .unsent,
+      [data-demo-state="restored"] .tab.active .unsent {
+        display: none;
+      }
+      [data-demo-state="typing"] .secondary,
+      [data-demo-state="away"] .secondary {
+        display: none;
+      }
+      .decision {
+        padding: 14px 16px;
+        border: 1px solid var(--comment-line);
+        border-radius: 9px;
+        background: var(--comment-bg);
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+      .decision strong {
+        color: var(--comment);
+      }
+      @media (max-width: 980px) {
+        body {
+          padding: 12px;
+        }
+        .concept {
+          grid-template-columns: 1fr;
+        }
+        .brief {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        .workbench {
+          grid-template-columns: 140px minmax(400px, 1fr);
+        }
+        .inspector {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="intro">
+        <div>
+          <div class="kicker">
+            Vivi concept 38 · comment interruption policy
+          </div>
+          <h1>Keep the reading flow; never lose typed feedback</h1>
+          <p>
+            This explores what happens when a reviewer clicks another line,
+            file, tab, viewer mode, inspector item, or blank area while
+            composing. It keeps Vivi a workspace viewer—not a Crit-style stacked
+            review page.
+          </p>
+        </div>
+        <div class="principles">
+          <span class="pill good">Publish is the agent boundary</span>
+          <span class="pill">No resident inbox</span>
+          <span class="pill">Tree + tabs stay primary</span>
+        </div>
+      </header>
+
+      <section class="matrix" aria-label="Interaction policy matrix">
+        <table>
+          <thead>
+            <tr>
+              <th>Reviewer action</th>
+              <th>A · Resumable inline</th>
+              <th>B · Single focus</th>
+              <th>C · Draft shelf</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Click another line</td>
+              <td>Keep current composer; open another inline.</td>
+              <td>Collapse current into a resumable chip; open one editor.</td>
+              <td>Autosave current into inspector; open next editor.</td>
+            </tr>
+            <tr>
+              <td>Click blank content</td>
+              <td>Do nothing. Outside click never discards.</td>
+              <td>Collapse to chip.</td>
+              <td>Move to shelf.</td>
+            </tr>
+            <tr>
+              <td>Switch tab/file/mode</td>
+              <td>
+                Retain typed body locally by file + anchor; restore on return.
+              </td>
+              <td>Retain one collapsed chip per file.</td>
+              <td>Draft remains globally visible in inspector.</td>
+            </tr>
+            <tr>
+              <td>Escape / ×</td>
+              <td>
+                Empty closes. Typed collapses first; explicit Discard removes.
+              </td>
+              <td>Always collapses; chip menu owns Discard.</td>
+              <td>Closes editor because shelf already holds text.</td>
+            </tr>
+            <tr>
+              <td>File changes underneath</td>
+              <td>Keep text, mark anchor stale, offer Re-anchor / Discard.</td>
+              <td>Same, on the chip.</td>
+              <td>Same, in the shelf card.</td>
+            </tr>
+            <tr>
+              <td>Save → Publish</td>
+              <td colspan="3">
+                Save creates a private pending draft. Publish exposes saved
+                drafts to agents. Agent fetch timing remains independent.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="concepts">
+        <article
+          class="concept recommended"
+          id="concept-a"
+          data-demo-state="typing"
+        >
+          <div class="brief">
+            <div class="eyebrow">Recommended · least surprising</div>
+            <h2>A · Resumable inline</h2>
+            <p>
+              Inline composers stay where the reviewer made them. Navigating
+              away never publishes and never silently loses typed text.
+            </p>
+            <div class="demo-actions">
+              <button data-state="typing">Typing</button>
+              <button data-state="away">Click away</button>
+              <button data-state="restored">Return</button>
+            </div>
+            <ul>
+              <li>Best fit for Vivi's spatial file-viewer model.</li>
+              <li>Multiple same-file thoughts can coexist.</li>
+              <li>
+                Needs a small local “unsent” state separate from saved drafts.
+              </li>
+            </ul>
+          </div>
+          <div class="mock">
+            <div class="topbar">
+              <strong>vivi</strong><span>docs / product</span
+              ><button class="publish">Publish 2 saved drafts</button>
+            </div>
+            <div class="workbench">
+              <aside class="tree">
+                <div class="section-title">Explorer</div>
+                <div class="node">▾ docs</div>
+                <div class="node active">
+                  MD thesis.md <span class="dot"></span>
+                </div>
+                <div class="node">MD brief.md</div>
+                <div class="node">MRM flow.mmd</div>
+                <div class="node">HTML preview.html</div>
+              </aside>
+              <section class="viewer">
+                <div class="tabs">
+                  <span class="tab active"
+                    >thesis.md <span class="unsent">● unsent</span></span
+                  ><span class="tab">flow.mmd</span
+                  ><span class="tab">preview.html</span>
+                </div>
+                <div class="toolbar">
+                  <span>thesis.md · Rendered / Source</span
+                  ><span>Diff from HEAD</span>
+                </div>
+                <div class="doc">
+                  <h3>Vivi is a local reading workspace</h3>
+                  <div class="line">
+                    <span class="ln">14</span
+                    ><span>Keep the file tree as a stable spatial map.</span>
+                  </div>
+                  <div class="line active">
+                    <span class="ln">15</span
+                    ><span
+                      >Humans review files and publish feedback when
+                      ready.</span
+                    >
+                  </div>
+                  <div class="composer primary">
+                    <div class="composer-head">
+                      <span>Line 15 · Unsent input</span><span>×</span>
+                    </div>
+                    <textarea>
+Publish後は、必要な時にagentが一度だけ取得すればいい。</textarea>
+                    <div class="composer-foot">
+                      <span>Esc collapses safely</span
+                      ><button class="save">Save pending draft</button>
+                    </div>
+                  </div>
+                  <div class="resume-chip">
+                    ● 1 unsent input · Line 15 · Resume
+                  </div>
+                  <div class="line secondary active">
+                    <span class="ln">18</span
+                    ><span
+                      >Mermaid and HTML remain first-class viewer
+                      surfaces.</span
+                    >
+                  </div>
+                  <div class="composer secondary">
+                    <div class="composer-head">
+                      <span>Line 18 · New thought</span><span>×</span>
+                    </div>
+                    <textarea placeholder="Add another comment"></textarea>
+                    <div class="composer-foot">
+                      <span>Same file, both stay open</span
+                      ><button class="save">Save pending draft</button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+              <aside class="inspector">
+                <div class="section-title">Review</div>
+                <div class="queue-row">Queued <strong>3</strong></div>
+                <div class="queue-row">In Review <strong>1</strong></div>
+                <div class="draft-card">
+                  <strong>2 saved drafts</strong
+                  ><span
+                    >Ready to Publish. Unsent input is not included yet.</span
+                  >
+                </div>
+                <div class="note">
+                  After Publish, ask the agent to fetch—or let its skill choose
+                  a one-shot refresh.
+                </div>
+              </aside>
+            </div>
+            <div class="status">
+              <span>thesis.md</span
+              ><span class="local">1 unsent input · local only</span
+              ><span class="live">Live</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="concept" id="concept-b">
+          <div class="brief">
+            <div class="eyebrow">Calmest document surface</div>
+            <h2>B · Single focus</h2>
+            <p>
+              Only one full editor is open. Clicking elsewhere collapses typed
+              text into an anchor chip rather than closing it.
+            </p>
+            <ul>
+              <li>Low visual noise for long documents.</li>
+              <li>More hidden state; reviewers must notice chips.</li>
+              <li>Good fallback for narrow layouts.</li>
+            </ul>
+          </div>
+          <div class="mock">
+            <div class="topbar">
+              <strong>vivi</strong><span>one active composer</span
+              ><button class="publish">Publish 2 saved drafts</button>
+            </div>
+            <div class="workbench">
+              <aside class="tree">
+                <div class="section-title">Explorer</div>
+                <div class="node active">
+                  MD thesis.md <span class="dot"></span>
+                </div>
+                <div class="node">MD brief.md</div>
+                <div class="node">MRM flow.mmd</div>
+              </aside>
+              <section class="viewer">
+                <div class="tabs">
+                  <span class="tab active"
+                    >thesis.md <span class="unsent">● 2</span></span
+                  ><span class="tab">flow.mmd</span>
+                </div>
+                <div class="toolbar">
+                  <span>Source</span><span>Diff from HEAD</span>
+                </div>
+                <div class="doc">
+                  <h3>Reading flow</h3>
+                  <div class="line">
+                    <span class="ln">15</span
+                    ><span>Published feedback becomes agent-visible.</span>
+                  </div>
+                  <div class="resume-chip">
+                    ● Line 15 · “Publish後は…” · Resume
+                  </div>
+                  <div class="line active">
+                    <span class="ln">18</span
+                    ><span>Viewer surfaces stay independent.</span>
+                  </div>
+                  <div class="composer">
+                    <div class="composer-head">
+                      <span>Line 18 · Active</span><span>×</span>
+                    </div>
+                    <textarea>Mermaidのテーマ切替も安定させたい。</textarea>
+                    <div class="composer-foot">
+                      <span>Click elsewhere collapses</span
+                      ><button class="save">Save</button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+              <aside class="inspector">
+                <div class="section-title">Review</div>
+                <div class="note">
+                  Collapsed chips preserve text, but they are easier to overlook
+                  than open inline composers.
+                </div>
+              </aside>
+            </div>
+            <div class="status">
+              <span>thesis.md</span><span class="local">2 resumable inputs</span
+              ><span class="live">Live</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="concept" id="concept-c">
+          <div class="brief">
+            <div class="eyebrow">Safest, but inspector-heavy</div>
+            <h2>C · Draft shelf</h2>
+            <p>
+              Typing is continuously retained in a right-inspector shelf. The
+              editor may close freely because its text remains visible globally.
+            </p>
+            <ul>
+              <li>Strongest cross-file recovery.</li>
+              <li>Competes with outline, metadata, and Review Queue.</li>
+              <li>Feels closer to task management than file viewing.</li>
+            </ul>
+          </div>
+          <div class="mock">
+            <div class="topbar">
+              <strong>vivi</strong><span>draft shelf</span
+              ><button class="publish">Publish 2 saved drafts</button>
+            </div>
+            <div class="workbench">
+              <aside class="tree">
+                <div class="section-title">Explorer</div>
+                <div class="node active">MD thesis.md</div>
+                <div class="node">MD brief.md</div>
+                <div class="node">MRM flow.mmd</div>
+              </aside>
+              <section class="viewer">
+                <div class="tabs">
+                  <span class="tab active">thesis.md</span
+                  ><span class="tab">flow.mmd</span>
+                </div>
+                <div class="toolbar">
+                  <span>Rendered</span><span>Diff from HEAD</span>
+                </div>
+                <div class="doc">
+                  <h3>Workspace viewer first</h3>
+                  <div class="line">
+                    <span class="ln">14</span
+                    ><span>Commenting should not displace reading.</span>
+                  </div>
+                  <div class="line active">
+                    <span class="ln">15</span
+                    ><span>Click any block to start a draft.</span>
+                  </div>
+                  <div class="composer">
+                    <div class="composer-head">
+                      <span>Line 15 · mirrored in shelf</span><span>×</span>
+                    </div>
+                    <textarea>入力は右側にも保持される。</textarea>
+                    <div class="composer-foot">
+                      <span>Safe to navigate</span
+                      ><button class="save">Save</button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+              <aside class="inspector">
+                <div class="section-title">Unsent shelf · 2</div>
+                <div class="draft-card">
+                  <strong>thesis.md · L15</strong
+                  ><span>入力は右側にも保持される。</span>
+                </div>
+                <div class="draft-card">
+                  <strong>flow.mmd · Preview</strong
+                  ><span>Theme transitionを確認。</span>
+                </div>
+                <div class="section-title" style="margin-top: 14px">
+                  Review Queue
+                </div>
+                <div class="queue-row">Queued 3</div>
+                <div class="queue-row">In Review 1</div>
+              </aside>
+            </div>
+            <div class="status">
+              <span>thesis.md</span><span class="local">2 autosaved inputs</span
+              ><span class="live">Live</span>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <p class="decision">
+        <strong>Recommendation:</strong> take A forward. Keep full composers
+        open for same-file exploration; preserve typed-but-unsaved text locally
+        across file/tab/mode navigation; let Escape collapse instead of discard;
+        require an explicit discard action. Saved drafts alone count toward
+        Publish, and Publish never waits for an agent fetch.
+      </p>
+    </main>
+    <script>
+      document.querySelectorAll("[data-state]").forEach((button) => {
+        button.addEventListener("click", () => {
+          button.closest("[data-demo-state]").dataset.demoState =
+            button.dataset.state;
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -32,6 +32,7 @@ import {
   type CommentStatusChangeHandler,
 } from "../../../state/comments.js";
 import { CodeCommentThread } from "./CodeCommentThread.js";
+import { useCommentInputSessions } from "../CommentInputSessionProvider.js";
 import railStyles from "./LineCommentRail.module.css";
 import styles from "./SourceCommentSurface.module.css";
 
@@ -75,8 +76,8 @@ export function SourceCommentSurface({
   onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities?: Record<string, CommentActivitySummary>;
 }) {
+  const commentInputs = useCommentInputSessions();
   const [anchorLine, setAnchorLine] = useState<number | null>(null);
-  const [draftThreads, setDraftThreads] = useState<SourceDraftThread[]>([]);
   const [openThreads, setOpenThreads] = useState<OpenSourceThread[]>([]);
   const [lineDragging, setLineDragging] = useState(false);
   const [highlightState, setHighlightState] = useState(() => ({
@@ -89,6 +90,7 @@ export function SourceCommentSurface({
     current: number;
     moved: boolean;
     pointerId: number;
+    opensCommentOnClick: boolean;
   } | null>(null);
   const suppressLineClickRef = useRef(false);
   const lines = splitCodeLines(file.content);
@@ -96,6 +98,31 @@ export function SourceCommentSurface({
     ? normalizeLineRange(selectedRange.start, selectedRange.end, lines.length)
     : null;
   const commentThreads = codeCommentThreads(comments);
+  const pathInputSessions = commentInputs.sessions.filter(
+    (session) =>
+      session.draft.path === file.path &&
+      session.draft.anchor.surface === "source",
+  );
+  const draftThreads: SourceDraftThread[] = pathInputSessions
+    .filter((session) => session.status !== "collapsed")
+    .flatMap((session) => {
+      const lineStart = session.draft.anchor.canonical.lineStart;
+      if (!lineStart) return [];
+      const lineEnd = session.draft.anchor.canonical.lineEnd ?? lineStart;
+      return [
+        {
+          thread: {
+            key: codeCommentThreadKey(file.path, lineStart, lineEnd),
+            path: file.path,
+            lineStart,
+            lineEnd,
+            status: "open" as const,
+            comments: [],
+          },
+          draft: session.draft,
+        },
+      ];
+    });
   const activeThread = activeCommentId
     ? commentThreads.find((thread) =>
         thread.comments.some((comment) => comment.id === activeCommentId),
@@ -105,7 +132,8 @@ export function SourceCommentSurface({
   const hasDraftThreads = draftThreads.length > 0;
   for (const draftThread of draftThreads) {
     visibleThreadKeys.add(
-      matchingDraftPreviewThread(commentThreads, draftThread.thread)?.key ??
+      matchingOpenThreadForDraft(commentThreads, draftThread.draft)?.key ??
+        matchingDraftPreviewThread(commentThreads, draftThread.thread)?.key ??
         draftThread.thread.key,
     );
   }
@@ -134,8 +162,11 @@ export function SourceCommentSurface({
   useEffect(() => {
     setAnchorLine(null);
     setOpenThreads([]);
-    setDraftThreads([]);
   }, [file.path]);
+
+  useEffect(() => {
+    commentInputs.markPathVersion(file.path, file.etag);
+  }, [commentInputs.markPathVersion, file.etag, file.path]);
 
   useEffect(() => {
     if (!focusLineNumber) return;
@@ -160,7 +191,11 @@ export function SourceCommentSurface({
     onSelectionChange(next);
   }
 
-  function beginLineDrag(event: React.PointerEvent, lineNumber: number) {
+  function beginLineDrag(
+    event: React.PointerEvent,
+    lineNumber: number,
+    opensCommentOnClick = false,
+  ) {
     if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
@@ -170,6 +205,7 @@ export function SourceCommentSurface({
       current: lineNumber,
       moved: false,
       pointerId: event.pointerId,
+      opensCommentOnClick,
     };
     try {
       linesRef.current?.setPointerCapture(event.pointerId);
@@ -211,7 +247,15 @@ export function SourceCommentSurface({
       // Capture may already be released by the browser on pointer cancel.
     }
     setLineDragging(false);
-    if (!drag.moved) return;
+    if (!drag.moved) {
+      if (!drag.opensCommentOnClick) return;
+      suppressLineClickRef.current = true;
+      window.setTimeout(() => {
+        suppressLineClickRef.current = false;
+      }, 0);
+      startLineComment(drag.start);
+      return;
+    }
     const range = normalizeLineRange(drag.start, drag.current, lines.length);
     suppressLineClickRef.current = true;
     window.setTimeout(() => {
@@ -266,9 +310,6 @@ export function SourceCommentSurface({
     const draft = sourceCommentDraft(file, normalized, quote);
     const existingThread = matchingOpenThreadForDraft(commentThreads, draft);
     if (existingThread) {
-      setDraftThreads((items) =>
-        items.filter((item) => item.thread.key !== existingThread.key),
-      );
       setOpenThreads((items) =>
         items.some((item) => item.key === existingThread.key)
           ? items
@@ -298,10 +339,7 @@ export function SourceCommentSurface({
       draft,
     };
     setOpenThreads([]);
-    setDraftThreads((items) => [
-      ...items.filter((item) => item.thread.key !== key),
-      nextDraftThread,
-    ]);
+    commentInputs.start(nextDraftThread.draft);
     setAnchorLine(normalized.start);
     onSelectionChange(normalized);
     onCloseComment?.();
@@ -335,9 +373,21 @@ export function SourceCommentSurface({
     threadKey: string,
     thread?: CodeCommentThreadModel,
   ) {
-    setDraftThreads((items) =>
-      items.filter((item) => item.thread.key !== threadKey),
-    );
+    for (const session of pathInputSessions) {
+      const lineStart = session.draft.anchor.canonical.lineStart;
+      if (!lineStart) continue;
+      const lineEnd = session.draft.anchor.canonical.lineEnd ?? lineStart;
+      const matchingPublished = matchingOpenThreadForDraft(
+        commentThreads,
+        session.draft,
+      );
+      if (
+        matchingPublished?.key === threadKey ||
+        codeCommentThreadKey(file.path, lineStart, lineEnd) === threadKey
+      ) {
+        commentInputs.collapse(session.id);
+      }
+    }
     setOpenThreads((items) =>
       items.filter(
         (item) =>
@@ -432,6 +482,16 @@ export function SourceCommentSurface({
           actionThread,
           actionStack,
         );
+        const inputAtLine = pathInputSessions.some((session) => {
+          const inputStart = session.draft.anchor.canonical.lineStart;
+          const inputEnd = session.draft.anchor.canonical.lineEnd ?? inputStart;
+          return Boolean(
+            inputStart &&
+            inputEnd &&
+            lineNumber >= inputStart &&
+            lineNumber <= inputEnd,
+          );
+        });
         const draftThread = draftThreads.find(
           (candidate) =>
             !matchingDraftPreviewThread(commentThreads, candidate.thread) &&
@@ -487,7 +547,14 @@ export function SourceCommentSurface({
                 {
                   thread: draftThread.thread,
                   threadId: undefined,
-                  draft: draftThread.draft,
+                  draft: sourceCommentDraft(
+                    file,
+                    {
+                      start: draftThread.thread.lineStart,
+                      end: draftThread.thread.lineEnd,
+                    },
+                    draftThread.draft.anchor.canonical.quote,
+                  ),
                 },
               ]
             : []),
@@ -509,7 +576,7 @@ export function SourceCommentSurface({
               }}
             >
               <button
-                className={`code-line-comment-action${actionThread ? " has-thread" : ""}`}
+                className={`code-line-comment-action${actionThread || inputAtLine ? " has-thread" : ""}`}
                 type="button"
                 aria-expanded={threadOpen}
                 aria-label={actionLabel}
@@ -520,7 +587,7 @@ export function SourceCommentSurface({
                 data-path={file.path}
                 data-testid="line-comment-action"
                 onPointerDown={(event) => {
-                  if (!actionThread) beginLineDrag(event, lineNumber);
+                  if (!actionThread) beginLineDrag(event, lineNumber, true);
                 }}
                 onClick={(event) => {
                   event.stopPropagation();
@@ -540,9 +607,12 @@ export function SourceCommentSurface({
                   }
                 }}
               >
-                {actionThread ? (
+                {actionThread || inputAtLine ? (
                   <span className="code-line-comment-count">
-                    {actionStack?.threadCount ?? actionThread.comments.length}
+                    {actionThread
+                      ? (actionStack?.threadCount ??
+                        actionThread.comments.length)
+                      : "•"}
                   </span>
                 ) : null}
               </button>

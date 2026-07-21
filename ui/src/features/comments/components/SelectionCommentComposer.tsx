@@ -2,6 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { CommentDraft } from "../../../state/comments.js";
 import { commentLineLabelForAnchor } from "../../../state/comments.js";
+import { commentInputSessionId } from "../../../state/comment-input-session.js";
+import { useCommentInputSessions } from "../CommentInputSessionProvider.js";
 import styles from "./SelectionCommentComposer.module.css";
 
 const composerWidth = 384;
@@ -12,6 +14,8 @@ export function SelectionCommentComposer({
   rect,
   onSave,
   onDismiss,
+  restorePath,
+  currentFileHash,
 }: {
   draft: CommentDraft | null;
   rect: DOMRectLike | null;
@@ -21,8 +25,26 @@ export function SelectionCommentComposer({
     rect: DOMRectLike,
   ) => void | Promise<void>;
   onDismiss: () => void;
+  restorePath?: string;
+  currentFileHash?: string;
 }) {
-  const [body, setBody] = useState("");
+  const inputs = useCommentInputSessions();
+  const restoredSession = [...inputs.sessions]
+    .reverse()
+    .find(
+      (session) =>
+        session.draft.path === restorePath &&
+        session.rect &&
+        session.status !== "collapsed",
+    );
+  const effectiveDraft = draft ?? restoredSession?.draft ?? null;
+  const effectiveRect = rect ?? restoredSession?.rect ?? null;
+  const inputId = effectiveDraft ? commentInputSessionId(effectiveDraft) : null;
+  const inputSession = inputId
+    ? inputs.sessions.find((session) => session.id === inputId)
+    : undefined;
+  const body = inputSession?.body ?? "";
+  const stale = inputSession?.status === "stale";
   const [position, setPosition] = useState<{
     left: number;
     top: number;
@@ -33,19 +55,25 @@ export function SelectionCommentComposer({
   const composerRef = useRef<HTMLFormElement | null>(null);
 
   useEffect(() => {
-    setBody("");
-  }, [draft]);
+    if (draft && rect) inputs.start(draft, rect);
+  }, [draft, inputs.start, rect]);
+
+  useEffect(() => {
+    if (restorePath && currentFileHash) {
+      inputs.markPathVersion(restorePath, currentFileHash);
+    }
+  }, [currentFileHash, inputs.markPathVersion, restorePath]);
 
   useLayoutEffect(() => {
-    if (!draft || !rect) return;
+    if (!effectiveDraft || !effectiveRect) return;
     const element = composerRef.current;
     const width = element?.offsetWidth || composerWidth;
     const height = element?.offsetHeight || 170;
-    const prefersSide = draft.anchor.surface === "rendered";
-    const sideLeft = rect.left + rect.width + 16;
+    const prefersSide = effectiveDraft.anchor.surface === "rendered";
+    const sideLeft = effectiveRect.left + effectiveRect.width + 16;
     if (prefersSide && sideLeft + width + composerMargin <= window.innerWidth) {
       const top = clamp(
-        rect.top - 8,
+        effectiveRect.top - 8,
         composerMargin,
         Math.max(composerMargin, window.innerHeight - height - composerMargin),
       );
@@ -54,18 +82,18 @@ export function SelectionCommentComposer({
         top,
         placement: "side",
         arrowLeft: 0,
-        arrowTop: clamp(rect.top - top + 18, 18, height - 18),
+        arrowTop: clamp(effectiveRect.top - top + 18, 18, height - 18),
       });
       return;
     }
-    const rawLeft = rect.left;
+    const rawLeft = effectiveRect.left;
     const left = clamp(
       rawLeft,
       composerMargin,
       Math.max(composerMargin, window.innerWidth - width - composerMargin),
     );
-    const belowTop = rect.top + rect.height + 10;
-    const aboveTop = rect.top - height - 10;
+    const belowTop = effectiveRect.top + effectiveRect.height + 10;
+    const aboveTop = effectiveRect.top - height - 10;
     const placement =
       belowTop + height + composerMargin <= window.innerHeight ||
       aboveTop < composerMargin
@@ -94,39 +122,31 @@ export function SelectionCommentComposer({
       top,
       placement,
       arrowLeft: clamp(
-        rect.left - left + Math.min(rect.width / 2, 28),
+        effectiveRect.left - left + Math.min(effectiveRect.width / 2, 28),
         18,
         width - 18,
       ),
       arrowTop: 24,
     });
-  }, [draft, rect, body]);
+  }, [body, effectiveDraft, effectiveRect]);
 
-  useEffect(() => {
-    if (!draft) return;
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as Node | null;
-      if (target && composerRef.current?.contains(target)) return;
-      onDismiss();
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onDismiss();
-    };
-    window.addEventListener("pointerdown", onPointerDown);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [draft, onDismiss]);
-
-  if (!draft || !rect || !onSave) return null;
+  if (!effectiveDraft || !effectiveRect || !onSave || !inputId) return null;
   const placement = position?.placement ?? "below";
 
   const save = () => {
     const trimmed = body.trim();
-    if (!trimmed || !rect) return;
-    void Promise.resolve(onSave(draft, trimmed, rect)).then(onDismiss);
+    if (!trimmed || stale) return;
+    void Promise.resolve(onSave(effectiveDraft, trimmed, effectiveRect)).then(
+      () => {
+        inputs.discard(inputId);
+        onDismiss();
+      },
+    );
+  };
+
+  const collapse = () => {
+    inputs.collapse(inputId);
+    onDismiss();
   };
 
   return (
@@ -136,8 +156,8 @@ export function SelectionCommentComposer({
       aria-label="New comment"
       style={
         {
-          left: position?.left ?? rect.left,
-          top: position?.top ?? rect.top + rect.height + 10,
+          left: position?.left ?? effectiveRect.left,
+          top: position?.top ?? effectiveRect.top + effectiveRect.height + 10,
           "--comment-arrow-left": `${position?.arrowLeft ?? 24}px`,
           "--comment-arrow-top": `${position?.arrowTop ?? 24}px`,
         } as CSSProperties
@@ -146,16 +166,64 @@ export function SelectionCommentComposer({
         event.preventDefault();
         save();
       }}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        event.stopPropagation();
+        collapse();
+      }}
     >
       <div className={`${styles.meta} selection-comment-meta`}>
-        <strong>{draft.path}</strong>
-        <span>{commentLineLabelForAnchor(draft.anchor.canonical)}</span>
+        <strong>{effectiveDraft.path}</strong>
+        <span>
+          {commentLineLabelForAnchor(effectiveDraft.anchor.canonical)}
+        </span>
       </div>
+      {stale ? (
+        <div className={styles.stale} role="alert">
+          <strong>File changed since this comment was started.</strong>
+          <div>
+            <button
+              type="button"
+              onClick={() =>
+                inputs.reanchor(inputId, {
+                  ...effectiveDraft,
+                  anchor: {
+                    ...effectiveDraft.anchor,
+                    canonical: {
+                      ...effectiveDraft.anchor.canonical,
+                      fileHash: currentFileHash,
+                    },
+                  },
+                })
+              }
+            >
+              Re-anchor here
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                inputs.discard(inputId);
+                onDismiss();
+              }}
+            >
+              Discard
+            </button>
+          </div>
+        </div>
+      ) : null}
       <textarea
         autoFocus
         value={body}
+        disabled={stale}
         placeholder="Draft a review comment"
-        onChange={(event) => setBody(event.currentTarget.value)}
+        onChange={(event) =>
+          inputs.change(
+            effectiveDraft,
+            event.currentTarget.value,
+            effectiveRect,
+          )
+        }
         onKeyDown={(event) => {
           if (
             event.key === "Enter" &&
@@ -169,10 +237,21 @@ export function SelectionCommentComposer({
       <div className={`${styles.footer} selection-comment-footer`}>
         <span>Shift+Enter to save draft</span>
         <div>
-          <button type="button" onClick={onDismiss}>
-            Cancel
+          <button type="button" onClick={collapse}>
+            Collapse
           </button>
-          <button disabled={!body.trim()} type="submit">
+          {inputSession && !stale ? (
+            <button
+              type="button"
+              onClick={() => {
+                inputs.discard(inputId);
+                onDismiss();
+              }}
+            >
+              Discard
+            </button>
+          ) : null}
+          <button disabled={!body.trim() || stale} type="submit">
             Save draft
           </button>
         </div>

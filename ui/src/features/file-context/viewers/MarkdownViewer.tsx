@@ -42,9 +42,12 @@ import {
 import type { ResolvedTheme } from "../../../state/theme.js";
 import type { ViewerMode } from "../../../state/viewer-mode.js";
 import { CodeCommentThread } from "../../comments/components/CodeCommentThread.js";
+import { useCommentInputSessions } from "../../comments/CommentInputSessionProvider.js";
+import { unsavedCommentInputCount } from "../../../state/comment-input-session.js";
 import { SourceCommentSurface } from "../../comments/components/SourceCommentSurface.js";
 import {
   DiffToggleButton,
+  SourceInputReturnButton,
   ViewerToolbar,
   ViewerModeButton,
 } from "../components/ViewerControlButton.js";
@@ -116,6 +119,12 @@ export function MarkdownViewer({
   threadActivities?: Record<string, CommentActivitySummary>;
   onOpenPath?: (path: string) => void;
 }) {
+  const commentInputs = useCommentInputSessions();
+  const sourceInputCount = unsavedCommentInputCount(
+    commentInputs.sessions,
+    file.path,
+    "source",
+  );
   const [localMode, setLocalMode] = useState<ViewerMode>("rendered");
   const [renderedThreadTargets, setRenderedThreadTargets] = useState<
     MarkdownRenderedThreadTarget[]
@@ -232,10 +241,16 @@ export function MarkdownViewer({
     });
   }, [file.path]);
 
+  useEffect(() => {
+    commentInputs.markPathVersion(file.path, file.etag);
+  }, [commentInputs.markPathVersion, file.etag, file.path]);
+
   const openRenderedDraft = (
     target: RenderedCommentBlockTarget,
     blocks: HTMLElement[],
     comment?: ViviComment,
+    draftOverride?: CommentDraft,
+    persistInput = true,
   ) => {
     const hostBlock = blocks.at(-1);
     if (!hostBlock) return;
@@ -252,6 +267,7 @@ export function MarkdownViewer({
       ),
     });
     const existingThreadId =
+      draftOverride?.threadId ??
       comment?.threadId ??
       comment?.id ??
       matchingOpenRenderedThreadId(file.path, draft, visibleRenderedComments);
@@ -279,7 +295,54 @@ export function MarkdownViewer({
         nextTarget,
       ];
     });
+    if (!comment && persistInput) commentInputs.start(nextTarget.draft);
   };
+
+  useLayoutEffect(() => {
+    if (mode !== "rendered" || diffEnabled || !markdownRef.current) return;
+    for (const session of commentInputs.sessions) {
+      const rendered = session.draft.anchor.rendered;
+      if (
+        session.draft.path !== file.path ||
+        session.status === "collapsed" ||
+        session.draft.anchor.surface !== "rendered" ||
+        rendered?.kind !== "markdown"
+      ) {
+        continue;
+      }
+      const key = renderedThreadTargetKey(file.path, {
+        blockIds: rendered.blockId ? [rendered.blockId] : [],
+        draft: session.draft,
+      });
+      if (
+        renderedThreadTargets.some(
+          (target) => renderedThreadTargetKey(file.path, target) === key,
+        )
+      ) {
+        continue;
+      }
+      const blocks = findBlocksForRenderedComment(markdownRef.current, {
+        id: session.id,
+        blockId: rendered.blockId,
+        selector: rendered.selector,
+        textQuote: rendered.textQuote ?? session.draft.anchor.canonical.quote,
+        sourceLineStart: session.draft.anchor.canonical.lineStart,
+        sourceLineEnd: session.draft.anchor.canonical.lineEnd,
+        status: "draft",
+      });
+      if (!blocks.length) continue;
+      const target = targetForRenderedCommentBlocks(blocks, rendered.textQuote);
+      if (!target) continue;
+      openRenderedDraft(target, blocks, undefined, session.draft, false);
+    }
+  }, [
+    commentInputs.sessions,
+    diffEnabled,
+    file.path,
+    html,
+    mode,
+    renderedThreadTargets,
+  ]);
 
   const openRenderedComment = (block: HTMLElement | null) => {
     const id = block?.dataset.viviCommentId;
@@ -378,7 +441,6 @@ export function MarkdownViewer({
       event.target,
     );
     if (!block) {
-      closeRenderedThread();
       return;
     }
     if (
@@ -445,6 +507,12 @@ export function MarkdownViewer({
             Source
           </ViewerModeButton>
         </div>
+        {mode === "rendered" ? (
+          <SourceInputReturnButton
+            count={sourceInputCount}
+            onReturn={() => setMode("source")}
+          />
+        ) : null}
         {toolbarAction}
         <DiffToggleButton
           enabled={diffEnabled}

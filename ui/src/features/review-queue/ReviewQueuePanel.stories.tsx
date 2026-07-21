@@ -421,7 +421,10 @@ export const ReviewStateSections: Story = {
     await expect(
       canvasElement.querySelector(".panel-title > span:first-child"),
     ).toHaveTextContent("Review");
-    await expect(canvas.getByText("3 need action")).toBeInTheDocument();
+    await expect(canvas.getByText("3 attention items")).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", { name: "Open next review queue item" }),
+    ).toHaveTextContent("Next queued");
     await expect(
       canvas.queryByRole("radio", { name: "B Threads conversation" }),
     ).not.toBeInTheDocument();
@@ -1360,7 +1363,9 @@ function InReviewReadReceiptPlaygroundFacade() {
   const [openedFile, setOpenedFile] = useState("docs/product-review.md");
   const [openedThread, setOpenedThread] = useState("product-l7");
 
-  const visibleThreads = threads.filter((thread) => thread.state !== "resolved");
+  const visibleThreads = threads.filter(
+    (thread) => thread.state !== "resolved",
+  );
   const grouped = readReceiptGroups(visibleThreads);
   const pendingCount = visibleThreads.filter(
     (thread) => thread.state === "pending",
@@ -1411,13 +1416,17 @@ function InReviewReadReceiptPlaygroundFacade() {
           type="button"
           onClick={() => {
             const nextReply =
-              visibleThreads.find((thread) => thread.state === "agent-replied") ??
+              visibleThreads.find(
+                (thread) => thread.state === "agent-replied",
+              ) ??
               visibleThreads.find((thread) => thread.state === "pending") ??
               visibleThreads[0];
             if (nextReply) {
               setOpenedFile(nextReply.path);
               setOpenedThread(nextReply.id);
-              setExpandedPaths((current) => new Set(current).add(nextReply.path));
+              setExpandedPaths((current) =>
+                new Set(current).add(nextReply.path),
+              );
             }
           }}
         >
@@ -1490,7 +1499,8 @@ function InReviewReadReceiptPlaygroundFacade() {
                   const groupPendingCount = group.threads.filter(
                     (thread) => thread.state === "pending",
                   ).length;
-                  const groupOpenCount = group.threads.length - groupPendingCount;
+                  const groupOpenCount =
+                    group.threads.length - groupPendingCount;
                   return (
                     <div
                       className={`review-thread-expand-file${active ? " active" : ""}`}
@@ -1538,7 +1548,9 @@ function InReviewReadReceiptPlaygroundFacade() {
                         onClick={() => togglePath(group.path)}
                       >
                         {groupOpenCount} open
-                        {groupPendingCount ? ` · ${groupPendingCount} pending` : ""}
+                        {groupPendingCount
+                          ? ` · ${groupPendingCount} pending`
+                          : ""}
                       </button>
                       {expanded ? (
                         <div
@@ -1589,14 +1601,16 @@ function InReviewReadReceiptPlaygroundFacade() {
                                 </span>
                               </button>
                               {thread.state === "pending" ? (
-                               <button
+                                <button
                                   className="review-thread-publish-button"
                                   type="button"
                                   aria-label={`Publish pending thread ${thread.path} ${thread.location}`}
-                                  onClick={() => updateThread(thread.id, "not-read")}
-                               >
+                                  onClick={() =>
+                                    updateThread(thread.id, "not-read")
+                                  }
+                                >
                                   Publish
-                               </button>
+                                </button>
                               ) : null}
                             </div>
                           ))}
@@ -1672,7 +1686,9 @@ function readReceiptGroupSummary(threads: ReadReceiptThread[]): string {
   ).length;
   const pending = threads.filter((thread) => thread.state === "pending").length;
   const read = threads.filter((thread) => thread.state === "agent-read").length;
-  const notRead = threads.filter((thread) => thread.state === "not-read").length;
+  const notRead = threads.filter(
+    (thread) => thread.state === "not-read",
+  ).length;
   if (unreadReplies) return `${unreadReplies} agent reply · needs my read`;
   if (pending) return `${pending} pending · not agent-visible`;
   if (read) return `${read} read receipt · waiting on reply`;
@@ -1709,7 +1725,8 @@ function readReceiptStatusTone(state: ReadReceiptThreadState): string {
 }
 
 function readReceiptMeta(thread: ReadReceiptThread): string {
-  if (thread.state === "pending") return "not agent-visible · publishes as open";
+  if (thread.state === "pending")
+    return "not agent-visible · publishes as open";
   if (thread.state === "not-read") return "published · not read by agent";
   if (thread.state === "agent-read")
     return `${thread.actor} read · waiting on reply`;

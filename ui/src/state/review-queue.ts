@@ -72,7 +72,7 @@ export function buildReviewQueueItems(
   }
   const draftsByPath = collectDraftsByPath(options.draftComments ?? []);
   for (const path of draftsByPath.keys()) {
-    if (!options.acceptedPaths?.has(path)) paths.add(path);
+    paths.add(path);
   }
 
   const changeByPath = new Map(changes.map((change) => [change.path, change]));

@@ -48,6 +48,21 @@
   opacity: 0.55;
 }
 
+.actions > .sourceInputReturn {
+  border-color: var(--vivi-color-comment-border);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-comment-surface) 64%,
+    var(--vivi-color-surface-panel-raised)
+  );
+  color: var(--vivi-color-comment-text);
+  font-weight: 700;
+}
+
+.sourceInputReturn span {
+  margin-right: 3px;
+}
+
 .location {
   display: flex;
   min-width: 0;

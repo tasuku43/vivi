@@ -2006,6 +2006,37 @@ it("keeps accepted change-only files out of the review queue until a thread open
     change: changes[0],
     threadCounts: { open: 1, resolved: 0, archived: 0 },
   });
+
+  const itemsWithPendingDraft = buildReviewQueueItems(
+    changes,
+    [],
+    {},
+    new Set(),
+    {
+      acceptedPaths,
+      draftComments: [
+        {
+          id: "accepted-pending",
+          path: "src/accepted.ts",
+          viewerKind: "text",
+          anchor: {
+            surface: "source",
+            canonical: { path: "src/accepted.ts", lineStart: 4, lineEnd: 4 },
+          },
+          body: "This saved draft still needs an explicit Publish.",
+          createdAt: "2026-07-01T00:00:00.000Z",
+          updatedAt: "2026-07-01T00:00:00.000Z",
+        },
+      ],
+    },
+  );
+
+  expect(itemsWithPendingDraft[0]).toMatchObject({
+    path: "src/accepted.ts",
+    pendingDraftCount: 1,
+    pendingDraftIds: ["accepted-pending"],
+  });
+  expect(reviewQueueItemState(itemsWithPendingDraft[0]!)).toBe("reviewing");
 });
 
 it("separates review decisions from short-lived reviewed receipts", () => {

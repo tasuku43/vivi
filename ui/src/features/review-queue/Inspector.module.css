@@ -51,6 +51,24 @@
   padding: 0;
 }
 
+:global(.review-unsaved-input-summary) {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin: 0;
+  border-bottom: 1px solid var(--vivi-color-border-soft);
+  background: var(--vivi-color-comment-surface);
+  color: var(--vivi-color-comment-text);
+  font-size: 11px;
+  padding: 7px 12px;
+}
+
+:global(.review-unsaved-input-summary span) {
+  margin-left: auto;
+  color: var(--vivi-color-content-muted);
+  text-align: right;
+}
+
 :global(.section-title.with-action button) {
   border: 1px solid var(--vivi-color-border-default);
   border-radius: 7px;

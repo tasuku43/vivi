@@ -25,10 +25,15 @@ A build is acceptable when a user can:
 17. Toggle Markdown and HTML between rendered/preview and source modes.
 18. Toggle read-only diff-from-`HEAD` independently from rendered/source mode, including with Cmd/Ctrl + D.
 19. See source/code diffs as inline highlighted line rows, and rendered Markdown/HTML diffs as rendered change cards with clear Added/Removed/Changed meaning and accessible source hunk context.
-20. Keep image, text/log, and structured file previews readable without implying editing.
-21. See Git changes and files with open human/agent threads in one prioritized Review Queue, with compact thread/message counts, latest attributed activity, and seen/unseen progress.
-22. Move through the Review Queue with Cmd/Ctrl + Shift + J/K, jump to unseen work with Cmd/Ctrl + Shift + U, and jump to in-review replies with Cmd/Ctrl + Shift + I.
-23. Keep resolved threads in the Comments history filter, hide archived threads from the browser UI, and never promote terminal threads into the active Review Queue.
+20. Leave typed Source feedback, switch to Rendered/Preview, see the active-file input count, and return directly to the restored composer.
+21. Reload the page without losing browser-local comment input for the same workspace; saving keeps a pending draft visible, while successful Publish removes the empty local composer.
+22. See a stable preview skeleton while a newly selected file loads, an explicit `Back to file` action while viewing a diff, and Review Queue attention counts labeled by what they represent.
+23. Keep image, text/log, and structured file previews readable without implying editing.
+24. See Git changes and files with open human/agent threads in one prioritized Review Queue, with compact thread/message counts, latest attributed activity, and seen/unseen progress.
+25. Move through the Review Queue with Cmd/Ctrl + Shift + J/K, jump to unseen work with Cmd/Ctrl + Shift + U, and jump to in-review replies with Cmd/Ctrl + Shift + I.
+26. Keep resolved threads in the Comments history filter, hide archived threads from the browser UI, and never promote terminal threads into the active Review Queue.
+27. Keep typed comment input when the user clicks elsewhere, switches files or tabs, changes rendered/source mode, reloads the page, or collapses with Escape/close; remove it only through an explicit Discard action or after successful Publish.
+28. Count only saved pending drafts in Publish actions, label unsaved input separately, and require an explicit Re-anchor or Discard decision when the anchored file version changes.
 
 ## Evaluation function
 
@@ -59,5 +64,6 @@ Add or update tests for:
 - agent-aware Review Queue derivation, lifecycle-safe activity display, seen/unseen priority, and next/previous keyboard navigation.
 - JSON/structured formatting and text wrap behavior where feasible.
 - diff-from-`HEAD` toggle rendering inside the open file surface, including inline source/code diffs, rendered Markdown/HTML change cards, and shortcut behavior.
+- resumable comment input transitions: outside click, Escape/collapse, navigation and reload restoration, rendered-to-source return, explicit discard, successful save, publish cleanup, and stale-anchor re-anchoring.
 
 Add an E2E test that starts the server against a fixture directory and verifies the UI can load the tree, open a Markdown file, open an HTML file, and receive at least one simulated filesystem event.

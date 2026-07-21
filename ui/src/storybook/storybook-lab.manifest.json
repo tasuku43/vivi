@@ -23,6 +23,7 @@
     "ui/src/features/command-palette/CommandPalette.stories.tsx",
     "ui/src/features/comments/Activity.stories.tsx",
     "ui/src/features/comments/CodeCommentThread.stories.tsx",
+    "ui/src/features/comments/ResumableCommentComposerFacade.stories.tsx",
     "ui/src/features/file-context/FileContextPane.stories.tsx",
     "ui/src/features/file-context/components/FileViewer.stories.tsx",
     "ui/src/features/file-context/viewers/CodeViewer.stories.tsx",
@@ -61,6 +62,7 @@
       "requiredStories": [
         "Workspace/Workbench States/WorkspaceWithFileTreeAndSelectedFile",
         "Workspace/Workbench States/LoadingState",
+        "Workspace/Workbench States/PendingFileLoadState",
         "Workspace/Workbench States/ErrorState",
         "Workspace/Workbench States/MissingSourceErrorState",
         "Workspace/Workbench States/DisconnectedState",
@@ -144,13 +146,17 @@
         "Files/Viewer Coverage States/LargeBinaryMetadata",
         "Files/Markdown Review States/RenderedMarkdownSyntaxGallery",
         "Files/Markdown Review States/RenderedMarkdownMultipleLineThreads",
+        "Files/Markdown Review States/RenderedShowsSourceInputReturn",
         "Files/HTML Preview States/PreviewHtmlPatternGallery"
       ],
       "interactionStories": [
         "Files/Code Review States/SourceWithOpenThread",
         "Files/Code Review States/SourceWithStackedLineThreads",
+        "Files/Code Review States/SourceCommentActionPointerClickOpensComposer",
+        "Files/Code Review States/SourceLineNumberPointerClickOnlySelects",
         "Files/Code Review States/DraftOnlyThreadFollowUpKeepsThreadId",
         "Files/Markdown Review States/RenderedBlockClickDraft",
+        "Files/Markdown Review States/RenderedShowsSourceInputReturn",
         "Files/Markdown Review States/RenderedMarkdownSyntaxGallery",
         "Files/Markdown Review States/RenderedMarkdownOpenThreadBesideNewDraft",
         "Files/Markdown Review States/RenderedSameAnchorFollowUpKeepsThreadId",
@@ -165,6 +171,33 @@
         "Files/Viewer Coverage States/JsonSourceCommentsUseInlineThread",
         "Files/Open File Surface States/HtmlSource",
         "Files/Viewer Coverage States/ViewerToolbarStickyByExtension"
+      ]
+    },
+    {
+      "id": "resumable-comment-composer",
+      "label": "Resumable comment composer",
+      "stage": "wired-feature",
+      "intent": "Preserve typed, unpublished feedback across real viewer and navigation transitions while keeping Save and Publish explicit.",
+      "reviewFocus": [
+        "same-file thoughts can remain open together",
+        "outside click and Escape never silently discard typed feedback",
+        "file and tab navigation preserves local input",
+        "saved drafts and local unsent input remain visibly distinct",
+        "stale anchors require explicit re-anchor or discard"
+      ],
+      "requiredStories": [
+        "Review/Resumable Comment Composer/MultipleInlineInputs",
+        "Review/Resumable Comment Composer/CollapsedInput",
+        "Review/Resumable Comment Composer/StaleAnchor",
+        "Review/Resumable Comment Composer/FileNavigationRetention",
+        "Review/Inline Comment States/ResumableInput",
+        "Review/Inline Comment States/StaleInputRequiresDecision"
+      ],
+      "interactionStories": [
+        "Review/Resumable Comment Composer/ResumableInputInteraction",
+        "Review/Resumable Comment Composer/StaleAnchorInteraction",
+        "Review/Inline Comment States/ResumableInput",
+        "Review/Inline Comment States/StaleInputRequiresDecision"
       ]
     },
     {

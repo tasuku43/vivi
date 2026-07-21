@@ -2,14 +2,19 @@ import { createElement } from "react";
 import type { Preview } from "@storybook/react-vite";
 import "../src/styles.css";
 import sharedUiStyles from "../src/shared/styles/SharedUi.module.css";
+import { CommentInputSessionProvider } from "../src/features/comments/CommentInputSessionProvider.js";
 
 const preview: Preview = {
   decorators: [
     (Story) =>
       createElement(
-        "div",
-        { className: sharedUiStyles.sharedUiStyles },
-        createElement(Story),
+        CommentInputSessionProvider,
+        null,
+        createElement(
+          "div",
+          { className: sharedUiStyles.sharedUiStyles },
+          createElement(Story),
+        ),
       ),
   ],
   parameters: {

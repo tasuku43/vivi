@@ -76,6 +76,34 @@
   box-shadow: 0 0 0 2px var(--vivi-color-accent-surface-subtle);
 }
 
+.stale {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 8px;
+  border: 1px solid
+    color-mix(in srgb, #d99a37 55%, var(--vivi-color-border-default));
+  border-radius: 7px;
+  background: color-mix(in srgb, #d99a37 12%, var(--vivi-color-surface-panel));
+  color: var(--vivi-color-content-primary);
+  font-size: 11px;
+  padding: 8px;
+}
+
+.stale div {
+  display: flex;
+  gap: 6px;
+}
+
+.stale button {
+  border: 1px solid var(--vivi-color-border-default);
+  border-radius: 5px;
+  background: var(--vivi-color-surface-panel-raised);
+  color: var(--vivi-color-content-primary);
+  cursor: pointer;
+  font: inherit;
+  padding: 4px 7px;
+}
+
 .footer {
   display: flex;
   align-items: center;

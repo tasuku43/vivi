@@ -3,6 +3,93 @@
   margin: 0 auto;
 }
 
+.loadingPreview {
+  display: grid;
+  align-content: start;
+  gap: 22px;
+  min-height: 100%;
+  padding: 22px 28px;
+  background: var(--vivi-color-surface-code);
+  color: var(--vivi-color-content-muted);
+}
+
+.loadingPreviewHeader {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+}
+
+.loadingPreviewHeader strong {
+  color: var(--vivi-color-content-primary);
+}
+
+.loadingPreviewPulse {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--vivi-color-accent);
+  animation: loading-preview-pulse 900ms ease-in-out infinite alternate;
+}
+
+.loadingPreviewBody {
+  display: grid;
+  gap: 13px;
+  opacity: 0.7;
+}
+
+.loadingPreviewBody span {
+  display: block;
+  width: min(760px, 76%);
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--vivi-color-surface-panel-raised),
+    var(--vivi-color-border-soft),
+    var(--vivi-color-surface-panel-raised)
+  );
+  background-size: 220% 100%;
+  animation: loading-preview-shimmer 1.3s linear infinite;
+}
+
+.loadingPreviewBody span:nth-child(2) {
+  width: min(620px, 62%);
+}
+
+.loadingPreviewBody span:nth-child(3) {
+  width: min(820px, 84%);
+}
+
+.loadingPreviewBody span:nth-child(4) {
+  width: min(540px, 54%);
+}
+
+.loadingPreviewBody span:nth-child(5) {
+  width: min(700px, 70%);
+}
+
+@keyframes loading-preview-pulse {
+  to {
+    opacity: 0.35;
+    transform: scale(0.78);
+  }
+}
+
+@keyframes loading-preview-shimmer {
+  to {
+    background-position: -220% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loadingPreviewPulse,
+  .loadingPreviewBody span {
+    animation: none;
+  }
+}
+
 .error {
   display: grid;
   max-width: 620px;

@@ -810,7 +810,7 @@ it("renders code line comments as an inline thread with replies", () => {
   expect(html).toMatch(
     /<kbd class="[^"]+">Cmd\/Ctrl Enter<\/kbd> to add follow-up/,
   );
-  expect(html).toContain("Esc closes");
+  expect(html).toContain("Esc collapses · input is kept");
   expect(html).not.toContain(">Comment<");
 });
 
@@ -1497,9 +1497,7 @@ it("keeps current-file review status compact in the viewer toolbar", () => {
   expect(html).toContain('aria-label="Review state: Queued"');
   expect(html).toContain("Queued");
   expect(html).toContain("Mark as reviewed");
-  expect(html).toContain(
-    'aria-keyshortcuts="Meta+Shift+M Control+Shift+M"',
-  );
+  expect(html).toContain('aria-keyshortcuts="Meta+Shift+M Control+Shift+M"');
   expect(html).not.toContain("Current file</span>");
   expect(html).not.toContain("Review 1 open");
 });

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useState } from "react";
 import {
   expect,
   fireEvent,
@@ -8,6 +9,7 @@ import {
   within,
 } from "storybook/test";
 import type { ViviComment } from "../../../domain/comments.js";
+import type { ViewerMode } from "../../../state/viewer-mode.js";
 import {
   commentsForPath,
   humanTasuku,
@@ -74,6 +76,40 @@ export const SourceMarkdownComment: Story = {
   args: {
     mode: "source",
     activeCommentId: "comment-md-rendered",
+  },
+};
+
+export const RenderedShowsSourceInputReturn: Story = {
+  name: "Rendered mode keeps Source input visible",
+  tags: ["interaction"],
+  render: () => <SourceInputReturnHarness />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Add comment on line 3" }),
+    );
+    const composer = canvas.getByRole("textbox", {
+      name: "New line comment",
+    });
+    await userEvent.type(composer, "Keep this visible from Rendered mode");
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Rendered" }),
+    );
+
+    const returnButton = canvas.getByRole("button", {
+      name: "Return to Source, 1 input in progress",
+    });
+    await expect(returnButton).toBeVisible();
+    await userEvent.click(returnButton);
+    await expect(
+      canvas.getByRole("textbox", { name: "New line comment" }),
+    ).toHaveValue("Keep this visible from Rendered mode");
+    await userEvent.click(canvas.getByRole("button", { name: "Rendered" }));
+    await expect(
+      canvas.getByRole("button", {
+        name: "Return to Source, 1 input in progress",
+      }),
+    ).toBeVisible();
   },
 };
 
@@ -929,6 +965,25 @@ function renderedSnapshotLayoutSignature(root: HTMLElement): string {
 
 function clickRenderedBlock(element: Element, init: MouseEventInit = {}): void {
   fireEvent.click(element, init);
+}
+
+function SourceInputReturnHarness() {
+  const [mode, setMode] = useState<ViewerMode>("source");
+  return (
+    <MarkdownViewer
+      file={sampleFiles.markdown}
+      mode={mode}
+      theme="light"
+      comments={[]}
+      onModeChange={setMode}
+      onCreateComment={fn()}
+      onDiffToggle={fn()}
+      onCloseComment={fn()}
+      onOpenComment={fn()}
+      onCommentStatusChange={fn()}
+      onOpenPath={fn()}
+    />
+  );
 }
 
 function firstReadableTextRect(block: HTMLElement): DOMRect {

@@ -25,6 +25,7 @@ import {
 } from "../../shared/components/OpenTabs.js";
 import { Inspector } from "../review-queue/Inspector.js";
 import { InlineCommentCard } from "../comments/components/InlineCommentCard.js";
+import { useCommentInputSessions } from "../comments/CommentInputSessionProvider.js";
 import { CommandPalette } from "../command-palette/CommandPalette.js";
 import { ShortcutHelp } from "../../shared/components/ShortcutHelp.js";
 import { WorkspaceRestoreNotice } from "../../shared/components/WorkspaceRestoreNotice.js";
@@ -120,6 +121,7 @@ import {
 } from "../../state/git-review-refresh.js";
 import {
   activeCommentRendersInViewerThread,
+  commentAnchorThreadKey,
   draftReviewCommentAsViviComment,
   visibleThreadComments,
   type CommentDraft,
@@ -225,6 +227,7 @@ interface LiveRefreshMetrics {
 }
 
 export function WorkbenchContainer({ client }: { client: ViviClient }) {
+  const commentInputs = useCommentInputSessions();
   const [tree, setTree] = useState<TreeSnapshot | null>(null);
   const [config, setConfig] = useState<ViewerConfig | null>(null);
   const [layout, setLayout] = useState(initialEditorLayout);
@@ -563,6 +566,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         draftIds?.length
           ? items.filter((draft) => !draftIds.includes(draft.id))
           : [],
+      );
+      commentInputs.discardAnchors(
+        publishingDrafts.map((draft) =>
+          commentAnchorThreadKey(draft.path, draft.anchor),
+        ),
       );
       if (nextActiveCommentId) setActiveCommentId(nextActiveCommentId);
       setLastPublishedReviewBatchId(batch.reviewBatchId);
@@ -1961,6 +1969,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }, []);
 
   useEffect(() => {
+    if (config?.root) commentInputs.setWorkspaceRoot(config.root);
+  }, [commentInputs.setWorkspaceRoot, config?.root]);
+
+  useEffect(() => {
     const updateViewportWidth = () => setViewportWidth(readViewportWidth());
     updateViewportWidth();
     window.addEventListener("resize", updateViewportWidth);
@@ -2507,6 +2519,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               comments={activeFileComments}
               reviewComments={comments}
               draftComments={draftComments}
+              unsavedInputCount={
+                commentInputs.sessions.filter((session) => session.body.trim())
+                  .length
+              }
               commentsLoading={commentsLoading}
               knownMissingCommentPaths={knownMissingCommentPathSet}
               threadActivities={commentActivitySummaries}

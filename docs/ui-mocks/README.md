@@ -43,6 +43,7 @@ modal  : Cmd/Ctrl + K command palette
 - `35-theme-exploration.html`: same-state theme explorations for the classic workspace, keeping the file tree, tabs, active Markdown viewer, right inspector, review queue, watcher state, and command palette constant while varying only the visual theme. Includes `35-theme-compare-01-11.html` for comparing Graphite Ledger with the Blueprint Ledger hybrid and `35-theme-compare-11-12.html` for comparing the Blueprint Ledger dark/light pair.
 - `36-rendered-change-cards.html`: concept mock for treating rendered Markdown/HTML diffs as reviewable change cards with explicit Added/Removed/Changed rails, source hunk affordances, and comment anchors outside the rendered content.
 - `37-in-review-read-receipts.html`: three alternatives for showing agent read receipts, unread agent replies, and human read boundaries in the In Review workflow.
+- `38-resumable-comment-composer.html`: three policies for preserving typed comment input across line, file, tab, mode, inspector, outside-click, Escape, and file-change transitions without changing Publish into an agent synchronization gate.
 
 ## Implementation guidance
 

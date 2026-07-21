@@ -339,9 +339,11 @@ export const DraftOnlyThreadFollowUpKeepsThreadId: Story = {
       canvas.getByRole("button", { name: "Add follow-up" }),
     );
 
-    const calls = (args.onCreateComment as unknown as {
-      mock: { calls: unknown[][] };
-    }).mock.calls;
+    const calls = (
+      args.onCreateComment as unknown as {
+        mock: { calls: unknown[][] };
+      }
+    ).mock.calls;
     await expect(args.onCreateComment).toHaveBeenCalled();
     await expect(calls).toHaveLength(1);
     await expect(calls[0]?.[0]).toMatchObject({
@@ -503,6 +505,57 @@ export const MultipleSourceDraftFormsStayOpen: Story = {
       canvas.getByRole("article", { name: "Comment thread for line 9" }),
     ).toBeVisible();
     await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(2);
+  },
+};
+
+export const SourceCommentActionPointerClickOpensComposer: Story = {
+  name: "Pointer click opens a source comment",
+  tags: ["interaction"],
+  args: {
+    comments: [],
+    selectedRange: null,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const lineAction = canvas.getByRole("button", {
+      name: "Add comment on line 6",
+    });
+
+    await userEvent.pointer([
+      { keys: "[MouseLeft>]", target: lineAction },
+      { keys: "[/MouseLeft]", target: lineAction },
+    ]);
+
+    await expect(
+      canvas.getByRole("article", { name: "Comment thread for line 6" }),
+    ).toBeVisible();
+    await expect(canvas.getByLabelText("New line comment")).toBeVisible();
+  },
+};
+
+export const SourceLineNumberPointerClickOnlySelects: Story = {
+  name: "Pointer click on a line number only selects",
+  tags: ["interaction"],
+  args: {
+    comments: [],
+    selectedRange: null,
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const lineNumber = canvas.getByRole("button", { name: "Select line 6" });
+
+    await userEvent.pointer([
+      { keys: "[MouseLeft>]", target: lineNumber },
+      { keys: "[/MouseLeft]", target: lineNumber },
+    ]);
+
+    await expect(
+      canvas.queryByRole("article", { name: "Comment thread for line 6" }),
+    ).toBeNull();
+    await expect(args.onSelectionChange).toHaveBeenCalledWith({
+      start: 6,
+      end: 6,
+    });
   },
 };
 

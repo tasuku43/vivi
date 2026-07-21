@@ -180,6 +180,8 @@ export function MermaidViewer({
         rect={selectionComment?.rect ?? null}
         onSave={onCreateComment}
         onDismiss={() => setSelectionComment(null)}
+        restorePath={file.path}
+        currentFileHash={file.etag}
       />
     </section>
   );

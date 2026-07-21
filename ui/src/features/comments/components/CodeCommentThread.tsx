@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CommentStatus } from "../../../domain/comments.js";
 import type { CommentActivitySummary } from "../../../state/comment-activity.js";
 import { activityLabel } from "../../../state/comment-activity.js";
@@ -17,6 +17,7 @@ import { commentAgentIdentity } from "../comment-agent-identity.js";
 import sharedUiStyles from "../../../shared/styles/SharedUi.module.css";
 import activityStyles from "./CommentActivity.module.css";
 import { CommentStatusBadge } from "./CommentStatusBadge.js";
+import { useCommentInputSession } from "../CommentInputSessionProvider.js";
 import styles from "./CodeCommentThread.module.css";
 
 export function CodeCommentThread({
@@ -45,7 +46,9 @@ export function CodeCommentThread({
     (comment) => !isDraftThreadComment(comment),
   );
   const canContinueThread = hasThreadMessages && Boolean(draft.threadId);
-  const [body, setBody] = useState("");
+  const input = useCommentInputSession(draft);
+  const body = input.session?.body ?? "";
+  const stale = input.session?.status === "stale";
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const threadRef = useRef<HTMLElement | null>(null);
@@ -73,37 +76,19 @@ export function CodeCommentThread({
     : `Add comment on ${lineLabel}`;
   const toggleStatusLabel = threadStatus === "open" ? "Resolve" : "Reopen";
   const archiveLabel = "Archive";
-  const requestClose = useCallback(() => {
-    if (body.trim() && !window.confirm("Discard this unsent comment?")) {
-      return;
-    }
+  const requestClose = () => {
+    input.collapse(input.id);
     onClose();
-  }, [body, onClose]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      requestClose();
-    };
-    window.addEventListener("keydown", onKeyDown, { capture: true });
-    return () => {
-      window.removeEventListener("keydown", onKeyDown, { capture: true });
-    };
-  }, [requestClose]);
+  };
 
   useEffect(() => {
     if (hasThreadMessages) return;
     textareaRef.current?.focus();
   }, [hasThreadMessages, thread.key]);
 
-  useEffect(() => {
-    setBody("");
-    setError(null);
-  }, [canContinueThread, thread.key]);
-
   async function submit() {
     const trimmed = body.trim();
-    if (!trimmed || !onCreateComment || saving) return;
+    if (!trimmed || !onCreateComment || saving || stale) return;
     setSaving(true);
     setError(null);
     try {
@@ -114,7 +99,7 @@ export function CodeCommentThread({
         ),
         trimmed,
       );
-      setBody("");
+      input.markSaved(input.id);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -266,20 +251,50 @@ export function CodeCommentThread({
           <span aria-hidden="true" />
           {composerModeLabel}
         </div>
+        {stale ? (
+          <div className="code-comment-stale" role="alert">
+            <strong>File changed since this comment was started.</strong>
+            <span>Check the selected lines, then re-anchor or discard.</span>
+            <div>
+              <button
+                type="button"
+                onClick={() => input.reanchor(input.id, draft)}
+              >
+                Re-anchor here
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  input.discard(input.id);
+                  onClose();
+                }}
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        ) : null}
         <textarea
           ref={textareaRef}
           autoFocus={!hasThreadMessages}
           rows={2}
           value={body}
+          disabled={stale}
           placeholder={isReplyComposer ? "Add a follow-up" : "Add a comment"}
           aria-label={isReplyComposer ? "Continue thread" : "New line comment"}
           aria-describedby={`${composerModeId} ${replyHintId}`}
           aria-keyshortcuts="Meta+Enter Control+Enter"
           onChange={(event) => {
-            setBody(event.currentTarget.value);
+            input.change(draft, event.currentTarget.value);
             if (error) setError(null);
           }}
           onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              event.stopPropagation();
+              requestClose();
+              return;
+            }
             if (isCommentSubmitShortcut(event)) {
               event.preventDefault();
               void submit();
@@ -288,7 +303,7 @@ export function CodeCommentThread({
         />
         <p className="code-comment-thread-hint" id={replyHintId}>
           <kbd className={sharedUiStyles.keycap}>Cmd/Ctrl Enter</kbd>{" "}
-          {submitHint} <span>Esc closes</span>
+          {submitHint} <span>Esc collapses · input is kept</span>
         </p>
         <div className="code-comment-thread-footer">
           <div>
@@ -316,10 +331,21 @@ export function CodeCommentThread({
                 </button>
               </>
             ) : null}
+            {body.trim() && !stale ? (
+              <button
+                type="button"
+                onClick={() => {
+                  input.discard(input.id);
+                  onClose();
+                }}
+              >
+                Discard
+              </button>
+            ) : null}
           </div>
           <button
             className="code-comment-submit"
-            disabled={!body.trim() || saving}
+            disabled={!body.trim() || saving || stale}
             type="submit"
             aria-label={submitLabel}
             aria-keyshortcuts="Meta+Enter Control+Enter"

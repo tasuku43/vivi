@@ -16,6 +16,8 @@ import {
   type CommentDraft,
   type CommentStatusChangeHandler,
 } from "../../../state/comments.js";
+import { commentInputSessionId } from "../../../state/comment-input-session.js";
+import { unsavedCommentInputCount } from "../../../state/comment-input-session.js";
 import type { LineRange } from "../../../state/code-viewer.js";
 import { extractHighlightedLines } from "../../../state/highlighted-lines.js";
 import {
@@ -25,9 +27,11 @@ import {
 import type { ResolvedTheme } from "../../../state/theme.js";
 import type { ViewerMode } from "../../../state/viewer-mode.js";
 import { CodeCommentThread } from "../../comments/components/CodeCommentThread.js";
+import { useCommentInputSessions } from "../../comments/CommentInputSessionProvider.js";
 import { SourceCommentSurface } from "../../comments/components/SourceCommentSurface.js";
 import {
   DiffToggleButton,
+  SourceInputReturnButton,
   ViewerToolbar,
   ViewerModeButton,
 } from "../components/ViewerControlButton.js";
@@ -88,6 +92,12 @@ export function HtmlViewer({
   previewSrcDoc?: string;
   onOpenPath?: (path: string) => void;
 }) {
+  const commentInputs = useCommentInputSessions();
+  const sourceInputCount = unsavedCommentInputCount(
+    commentInputs.sessions,
+    file.path,
+    "source",
+  );
   const [localMode, setLocalMode] = useState<ViewerMode>("preview");
   const [sourceSelectedRange, setSourceSelectedRange] =
     useState<LineRange | null>(null);
@@ -131,6 +141,10 @@ export function HtmlViewer({
     setRenderedThreadTargets([]);
     setHighlightedSourceHtml(null);
   }, [file.content, file.path]);
+
+  useEffect(() => {
+    commentInputs.markPathVersion(file.path, file.etag);
+  }, [commentInputs.markPathVersion, file.etag, file.path]);
 
   useEffect(() => {
     if (mode !== "source" || diffEnabled) return;
@@ -225,6 +239,14 @@ export function HtmlViewer({
         return;
       }
       if (data.type === "vivi-html-comment-clear") {
+        const hasUnsentInput = renderedThreadTargets.some((target) =>
+          commentInputs.sessions.some(
+            (session) =>
+              session.id === commentInputSessionId(target.draft) &&
+              session.status !== "collapsed",
+          ),
+        );
+        if (hasUnsentInput) return;
         setRenderedThreadTargets([]);
         onCloseComment?.();
         return;
@@ -249,6 +271,8 @@ export function HtmlViewer({
     onCloseComment,
     onOpenComment,
     onOpenPath,
+    commentInputs.sessions,
+    renderedThreadTargets,
     visibleRenderedComments,
   ]);
 
@@ -284,6 +308,8 @@ export function HtmlViewer({
   const openRenderedDraft = (
     target: RenderedCommentBlockTarget,
     comment?: ViviComment,
+    draftOverride?: CommentDraft,
+    persistInput = true,
   ) => {
     const mappedRange = sourceRangeForHtmlTarget(
       file.content,
@@ -303,11 +329,58 @@ export function HtmlViewer({
           sourceLineEnd: mappedRange?.end,
           sourceQuote: sourceTextForLineRange(file.content, mappedRange),
         }),
-        threadId: comment?.threadId ?? comment?.id,
+        threadId: draftOverride?.threadId ?? comment?.threadId ?? comment?.id,
       },
     };
+    if (!comment && persistInput) {
+      for (const existingTarget of renderedThreadTargets) {
+        const existingId = commentInputSessionId(existingTarget.draft);
+        if (existingId !== commentInputSessionId(nextTarget.draft)) {
+          commentInputs.collapse(existingId);
+        }
+      }
+      commentInputs.start(nextTarget.draft, target.rect);
+    }
     setRenderedThreadTargets([nextTarget]);
   };
+
+  useEffect(() => {
+    if (mode !== "preview" || diffEnabled || renderedThreadTargets.length) {
+      return;
+    }
+    const session = [...commentInputs.sessions]
+      .reverse()
+      .find(
+        (candidate) =>
+          candidate.draft.path === file.path &&
+          candidate.status !== "collapsed" &&
+          candidate.rect &&
+          candidate.draft.anchor.surface === "rendered" &&
+          candidate.draft.anchor.rendered?.kind === "html",
+      );
+    const rendered = session?.draft.anchor.rendered;
+    if (!session?.rect || !rendered) return;
+    openRenderedDraft(
+      {
+        blockId: rendered.blockId ?? "restored-html-block",
+        blockIds: rendered.blockId ? [rendered.blockId] : [],
+        selector: rendered.selector,
+        text: rendered.textQuote ?? session.draft.anchor.canonical.quote ?? "",
+        rect: session.rect,
+        sourceLineStart: session.draft.anchor.canonical.lineStart,
+        sourceLineEnd: session.draft.anchor.canonical.lineEnd,
+      },
+      undefined,
+      session.draft,
+      false,
+    );
+  }, [
+    commentInputs.sessions,
+    diffEnabled,
+    file.path,
+    mode,
+    renderedThreadTargets.length,
+  ]);
 
   const closeRenderedThreadTarget = (key: string) => {
     setRenderedThreadTargets((items) =>
@@ -364,6 +437,12 @@ export function HtmlViewer({
             Source
           </ViewerModeButton>
         </div>
+        {mode === "preview" ? (
+          <SourceInputReturnButton
+            count={sourceInputCount}
+            onReturn={() => setMode("source")}
+          />
+        ) : null}
         {toolbarAction}
         <DiffToggleButton
           enabled={diffEnabled}

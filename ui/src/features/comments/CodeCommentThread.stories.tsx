@@ -1,9 +1,11 @@
+import { useState, type ComponentProps } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
 import type { CommentStatus, ViviComment } from "../../domain/comments.js";
 import { draftReviewCommentAsViviComment } from "../../state/comments.js";
 import { summarizeThreadActivity } from "../../state/comment-activity.js";
 import { CodeCommentThread } from "./components/CodeCommentThread.js";
+import { useCommentInputSessions } from "./CommentInputSessionProvider.js";
 import {
   sampleComments,
   sampleDraftComments,
@@ -111,6 +113,118 @@ export const Open: Story = {
   },
 };
 export const Resolved: Story = { args: args("resolved") };
+
+export const ResumableInput: Story = {
+  tags: ["interaction"],
+  args: args("open"),
+  render: (storyArgs) => <ResumableInputHarness {...storyArgs} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const textarea = canvas.getByLabelText("Continue thread");
+    await userEvent.type(textarea, "Keep this across navigation");
+    await userEvent.click(canvas.getByRole("button", { name: "Other file" }));
+    await expect(textarea).toHaveValue("Keep this across navigation");
+    await userEvent.type(textarea, "{Escape}");
+    await expect(
+      canvas.queryByLabelText("Continue thread"),
+    ).not.toBeInTheDocument();
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Return to comment" }),
+    );
+    await expect(canvas.getByLabelText("Continue thread")).toHaveValue(
+      "Keep this across navigation",
+    );
+    await userEvent.click(canvas.getByRole("button", { name: "Discard" }));
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Return to comment" }),
+    );
+    await expect(canvas.getByLabelText("Continue thread")).toHaveValue("");
+  },
+};
+
+export const StaleInputRequiresDecision: Story = {
+  tags: ["interaction"],
+  args: args("open"),
+  render: (storyArgs) => <StaleInputHarness {...storyArgs} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.type(
+      canvas.getByLabelText("Continue thread"),
+      "Check this after refresh",
+    );
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Simulate file update" }),
+    );
+    await expect(
+      canvas.getByText("File changed since this comment was started."),
+    ).toBeVisible();
+    await expect(canvas.getByLabelText("Continue thread")).toBeDisabled();
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Re-anchor here" }),
+    );
+    await expect(canvas.getByLabelText("Continue thread")).toBeEnabled();
+    await expect(canvas.getByLabelText("Continue thread")).toHaveValue(
+      "Check this after refresh",
+    );
+  },
+};
+
+function ResumableInputHarness(
+  storyArgs: ComponentProps<typeof CodeCommentThread>,
+) {
+  const [visible, setVisible] = useState(true);
+  const inputs = useCommentInputSessions();
+  return (
+    <div>
+      <button type="button">Other file</button>
+      {!visible ? (
+        <button
+          type="button"
+          onClick={() => {
+            inputs.start(storyArgs.draft);
+            setVisible(true);
+          }}
+        >
+          Return to comment
+        </button>
+      ) : null}
+      {visible ? (
+        <CodeCommentThread {...storyArgs} onClose={() => setVisible(false)} />
+      ) : null}
+    </div>
+  );
+}
+
+function StaleInputHarness(
+  storyArgs: ComponentProps<typeof CodeCommentThread>,
+) {
+  const inputs = useCommentInputSessions();
+  const [currentDraft, setCurrentDraft] = useState(storyArgs.draft);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => {
+          const nextDraft = {
+            ...currentDraft,
+            anchor: {
+              ...currentDraft.anchor,
+              canonical: {
+                ...currentDraft.anchor.canonical,
+                fileHash: "sha256:updated",
+              },
+            },
+          };
+          setCurrentDraft(nextDraft);
+          inputs.markPathVersion(nextDraft.path, "sha256:updated");
+        }}
+      >
+        Simulate file update
+      </button>
+      <CodeCommentThread {...storyArgs} draft={currentDraft} />
+    </div>
+  );
+}
 
 export const MultiActorConversation: Story = {
   name: "Human and coding agents conversation",
@@ -636,7 +750,7 @@ export const NewLineComment: Story = {
   },
 };
 
-export const DirtyComposerConfirmsBeforeClose: Story = {
+export const DirtyComposerCollapsesWithoutDiscard: Story = {
   tags: ["interaction"],
   args: {
     thread: {
@@ -669,33 +783,13 @@ export const DirtyComposerConfirmsBeforeClose: Story = {
       "Keep this in progress.",
     );
 
-    const originalConfirm = window.confirm;
-    try {
-      const rejectDiscard = fn(() => false);
-      window.confirm = rejectDiscard;
-      await userEvent.click(
-        canvas.getByRole("button", { name: "Close comment thread" }),
-      );
-      await expect(rejectDiscard).toHaveBeenCalledWith(
-        "Discard this unsent comment?",
-      );
-      await expect(args.onClose).not.toHaveBeenCalled();
-      await expect(canvas.getByLabelText("New line comment")).toHaveValue(
-        "Keep this in progress.",
-      );
-
-      const acceptDiscard = fn(() => true);
-      window.confirm = acceptDiscard;
-      await userEvent.click(
-        canvas.getByRole("button", { name: "Close comment thread" }),
-      );
-      await expect(acceptDiscard).toHaveBeenCalledWith(
-        "Discard this unsent comment?",
-      );
-      await expect(args.onClose).toHaveBeenCalled();
-    } finally {
-      window.confirm = originalConfirm;
-    }
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Close comment thread" }),
+    );
+    await expect(args.onClose).toHaveBeenCalled();
+    await expect(canvas.getByLabelText("New line comment")).toHaveValue(
+      "Keep this in progress.",
+    );
   },
 };
 
