@@ -139,6 +139,8 @@ it("renders the topbar as brand, workspace identity, and distinct actions", () =
   );
 
   expect(html).toContain('aria-label="Vivi"');
+  expect(html).toContain('src="/vivi/brand/vivi-icon.svg"');
+  expect(html).toContain('data-testid="vivi-brand-icon"');
   expect(html).toContain('aria-label="Current workspace"');
   expect(html).toContain('aria-label="Workspace actions"');
   expect(html).toContain(">vivi</span>");

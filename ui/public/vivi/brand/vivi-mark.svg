@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Vivi mark</title>
+  <desc id="description">An open reader with cyan and amber review tabs.</desc>
+  <path d="M88 105c-16-5-32 8-32 25v181c0 16 9 30 24 37l165 79V196c0-24-14-46-36-56L88 105Z" fill="#f7fafc" stroke="#07111a" stroke-width="18" stroke-linejoin="round"/>
+  <path d="M424 105c16-5 32 8 32 25v181c0 16-9 30-24 37l-165 79V196c0-24 14-46 36-56l121-35Z" fill="#f7fafc" stroke="#07111a" stroke-width="18" stroke-linejoin="round"/>
+  <rect x="40" y="176" width="72" height="58" rx="4" fill="#54c4dc"/>
+  <rect x="400" y="176" width="72" height="58" rx="4" fill="#f0b35a"/>
+</svg>

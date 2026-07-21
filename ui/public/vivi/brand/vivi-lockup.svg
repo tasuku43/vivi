@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 320" role="img" aria-labelledby="title description">
+  <title id="title">vivi — local review adapter</title>
+  <desc id="description">The Vivi open reader mark and wordmark.</desc>
+  <g transform="translate(28 20) scale(.55)">
+    <path d="M88 105c-16-5-32 8-32 25v181c0 16 9 30 24 37l165 79V196c0-24-14-46-36-56L88 105Z" fill="#f7fafc" stroke="#07111a" stroke-width="18" stroke-linejoin="round"/>
+    <path d="M424 105c16-5 32 8 32 25v181c0 16-9 30-24 37l-165 79V196c0-24 14-46 36-56l121-35Z" fill="#f7fafc" stroke="#07111a" stroke-width="18" stroke-linejoin="round"/>
+    <rect x="40" y="176" width="72" height="58" rx="4" fill="#54c4dc"/>
+    <rect x="400" y="176" width="72" height="58" rx="4" fill="#f0b35a"/>
+  </g>
+  <g transform="translate(350 54)" fill="#07111a">
+    <path d="M0 54h35l47 112 47-112h35l-65 112H65L0 54Z"/>
+    <circle cx="208" cy="18" r="18"/>
+    <rect x="191" y="54" width="34" height="112" rx="2"/>
+    <path d="M264 54h35l47 112 47-112h35l-65 112h-34L264 54Z"/>
+    <circle cx="472" cy="18" r="18"/>
+    <rect x="455" y="54" width="34" height="112" rx="2"/>
+  </g>
+  <text x="352" y="270" fill="#2f8fa5" font-family="Arial, Helvetica, sans-serif" font-size="36" letter-spacing="7">LOCAL REVIEW ADAPTER</text>
+</svg>

@@ -18,15 +18,14 @@
 }
 
 .logo {
-  width: 22px;
-  height: 22px;
-  border-radius: 7px;
-  background: linear-gradient(
-    135deg,
-    var(--vivi-color-brand-primary),
-    var(--vivi-color-brand-secondary)
-  );
-  box-shadow: 0 0 22px var(--vivi-color-brand-glow);
+  display: block;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 1px var(--vivi-color-border-soft),
+    0 0 14px color-mix(in srgb, var(--vivi-color-brand-glow) 70%, transparent);
 }
 
 .brandWordmark {

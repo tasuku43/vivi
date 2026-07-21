@@ -29,7 +29,15 @@ export function Topbar({
   return (
     <header className={styles.topbar}>
       <div className={styles.brand} aria-label="Vivi">
-        <span className={styles.logo} aria-hidden="true" />
+        <img
+          className={styles.logo}
+          src="/vivi/brand/vivi-icon.svg"
+          alt=""
+          aria-hidden="true"
+          data-testid="vivi-brand-icon"
+          width="24"
+          height="24"
+        />
         <span className={styles.brandWordmark}>Vivi</span>
       </div>
 

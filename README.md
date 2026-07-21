@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="ui/public/vivi/brand/vivi-readme.svg" alt="vivi — local review adapter" width="100%" />
+</p>
+
 # Vivi
 
 The canonical data contract is `server/graphql/schema.graphqls`. Run

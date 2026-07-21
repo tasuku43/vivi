@@ -43,6 +43,10 @@ export const TopbarStory: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await expect(canvas.getByTestId("vivi-brand-icon")).toHaveAttribute(
+      "src",
+      "/vivi/brand/vivi-icon.svg",
+    );
     await expect(
       canvas.queryByRole("button", { name: /Open Comments hub/ }),
     ).not.toBeInTheDocument();
