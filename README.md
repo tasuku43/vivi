@@ -69,8 +69,6 @@ vivi ./docs
 vivi ./dist --open
 vivi . --ready-json
 vivi inbox http://127.0.0.1:4317
-vivi inbox http://127.0.0.1:4317 --watch
-vivi inbox http://127.0.0.1:4317 --watch --initial
 vivi inbox http://127.0.0.1:4317 --read-as codex
 vivi reply http://127.0.0.1:4317 <thread-id> --actor codex --body "Fixed."
 vivi reply http://127.0.0.1:4317 <thread-id> --actor codex --resolve --body-file /tmp/vivi-reply.md
@@ -114,19 +112,19 @@ This keeps the human-facing UI visual and low-friction while keeping the
 agent-facing interface structured and deterministic.
 
 For coding agents, the first public surface is the top-level comment pipe:
-`inbox <url>` reads open human feedback from a specific running Vivi server,
-and `reply <url> <thread-id> --actor codex|claude` writes back. Plain
-`inbox <url>` is a passive one-shot query. `inbox <url> --watch` waits for
-new open threads or threads with a newer human comment after the listener
-starts. Add `--initial` when a watcher should also emit the current open inbox
-before waiting. Add `--read-as codex` or `--read-as claude` only when the browser
-should show an explicit read receipt. `reply` is
+`inbox <url>` fetches the currently published open feedback from a specific
+running Vivi server once and exits, and
+`reply <url> <thread-id> --actor codex|claude` writes back. The human can keep
+drafting in the GUI and Publish when feedback should become agent-visible; the
+agent fetches when asked or when its workflow chooses to refresh. Add
+`--read-as codex` or `--read-as claude` only when the browser should show an
+explicit read receipt. `reply` is
 non-interactive and requires `--body <text>` or `--body-file <path|->`; add
 `--resolve` or `--archive` when the reply should also close the thread. Use
-`claim` and `release` when multiple sub-agents need an ownership handoff.
 `review queue` and `review diff` are changed-file context helpers; they are not
 the human-feedback intake loop. The deeper `comments` commands remain available
-for adapter authors, debugging, protocol inspection, and recovery.
+for adapter authors, compatibility, debugging, protocol inspection, and
+recovery. Resident watch/claim workflows are not the default product path.
 
 ## Product Boundary
 
@@ -192,8 +190,8 @@ The fixture-driven fake agent loop is documented in
 [`docs/engineering/23-local-agent-loop-harness.md`](docs/engineering/23-local-agent-loop-harness.md).
 Against a running Vivi server, run `npm run harness:agent-loop` to verify the
 human comment, actor-aware read receipt, agent reply, and terminal lifecycle.
-Use `--intake work --terminal cli` when validating the primary resident
-agent-facing loop.
+Use `--intake work --terminal cli` only when validating the legacy resident
+adapter compatibility path.
 
 The Go backend is the distribution target. The TypeScript server remains useful
 while the migration is in progress because selected API contract tests can be

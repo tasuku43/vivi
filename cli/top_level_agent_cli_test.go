@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -56,112 +55,20 @@ func TestTopLevelInboxReadsOpenThreadsPassivelyAndWithReadReceipt(t *testing.T) 
 	}
 }
 
-func TestTopLevelInboxWatchInitialEmitsStartupSnapshotThenHumanCommentDiffs(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	serverURL := newTopLevelAgentTestServer(t)
-	thread := createTopLevelAgentThread(t, ctx, serverURL, "README.md", "最初の依頼")
-
-	reader, writer := io.Pipe()
-	lines := make(chan map[string]any, 8)
-	errs := make(chan error, 1)
-	go func() {
-		scanner := bufio.NewScanner(reader)
-		for scanner.Scan() {
-			var decoded map[string]any
-			if err := json.Unmarshal(scanner.Bytes(), &decoded); err != nil {
-				errs <- err
-				return
-			}
-			lines <- decoded
+func TestTopLevelInboxRejectsRemovedResidentFlags(t *testing.T) {
+	for _, flag := range []string{"--watch", "--initial", "--no-initial", "--interval"} {
+		var stdout bytes.Buffer
+		args := []string{"inbox", "http://127.0.0.1:4317", flag}
+		if flag == "--interval" {
+			args = append(args, "10ms")
 		}
-		errs <- scanner.Err()
-	}()
-	done := make(chan error, 1)
-	go func() {
-		err := runTopLevelAgentCommand(ctx, []string{"inbox", serverURL, "--watch", "--initial", "--interval", "10ms"}, writer)
-		_ = writer.Close()
-		done <- err
-	}()
-
-	first := receiveTopLevelInboxLine(t, lines, time.Second)
-	if first["id"] != thread.ID || first["body"] != "最初の依頼" {
-		t.Fatalf("initial inbox line = %#v", first)
-	}
-
-	if _, err := addCommentToThread(ctx, commentsCommandOptions{URL: serverURL, ActorID: "codex", ActorKind: "codex", ActorName: "codex"}, thread.ID, "調査を始めます"); err != nil {
-		t.Fatalf("add agent reply: %v", err)
-	}
-	assertNoTopLevelInboxLine(t, lines, 80*time.Millisecond)
-
-	addTopLevelAgentThreadComment(t, ctx, serverURL, thread.ID, "追加でここも見てください", "human")
-	followup := receiveTopLevelInboxLine(t, lines, time.Second)
-	if followup["id"] != thread.ID || followup["body"] != "追加でここも見てください" {
-		t.Fatalf("follow-up inbox line = %#v", followup)
-	}
-
-	cancel()
-	if err := <-done; err != nil {
-		t.Fatalf("watch returned error: %v", err)
-	}
-	if err := <-errs; err != nil {
-		t.Fatalf("scan watch output: %v", err)
-	}
-}
-
-func TestTopLevelInboxWatchSuppressesStartupSnapshotByDefault(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	serverURL := newTopLevelAgentTestServer(t)
-	thread := createTopLevelAgentThread(t, ctx, serverURL, "README.md", "既存の依頼")
-
-	reader, writer := io.Pipe()
-	lines := make(chan map[string]any, 8)
-	errs := make(chan error, 1)
-	go func() {
-		scanner := bufio.NewScanner(reader)
-		for scanner.Scan() {
-			var decoded map[string]any
-			if err := json.Unmarshal(scanner.Bytes(), &decoded); err != nil {
-				errs <- err
-				return
-			}
-			lines <- decoded
+		err := runTopLevelAgentCommand(context.Background(), args, &stdout)
+		if err == nil || !strings.Contains(err.Error(), "flag provided but not defined") {
+			t.Fatalf("%s error = %v", flag, err)
 		}
-		errs <- scanner.Err()
-	}()
-	done := make(chan error, 1)
-	go func() {
-		err := runTopLevelAgentCommand(ctx, []string{"inbox", serverURL, "--watch", "--interval", "10ms"}, writer)
-		_ = writer.Close()
-		done <- err
-	}()
-
-	assertNoTopLevelInboxLine(t, lines, 80*time.Millisecond)
-
-	addTopLevelAgentThreadComment(t, ctx, serverURL, thread.ID, "待受開始後の追記", "human")
-	followup := receiveTopLevelInboxLine(t, lines, time.Second)
-	if followup["id"] != thread.ID || followup["body"] != "待受開始後の追記" {
-		t.Fatalf("follow-up inbox line = %#v", followup)
-	}
-
-	cancel()
-	if err := <-done; err != nil {
-		t.Fatalf("watch returned error: %v", err)
-	}
-	if err := <-errs; err != nil {
-		t.Fatalf("scan watch output: %v", err)
-	}
-}
-
-func TestTopLevelInboxInitialRequiresWatch(t *testing.T) {
-	var stdout bytes.Buffer
-	err := runTopLevelAgentCommand(context.Background(), []string{"inbox", "http://127.0.0.1:4317", "--initial"}, &stdout)
-	if err == nil || err.Error() != "error: inbox --initial requires --watch" {
-		t.Fatalf("error = %v", err)
-	}
-	if stdout.Len() != 0 {
-		t.Fatalf("validation should not write stdout, got %q", stdout.String())
+		if stdout.Len() != 0 {
+			t.Fatalf("%s should not write stdout, got %q", flag, stdout.String())
+		}
 	}
 }
 
@@ -195,26 +102,14 @@ func TestTopLevelReplyCanLeaveOpenResolveAndArchive(t *testing.T) {
 	assertTopLevelWriteOutput(t, archiveReply.String(), "reply", archivedThread.ID, "codex", "archived")
 }
 
-func TestTopLevelClaimAndReleaseProvideOwnershipPrimitive(t *testing.T) {
-	ctx := context.Background()
-	serverURL := newTopLevelAgentTestServer(t)
-	thread := createTopLevelAgentThread(t, ctx, serverURL, "README.md", "お願いします")
-
-	var claimed bytes.Buffer
-	if err := runTopLevelAgentCommand(ctx, []string{"claim", serverURL, thread.ID, "--actor", "claude"}, &claimed); err != nil {
-		t.Fatalf("claim failed: %v", err)
-	}
-	assertTopLevelWriteOutput(t, claimed.String(), "claim", thread.ID, "claude", "open")
-
-	var released bytes.Buffer
-	if err := runTopLevelAgentCommand(ctx, []string{"release", serverURL, thread.ID, "--actor", "claude", "--body", "別のサブエージェントに戻します。"}, &released); err != nil {
-		t.Fatalf("release failed: %v", err)
-	}
-	assertTopLevelWriteOutput(t, released.String(), "release", thread.ID, "claude", "open")
-
-	activities := fetchTopLevelAgentActivities(t, ctx, serverURL, thread.ID)
-	if len(activities) < 2 || activities[len(activities)-2].Actor.Kind != "claude_code" || activities[len(activities)-1].Actor.Kind != "claude_code" {
-		t.Fatalf("claim/release should map claude to claude_code activities: %#v", activities)
+func TestTopLevelClaimAndReleaseAreRemovedWithResidentInbox(t *testing.T) {
+	for _, command := range []string{"claim", "release"} {
+		var stdout bytes.Buffer
+		err := runTopLevelAgentCommand(context.Background(), []string{command}, &stdout)
+		want := "error: vivi " + command + " was removed with the resident inbox workflow; use one-shot inbox and reply"
+		if err == nil || err.Error() != want {
+			t.Fatalf("%s error = %v, want %q", command, err, want)
+		}
 	}
 }
 
@@ -382,47 +277,6 @@ func createTopLevelAgentThread(t *testing.T, ctx context.Context, serverURL stri
 	return thread
 }
 
-func addTopLevelAgentThreadComment(t *testing.T, ctx context.Context, serverURL string, threadID string, body string, kind string) commentOutput {
-	t.Helper()
-	actorID := "human:tester"
-	displayName := "Tester"
-	if kind != "human" {
-		actorID = kind + ":tester"
-		displayName = kind
-	}
-	var comment commentOutput
-	if err := postGraphQL(ctx, commentsCommandOptions{URL: serverURL}, graphqlRequest{
-		OperationName: "AddTopLevelAgentThreadComment",
-		Query: `mutation AddTopLevelAgentThreadComment($threadId: ID!, $input: AddCommentInput!) {
-			addComment(threadId: $threadId, input: $input) {
-				id
-				threadId
-				path
-				viewerKind
-				body
-				status
-				createdAt
-				updatedAt
-				createdBy { id kind displayName }
-			}
-		}`,
-		Variables: map[string]any{
-			"threadId": threadID,
-			"input": map[string]any{
-				"body": body,
-				"actor": map[string]any{
-					"id":          actorID,
-					"kind":        kind,
-					"displayName": displayName,
-				},
-			},
-		},
-	}, "addComment", &comment); err != nil {
-		t.Fatalf("add comment: %v", err)
-	}
-	return comment
-}
-
 func readActivityCount(t *testing.T, ctx context.Context, serverURL string, threadID string) int {
 	t.Helper()
 	count := 0
@@ -477,26 +331,6 @@ func assertTopLevelWriteOutput(t *testing.T, raw string, kind string, id string,
 	decoded := decodeSingleJSONLine(t, raw)
 	if decoded["type"] != kind || decoded["id"] != id || decoded["actor"] != actor || decoded["status"] != status {
 		t.Fatalf("write output = %#v, want type=%s id=%s actor=%s status=%s", decoded, kind, id, actor, status)
-	}
-}
-
-func receiveTopLevelInboxLine(t *testing.T, lines <-chan map[string]any, timeout time.Duration) map[string]any {
-	t.Helper()
-	select {
-	case line := <-lines:
-		return line
-	case <-time.After(timeout):
-		t.Fatal("timed out waiting for inbox line")
-		return nil
-	}
-}
-
-func assertNoTopLevelInboxLine(t *testing.T, lines <-chan map[string]any, timeout time.Duration) {
-	t.Helper()
-	select {
-	case line := <-lines:
-		t.Fatalf("unexpected inbox line: %#v", line)
-	case <-time.After(timeout):
 	}
 }
 

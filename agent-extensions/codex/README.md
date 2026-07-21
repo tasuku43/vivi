@@ -34,12 +34,11 @@ agent-extensions/codex/vivi-agent-loop/
   .codex-plugin/plugin.json
     plugin metadata and skill path
   skills/vivi-agent-loop/SKILL.md
-    Codex workflow for attaching to Vivi, watching comments, replying,
-    claiming/releasing threads, and delegating bounded inbox listening
+    Codex workflow for fetching published comments on demand and replying
   skills/vivi-agent-loop/agents/openai.yaml
     Codex app display metadata
 ```
 
 ## Design
 
-Codex keeps the live implementation in the main agent and uses subagents selectively for bounded listening or noisy exploration. The skill therefore emphasizes exact command recipes, shell-safe replies, and stop rules rather than shipping a resident background process.
+The skill keeps Publish asynchronous and leaves fetch timing to the agent. It emphasizes one-shot reads and shell-safe replies instead of a resident background process.

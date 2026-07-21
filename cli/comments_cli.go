@@ -1119,8 +1119,8 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 		"receiptLedger":         commentProtocolReceiptLedger(receiptLog),
 		"principles": []string{
 			"Prefer suggestedCommands emitted by runtime events over hard-coded command recipes.",
-			"Recover owned live claims with compact comments mine before claiming new GUI feedback after an adapter restart.",
-			"Use comments work --loop as the agent-safe resident owned-work intake; add --idle-events only for explicit observability/debugging.",
+			"Fetch the currently published review with one top-level inbox command, then return control to the coding agent.",
+			"Run another one-shot fetch only when the human asks or the agent chooses to refresh.",
 			"Run comments check immediately before guarded writes when ownership may be stale.",
 			"Use structured stdin schemas for triage and terminal results.",
 			"Keep a local write receipt ledger when the adapter needs restart-safe reconciliation of agent comments.",
@@ -1130,7 +1130,7 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 				"intent":  "load_protocol_manifest",
 				"command": "comments protocol",
 				"args":    withRuntimeArgs([]string{"comments", "protocol", "--json"}, serverURL, receiptLog),
-				"reason":  "Discover the preferred agent loop, schema commands, event names, and write preflight contract.",
+				"reason":  "Discover the one-shot review intake, schema commands, event names, and write preflight contract.",
 			},
 			{
 				"intent":  "cache_runtime_schemas",
@@ -1142,7 +1142,7 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 				"intent":  "check_server_readiness",
 				"command": "comments doctor",
 				"args":    withRuntimeArgs([]string{"comments", "doctor", "--actor", actor, "--client-event-id", "<client-event-id>", "--json"}, serverURL, receiptLog),
-				"reason":  "Verify the selected Vivi server is reachable and discover the current open-work readiness before entering a resident loop.",
+				"reason":  "Verify the selected Vivi server is reachable before fetching the currently published review.",
 			},
 		},
 		"recovery": []map[string]any{
@@ -1154,43 +1154,23 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 			},
 		},
 		"preferredLoop": map[string]any{
-			"intent":     "resident_owned_work_loop",
-			"command":    "comments work",
-			"args":       withRuntimeArgs(append(residentCommentsWorkCommand(actor, ""), "--client-event-id", "<client-event-id>"), serverURL, receiptLog),
-			"events":     []string{"commentWorkClaimedEvent", "commentActivityBatchEvent"},
+			"intent":     "fetch_published_review",
+			"command":    "inbox",
+			"args":       oneShotInboxArgs(serverURL),
+			"events":     []string{},
 			"outputMode": "agent_safe",
-			"idlePolicy": "silent_until_claimable_work_or_thread_activity",
-			"reason":     "Claim GUI feedback as owned work with compact events, keep the lease alive while working, observe follow-up activity, and continue to the next thread after terminal status.",
+			"idlePolicy": "current_snapshot",
+			"reason":     "Fetch the currently published open review once and exit. Run it again only when a refresh is useful.",
 		},
 		"intakeAlternatives": []map[string]any{
 			{
-				"intent":     "observable_idle_work_loop",
-				"command":    "comments work",
-				"args":       withRuntimeArgs(append(residentCommentsWorkCommandWithIdle(actor, ""), "--client-event-id", "<client-event-id>"), serverURL, receiptLog),
-				"events":     []string{"commentWorkClaimedEvent", "commentActivityBatchEvent", "commentWorkIdleEvent"},
-				"outputMode": "high_output_opt_in",
-				"idlePolicy": "emits_initial_idle_and_idle_cursor_changes",
-				"reason":     "Use only when an adapter needs visible idle state; repeated identical waiting states are suppressed.",
-			},
-			{
-				"intent":  "passive_open_worklist",
-				"command": "comments watch",
-				"args":    withRuntimeArgs([]string{"comments", "watch", "--actor", actor, "--client-event-id", "<client-event-id>", "--json"}, serverURL, receiptLog),
-				"events":  []string{"commentOpenWorklistEvent"},
-				"reason":  "Observe GUI-published open threads without claiming them; follow the event's claim_next_open_thread suggestion to take ownership.",
-			},
-			{
-				"intent":  "passive_rich_open_worklist",
-				"command": "comments watch",
-				"args":    withRuntimeArgs([]string{"comments", "watch", "--actor", actor, "--client-event-id", "<client-event-id>", "--full", "--json"}, serverURL, receiptLog),
-				"events":  []string{"commentOpenWorklistEvent"},
-				"reason":  "Observe GUI-published open threads with items[].brief so a monitor can hand individual work items to per-thread worker agents without claiming them first.",
-			},
-			{
-				"intent":  "blocking_single_claim",
-				"command": "comments claim",
-				"args":    withRuntimeArgs([]string{"comments", "claim", "--actor", actor, "--client-event-id", "<client-event-id>", "--wait", "--full", "--json"}, serverURL, receiptLog),
-				"reason":  "Wait for one claimable thread and return a single rich work item.",
+				"intent":     "inspect_routing_snapshot",
+				"command":    "comments inbox",
+				"args":       withRuntimeArgs([]string{"comments", "inbox", "--actor", actor, "--json"}, serverURL, receiptLog),
+				"events":     []string{},
+				"outputMode": "agent_safe",
+				"idlePolicy": "current_snapshot",
+				"reason":     "Advanced adapter snapshot with ownership routing. It exits immediately and is not the normal Vivi intake path.",
 			},
 		},
 		"threadCompanions": []map[string]any{
@@ -1251,7 +1231,7 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 				{
 					"code":        "server_unreachable",
 					"recoverable": true,
-					"action":      "Run the start_vivi_server suggestion or correct --url/VIVI_URL, then rerun comments doctor before entering a resident loop.",
+					"action":      "Run the start_vivi_server suggestion or correct --url/VIVI_URL, then rerun comments doctor before fetching the published review.",
 				},
 				{
 					"code":        "invalid_arguments",
@@ -1293,7 +1273,7 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 			"Command args are subcommand argv beginning with comments; prefix the Vivi executable selected by the host adapter.",
 			"Runtime events and write preflight responses may include more specific suggestedCommands than this startup manifest.",
 			"Replace <client-event-id> with a stable id for a single logical attempt; reuse it only for retries of that attempt.",
-			"The preferred resident loop intentionally omits --idle-events so unchanged idle periods do not spend agent conversation context.",
+			"The preferred intake is one-shot and exits after the current published snapshot; resident modes are advanced opt-in compatibility surfaces.",
 			"Structured stdin examples are available on each suggested command when stdinSchema is present.",
 		},
 	}
@@ -1830,7 +1810,7 @@ func commentDoctorOutputSchema() commentSchemaOutput {
 	}
 	return commentSchemaOutput{
 		Name:        "commentDoctorOutput",
-		Description: "Online startup readiness payload emitted by comments doctor --json before an agent enters a resident loop.",
+		Description: "Online readiness payload emitted by comments doctor --json before an agent fetches the current published review.",
 		Schema: map[string]any{
 			"$schema":              "https://json-schema.org/draft/2020-12/schema",
 			"$id":                  "vivi://comments/schemas/commentDoctorOutput",
@@ -1866,7 +1846,7 @@ func commentDoctorOutputSchema() commentSchemaOutput {
 				},
 				"actor":             commentActorSchema(),
 				"receiptLedger":     commentWriteReceiptLedgerVerificationOutputSchema().Schema,
-				"recommendedAction": map[string]any{"type": "string", "enum": []string{"configure_actor", "reconcile_receipt_ledger", "enter_resident_work_loop", "wait_for_gui_feedback"}},
+				"recommendedAction": map[string]any{"type": "string", "enum": []string{"configure_actor", "reconcile_receipt_ledger", "fetch_published_review", "await_publish_or_fetch_later"}},
 				"suggestedCommands": arraySchema(commentSuggestedCommandSchema()),
 			},
 		},
@@ -5691,9 +5671,9 @@ func commentsDoctorRecommendedAction(openThreadCount int, actorID string) string
 		return "configure_actor"
 	}
 	if openThreadCount > 0 {
-		return "enter_resident_work_loop"
+		return "fetch_published_review"
 	}
-	return "wait_for_gui_feedback"
+	return "await_publish_or_fetch_later"
 }
 
 func commentsDoctorSuggestedCommands(options commentsCommandOptions, openThreadCount int) []commentSuggestedCommand {
@@ -5704,16 +5684,25 @@ func commentsDoctorSuggestedCommands(options commentsCommandOptions, openThreadC
 			suggestedCommentsCommand("inspect_protocol", "comments protocol", withRuntimeArgs([]string{"comments", "protocol", "--json"}, options.URL, options.ReceiptLog), "", "Advanced adapter discovery: load the offline protocol manifest before implementing an integration."),
 		}
 	}
-	clientSeed := strings.TrimSpace(options.ClientEventID)
-	if clientSeed == "" {
-		clientSeed = commentSuggestedClientEventID("doctor", "startup", actorID)
-	}
 	suggestions := []commentSuggestedCommand{
-		suggestedCommentsCommandWithClientEventID("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(residentCommentsWorkCommand(actorID, options.ActorKind)), options.URL, options.ReceiptLog), "", "Primary agent feedback loop: wait silently for GUI comments, claim work safely, keep the lease warm, and emit next-action suggestions only when work or thread activity changes.", clientSeed+":work").withPrimary().withOutput("agent_safe", "silent_until_claimable_work_or_thread_activity"),
-		suggestedCommentsCommand("recover_owned_live_claims", "comments mine", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "mine"}, actorID, options.ActorKind, "--json")), options.URL, options.ReceiptLog), "", "Recovery helper: after an adapter restart, inspect live claim routing before claiming new GUI feedback."),
-		suggestedCommentsCommand("snapshot_agent_inbox", "comments inbox", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "inbox"}, actorID, options.ActorKind, "--json")), options.URL, options.ReceiptLog), "", "Read compact owned, unclaimed, and other-claimed routing without creating read receipts."),
+		oneShotInboxSuggestion(options.URL, "Fetch the currently published open review once and return control to the coding agent."),
+		suggestedCommentsCommand("inspect_protocol", "comments protocol", withRuntimeArgs([]string{"comments", "protocol", "--json"}, options.URL, options.ReceiptLog), "", "Optional advanced adapter discovery; not required for the normal one-shot review flow."),
 	}
 	return suggestions
+}
+
+func oneShotInboxArgs(serverURL string) []string {
+	resolved := strings.TrimRight(strings.TrimSpace(serverURL), "/")
+	if resolved == "" {
+		resolved = defaultCommentsURL
+	}
+	return []string{"inbox", resolved}
+}
+
+func oneShotInboxSuggestion(serverURL string, reason string) commentSuggestedCommand {
+	return suggestedCommentsCommand("fetch_published_review", "inbox", oneShotInboxArgs(serverURL), "", reason).
+		withPrimary().
+		withOutput("agent_safe", "current_snapshot")
 }
 
 func withAgentHistoryLimitArgs(args []string) []string {
@@ -7425,11 +7414,6 @@ func residentCommentsWorkCommand(actorID string, actorKind string) []string {
 	)
 }
 
-func residentCommentsWorkCommandWithIdle(actorID string, actorKind string) []string {
-	args := residentCommentsWorkCommand(actorID, actorKind)
-	return append(args[:len(args)-1], "--idle-events", "--json")
-}
-
 func suggestedActorKind(actorKind string) string {
 	kind := strings.ReplaceAll(strings.TrimSpace(actorKind), "-", "_")
 	switch kind {
@@ -7478,13 +7462,12 @@ func commentsHelpText() string {
 	return strings.Join([]string{
 		"vivi comments - agent-oriented comment thread CLI",
 		"",
-		"Agent common path:",
-		"  1. Start Vivi: vivi <root> --port 0 --ready-json --actor <actor>",
-		"  2. Run the primary suggested command, usually:",
-		"     vivi comments work --actor <actor> --loop --url <url> --json",
-		"  3. For each work event, prefer summary.recommendedAction and the primary suggestedCommands entry.",
-		"  4. Use triage/release/done/dismiss suggestions as emitted; do not invent guarded write argv.",
-		"  5. Inspect the compact resident loop with: vivi comments work --help",
+		"Normal agent path:",
+		"  1. Start Vivi: vivi <root> --port 0 --ready-json",
+		"  2. Fetch the currently published review once: vivi inbox <url>",
+		"  3. Return control to the coding agent; fetch again only when a refresh is useful.",
+		"  4. Reply with: vivi reply <url> <thread-id> --actor codex --body <text>",
+		"  5. Use comments work --help only for an explicitly opted-in resident adapter.",
 		"",
 		"Recovery and adapter discovery:",
 		"  vivi comments doctor --actor <actor> --url <url> --json",
@@ -7503,10 +7486,9 @@ func commentsHelpText() string {
 		"  - Prefer done/dismiss --result-file - for terminal replies and release --triage-file - for blocked handoffs",
 		"",
 		"Common commands:",
-		"  vivi comments work --once --actor claude-code --full --json",
-		"  vivi comments work --actor claude-code --loop --json",
-		"  vivi comments work --loop --actor claude-code --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
-		"  vivi comments work --loop --actor claude-code --idle-events --json  # opt-in idle-state/debug mode",
+		"  vivi inbox <url>",
+		"  vivi inbox <url> --read-as codex",
+		"  vivi reply <url> <thread-id> --actor codex --body <text>",
 		"  vivi comments mine --actor claude-code --json",
 		"  vivi comments check <thread-id> --actor claude-code --full --json",
 		"  vivi comments triage <thread-id> --actor claude-code --triage-file - --require-claim --json",
@@ -7515,6 +7497,10 @@ func commentsHelpText() string {
 		"  vivi comments dismiss <thread-id> --result-file - --actor claude-code --require-claim --json",
 		"",
 		"Advanced/debug commands:",
+		"  vivi comments work --once --actor claude-code --full --json",
+		"  vivi comments work --actor claude-code --loop --json",
+		"  vivi comments work --loop --actor claude-code --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
+		"  vivi comments work --loop --actor claude-code --idle-events --json  # opt-in idle-state/debug mode",
 		"  vivi comments protocol --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"  vivi comments schema <list|protocol|doctor|triage|result|claim|inbox|mine|batch|check|commentTriageOutput|commentReleaseOutput|commentResultOutput|suggestedCommand|writeReceipt|receiptVerification|receiptLedgerVerification|activityBatch|workClaimed|workIdle|openWorklist|error|all> [--summary] --json",
 		"  vivi comments inbox --actor claude-code --json",

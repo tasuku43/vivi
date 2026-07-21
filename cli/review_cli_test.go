@@ -51,7 +51,7 @@ func TestReviewCLIQueueAndDiffGuideAgentReview(t *testing.T) {
 	if len(queuePayload.Summary.SuggestedCommands) != 2 || queuePayload.Summary.SuggestedCommands[0].Command != "review diff" || queuePayload.Summary.SuggestedCommands[0].DisplayCommand != "vivi review diff README.md --base HEAD --url "+server.URL+" --json" || !containsString(queuePayload.Summary.SuggestedCommands[0].Args, "README.md") || !containsString(queuePayload.Summary.SuggestedCommands[0].Args, server.URL) {
 		t.Fatalf("review queue suggestions = %#v", queuePayload.Summary.SuggestedCommands)
 	}
-	if queuePayload.Summary.SuggestedCommands[1].Command != "comments work" || queuePayload.Summary.SuggestedCommands[1].Intent != "wait_for_gui_feedback" || queuePayload.Summary.SuggestedCommands[1].OutputMode != "agent_safe" || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, "--actor") || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, "codex:test") || containsString(queuePayload.Summary.SuggestedCommands[1].Args, "--wait") || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, "--loop") || containsString(queuePayload.Summary.SuggestedCommands[1].Args, "--idle-events") || containsString(queuePayload.Summary.SuggestedCommands[1].Args, "--full") || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, server.URL) || queuePayload.Summary.SuggestedCommands[1].ClientEventID == "" {
+	if queuePayload.Summary.SuggestedCommands[1].Command != "inbox" || queuePayload.Summary.SuggestedCommands[1].Intent != "fetch_published_review" || queuePayload.Summary.SuggestedCommands[1].OutputMode != "agent_safe" || queuePayload.Summary.SuggestedCommands[1].IdlePolicy != "current_snapshot" || containsString(queuePayload.Summary.SuggestedCommands[1].Args, "--watch") || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, server.URL) {
 		t.Fatalf("review queue suggestions = %#v", queuePayload.Summary.SuggestedCommands)
 	}
 
@@ -65,7 +65,7 @@ func TestReviewCLIQueueAndDiffGuideAgentReview(t *testing.T) {
 		"1. modified README.md",
 		"Suggested next commands:",
 		"vivi review diff README.md --base HEAD --url " + server.URL + " --json",
-		"vivi comments work --actor codex:test --loop --url " + server.URL + " --client-event-id review-queue:codex:test:work --json --activity-limit 20 --comment-limit 10",
+		"vivi inbox " + server.URL,
 	} {
 		if !strings.Contains(humanText, text) {
 			t.Fatalf("human review queue output did not include %q\n%s", text, humanText)
@@ -80,7 +80,7 @@ func TestReviewCLIQueueAndDiffGuideAgentReview(t *testing.T) {
 		Summary reviewRoutingSummary `json:"summary"`
 	}
 	decodeReviewCLIJSON(t, queueWithoutActor, &queueWithoutActorPayload)
-	if len(queueWithoutActorPayload.Summary.SuggestedCommands) != 2 || queueWithoutActorPayload.Summary.SuggestedCommands[1].Command != "comments doctor" || queueWithoutActorPayload.Summary.SuggestedCommands[1].Intent != "choose_agent_actor" || containsString(queueWithoutActorPayload.Summary.SuggestedCommands[1].Args, "<actor-id>") || containsString(queueWithoutActorPayload.Summary.SuggestedCommands[1].Args, "--actor") || !containsString(queueWithoutActorPayload.Summary.SuggestedCommands[1].Args, server.URL) {
+	if len(queueWithoutActorPayload.Summary.SuggestedCommands) != 2 || queueWithoutActorPayload.Summary.SuggestedCommands[1].Command != "inbox" || queueWithoutActorPayload.Summary.SuggestedCommands[1].Intent != "fetch_published_review" || !containsString(queueWithoutActorPayload.Summary.SuggestedCommands[1].Args, server.URL) {
 		t.Fatalf("review queue suggestions without actor = %#v", queueWithoutActorPayload.Summary.SuggestedCommands)
 	}
 
@@ -131,14 +131,14 @@ func TestReviewCLIHumanSuggestionsUseInvokedExecutable(t *testing.T) {
 	humanText := humanQueue.String()
 	for _, text := range []string{
 		"./vivi review diff README.md --base HEAD --url " + server.URL + " --json",
-		"./vivi comments work --actor codex:test --loop --url " + server.URL + " --client-event-id review-queue:codex:test:work --json --activity-limit 20 --comment-limit 10",
+		"./vivi inbox " + server.URL,
 	} {
 		if !strings.Contains(humanText, text) {
 			t.Fatalf("human review queue output did not include invoked executable command %q\n%s", text, humanText)
 		}
 	}
-	if strings.Contains(humanText, "comments work --actor codex:test --loop --full") {
-		t.Fatalf("human review queue output should suggest compact resident work commands:\n%s", humanText)
+	if strings.Contains(humanText, "comments work") || strings.Contains(humanText, "--watch") {
+		t.Fatalf("human review queue output should not suggest resident commands:\n%s", humanText)
 	}
 	if strings.Contains(humanText, "  - inspect_first_changed_file_diff: vivi review diff") {
 		t.Fatalf("human review queue output used PATH command instead of invoked executable:\n%s", humanText)
@@ -245,7 +245,7 @@ func TestReviewHelpTextSurfacesAgentQuickPath(t *testing.T) {
 		"vivi review queue --actor <actor> --json",
 		"vivi review bases --url",
 		"vivi review diff <path> --base HEAD",
-		"vivi comments work --actor <actor> --loop --json",
+		"vivi inbox <url>",
 		"Without --json, review queue prints a short human summary.",
 		"JSON shape:",
 		"queue: { schemaVersion, available, count, changes[], diffBases, summary }",

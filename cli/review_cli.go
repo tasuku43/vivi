@@ -339,7 +339,7 @@ func reviewQueue(ctx context.Context, stdout io.Writer, options reviewCommandOpt
 		Count:         len(orderedChanges),
 		Changes:       orderedChanges,
 		DiffBases:     bases,
-		Summary:       summarizeReviewQueue(orderedQueue, bases, options.URL, options.Actor),
+		Summary:       summarizeReviewQueue(orderedQueue, bases, options.URL),
 	}
 	if !options.JSON {
 		writeReviewQueueText(stdout, output)
@@ -496,7 +496,7 @@ func reviewDiff(ctx context.Context, stdout io.Writer, options reviewCommandOpti
 	})
 }
 
-func summarizeReviewQueue(queue reviewQueueOutput, bases reviewDiffBaseSummaryOutput, serverURL string, actorID string) reviewRoutingSummary {
+func summarizeReviewQueue(queue reviewQueueOutput, bases reviewDiffBaseSummaryOutput, serverURL string) reviewRoutingSummary {
 	summary := reviewRoutingSummary{
 		RequiresAttention: false,
 		AttentionReasons:  []string{},
@@ -511,7 +511,7 @@ func summarizeReviewQueue(queue reviewQueueOutput, bases reviewDiffBaseSummaryOu
 	}
 	if len(queue.Changes) == 0 {
 		summary.SuggestedCommands = []commentSuggestedCommand{
-			reviewQueueCommentsWorkSuggestion(actorID, serverURL, "Wait for GUI review comments when there are no changed files to inspect."),
+			reviewQueueInboxSuggestion(serverURL, "Fetch any currently published GUI review comments once."),
 		}
 		return summary
 	}
@@ -526,7 +526,7 @@ func summarizeReviewQueue(queue reviewQueueOutput, bases reviewDiffBaseSummaryOu
 	summary.ReviewURL = reviewQueueGUIURL(serverURL, firstPath)
 	summary.SuggestedCommands = []commentSuggestedCommand{
 		suggestedCommentsCommand("inspect_first_changed_file_diff", "review diff", withURLArg([]string{"review", "diff", firstPath, "--base", base, "--json"}, serverURL), "", "Inspect the first changed file diff before deciding whether to comment or continue."),
-		reviewQueueCommentsWorkSuggestion(actorID, serverURL, "Keep a resident GUI feedback loop running while reviewing changed files."),
+		reviewQueueInboxSuggestion(serverURL, "Fetch the currently published GUI review comments once after inspecting changed files."),
 	}
 	return summary
 }
@@ -626,11 +626,8 @@ func reviewChangeFileTypeKey(path string) string {
 	return basename[strings.LastIndex(basename, ".")+1:]
 }
 
-func reviewQueueCommentsWorkSuggestion(actorID string, serverURL string, description string) commentSuggestedCommand {
-	if actorID == "" {
-		return suggestedCommentsCommand("choose_agent_actor", "comments doctor", withURLArg([]string{"comments", "doctor", "--json"}, serverURL), "", "Run startup readiness without an actor to get the configure_actor branch before starting a resident GUI feedback loop.")
-	}
-	return suggestedCommentsCommandWithClientEventID("wait_for_gui_feedback", "comments work", withURLArg(withAgentHistoryLimitArgs(residentCommentsWorkCommand(actorID, "")), serverURL), "", description, "review-queue:"+actorID+":work").withOutput("agent_safe", "silent_until_claimable_work_or_thread_activity")
+func reviewQueueInboxSuggestion(serverURL string, description string) commentSuggestedCommand {
+	return oneShotInboxSuggestion(serverURL, description)
 }
 
 func reviewHelpText() string {
@@ -640,7 +637,7 @@ func reviewHelpText() string {
 		"Agent quick path:",
 		"  1. List the Git working-tree review queue: vivi review queue --actor <actor> --json",
 		"  2. Inspect a changed file: vivi review diff <path> --base HEAD --json",
-		"  3. Use vivi comments work --actor <actor> --loop --json for compact human GUI feedback",
+		"  3. Fetch published GUI feedback once: vivi inbox <url>",
 		"  Without --json, review queue prints a short human summary.",
 		"",
 		"Usage:",
@@ -657,7 +654,7 @@ func reviewHelpText() string {
 		"Options:",
 		"  --url <server>            Vivi server URL (default: VIVI_URL or http://127.0.0.1:4317)",
 		"  --base <ref>              Git diff base for review diff (default: HEAD)",
-		"  --actor <id>              Actor id used in comments work suggestions",
+		"  --actor <id>              Optional review actor metadata",
 		"  --json                    Write JSON output instead of the human queue summary",
 	}, "\n")
 }

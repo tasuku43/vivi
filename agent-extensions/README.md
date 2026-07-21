@@ -38,10 +38,7 @@ For local development:
 claude --plugin-dir ./agent-extensions/claude/vivi-agent-loop
 ```
 
-The Claude package includes:
-
-- `/vivi-agent-loop:vivi-agent-loop` for inline coordination while coding.
-- `/vivi-agent-loop:vivi-listen <url> [seconds]` for forked bounded listening.
-- `vivi-inbox-listener` as the plugin subagent used by the listener skill.
+The Claude package includes `/vivi-agent-loop:vivi-agent-loop` for fetching
+published feedback on demand and replying while coding.
 
 See [claude/README.md](claude/README.md) for structure and design notes.

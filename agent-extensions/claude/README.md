@@ -1,6 +1,6 @@
-# Vivi Agent Loop for Claude Code
+# Vivi Review Pull for Claude Code
 
-Claude Code plugins can bundle skills and subagents. This package uses that richer shape: one inline coordination skill, one forked listener skill, and one read-only listener subagent.
+This package provides one focused skill for fetching published Vivi feedback on demand and replying safely.
 
 ## Remote Install
 
@@ -30,13 +30,9 @@ agent-extensions/claude/vivi-agent-loop/
   .claude-plugin/plugin.json
     plugin metadata
   skills/vivi-agent-loop/SKILL.md
-    inline coordination workflow for active coding sessions
-  skills/vivi-listen/SKILL.md
-    forked bounded-listening workflow using context: fork
-  agents/vivi-inbox-listener.md
-    read-only Bash subagent for watching `vivi inbox --watch`
+    one-shot review fetch and reply workflow
 ```
 
 ## Design
 
-Claude Code can run skills in forked subagent context, so listening is modeled as a first-class delegated workflow. The coordinator skill stays lightweight and read-oriented, while `/vivi-agent-loop:vivi-listen <url> [seconds]` handles noisy inbox watching without filling the main conversation.
+Publish stays asynchronous. The skill fetches the current published snapshot only when the user asks or the agent chooses to refresh; it does not create a resident listener.

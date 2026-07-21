@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -11,7 +9,6 @@ import (
 	"io"
 	"net/url"
 	"strings"
-	"time"
 )
 
 const supportedSimpleActors = "codex, claude"
@@ -28,9 +25,6 @@ type topLevelAgentOptions struct {
 	Actor    simpleAgentActor
 	ReadAs   simpleAgentActor
 	Body     string
-	Watch    bool
-	Initial  bool
-	Interval time.Duration
 	Resolve  bool
 	Archive  bool
 }
@@ -67,10 +61,8 @@ func runTopLevelAgentCommand(ctx context.Context, args []string, stdout io.Write
 	switch args[0] {
 	case "inbox":
 		return runTopLevelInbox(ctx, args[1:], stdout)
-	case "claim":
-		return runTopLevelClaim(ctx, args[1:], stdout)
-	case "release":
-		return runTopLevelRelease(ctx, args[1:], stdout)
+	case "claim", "release":
+		return fmt.Errorf("error: vivi %s was removed with the resident inbox workflow; use one-shot inbox and reply", args[0])
 	case "reply":
 		return runTopLevelReply(ctx, args[1:], stdout)
 	default:
@@ -82,10 +74,6 @@ func runTopLevelInbox(ctx context.Context, args []string, stdout io.Writer) erro
 	flags := flag.NewFlagSet("vivi inbox", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	readAs := flags.String("read-as", "", "mark returned threads as read by codex or claude")
-	watch := flags.Bool("watch", false, "keep polling and emit new comment diffs")
-	initial := flags.Bool("initial", false, "with --watch, emit the current open inbox before waiting for new comments")
-	noInitial := flags.Bool("no-initial", false, "deprecated no-op; --watch now skips the initial snapshot by default")
-	interval := flags.Duration("interval", 2*time.Second, "watch polling interval")
 	flagArgs, positional := splitTopLevelAgentFlagsAndPositionals(args)
 	if err := flags.Parse(flagArgs); err != nil {
 		return err
@@ -94,18 +82,9 @@ func runTopLevelInbox(ctx context.Context, args []string, stdout io.Writer) erro
 	if len(positional) != 1 {
 		return errors.New("error: inbox requires <url>")
 	}
-	options := topLevelAgentOptions{URL: strings.TrimRight(positional[0], "/"), Watch: *watch, Initial: *initial, Interval: *interval}
+	options := topLevelAgentOptions{URL: strings.TrimRight(positional[0], "/")}
 	if err := validateTopLevelURL(options.URL); err != nil {
 		return err
-	}
-	if options.Watch && options.Interval <= 0 {
-		return errors.New("error: inbox --watch requires a positive --interval")
-	}
-	if options.Initial && !options.Watch {
-		return errors.New("error: inbox --initial requires --watch")
-	}
-	if *noInitial && !options.Watch {
-		return errors.New("error: inbox --no-initial requires --watch")
 	}
 	if strings.TrimSpace(*readAs) != "" {
 		actor, err := parseSimpleAgentActor(*readAs)
@@ -115,43 +94,6 @@ func runTopLevelInbox(ctx context.Context, args []string, stdout io.Writer) erro
 		options.ReadAs = actor
 	}
 	return topLevelInbox(ctx, stdout, options)
-}
-
-func runTopLevelClaim(ctx context.Context, args []string, stdout io.Writer) error {
-	options, err := parseTopLevelThreadCommand("claim", args, false)
-	if err != nil {
-		return err
-	}
-	if options.Actor.Name == "" {
-		return missingActorError()
-	}
-	commentsOptions := topLevelCommentsOptions(options, options.Actor)
-	thread, _, err := claimCommentThread(ctx, commentsOptions, options.ThreadID)
-	if err != nil {
-		return err
-	}
-	return writeCompactJSON(stdout, topLevelWriteOutput{Type: "claim", ID: options.ThreadID, Actor: options.Actor.Name, Status: thread.Status})
-}
-
-func runTopLevelRelease(ctx context.Context, args []string, stdout io.Writer) error {
-	options, err := parseTopLevelThreadCommand("release", args, true)
-	if err != nil {
-		return err
-	}
-	if options.Actor.Name == "" {
-		return missingActorError()
-	}
-	commentsOptions := topLevelCommentsOptions(options, options.Actor)
-	if strings.TrimSpace(options.Body) != "" {
-		if _, err := addCommentToThread(ctx, commentsOptions, options.ThreadID, options.Body); err != nil {
-			return err
-		}
-	}
-	thread, _, err := releaseCommentThreadClaim(ctx, commentsOptions, options.ThreadID)
-	if err != nil {
-		return err
-	}
-	return writeCompactJSON(stdout, topLevelWriteOutput{Type: "release", ID: options.ThreadID, Actor: options.Actor.Name, Status: thread.Status})
 }
 
 func runTopLevelReply(ctx context.Context, args []string, stdout io.Writer) error {
@@ -244,54 +186,11 @@ func parseTopLevelThreadCommand(command string, args []string, allowBody bool) (
 }
 
 func topLevelInbox(ctx context.Context, stdout io.Writer, options topLevelAgentOptions) error {
-	if options.Watch {
-		return topLevelInboxWatch(ctx, stdout, options)
-	}
 	threads, _, err := fetchCommentThreads(ctx, topLevelInboxCommentsOptions(options, ""), "open")
 	if err != nil {
 		return err
 	}
 	return writeTopLevelInboxItems(stdout, options, orderCommentThreadsForAgent(threads))
-}
-
-func topLevelInboxWatch(ctx context.Context, stdout io.Writer, options topLevelAgentOptions) error {
-	seen := map[string]string{}
-	first := true
-	for {
-		threads, _, err := fetchCommentThreads(ctx, topLevelInboxCommentsOptions(options, ""), "open")
-		if err != nil {
-			if waitErr := waitTopLevelInboxInterval(ctx, options.Interval); waitErr != nil {
-				return nil
-			}
-			continue
-		}
-		ordered := orderCommentThreadsForAgent(threads)
-		changed := []commentThreadOutput{}
-		if !first || options.Initial {
-			changed = topLevelInboxChangedThreads(ordered, seen, first)
-		}
-		if len(changed) > 0 {
-			if options.ReadAs.Name != "" {
-				cursor := topLevelInboxCursor(changed)
-				readThreads, _, err := fetchCommentThreads(ctx, topLevelInboxCommentsOptions(options, cursor), "open")
-				if err != nil {
-					if waitErr := waitTopLevelInboxInterval(ctx, options.Interval); waitErr != nil {
-						return nil
-					}
-					continue
-				}
-				changed = topLevelInboxChangedThreads(orderCommentThreadsForAgent(readThreads), seen, first)
-			}
-			if err := writeTopLevelInboxItems(stdout, options, changed); err != nil {
-				return err
-			}
-		}
-		seen = topLevelInboxSnapshot(ordered)
-		first = false
-		if err := waitTopLevelInboxInterval(ctx, options.Interval); err != nil {
-			return nil
-		}
-	}
 }
 
 func topLevelInboxCommentsOptions(options topLevelAgentOptions, cursor string) commentsCommandOptions {
@@ -308,47 +207,6 @@ func topLevelInboxCommentsOptions(options topLevelAgentOptions, cursor string) c
 	return commentsOptions
 }
 
-func topLevelInboxChangedThreads(threads []commentThreadOutput, seen map[string]string, first bool) []commentThreadOutput {
-	changed := []commentThreadOutput{}
-	for _, thread := range threads {
-		key := topLevelInboxThreadKey(thread)
-		previous, ok := seen[thread.ID]
-		if first || !ok || previous != key {
-			changed = append(changed, thread)
-		}
-	}
-	return changed
-}
-
-func topLevelInboxSnapshot(threads []commentThreadOutput) map[string]string {
-	snapshot := map[string]string{}
-	for _, thread := range threads {
-		snapshot[thread.ID] = topLevelInboxThreadKey(thread)
-	}
-	return snapshot
-}
-
-func topLevelInboxThreadKey(thread commentThreadOutput) string {
-	if human := latestHumanComment(thread); human != nil {
-		return human.ID
-	}
-	if len(thread.Comments) == 0 {
-		return ""
-	}
-	return thread.Comments[len(thread.Comments)-1].ID
-}
-
-func topLevelInboxCursor(threads []commentThreadOutput) string {
-	hash := sha256.New()
-	for _, thread := range threads {
-		_, _ = io.WriteString(hash, thread.ID)
-		_, _ = io.WriteString(hash, "\x00")
-		_, _ = io.WriteString(hash, topLevelInboxThreadKey(thread))
-		_, _ = io.WriteString(hash, "\x00")
-	}
-	return hex.EncodeToString(hash.Sum(nil))[:16]
-}
-
 func writeTopLevelInboxItems(stdout io.Writer, options topLevelAgentOptions, threads []commentThreadOutput) error {
 	for _, thread := range threads {
 		item := topLevelInboxItem{Type: "comment", ID: thread.ID, File: thread.Path, Body: latestThreadBody(thread), Action: "reply"}
@@ -362,26 +220,14 @@ func writeTopLevelInboxItems(stdout io.Writer, options topLevelAgentOptions, thr
 	return nil
 }
 
-func waitTopLevelInboxInterval(ctx context.Context, interval time.Duration) error {
-	timer := time.NewTimer(interval)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
-	}
-}
-
 func topLevelCommentsOptions(options topLevelAgentOptions, actor simpleAgentActor) commentsCommandOptions {
 	return commentsCommandOptions{
-		URL:           options.URL,
-		JSON:          true,
-		ActorID:       actor.ID,
-		ActorKind:     actor.Kind,
-		ActorName:     actor.Name,
-		Body:          options.Body,
-		LeaseDuration: 10 * time.Minute,
+		URL:       options.URL,
+		JSON:      true,
+		ActorID:   actor.ID,
+		ActorKind: actor.Kind,
+		ActorName: actor.Name,
+		Body:      options.Body,
 	}
 }
 

@@ -151,7 +151,7 @@ func run(args []string) error {
 	} else {
 		fmt.Printf("Vivi serving %s\n", workspaceFS.Config().Root)
 		fmt.Printf("Browser: %s\n", httpServer.URL())
-		fmt.Printf("Agent inbox: %s inbox %s --watch\n", viviExecutable, httpServer.URL())
+		fmt.Printf("Agent review: %s inbox %s\n", viviExecutable, httpServer.URL())
 	}
 	if *open {
 		_ = openBrowser(httpServer.URL())
@@ -209,9 +209,7 @@ func helpText() string {
 		"",
 		"Usage:",
 		"  vivi [root] [--host 127.0.0.1] [--port 4317] [--open] [--include md,html,ts] [--max-file-size 1048576] [--allow-html-scripts]",
-		"  vivi inbox <url> [--watch] [--initial] [--read-as codex|claude]",
-		"  vivi claim <url> <thread-id> --actor codex|claude",
-		"  vivi release <url> <thread-id> --actor codex|claude [--body <text>|--body-file <path|->]",
+		"  vivi inbox <url> [--read-as codex|claude]",
 		"  vivi reply <url> <thread-id> --actor codex|claude (--body <text>|--body-file <path|->) [--resolve|--archive]",
 		"  vivi review <queue|bases|diff> [options]",
 		"  vivi comments <work|doctor|mine|check|triage|release|done|dismiss> [options]",
@@ -222,21 +220,19 @@ func helpText() string {
 		"",
 		"Agent:",
 		"  vivi inbox <url>",
-		"  vivi inbox <url> --watch",
-		"  vivi inbox <url> --watch --initial",
 		"  vivi inbox <url> --read-as codex",
 		"  vivi reply <url> <thread-id> --actor codex --body <text>",
 		"  vivi reply <url> <thread-id> --actor codex --resolve --body-file <path|->",
+		"  Fetch published review comments when asked; inbox exits after the current snapshot.",
 		"",
 		"Changed-file context:",
 		"  vivi review queue --actor <actor> --json",
 		"  vivi review diff <path> --base HEAD --json",
 		"",
 		"Debug/recovery:",
-		"  vivi comments doctor|mine|check|protocol|schema ...",
+		"  vivi comments doctor|mine|check|protocol|schema|work|watch ...",
 		"",
 		"Deeper help:",
-		"  vivi comments work --help",
 		"  vivi comments --help",
 		"  vivi review --help",
 		"",
@@ -265,32 +261,32 @@ type serverReadyPayload struct {
 }
 
 func newServerReadyPayload(root string, serverURL string) serverReadyPayload {
-	inboxArgs := []string{"inbox", serverURL, "--watch"}
+	inboxArgs := []string{"inbox", serverURL}
 	reviewArgs := []string{"review", "queue", "--url", serverURL}
 	doctorArgs := []string{"comments", "doctor", "--url", serverURL}
 	reviewArgs = append(reviewArgs, "--json")
 	doctorArgs = append(doctorArgs, "--json")
 	suggestions := []commentSuggestedCommand{
 		suggestedCommentsCommand(
-			"read_agent_inbox",
+			"fetch_published_review",
 			"inbox",
 			inboxArgs,
 			"",
-			"Watch this Vivi server for human comments observed after the listener starts. Use plain inbox for a current snapshot, or --initial when the startup snapshot should also be emitted.",
-		).withPrimary().withOutput("agent_safe", "comment_diffs_after_start"),
+			"Fetch the currently published open review comments once. Run it again when the human asks or when the agent chooses to refresh.",
+		).withPrimary().withOutput("agent_safe", "current_snapshot"),
 		suggestedCommentsCommand(
 			"inspect_review_queue_context",
 			"review queue",
 			reviewArgs,
 			"",
-			"Optional changed-file context; use this beside comments work, not as the human-feedback intake loop.",
+			"Optional changed-file context for an agent that needs to inspect the workspace delta.",
 		),
 		suggestedCommentsCommand(
 			"check_comments_readiness",
 			"comments doctor",
 			doctorArgs,
 			"",
-			"Optional online readiness and recovery check for receipt ledgers, actor setup, and owned live claims.",
+			"Optional online readiness and recovery check for the comments protocol.",
 		),
 	}
 	return serverReadyPayload{

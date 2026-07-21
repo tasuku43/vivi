@@ -7,6 +7,11 @@ This note is an exploration artifact, not an implementation contract. The
 question being tested is how small the agent CLI can become if its only near
 term job is:
 
+> Decision update (2026-07): Vivi selected the on-demand form of the comment
+> pipe. `vivi inbox <url>` returns the current published snapshot and exits;
+> Publish never waits for an agent. The resident concepts below remain as the
+> historical comparison that led to that decision, not the current default UX.
+
 1. notice that a human comment arrived,
 2. read the comment with enough workspace context,
 3. decide whether to ask, act, finish, or hand back,
@@ -307,12 +312,12 @@ Tradeoff:
 
 ## Comparison
 
-| Concept | Commands the agent must understand | Live arrival | Best fit | Main cost |
-| --- | --- | --- | --- | --- |
-| A. Server Stdout Inbox | start server, reply | yes | maximum first-run simplicity | mixes server stdout and event stream |
-| B. One Resident Command | start server, `comments work`, suggested writes | yes | robust current architecture | still exposes protocol vocabulary |
-| C. Comment Pipe Contract | `inbox <url>`, `reply <url> <thread-id> --actor <actor> [--resolve|--archive]` | yes | product-level simplicity | facade must map to existing safety |
-| D. No Agent CLI Until Comment Arrives | `next-comment`, `reply` | no | one-shot agents | misses wake-on-comment behavior |
+| Concept                               | Commands the agent must understand                                 | Live arrival | Best fit                     | Main cost                            |
+| ------------------------------------- | ------------------------------------------------------------------ | ------------ | ---------------------------- | ------------------------------------ |
+| A. Server Stdout Inbox                | start server, reply                                                | yes          | maximum first-run simplicity | mixes server stdout and event stream |
+| B. One Resident Command               | start server, `comments work`, suggested writes                    | yes          | robust current architecture  | still exposes protocol vocabulary    |
+| C. Comment Pipe Contract              | `inbox <url>`, `reply <url> <thread-id> --actor <actor> [--resolve | --archive]`  | yes                          | product-level simplicity             | facade must map to existing safety |
+| D. No Agent CLI Until Comment Arrives | `next-comment`, `reply`                                            | no           | one-shot agents              | misses wake-on-comment behavior      |
 
 ## Recommendation to explore next
 

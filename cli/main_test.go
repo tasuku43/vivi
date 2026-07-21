@@ -10,13 +10,11 @@ import (
 	"testing"
 )
 
-func TestHelpTextSurfacesAgentCommentsLoop(t *testing.T) {
+func TestHelpTextSurfacesOneShotAgentReview(t *testing.T) {
 	help := helpText()
 	for _, command := range []string{
 		"vivi - local review adapter",
-		"vivi inbox <url> [--watch] [--initial] [--read-as codex|claude]",
-		"vivi claim <url> <thread-id> --actor codex|claude",
-		"vivi release <url> <thread-id> --actor codex|claude [--body <text>|--body-file <path|->]",
+		"vivi inbox <url> [--read-as codex|claude]",
 		"vivi reply <url> <thread-id> --actor codex|claude (--body <text>|--body-file <path|->) [--resolve|--archive]",
 		"vivi review <queue|bases|diff> [options]",
 		"vivi comments <work|doctor|mine|check|triage|release|done|dismiss> [options]",
@@ -25,20 +23,27 @@ func TestHelpTextSurfacesAgentCommentsLoop(t *testing.T) {
 		"vivi [root] --open",
 		"Agent:",
 		"vivi inbox <url>",
-		"vivi inbox <url> --watch",
-		"vivi inbox <url> --watch --initial",
 		"vivi inbox <url> --read-as codex",
 		"vivi reply <url> <thread-id> --actor codex --body <text>",
+		"Fetch published review comments when asked; inbox exits after the current snapshot.",
 		"Changed-file context:",
 		"vivi review queue --actor <actor> --json",
 		"Debug/recovery:",
-		"vivi comments doctor|mine|check|protocol|schema ...",
+		"vivi comments doctor|mine|check|protocol|schema|work|watch ...",
 		"Deeper help:",
-		"vivi comments work --help",
 		"--ready-json",
 	} {
 		if !strings.Contains(help, command) {
 			t.Fatalf("help text did not include %q\n%s", command, help)
+		}
+	}
+	for _, residentCommand := range []string{
+		"vivi inbox <url> --watch",
+		"vivi claim <url>",
+		"vivi release <url>",
+	} {
+		if strings.Contains(help, residentCommand) {
+			t.Fatalf("common help should not recommend resident workflow %q\n%s", residentCommand, help)
 		}
 	}
 }
@@ -53,7 +58,7 @@ func TestServerReadyPayloadIncludesResolvedURLAndAgentCommands(t *testing.T) {
 		t.Fatalf("expected three suggested commands, got %#v", payload.SuggestedCommands)
 	}
 	inboxCommand := payload.SuggestedCommands[0]
-	if inboxCommand.Intent != "read_agent_inbox" || inboxCommand.Command != "inbox" || !inboxCommand.Primary || inboxCommand.DisplayCommand != "vivi inbox http://127.0.0.1:59432 --watch" || !containsString(inboxCommand.Args, "inbox") || !containsString(inboxCommand.Args, "http://127.0.0.1:59432") || !containsString(inboxCommand.Args, "--watch") {
+	if inboxCommand.Intent != "fetch_published_review" || inboxCommand.Command != "inbox" || !inboxCommand.Primary || inboxCommand.DisplayCommand != "vivi inbox http://127.0.0.1:59432" || !containsString(inboxCommand.Args, "inbox") || !containsString(inboxCommand.Args, "http://127.0.0.1:59432") || containsString(inboxCommand.Args, "--watch") {
 		t.Fatalf("ready payload should make top-level inbox primary: %#v", inboxCommand)
 	}
 	reviewCommand := payload.SuggestedCommands[1]
@@ -94,10 +99,11 @@ func TestReviewActorFromFlagUsesBrowserReviewerIdentity(t *testing.T) {
 func TestCommentsHelpTextSurfacesWorkSession(t *testing.T) {
 	help := commentsHelpText()
 	for _, text := range []string{
-		"Agent common path:",
-		"1. Start Vivi: vivi <root> --port 0 --ready-json --actor <actor>",
-		"vivi comments work --actor <actor> --loop --url <url> --json",
-		"Inspect the compact resident loop with: vivi comments work --help",
+		"Normal agent path:",
+		"1. Start Vivi: vivi <root> --port 0 --ready-json",
+		"Fetch the currently published review once: vivi inbox <url>",
+		"Return control to the coding agent; fetch again only when a refresh is useful.",
+		"Use comments work --help only for an explicitly opted-in resident adapter.",
 		"Recovery and adapter discovery:",
 		"Safe write rules:",
 		"Read stdinSchemaCommand before stdinRequired writes",

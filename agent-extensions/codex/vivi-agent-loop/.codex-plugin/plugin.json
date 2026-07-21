@@ -1,18 +1,18 @@
 {
   "name": "vivi-agent-loop",
   "version": "0.1.0",
-  "description": "Operate a local Vivi browser comment loop while coding with Codex.",
+  "description": "Fetch and reply to published Vivi browser reviews on demand while coding with Codex.",
   "author": {
     "name": "Local developer"
   },
   "skills": "./skills/",
   "interface": {
     "displayName": "Vivi Agent Loop",
-    "shortDescription": "Run a live Vivi browser comment loop while coding.",
-    "longDescription": "Vivi Agent Loop teaches Codex to watch Vivi comments, reply safely, coordinate multiple threads, and delegate noisy inbox listening when useful.",
+    "shortDescription": "Pull published Vivi reviews when needed.",
+    "longDescription": "Vivi Agent Loop teaches Codex to fetch published feedback once, reply safely, and refresh before resolving without running a resident inbox listener.",
     "developerName": "Local developer",
     "category": "Productivity",
     "capabilities": [],
-    "defaultPrompt": "Use the Vivi agent loop for this session."
+    "defaultPrompt": "Fetch my published Vivi review when needed and reply through Vivi."
   }
 }
