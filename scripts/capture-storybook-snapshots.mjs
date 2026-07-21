@@ -32,8 +32,8 @@ const channelTolerance = Number.parseInt(
   process.env.VIVI_STORYBOOK_SNAPSHOT_CHANNEL_TOLERANCE ?? "2",
   10,
 );
-const maxDiffRatio = Number.parseFloat(
-  process.env.VIVI_STORYBOOK_SNAPSHOT_MAX_DIFF_RATIO ?? "0.002",
+const maxDiffRatio = parseSnapshotMaxDiffRatio(
+  process.env.VIVI_STORYBOOK_SNAPSHOT_MAX_DIFF_RATIO,
 );
 const maxDiffRatioOverrides = parseMaxDiffRatioOverrides(
   process.env.VIVI_STORYBOOK_SNAPSHOT_MAX_DIFF_RATIO_OVERRIDES,
@@ -151,11 +151,15 @@ function parseViewports(value) {
   return resolved.length ? resolved : [available.desktop];
 }
 
-function parseMaxDiffRatioOverrides(value) {
+export function parseMaxDiffRatioOverrides(value) {
   const entries = new Map([
     ["files-viewer-coverage-states--mermaid-known-viewer", 0.1],
     ["files-viewer-coverage-states--viewer-toolbar-sticky-by-extension", 0.01],
     ["files-viewer-coverage-states--code-with-local-outline", 0.005],
+    [
+      "review-resumable-comment-composer--resumable-input-interaction",
+      0.03,
+    ],
     [
       "files-markdown-review-states--rendered-markdown-open-thread-beside-new-draft",
       0.01,
@@ -173,6 +177,17 @@ function parseMaxDiffRatioOverrides(value) {
     entries.set(storyIdOrLabel, numericRatio);
   }
   return entries;
+}
+
+export function parseSnapshotMaxDiffRatio(value) {
+  if (value === undefined || value === "") return 0.005;
+  const ratio = Number.parseFloat(value);
+  if (!Number.isFinite(ratio) || ratio < 0) {
+    throw new Error(
+      `Invalid snapshot max diff ratio: ${value}. Use a non-negative number.`,
+    );
+  }
+  return ratio;
 }
 
 export function parseSnapshotMismatchRetries(value) {

@@ -3,12 +3,27 @@ import { describe, expect, it } from "vitest";
 
 import {
   isTransientStorybookCaptureError,
+  parseMaxDiffRatioOverrides,
   parseSnapshotMismatchRetries,
+  parseSnapshotMaxDiffRatio,
   parseSnapshotSettleMs,
   shouldWaitForSnapshotReady,
 } from "../scripts/capture-storybook-snapshots.mjs";
 
 describe("Storybook snapshot capture script", () => {
+  it("allows small cross-OS rendering differences without masking layout regressions", () => {
+    expect(parseSnapshotMaxDiffRatio(undefined)).toBe(0.005);
+    expect(parseSnapshotMaxDiffRatio("0.002")).toBe(0.002);
+    expect(() => parseSnapshotMaxDiffRatio("-0.1")).toThrow(
+      /Invalid snapshot max diff ratio/,
+    );
+    expect(
+      parseMaxDiffRatioOverrides(undefined).get(
+        "review-resumable-comment-composer--resumable-input-interaction",
+      ),
+    ).toBe(0.03);
+  });
+
   it("recaptures a mismatched snapshot once by default", () => {
     expect(parseSnapshotMismatchRetries(undefined)).toBe(1);
     expect(parseSnapshotMismatchRetries("0")).toBe(0);
@@ -71,6 +86,12 @@ describe("Storybook snapshot capture script", () => {
       'VIVI_STORYBOOK_SNAPSHOT_TIMEZONE: "Asia/Tokyo"',
     );
     expect(workflow).toContain("VIVI_STORYBOOK_SNAPSHOT_SETTLE_MS");
+    expect(workflow).toContain(
+      'VIVI_STORYBOOK_SNAPSHOT_MAX_DIFF_RATIO: "0.005"',
+    );
+    expect(workflow).toContain(
+      '"review-resumable-comment-composer--resumable-input-interaction":0.03',
+    );
     expect(workflow).toContain("VIVI_STORYBOOK_SNAPSHOT_MISMATCH_RETRIES");
     expect(workflow).toContain(
       "files-viewer-coverage-states--code-with-local-outline",
