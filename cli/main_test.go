@@ -30,7 +30,8 @@ func TestHelpTextSurfacesOneShotAgentReview(t *testing.T) {
 		"--ready-json",
 		"--exclude <glob>",
 		"wins over --include",
-		"<user-config-dir>/vivi/config.json",
+		"$XDG_CONFIG_HOME/vivi/config.json",
+		"default: ~/.config/vivi/config.json",
 		"VIVI_CONFIG",
 		"Global and CLI excludes are additive",
 	} {

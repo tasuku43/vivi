@@ -115,7 +115,7 @@ without `/` matches that basename at any depth; a trailing `/` excludes the
 whole subtree. Exclusion is evaluated after `--include`, so exclusion wins.
 Malformed patterns and patterns containing a `..` segment fail startup.
 
-The server launcher also reads an optional global JSON config from the OS user
+The server launcher also reads an optional global JSON config from the XDG
 config directory at `vivi/config.json`. Its current public shape is:
 
 ```json
@@ -124,14 +124,17 @@ config directory at `vivi/config.json`. Its current public shape is:
 }
 ```
 
-The resolved default is `~/Library/Application Support/vivi/config.json` on
-macOS, `$XDG_CONFIG_HOME/vivi/config.json` or `~/.config/vivi/config.json` on
-Linux, and `%AppData%\vivi\config.json` on Windows. `VIVI_CONFIG` overrides that
-path; because it is explicit, pointing it to a missing file is an error. A
-missing default file is valid and behaves like an empty config. Global
-`exclude` entries are evaluated together with all CLI `--exclude` entries, so
-the CLI adds temporary exclusions but does not undo global ones. Invalid JSON
-or invalid global exclude globs fail startup and identify the config path.
+The resolved default on macOS and Linux is
+`$XDG_CONFIG_HOME/vivi/config.json`, or `~/.config/vivi/config.json` when
+`XDG_CONFIG_HOME` is unset. An explicitly set `XDG_CONFIG_HOME` must be an
+absolute path. On Windows, the default remains
+`%AppData%\vivi\config.json`. `VIVI_CONFIG` overrides that path; because it is
+explicit, pointing it to a missing file is an error. A missing default file is
+valid and behaves like an empty config. Symlinks in the config path are
+followed normally. Global `exclude` entries are evaluated together with all
+CLI `--exclude` entries, so the CLI adds temporary exclusions but does not
+undo global ones. Invalid JSON or invalid global exclude globs fail startup
+and identify the config path.
 
 Pass `--ready-json` when a launcher or coding agent needs a stable startup
 handoff. After the local server is listening, Vivi emits one JSON object on

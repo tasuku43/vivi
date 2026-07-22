@@ -1,5 +1,4 @@
 ---
-name: apply-feedback
 description: Find and reuse the applicable Vivi server, fetch published review feedback, apply the requested changes, and reply to or resolve its threads. Use when the user says they published Vivi feedback or review comments, asks Claude to check Vivi or apply review feedback, or wants a Vivi thread handled. Fetches one current snapshot on demand; it does not run a resident listener.
 allowed-tools: Bash Read Grep Glob
 ---

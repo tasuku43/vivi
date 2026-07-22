@@ -10,7 +10,7 @@
       "displayName": "Vivi",
       "source": "./agent-extensions/claude/vivi",
       "description": "Fetch the current published Vivi review and apply its feedback on demand without a resident listener.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": {
         "name": "Vivi"
       },

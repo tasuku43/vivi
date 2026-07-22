@@ -147,6 +147,7 @@ import {
   compactReviewDecisions,
   compactReviewReceipts,
   createReviewReceipt,
+  reviewChangeFingerprint,
   reviewDecisionPathSet,
   reviewQueueItemState,
   visibleReviewReceipts,
@@ -463,7 +464,7 @@ it("routes watcher change events to active file reloads and inactive markers", (
     reloadPath: "README.md",
     stalePath: null,
     removedPath: null,
-    treeRefreshParentPath: null,
+    treeRefreshParentPath: "",
   });
 
   expect(
@@ -475,7 +476,7 @@ it("routes watcher change events to active file reloads and inactive markers", (
     reloadPath: null,
     stalePath: "src/app.ts",
     removedPath: null,
-    treeRefreshParentPath: null,
+    treeRefreshParentPath: "src",
   });
 });
 
@@ -2081,6 +2082,39 @@ it("separates review decisions from short-lived reviewed receipts", () => {
   );
 });
 
+it("uses tree-stable file metadata for review fingerprints", () => {
+  const change: ReviewChangeItem = {
+    path: "src/accepted.ts",
+    status: "modified",
+    source: "git",
+  };
+  const loadedFile: FilePayload = {
+    path: change.path,
+    viewerKind: "code",
+    encoding: "utf8",
+    content: "export const accepted = true;\n",
+    etag: "sha256:loaded-file-only",
+    size: 30,
+    mtimeMs: 42,
+  };
+  const treeFile: FsNode = {
+    id: change.path,
+    path: change.path,
+    name: "accepted.ts",
+    kind: "file",
+    parentPath: "src",
+    size: loadedFile.size,
+    mtimeMs: loadedFile.mtimeMs,
+  };
+
+  expect(reviewChangeFingerprint(change, loadedFile)).toBe(
+    reviewChangeFingerprint(change, treeFile),
+  );
+  expect(reviewChangeFingerprint(change, treeFile)).not.toBe(
+    reviewChangeFingerprint(change, { ...treeFile, mtimeMs: 43 }),
+  );
+});
+
 it("lets new diff fingerprints bypass old reviewed decisions", () => {
   const decisions = [
     {
@@ -2096,6 +2130,20 @@ it("lets new diff fingerprints bypass old reviewed decisions", () => {
     new Set(),
   );
   expect(compactReviewDecisions(decisions, currentFingerprints)).toEqual([]);
+});
+
+it("keeps an active review decision while its fingerprint inputs hydrate", () => {
+  const decision = {
+    path: "src/accepted.ts",
+    fingerprint: "fingerprint-current",
+    reason: "accepted_change" as const,
+    createdAt: "2026-07-01T00:00:00.000Z",
+  };
+
+  expect(
+    compactReviewDecisions([decision], new Map(), new Set(["src/accepted.ts"])),
+  ).toEqual([decision]);
+  expect(compactReviewDecisions([decision], new Map(), new Set())).toEqual([]);
 });
 
 it("hides reviewed receipts when active review attention returns", () => {

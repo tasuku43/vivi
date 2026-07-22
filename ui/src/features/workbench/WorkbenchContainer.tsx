@@ -75,6 +75,7 @@ import {
 } from "../../state/editor-layout.js";
 import {
   filterTreeToPaths,
+  flattenFiles,
   isPathKnownMissing,
   replaceDirectoryChildren,
 } from "../../state/files.js";
@@ -267,6 +268,13 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const gitReviewRef = useRef<GitChangeReviewState | null>(null);
   const initialGitReviewRequested = useRef(false);
   const requestedReviewLedgerRoot = useRef<string | null>(null);
+  const currentReviewFingerprintByPathRef = useRef<ReadonlyMap<string, string>>(
+    new Map(),
+  );
+  const pendingResolvedThreadReviewsRef = useRef(
+    new Map<string, { path: string; threadId: string }>(),
+  );
+  const reviewFingerprintHydrationPathsRef = useRef(new Set<string>());
   const [diffs, setDiffs] = useState<Record<string, TextDiff>>({});
   const [loadingDiffs, setLoadingDiffs] = useState<Record<string, boolean>>({});
   const [diffEnabled, setDiffEnabled] = useState(false);
@@ -599,19 +607,22 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   function recordResolvedThreadReview(path: string, threadId: string) {
     const now = Date.now();
     const createdAt = new Date(now).toISOString();
-    const fingerprint = currentReviewFingerprintByPath.get(path);
-    if (fingerprint) {
-      const entry: ReviewDecisionEntry = {
-        path,
-        fingerprint,
-        reason: "threads_resolved",
-        createdAt,
-      };
-      setReviewDecisions((entries) => [
-        entry,
-        ...entries.filter((candidate) => candidate.path !== path),
-      ]);
+    const fingerprint = currentReviewFingerprintByPathRef.current.get(path);
+    if (!fingerprint) {
+      pendingResolvedThreadReviewsRef.current.set(threadId, { path, threadId });
+      return;
     }
+    pendingResolvedThreadReviewsRef.current.delete(threadId);
+    const entry: ReviewDecisionEntry = {
+      path,
+      fingerprint,
+      reason: "threads_resolved",
+      createdAt,
+    };
+    setReviewDecisions((entries) => [
+      entry,
+      ...entries.filter((candidate) => candidate.path !== path),
+    ]);
     addReviewReceipt({
       path,
       reason: "threads_resolved",
@@ -770,20 +781,75 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     () => new Set(unreadReviewPaths),
     [unreadReviewPaths],
   );
+  const reviewFileVersionByPath = useMemo(
+    () =>
+      new Map<string, { mtimeMs?: number; size?: number }>([
+        ...flattenFiles(tree?.nodes ?? []).map(
+          (node) => [node.path, node] as const,
+        ),
+        ...Object.values(files).map((file) => [file.path, file] as const),
+      ]),
+    [files, tree],
+  );
+  const activeReviewChangePathSet = useMemo(
+    () => new Set(reviewChanges.map((change) => change.path)),
+    [reviewChanges],
+  );
   const currentReviewFingerprintByPath = useMemo(
     () =>
       new Map(
-        reviewChanges.map((change) => [
-          change.path,
-          reviewChangeFingerprint(
-            change,
-            reviewDiffStats[change.path],
-            files[change.path] ?? null,
-          ),
-        ]),
+        reviewChanges.flatMap((change) => {
+          const fileVersion = reviewFileVersionByPath.get(change.path);
+          const needsFileVersion =
+            (change.kind ?? "file") === "file" && change.status !== "deleted";
+          if (needsFileVersion && !fileVersion) return [];
+          return [
+            [
+              change.path,
+              reviewChangeFingerprint(change, fileVersion),
+            ] as const,
+          ];
+        }),
       ),
-    [files, reviewChanges, reviewDiffStats],
+    [reviewChanges, reviewFileVersionByPath],
   );
+  currentReviewFingerprintByPathRef.current = currentReviewFingerprintByPath;
+  useEffect(() => {
+    for (const pending of pendingResolvedThreadReviewsRef.current.values()) {
+      if (!currentReviewFingerprintByPath.has(pending.path)) continue;
+      recordResolvedThreadReview(pending.path, pending.threadId);
+    }
+  }, [currentReviewFingerprintByPath]);
+  useEffect(() => {
+    const paths = new Set([
+      ...reviewDecisions.map((decision) => decision.path),
+      ...[...pendingResolvedThreadReviewsRef.current.values()].map(
+        (pending) => pending.path,
+      ),
+    ]);
+    for (const path of paths) {
+      if (
+        currentReviewFingerprintByPath.has(path) ||
+        !activeReviewChangePathSet.has(path) ||
+        reviewFingerprintHydrationPathsRef.current.has(path)
+      ) {
+        continue;
+      }
+      reviewFingerprintHydrationPathsRef.current.add(path);
+      void client
+        .getFileContext({ path })
+        .then(({ file }) =>
+          setFiles((items) => ({ ...items, [file.path]: file })),
+        )
+        .catch((err) => setError(String(err)))
+        .finally(() => reviewFingerprintHydrationPathsRef.current.delete(path));
+    }
+  }, [
+    activeReviewChangePathSet,
+    client,
+    currentReviewFingerprintByPath,
+    reviewDecisions,
+  ]);
   const acceptedReviewPathSet = useMemo(
     () =>
       reviewDecisionPathSet(reviewDecisions, currentReviewFingerprintByPath),
@@ -1422,11 +1488,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     if (!change) return;
     const now = Date.now();
     const createdAt = new Date(now).toISOString();
-    const fingerprint = reviewChangeFingerprint(
-      change,
-      reviewDiffStats[path],
-      files[path] ?? null,
-    );
+    const fingerprint = currentReviewFingerprintByPath.get(path);
+    if (!fingerprint) return;
     const entry: ReviewDecisionEntry = {
       path,
       fingerprint,
@@ -1864,9 +1927,22 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       }
       void loadComments(target.path)
         .then((loaded) => {
-          if (target.path || !target.shouldMarkUnread) return;
           const refreshedPath = commentActivityThreadPath(event, loaded);
-          if (refreshedPath) markReviewPathUnread(refreshedPath);
+          const path = target.path ?? refreshedPath;
+          const resolvedThreadComment = loaded.find(
+            (comment) =>
+              comment.status === "resolved" &&
+              (comment.threadId ?? comment.id) === event.threadId,
+          );
+          if (!target.path && target.shouldMarkUnread && refreshedPath) {
+            markReviewPathUnread(refreshedPath);
+          }
+          if ((path ?? resolvedThreadComment?.path) && resolvedThreadComment) {
+            recordResolvedThreadReview(
+              path ?? resolvedThreadComment.path,
+              event.threadId,
+            );
+          }
         })
         .catch((err) => setError(String(err)));
     });
@@ -2055,11 +2131,12 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       const compacted = compactReviewDecisions(
         entries,
         currentReviewFingerprintByPath,
+        activeReviewChangePathSet,
       );
       if (compacted.length !== entries.length) setReviewLedgerDirty(true);
       return compacted;
     });
-  }, [currentReviewFingerprintByPath]);
+  }, [activeReviewChangePathSet, currentReviewFingerprintByPath]);
 
   useEffect(() => {
     if (!config?.root || requestedReviewLedgerRoot.current === config.root) {
@@ -2290,6 +2367,18 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         }));
         setRecentEvents((items) => recordReviewEvent(items, event));
         markReviewPathUnread(event.path);
+
+        if (
+          event.type === "change" &&
+          !activeFilePaths.current.has(event.path)
+        ) {
+          setFiles((items) => {
+            if (!items[event.path]) return items;
+            const next = { ...items };
+            delete next[event.path];
+            return next;
+          });
+        }
 
         if (decision.reloadPath) {
           scheduleLiveFileRefresh(decision.reloadPath);

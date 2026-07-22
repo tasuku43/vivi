@@ -1,10 +1,9 @@
-import type { FilePayload } from "../domain/fs-node.js";
 import type {
   AcceptedReviewEntry,
   ReviewReceiptEntry,
   ReviewReceiptReason,
 } from "../domain/review-ledger.js";
-import type { DiffStat, ReviewChangeItem } from "./git-review.js";
+import type { ReviewChangeItem } from "./git-review.js";
 import type { ReviewQueueItem } from "./review-queue.js";
 
 export type ReviewFileState = "queued" | "reviewing" | "reviewed";
@@ -46,7 +45,8 @@ export function reviewDecisionPathSet(
   return new Set(
     entries
       .filter(
-        (entry) => currentFingerprintByPath.get(entry.path) === entry.fingerprint,
+        (entry) =>
+          currentFingerprintByPath.get(entry.path) === entry.fingerprint,
       )
       .map((entry) => entry.path),
   );
@@ -55,10 +55,16 @@ export function reviewDecisionPathSet(
 export function compactReviewDecisions<T extends AcceptedReviewEntry>(
   entries: readonly T[],
   currentFingerprintByPath: ReadonlyMap<string, string>,
+  activePaths: ReadonlySet<string> = new Set(currentFingerprintByPath.keys()),
 ): T[] {
   const latestByKey = new Map<string, T>();
   for (const entry of entries) {
-    if (currentFingerprintByPath.get(entry.path) !== entry.fingerprint) {
+    const currentFingerprint = currentFingerprintByPath.get(entry.path);
+    if (currentFingerprint === undefined && activePaths.has(entry.path)) {
+      latestByKey.set(`${entry.path}\u001f${entry.fingerprint}`, entry);
+      continue;
+    }
+    if (currentFingerprint !== entry.fingerprint) {
       continue;
     }
     latestByKey.set(`${entry.path}\u001f${entry.fingerprint}`, entry);
@@ -130,20 +136,16 @@ export function compactReviewReceipts(
 
 export function reviewChangeFingerprint(
   change: ReviewChangeItem,
-  diffStat: DiffStat | null | undefined,
-  file?: FilePayload | null,
+  fileVersion?: { mtimeMs?: number; size?: number } | null,
 ): string {
   return [
+    "v2",
     change.path,
     change.originalPath ?? "",
     change.status,
     change.kind ?? "file",
     change.source,
-    diffStat?.additions ?? "",
-    diffStat?.deletions ?? "",
-    diffStat?.metadataOnly ? "metadata" : "",
-    file?.etag ?? "",
-    file?.mtimeMs ?? "",
-    file?.size ?? "",
+    fileVersion?.mtimeMs ?? "",
+    fileVersion?.size ?? "",
   ].join("\u001f");
 }

@@ -30,10 +30,7 @@ export function decideLiveRefresh(
         ? event.path
         : null,
     removedPath: event.type === "unlink" ? event.path : null,
-    treeRefreshParentPath:
-      event.type === "add" || event.type === "unlink"
-        ? parentDirectoryPath(event.path)
-        : null,
+    treeRefreshParentPath: parentDirectoryPath(event.path),
   };
 }
 

@@ -6,12 +6,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/tasuku43/vivi/server/workspace"
 )
 
-const globalConfigEnvironment = "VIVI_CONFIG"
+const (
+	globalConfigEnvironment  = "VIVI_CONFIG"
+	xdgConfigHomeEnvironment = "XDG_CONFIG_HOME"
+)
 
 type globalConfig struct {
 	Exclude []string `json:"exclude"`
@@ -40,11 +44,34 @@ func globalConfigPath() (path string, explicit bool, err error) {
 	if override := strings.TrimSpace(os.Getenv(globalConfigEnvironment)); override != "" {
 		return filepath.Clean(override), true, nil
 	}
-	configDir, err := os.UserConfigDir()
+	configDir, err := defaultGlobalConfigDirectory(runtime.GOOS)
 	if err != nil {
-		return "", false, fmt.Errorf("resolve user config directory: %w", err)
+		return "", false, err
 	}
 	return filepath.Join(configDir, "vivi", "config.json"), false, nil
+}
+
+func defaultGlobalConfigDirectory(goos string) (string, error) {
+	if goos != "darwin" && goos != "linux" {
+		configDir, err := os.UserConfigDir()
+		if err != nil {
+			return "", fmt.Errorf("resolve user config directory: %w", err)
+		}
+		return configDir, nil
+	}
+
+	if configDir := strings.TrimSpace(os.Getenv(xdgConfigHomeEnvironment)); configDir != "" {
+		if !filepath.IsAbs(configDir) {
+			return "", fmt.Errorf("%s must be an absolute path", xdgConfigHomeEnvironment)
+		}
+		return configDir, nil
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve user home directory: %w", err)
+	}
+	return filepath.Join(homeDir, ".config"), nil
 }
 
 func loadGlobalConfig(path string, required bool) (globalConfig, error) {

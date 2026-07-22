@@ -108,7 +108,7 @@ directory name at any depth, and a trailing `/` excludes the whole subtree.
 Exclusion wins when a path also matches `--include`.
 
 To reuse exclusions across workspaces, create Vivi's global config file in the
-OS user config directory:
+XDG config directory:
 
 ```json
 {
@@ -116,11 +116,13 @@ OS user config directory:
 }
 ```
 
-The default path is `~/Library/Application Support/vivi/config.json` on macOS,
-`$XDG_CONFIG_HOME/vivi/config.json` (or `~/.config/vivi/config.json`) on Linux,
-and `%AppData%\vivi\config.json` on Windows. Set `VIVI_CONFIG` to an explicit
-file path when needed. Global and CLI exclusions are additive, and every
-exclusion still wins over `--include`.
+The default path on macOS and Linux is
+`$XDG_CONFIG_HOME/vivi/config.json`, falling back to
+`~/.config/vivi/config.json` when `XDG_CONFIG_HOME` is unset. An explicitly
+set `XDG_CONFIG_HOME` must be absolute. On Windows, the default remains
+`%AppData%\vivi\config.json`. Set `VIVI_CONFIG` to an explicit file path when
+needed. Global and CLI exclusions are additive, every exclusion still wins
+over `--include`, and symlinks in the config path are followed normally.
 
 ## What Vivi Shows
 

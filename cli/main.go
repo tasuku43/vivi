@@ -264,7 +264,9 @@ func helpText() string {
 		"  --help                     Show this help",
 		"",
 		"Global config:",
-		"  <user-config-dir>/vivi/config.json with {\"exclude\":[\"package-lock.json\",\"**/generated/**\"]}",
+		"  macOS/Linux: $XDG_CONFIG_HOME/vivi/config.json (default: ~/.config/vivi/config.json)",
+		"  Windows: %AppData%\\vivi\\config.json",
+		"  Config shape: {\"exclude\":[\"package-lock.json\",\"**/generated/**\"]}",
 		"  Set VIVI_CONFIG to use an explicit config file. Global and CLI excludes are additive.",
 	}, "\n")
 }

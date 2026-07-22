@@ -100,7 +100,6 @@ it("keeps bundled agent workflows on one-shot published feedback handling", () =
     "agent-extensions/claude/vivi/skills/apply-feedback/SKILL.md",
   ]) {
     const skill = readFileSync(path, "utf8");
-    expect(skill).toContain("name: apply-feedback");
     expect(skill).toContain("vivi servers");
     expect(skill).toContain("vivi inbox <url>");
     expect(skill).toContain("VIVI_ACTOR");
@@ -121,7 +120,12 @@ it("publishes apply-feedback from the vivi plugin", () => {
   const claudeMarketplace = JSON.parse(
     readFileSync(".claude-plugin/marketplace.json", "utf8"),
   ) as {
-    plugins: Array<{ name: string; displayName: string; source: string }>;
+    plugins: Array<{
+      name: string;
+      displayName: string;
+      source: string;
+      version: string;
+    }>;
   };
   const codexManifest = JSON.parse(
     readFileSync(
@@ -137,7 +141,7 @@ it("publishes apply-feedback from the vivi plugin", () => {
       "agent-extensions/claude/vivi/.claude-plugin/plugin.json",
       "utf8",
     ),
-  ) as { name: string; displayName: string };
+  ) as { name: string; displayName: string; version: string };
 
   expect(codexMarketplace.plugins).toContainEqual(
     expect.objectContaining({
@@ -152,6 +156,7 @@ it("publishes apply-feedback from the vivi plugin", () => {
       name: "vivi",
       displayName: "Vivi",
       source: "./agent-extensions/claude/vivi",
+      version: "0.1.1",
     }),
   );
   expect(codexManifest.name).toBe("vivi");
@@ -162,6 +167,7 @@ it("publishes apply-feedback from the vivi plugin", () => {
   expect(claudeManifest).toMatchObject({
     name: "vivi",
     displayName: "Vivi",
+    version: "0.1.1",
   });
 
   const codexSkill = readFileSync(
@@ -175,6 +181,11 @@ it("publishes apply-feedback from the vivi plugin", () => {
   const codexSkillMetadata = readFileSync(
     "agent-extensions/codex/vivi/skills/apply-feedback/agents/openai.yaml",
     "utf8",
+  );
+  expect(codexSkill).toMatch(/^name: apply-feedback$/m);
+  expect(claudeSkill).not.toMatch(/^name:/m);
+  expect(readFileSync("agent-extensions/claude/README.md", "utf8")).toContain(
+    "/vivi:apply-feedback",
   );
   expect(codexSkillMetadata).toContain('display_name: "Apply Vivi Feedback"');
   expect(codexSkillMetadata).toContain("$apply-feedback");
