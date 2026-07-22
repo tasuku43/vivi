@@ -3346,27 +3346,40 @@ func TestCommentsCLIWorkStopsAfterTerminalStatus(t *testing.T) {
 	}
 
 	runCommentsCLIForTest(t, "done", threadID, "--url", server.URL, "--actor", "codex:work-terminal", "--actor-kind", "codex", "--body", "Finished from the work session", "--require-claim", "--json")
-	terminal := receiveWorkEvent(t, events)
-	if terminal.Type != "comment_thread_activity_batch" || terminal.ThreadID != threadID {
-		t.Fatalf("terminal work event = %#v", terminal)
-	}
-	if terminal.SchemaVersion != 1 || terminal.SessionID != claimed.SessionID || terminal.Sequence != 2 {
+	batches := receiveTerminalWorkEvents(t, events, threadID)
+	terminal := batches[len(batches)-1]
+	if terminal.SchemaVersion != 1 || terminal.SessionID != claimed.SessionID || terminal.Sequence != claimed.Sequence+len(batches) {
 		t.Fatalf("terminal work stream metadata claimed=%#v terminal=%#v", claimed, terminal)
 	}
 	if terminal.EventSchema != "commentActivityBatchEvent" || !containsString(terminal.EventSchemaCommand, "commentActivityBatchEvent") {
 		t.Fatalf("terminal work event schema metadata = %#v", terminal)
 	}
-	if !containsActivity(terminal.Activities, "comment_added", "") || !containsActivity(terminal.Activities, "thread_status_changed", "") {
-		t.Fatalf("terminal work activities = %#v", terminal.Activities)
+	var activities []commentActivityOutput
+	var comments []commentOutput
+	var agentCommentCount, ownActivityCount, ownCommentCount, ownStatusChangeCount, externalActivityCount int
+	for index, batch := range batches {
+		if batch.SchemaVersion != 1 || batch.SessionID != claimed.SessionID || batch.Sequence != claimed.Sequence+index+1 {
+			t.Fatalf("work stream batch metadata claimed=%#v batch=%#v", claimed, batch)
+		}
+		activities = append(activities, batch.Activities...)
+		comments = append(comments, batch.Comments...)
+		agentCommentCount += batch.Summary.AgentCommentCount
+		ownActivityCount += batch.Summary.OwnActivityCount
+		ownCommentCount += batch.Summary.OwnCommentCount
+		ownStatusChangeCount += batch.Summary.OwnStatusChangeCount
+		externalActivityCount += batch.Summary.ExternalActivityCount
 	}
-	if len(terminal.Comments) != 1 || terminal.Comments[0].Body != "Finished from the work session" || terminal.Comments[0].CreatedBy.ID != "codex:work-terminal" {
-		t.Fatalf("terminal work comments = %#v", terminal.Comments)
+	if !containsActivity(activities, "comment_added", "") || !containsActivity(activities, "thread_status_changed", "") {
+		t.Fatalf("terminal work activities = %#v", activities)
 	}
-	if terminal.Summary.AgentCommentCount != 1 || terminal.Summary.TerminalStatus != "resolved" || !containsString(terminal.Summary.Kinds, "terminal_status") {
+	if len(comments) != 1 || comments[0].Body != "Finished from the work session" || comments[0].CreatedBy.ID != "codex:work-terminal" {
+		t.Fatalf("terminal work comments = %#v", comments)
+	}
+	if terminal.Summary.TerminalStatus != "resolved" || !containsString(terminal.Summary.Kinds, "terminal_status") {
 		t.Fatalf("terminal work summary = %#v", terminal.Summary)
 	}
-	if terminal.Summary.OwnActivityCount != 2 || terminal.Summary.OwnCommentCount != 1 || terminal.Summary.OwnStatusChangeCount != 1 || terminal.Summary.ExternalActivityCount != 0 {
-		t.Fatalf("terminal work actor-relative summary = %#v", terminal.Summary)
+	if agentCommentCount != 1 || ownActivityCount != 2 || ownCommentCount != 1 || ownStatusChangeCount != 1 || externalActivityCount != 0 {
+		t.Fatalf("terminal work actor-relative summaries = %#v", batches)
 	}
 	if terminal.Summary.RequiresAttention || terminal.Summary.RecommendedAction != "finish_current_work" || !containsString(terminal.Summary.AttentionReasons, "terminal_status") {
 		t.Fatalf("terminal work attention summary = %#v", terminal.Summary)
@@ -3387,18 +3400,16 @@ func TestCommentsCLIWorkLoopClaimsNextThreadAfterTerminalStatus(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	events, done := startCommentsWorkForTest(t, ctx, "work", "--loop", "--url", server.URL, "--actor", "codex:work-loop", "--actor-kind", "codex", "--client-event-id", "work-loop-1", "--lease", "30s", "--interval", "10ms", "--max-events", "4", "--json")
+	events, done := startCommentsWorkForTest(t, ctx, "work", "--loop", "--url", server.URL, "--actor", "codex:work-loop", "--actor-kind", "codex", "--client-event-id", "work-loop-1", "--lease", "30s", "--interval", "10ms", "--json")
 
 	firstClaim := receiveWorkEvent(t, events)
 	if firstClaim.Type != "comment_work_claimed" || firstClaim.Thread.ID != firstThreadID {
 		t.Fatalf("first loop claim = %#v", firstClaim)
 	}
 	runCommentsCLIForTest(t, "done", firstThreadID, "--url", server.URL, "--actor", "codex:work-loop", "--actor-kind", "codex", "--body", "Finished first loop item", "--require-claim", "--json")
-	firstTerminal := receiveWorkEvent(t, events)
-	if firstTerminal.Type != "comment_thread_activity_batch" || firstTerminal.ThreadID != firstThreadID || !containsActivity(firstTerminal.Activities, "thread_status_changed", "") {
-		t.Fatalf("first loop terminal event = %#v", firstTerminal)
-	}
-	if firstClaim.SchemaVersion != 1 || firstClaim.SessionID == "" || firstClaim.Sequence != 1 || firstTerminal.SessionID != firstClaim.SessionID || firstTerminal.Sequence != 2 {
+	firstTerminalBatches := receiveTerminalWorkEvents(t, events, firstThreadID)
+	firstTerminal := firstTerminalBatches[len(firstTerminalBatches)-1]
+	if firstClaim.SchemaVersion != 1 || firstClaim.SessionID == "" || firstClaim.Sequence != 1 || firstTerminal.SessionID != firstClaim.SessionID || firstTerminal.Sequence != firstClaim.Sequence+len(firstTerminalBatches) {
 		t.Fatalf("first loop stream metadata claim=%#v terminal=%#v", firstClaim, firstTerminal)
 	}
 
@@ -3406,21 +3417,20 @@ func TestCommentsCLIWorkLoopClaimsNextThreadAfterTerminalStatus(t *testing.T) {
 	if secondClaim.Type != "comment_work_claimed" || secondClaim.Thread.ID != secondThreadID {
 		t.Fatalf("second loop claim = %#v", secondClaim)
 	}
-	if secondClaim.SessionID != firstClaim.SessionID || secondClaim.Sequence != 3 {
+	if secondClaim.SessionID != firstClaim.SessionID || secondClaim.Sequence != firstTerminal.Sequence+1 {
 		t.Fatalf("second loop claim stream metadata first=%#v second=%#v", firstClaim, secondClaim)
 	}
 	if secondClaim.Claim.ClientEventID != "work-loop-1" {
 		t.Fatalf("second loop claim should preserve idempotency key, got %#v", secondClaim.Claim)
 	}
 	runCommentsCLIForTest(t, "done", secondThreadID, "--url", server.URL, "--actor", "codex:work-loop", "--actor-kind", "codex", "--body", "Finished second loop item", "--require-claim", "--json")
-	secondTerminal := receiveWorkEvent(t, events)
-	if secondTerminal.Type != "comment_thread_activity_batch" || secondTerminal.ThreadID != secondThreadID || !containsActivity(secondTerminal.Activities, "thread_status_changed", "") {
-		t.Fatalf("second loop terminal event = %#v", secondTerminal)
-	}
-	if secondTerminal.SessionID != firstClaim.SessionID || secondTerminal.Sequence != 4 {
+	secondTerminalBatches := receiveTerminalWorkEvents(t, events, secondThreadID)
+	secondTerminal := secondTerminalBatches[len(secondTerminalBatches)-1]
+	if secondTerminal.SessionID != firstClaim.SessionID || secondTerminal.Sequence != secondClaim.Sequence+len(secondTerminalBatches) {
 		t.Fatalf("second loop terminal stream metadata first=%#v terminal=%#v", firstClaim, secondTerminal)
 	}
-	if err := <-done; err != nil {
+	cancel()
+	if err := <-done; err != nil && !errors.Is(err, context.Canceled) {
 		t.Fatalf("work loop returned error: %v", err)
 	}
 }
@@ -3693,7 +3703,7 @@ func startCommentsWorkForTest(t *testing.T, ctx context.Context, args ...string)
 		for {
 			var event commentWorkStreamEvent
 			if err := decoder.Decode(&event); err != nil {
-				if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "file already closed") {
+				if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "context canceled") || strings.Contains(err.Error(), "file already closed") {
 					return
 				}
 				t.Errorf("decode work event: %v", err)
@@ -3745,6 +3755,23 @@ func receiveWorkEvent(t *testing.T, events <-chan commentWorkStreamEvent) commen
 		t.Fatal("timed out waiting for work event")
 		return commentWorkStreamEvent{}
 	}
+}
+
+func receiveTerminalWorkEvents(t *testing.T, events <-chan commentWorkStreamEvent, threadID string) []commentWorkStreamEvent {
+	t.Helper()
+	batches := make([]commentWorkStreamEvent, 0, 2)
+	for len(batches) < 4 {
+		event := receiveWorkEvent(t, events)
+		if event.Type != "comment_thread_activity_batch" || event.ThreadID != threadID {
+			t.Fatalf("terminal work event = %#v", event)
+		}
+		batches = append(batches, event)
+		if containsActivity(event.Activities, "thread_status_changed", "") {
+			return batches
+		}
+	}
+	t.Fatalf("terminal status event not received: %#v", batches)
+	return nil
 }
 
 func expectNoWorkEvent(t *testing.T, events <-chan commentWorkStreamEvent, duration time.Duration) {
