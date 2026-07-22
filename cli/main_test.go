@@ -13,24 +13,20 @@ import (
 func TestHelpTextSurfacesOneShotAgentReview(t *testing.T) {
 	help := helpText()
 	for _, command := range []string{
-		"vivi - local review adapter",
-		"vivi inbox <url> [--read-as codex|claude]",
-		"vivi reply <url> <thread-id> --actor codex|claude (--body <text>|--body-file <path|->) [--resolve|--archive]",
-		"vivi review <queue|bases|diff> [options]",
-		"vivi comments <work|doctor|mine|check|triage|release|done|dismiss> [options]",
-		"vivi comments <protocol|schema|inbox|watch|follow|claim|renew|hold|active|next|list|show|context|reply|resolve|archive|reopen> [advanced]",
-		"Human:",
-		"vivi [root] --open",
-		"Agent:",
+		"vivi - local workspace review",
+		"vivi [root] [options]",
+		"vivi servers",
 		"vivi inbox <url>",
-		"vivi inbox <url> --read-as codex",
-		"vivi reply <url> <thread-id> --actor codex --body <text>",
-		"Fetch published review comments when asked; inbox exits after the current snapshot.",
-		"Changed-file context:",
-		"vivi review queue --actor <actor> --json",
-		"Debug/recovery:",
-		"vivi comments doctor|mine|check|protocol|schema|work|watch ...",
-		"Deeper help:",
+		"vivi reply <url> <thread-id>",
+		"(--body <text> | --body-file <path|->)",
+		"[--resolve | --archive]",
+		"[--actor codex|claude]",
+		"Agent setup:",
+		"export VIVI_ACTOR=codex",
+		"Environment:",
+		"VIVI_ACTOR",
+		"Default actor for reply; --actor overrides it.",
+		"Run 'vivi servers --help', 'vivi inbox --help', or 'vivi reply --help' for details.",
 		"--ready-json",
 		"--exclude <glob>",
 		"wins over --include",
@@ -42,13 +38,20 @@ func TestHelpTextSurfacesOneShotAgentReview(t *testing.T) {
 			t.Fatalf("help text did not include %q\n%s", command, help)
 		}
 	}
-	for _, residentCommand := range []string{
+	for _, hiddenCommand := range []string{
 		"vivi inbox <url> --watch",
 		"vivi claim <url>",
 		"vivi release <url>",
+		"vivi review <queue|bases|diff>",
+		"vivi comments <work|doctor",
+		"Changed-file context:",
+		"Debug/recovery:",
+		"--no-html-scripts",
+		"--git-review-timeout",
+		"--log-level",
 	} {
-		if strings.Contains(help, residentCommand) {
-			t.Fatalf("common help should not recommend resident workflow %q\n%s", residentCommand, help)
+		if strings.Contains(help, hiddenCommand) {
+			t.Fatalf("common help should not expose non-core command %q\n%s", hiddenCommand, help)
 		}
 	}
 }
@@ -78,22 +81,13 @@ func TestServerReadyPayloadIncludesResolvedURLAndAgentCommands(t *testing.T) {
 	if payload.SchemaVersion != 1 || payload.Event != "vivi_server_ready" || payload.Root != "/work/linux" || payload.URL != "http://127.0.0.1:59432" {
 		t.Fatalf("unexpected ready payload metadata: %#v", payload)
 	}
-	if len(payload.SuggestedCommands) != 3 {
-		t.Fatalf("expected three suggested commands, got %#v", payload.SuggestedCommands)
+	if len(payload.SuggestedCommands) != 1 {
+		t.Fatalf("expected one suggested command, got %#v", payload.SuggestedCommands)
 	}
 	inboxCommand := payload.SuggestedCommands[0]
 	if inboxCommand.Intent != "fetch_published_review" || inboxCommand.Command != "inbox" || !inboxCommand.Primary || inboxCommand.DisplayCommand != "vivi inbox http://127.0.0.1:59432" || !containsString(inboxCommand.Args, "inbox") || !containsString(inboxCommand.Args, "http://127.0.0.1:59432") || containsString(inboxCommand.Args, "--watch") {
 		t.Fatalf("ready payload should make top-level inbox primary: %#v", inboxCommand)
 	}
-	reviewCommand := payload.SuggestedCommands[1]
-	if reviewCommand.Intent != "inspect_review_queue_context" || reviewCommand.Command != "review queue" || reviewCommand.DisplayCommand != "vivi review queue --url http://127.0.0.1:59432 --json" || !containsString(reviewCommand.Args, "--url") || !containsString(reviewCommand.Args, "http://127.0.0.1:59432") || !containsString(reviewCommand.Args, "--json") {
-		t.Fatalf("review ready suggestion did not carry resolved url: %#v", reviewCommand)
-	}
-	commentsCommand := payload.SuggestedCommands[2]
-	if commentsCommand.Intent != "check_comments_readiness" || commentsCommand.Command != "comments doctor" || commentsCommand.DisplayCommand != "vivi comments doctor --url http://127.0.0.1:59432 --json" || !containsString(commentsCommand.Args, "--url") || !containsString(commentsCommand.Args, "http://127.0.0.1:59432") || !containsString(commentsCommand.Args, "--json") {
-		t.Fatalf("comments ready suggestion did not carry resolved url: %#v", commentsCommand)
-	}
-
 	var stdout bytes.Buffer
 	if err := writeJSON(&stdout, payload); err != nil {
 		t.Fatalf("write ready JSON: %v", err)

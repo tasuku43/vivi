@@ -209,7 +209,7 @@ function exitCodeForSignal(signal: NodeJS.Signals): number {
 
 export function helpText(): string {
   return [
-    "vivi - local review adapter",
+    "vivi - local workspace review",
     "",
     "Usage:",
     "  vivi [root] [--host 127.0.0.1] [--port 4317] [--open] [--include md,html,ts] [--exclude package-lock.json,**/generated/**] [--max-file-size 1048576] [--allow-html-scripts]",

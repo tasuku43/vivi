@@ -1,4 +1,4 @@
-# Vivi Review Pull for Claude Code
+# Vivi for Claude Code
 
 This package provides one focused skill for fetching published Vivi feedback on demand and replying safely.
 
@@ -10,14 +10,14 @@ Inside Claude Code:
 
 ```text
 /plugin marketplace add <owner>/<repo>
-/plugin install vivi-agent-loop@vivi-agent-extensions
+/plugin install vivi@vivi-agent-extensions
 /reload-plugins
 ```
 
 For local development:
 
 ```bash
-claude --plugin-dir ./agent-extensions/claude/vivi-agent-loop
+claude --plugin-dir ./agent-extensions/claude/vivi
 ```
 
 ## Architecture
@@ -26,13 +26,15 @@ claude --plugin-dir ./agent-extensions/claude/vivi-agent-loop
 .claude-plugin/marketplace.json
   remote repository entrypoint for Claude Code
 
-agent-extensions/claude/vivi-agent-loop/
+agent-extensions/claude/vivi/
   .claude-plugin/plugin.json
     plugin metadata
-  skills/vivi-agent-loop/SKILL.md
+  skills/apply-feedback/SKILL.md
     one-shot review fetch and reply workflow
 ```
 
 ## Design
 
-Publish stays asynchronous. The skill fetches the current published snapshot only when the user asks or the agent chooses to refresh; it does not create a resident listener.
+Publish stays asynchronous. The user invokes `/vivi:apply-feedback` (`Apply
+Vivi Feedback`) after publishing; it fetches the current snapshot once, applies
+the feedback, and does not create a resident listener.

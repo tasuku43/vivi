@@ -1,6 +1,7 @@
 # Vivi Agent Extensions
 
-Reusable agent-loop packages for operating Vivi browser comments while coding.
+Reusable on-demand packages for applying published Vivi browser feedback
+while coding.
 
 ## Codex
 
@@ -12,7 +13,8 @@ From the public repository:
 codex plugin marketplace add <owner>/<repo>
 ```
 
-Then install `vivi-agent-loop` from the `vivi-agent-extensions` marketplace.
+Then install `vivi` from the `vivi-agent-extensions` marketplace. Its focused
+workflow is the `Apply Vivi Feedback` skill, invoked as `$apply-feedback`.
 
 For local development:
 
@@ -28,17 +30,17 @@ From the public repository, add the Claude marketplace and install the plugin:
 
 ```text
 /plugin marketplace add <owner>/<repo>
-/plugin install vivi-agent-loop@vivi-agent-extensions
+/plugin install vivi@vivi-agent-extensions
 /reload-plugins
 ```
 
 For local development:
 
 ```bash
-claude --plugin-dir ./agent-extensions/claude/vivi-agent-loop
+claude --plugin-dir ./agent-extensions/claude/vivi
 ```
 
-The Claude package includes `/vivi-agent-loop:vivi-agent-loop` for fetching
-published feedback on demand and replying while coding.
+The Claude package includes `/vivi:apply-feedback` (`Apply Vivi Feedback`) for
+fetching and applying published feedback on demand.
 
 See [claude/README.md](claude/README.md) for structure and design notes.

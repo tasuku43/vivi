@@ -5,10 +5,10 @@
   },
   "plugins": [
     {
-      "name": "vivi-agent-loop",
+      "name": "vivi",
       "source": {
         "source": "local",
-        "path": "./agent-extensions/codex/vivi-agent-loop"
+        "path": "./agent-extensions/codex/vivi"
       },
       "policy": {
         "installation": "AVAILABLE",

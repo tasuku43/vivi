@@ -1,0 +1,20 @@
+{
+  "name": "vivi",
+  "version": "0.1.0",
+  "description": "Apply published Vivi browser review feedback on demand with Codex.",
+  "author": {
+    "name": "Vivi"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Vivi",
+    "shortDescription": "Apply published browser review feedback.",
+    "longDescription": "Find and reuse the applicable Vivi server, fetch its published review once, apply the feedback to the workspace, reply safely, and refresh before resolving without running a resident listener.",
+    "developerName": "Vivi",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": [
+      "Use $apply-feedback to apply my published Vivi feedback."
+    ]
+  }
+}

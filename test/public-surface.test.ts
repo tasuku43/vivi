@@ -39,27 +39,21 @@ it(
     );
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain("vivi review <queue|bases|diff>");
+    expect(result.stdout).toContain("vivi - local workspace review");
+    expect(result.stdout).toContain("vivi [root] [options]");
+    expect(result.stdout).toContain("vivi servers");
+    expect(result.stdout).toContain("vivi inbox <url>");
+    expect(result.stdout).toContain("vivi reply <url> <thread-id>");
+    expect(result.stdout).toContain("export VIVI_ACTOR=codex");
+    expect(result.stdout).toContain("VIVI_ACTOR");
     expect(result.stdout).toContain(
-      "vivi comments <work|doctor|mine|check|triage|release|done|dismiss>",
-    );
-    expect(result.stdout).toContain(
-      "vivi comments <protocol|schema|inbox|watch",
-    );
-    expect(result.stdout).toContain("Human:");
-    expect(result.stdout).toContain("Agent:");
-    expect(result.stdout).toContain(
-      "vivi inbox <url> [--read-as codex|claude]",
-    );
-    expect(result.stdout).toContain(
-      "vivi reply <url> <thread-id> --actor codex|claude",
-    );
-    expect(result.stdout).toContain(
-      "Fetch published review comments when asked",
+      "Default actor for reply; --actor overrides it.",
     );
     expect(result.stdout).not.toContain("vivi inbox <url> --watch");
-    expect(result.stdout).toContain("Changed-file context:");
-    expect(result.stdout).toContain("Debug/recovery:");
+    expect(result.stdout).not.toContain("vivi review <queue|bases|diff>");
+    expect(result.stdout).not.toContain("vivi comments <work|doctor");
+    expect(result.stdout).not.toContain("Changed-file context:");
+    expect(result.stdout).not.toContain("Debug/recovery:");
     expect(result.stdout).toContain("--ready-json");
     expect(result.stdout).not.toMatch(/^vivi \[root\].*Options:/s);
   },
@@ -100,16 +94,105 @@ it("keeps review and comments help reachable through the default bin", () => {
   }
 });
 
-it("keeps bundled agent workflows on one-shot published review fetches", () => {
+it("keeps bundled agent workflows on one-shot published feedback handling", () => {
   for (const path of [
-    "agent-extensions/codex/vivi-agent-loop/skills/vivi-agent-loop/SKILL.md",
-    "agent-extensions/claude/vivi-agent-loop/skills/vivi-agent-loop/SKILL.md",
+    "agent-extensions/codex/vivi/skills/apply-feedback/SKILL.md",
+    "agent-extensions/claude/vivi/skills/apply-feedback/SKILL.md",
   ]) {
     const skill = readFileSync(path, "utf8");
+    expect(skill).toContain("name: apply-feedback");
+    expect(skill).toContain("vivi servers");
     expect(skill).toContain("vivi inbox <url>");
+    expect(skill).toContain("VIVI_ACTOR");
     expect(skill).toMatch(/on-demand|one-shot/i);
     expect(skill).not.toContain("vivi inbox <url> --watch");
+    expect(skill.indexOf("vivi servers")).toBeLessThan(
+      skill.indexOf("vivi inbox <url>"),
+    );
   }
+});
+
+it("publishes apply-feedback from the vivi plugin", () => {
+  const codexMarketplace = JSON.parse(
+    readFileSync(".agents/plugins/marketplace.json", "utf8"),
+  ) as {
+    plugins: Array<{ name: string; source: { path: string } }>;
+  };
+  const claudeMarketplace = JSON.parse(
+    readFileSync(".claude-plugin/marketplace.json", "utf8"),
+  ) as {
+    plugins: Array<{ name: string; displayName: string; source: string }>;
+  };
+  const codexManifest = JSON.parse(
+    readFileSync(
+      "agent-extensions/codex/vivi/.codex-plugin/plugin.json",
+      "utf8",
+    ),
+  ) as {
+    name: string;
+    interface: { displayName: string; defaultPrompt: string[] };
+  };
+  const claudeManifest = JSON.parse(
+    readFileSync(
+      "agent-extensions/claude/vivi/.claude-plugin/plugin.json",
+      "utf8",
+    ),
+  ) as { name: string; displayName: string };
+
+  expect(codexMarketplace.plugins).toContainEqual(
+    expect.objectContaining({
+      name: "vivi",
+      source: expect.objectContaining({
+        path: "./agent-extensions/codex/vivi",
+      }),
+    }),
+  );
+  expect(claudeMarketplace.plugins).toContainEqual(
+    expect.objectContaining({
+      name: "vivi",
+      displayName: "Vivi",
+      source: "./agent-extensions/claude/vivi",
+    }),
+  );
+  expect(codexManifest.name).toBe("vivi");
+  expect(codexManifest.interface.displayName).toBe("Vivi");
+  expect(codexManifest.interface.defaultPrompt).toContain(
+    "Use $apply-feedback to apply my published Vivi feedback.",
+  );
+  expect(claudeManifest).toMatchObject({
+    name: "vivi",
+    displayName: "Vivi",
+  });
+
+  const codexSkill = readFileSync(
+    "agent-extensions/codex/vivi/skills/apply-feedback/SKILL.md",
+    "utf8",
+  );
+  const claudeSkill = readFileSync(
+    "agent-extensions/claude/vivi/skills/apply-feedback/SKILL.md",
+    "utf8",
+  );
+  const codexSkillMetadata = readFileSync(
+    "agent-extensions/codex/vivi/skills/apply-feedback/agents/openai.yaml",
+    "utf8",
+  );
+  expect(codexSkillMetadata).toContain('display_name: "Apply Vivi Feedback"');
+  expect(codexSkillMetadata).toContain("$apply-feedback");
+
+  const publicSurface = [
+    JSON.stringify(codexMarketplace),
+    JSON.stringify(claudeMarketplace),
+    JSON.stringify(codexManifest),
+    JSON.stringify(claudeManifest),
+    readFileSync("agent-extensions/README.md", "utf8"),
+    readFileSync("agent-extensions/codex/README.md", "utf8"),
+    readFileSync("agent-extensions/claude/README.md", "utf8"),
+    codexSkill,
+    claudeSkill,
+    codexSkillMetadata,
+  ].join("\n");
+  expect(publicSurface).not.toContain("vivi-address-feedback");
+  expect(publicSurface).not.toContain("vivi-agent-loop");
 });
 
 it("rejects the removed resident top-level inbox surface", () => {

@@ -11,6 +11,12 @@ term job is:
 > pipe. `vivi inbox <url>` returns the current published snapshot and exits;
 > Publish never waits for an agent. The resident concepts below remain as the
 > historical comparison that led to that decision, not the current default UX.
+> The selected implementation defaults to a compact anchor-and-history text
+> projection, retains legacy JSON Lines behind `--json`, and resolves reply
+> identity as `--actor` then `VIVI_ACTOR`. Agents first run `vivi servers` to
+> validate registered servers and identify roots that contain their current
+> working directory; after selecting one, they carry its explicit URL through
+> inbox, refresh, and reply.
 
 1. notice that a human comment arrived,
 2. read the comment with enough workspace context,
@@ -20,8 +26,8 @@ term job is:
 
 ## Product promise to optimize
 
-Vivi is not an agent runner. It is the local review adapter between a human
-browser review surface and a coding agent. The CLI should therefore feel less
+Vivi is not an agent runner. It provides local workspace review between a
+human browser surface and a coding agent. The CLI should therefore feel less
 like a second product UI and more like a narrow, reliable feedback pipe.
 
 ## Current observed surface
@@ -191,16 +197,21 @@ Thesis: expose only one conceptual command family to agents: `vivi inbox`.
 Internally it can use `comments work`, claims, receipts, and GraphQL, but the
 public interface describes a comment pipe rather than a protocol toolkit.
 The inbox must still receive an explicit server URL, because multiple Vivi
-servers may be running at the same time.
+servers may be running at the same time. The agent obtains candidates from
+`vivi servers`: it reuses the URL for exactly one workspace match, asks when
+there are multiple matches or only nonmatching live servers, and considers a
+new launch only when no servers exist and the intended root is unambiguous.
+The chosen URL remains fixed across inbox, refresh, and reply.
 Plain inbox reads are passive polling queries and do not require an actor. The
 actor is supplied on `reply`, or on an explicit read-receipt option if the GUI
 should show that a named agent has read the thread. The simple facade should
 accept a fixed actor enum such as `codex` and `claude`, mapping `claude` to the
 existing `claude_code` protocol kind internally. Any unsupported actor should be
-a CLI usage error. `reply` always requires `--actor`; omitting it should be a
-CLI usage error because every posted comment, resolve, or archive action needs
-clear authorship. `reply` is non-interactive only: it requires either `--body`
-or `--body-file <path|->` and must never prompt for terminal input.
+a CLI usage error. `reply` requires a resolved actor, using explicit `--actor`
+first and `VIVI_ACTOR` second; omitting both is a CLI usage error because every
+posted comment, resolve, or archive action needs clear authorship. `reply` is
+non-interactive only: it requires either `--body` or `--body-file <path|->` and
+must never prompt for terminal input.
 
 Mock transcript:
 
@@ -211,30 +222,36 @@ Browser: http://127.0.0.1:4318
 Agent inbox: vivi inbox http://127.0.0.1:4318
 
 $ vivi inbox http://127.0.0.1:4318
-{"type":"comment","id":"ct_123","file":"README.md","body":"This section is unclear.","action":"reply"}
-{"type":"followup","id":"ct_123","body":"Actually, focus on the install docs.","action":"reply"}
+inbox count=1 complete=true external-text=untrusted escaped
+ct_123 "README.md" source:L12-14
+  human "This section is unclear."
+  human "Actually, focus on the install docs."
 
 $ vivi inbox http://127.0.0.1:4318 --read-as codex
-{"type":"comment","id":"ct_123","file":"README.md","body":"This section is unclear.","action":"reply","readBy":"codex"}
+inbox count=1 read-as=codex complete=true external-text=untrusted escaped
+ct_123 "README.md" source:L12-14
+  human "This section is unclear."
+  human "Actually, focus on the install docs."
 ```
 
 Reply path:
 
 ```text
-$ vivi reply http://127.0.0.1:4318 ct_123 --actor codex --body "Should the install docs optimize for Homebrew or mise first?"
+$ export VIVI_ACTOR=codex
+$ vivi reply http://127.0.0.1:4318 ct_123 --body "Should the install docs optimize for Homebrew or mise first?"
 {"type":"reply","id":"ct_123","actor":"codex","status":"open"}
 
-$ vivi reply http://127.0.0.1:4318 ct_123 --actor codex --resolve --body-file /tmp/vivi-reply.md
+$ vivi reply http://127.0.0.1:4318 ct_123 --resolve --body-file /tmp/vivi-reply.md
 {"type":"reply","id":"ct_123","actor":"codex","status":"resolved"}
 
-$ printf '%s\n' 'This does not apply to the selected workspace because the file is generated from another source.' | vivi reply http://127.0.0.1:4318 ct_123 --actor codex --archive --body-file -
+$ printf '%s\n' 'This does not apply to the selected workspace because the file is generated from another source.' | vivi reply http://127.0.0.1:4318 ct_123 --archive --body-file -
 {"type":"reply","id":"ct_123","actor":"codex","status":"archived"}
 
 $ vivi reply http://127.0.0.1:4318 ct_123 --actor cursor
 error: unsupported actor "cursor"; expected one of: codex, claude
 
 $ vivi reply http://127.0.0.1:4318 ct_123 --body "Fixed."
-error: missing required --actor; expected one of: codex, claude
+error: missing actor; pass --actor or set VIVI_ACTOR (expected one of: codex, claude)
 
 $ vivi reply http://127.0.0.1:4318 ct_123 --actor codex
 error: missing reply body; pass --body <text> or --body-file <path|->

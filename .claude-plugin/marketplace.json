@@ -3,19 +3,19 @@
   "owner": {
     "name": "Vivi"
   },
-  "description": "Agent-loop plugins for operating Vivi browser comments while coding.",
+  "description": "On-demand skills for applying published Vivi browser feedback while coding.",
   "plugins": [
     {
-      "name": "vivi-agent-loop",
-      "displayName": "Vivi Agent Loop",
-      "source": "./agent-extensions/claude/vivi-agent-loop",
-      "description": "Coordinate live Vivi browser comments, bounded inbox listening, and multi-agent handoffs while coding.",
+      "name": "vivi",
+      "displayName": "Vivi",
+      "source": "./agent-extensions/claude/vivi",
+      "description": "Fetch the current published Vivi review and apply its feedback on demand without a resident listener.",
       "version": "0.1.0",
       "author": {
         "name": "Vivi"
       },
       "category": "Productivity",
-      "tags": ["vivi", "comments", "agent-loop"]
+      "tags": ["vivi", "feedback", "review", "on-demand"]
     }
   ]
 }

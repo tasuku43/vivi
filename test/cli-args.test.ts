@@ -41,7 +41,7 @@ it("keeps HTML scripts disabled unless explicitly allowed", () => {
 
 it("shows Vivi command help without the old pre-release name", () => {
   const help = helpText();
-  expect(help).toContain("vivi - local review adapter");
+  expect(help).toContain("vivi - local workspace review");
   expect(help).toContain("vivi [root]");
   expect(help).toContain("--version");
   expect(help).toContain("--exclude <glob>");

@@ -155,6 +155,17 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
+	registry, err := defaultViviServerRegistry()
+	if err != nil {
+		_ = httpServer.Close(context.Background())
+		return fmt.Errorf("register Vivi server: %w", err)
+	}
+	registration, err := registry.Register(workspaceFS.Config().Root, httpServer.URL(), os.Getpid())
+	if err != nil {
+		_ = httpServer.Close(context.Background())
+		return fmt.Errorf("register Vivi server: %w", err)
+	}
+	defer func() { _ = registration.Remove() }()
 	if *readyJSON {
 		if err := writeJSON(os.Stdout, newServerReadyPayload(workspaceFS.Config().Root, httpServer.URL())); err != nil {
 			return err
@@ -216,38 +227,31 @@ func removeFirstArg(args []string, target string) []string {
 
 func helpText() string {
 	return strings.Join([]string{
-		"vivi - local review adapter",
+		"vivi - local workspace review",
 		"",
 		"Usage:",
-		"  vivi [root] [--host 127.0.0.1] [--port 4317] [--open] [--include md,html,ts] [--exclude package-lock.json,**/generated/**] [--max-file-size 1048576] [--allow-html-scripts]",
-		"  vivi inbox <url> [--read-as codex|claude]",
-		"  vivi reply <url> <thread-id> --actor codex|claude (--body <text>|--body-file <path|->) [--resolve|--archive]",
-		"  vivi review <queue|bases|diff> [options]",
-		"  vivi comments <work|doctor|mine|check|triage|release|done|dismiss> [options]",
-		"  vivi comments <protocol|schema|inbox|watch|follow|claim|renew|hold|active|next|list|show|context|reply|resolve|archive|reopen> [advanced]",
-		"",
-		"Human:",
-		"  vivi [root] --open",
-		"",
-		"Agent:",
+		"  vivi [root] [options]",
+		"  vivi servers",
 		"  vivi inbox <url>",
-		"  vivi inbox <url> --read-as codex",
-		"  vivi reply <url> <thread-id> --actor codex --body <text>",
-		"  vivi reply <url> <thread-id> --actor codex --resolve --body-file <path|->",
-		"  Fetch published review comments when asked; inbox exits after the current snapshot.",
+		"  vivi reply <url> <thread-id>",
+		"             (--body <text> | --body-file <path|->)",
+		"             [--resolve | --archive]",
+		"             [--actor codex|claude]",
 		"",
-		"Changed-file context:",
-		"  vivi review queue --actor <actor> --json",
-		"  vivi review diff <path> --base HEAD --json",
+		"Agent setup:",
+		"  export VIVI_ACTOR=codex",
 		"",
-		"Debug/recovery:",
-		"  vivi comments doctor|mine|check|protocol|schema|work|watch ...",
+		"  vivi servers",
+		"  vivi inbox <url>",
+		"  vivi reply <url> <thread-id> --body-file -",
+		"  vivi reply <url> <thread-id> --resolve --body-file -",
 		"",
-		"Deeper help:",
-		"  vivi comments --help",
-		"  vivi review --help",
+		"Environment:",
+		"  VIVI_ACTOR                  Default actor for reply; --actor overrides it.",
 		"",
-		"Options:",
+		"Run 'vivi servers --help', 'vivi inbox --help', or 'vivi reply --help' for details.",
+		"",
+		"Launch options:",
 		"  --host <host>              Host to bind (default: 127.0.0.1)",
 		"  --port <port>              Port to bind (default: 4317, auto-increments when unavailable; 0 for random)",
 		"  --open                     Open the browser after startup",
@@ -255,9 +259,6 @@ func helpText() string {
 		"  --exclude <glob>           Exclude a workspace-relative glob; repeat or comma-separate (wins over --include)",
 		"  --max-file-size <bytes>    Rich preview byte limit",
 		"  --allow-html-scripts       Allow scripts in HTML preview for trusted files",
-		"  --no-html-scripts          Keep HTML preview scripts disabled",
-		"  --git-review-timeout <d>   Git review timeout such as 2s or 500ms",
-		"  --log-level <level>        Log level (default: info)",
 		"  --ready-json               Print a JSON server-ready event after startup",
 		"  --version                  Print version",
 		"  --help                     Show this help",
@@ -278,10 +279,6 @@ type serverReadyPayload struct {
 
 func newServerReadyPayload(root string, serverURL string) serverReadyPayload {
 	inboxArgs := []string{"inbox", serverURL}
-	reviewArgs := []string{"review", "queue", "--url", serverURL}
-	doctorArgs := []string{"comments", "doctor", "--url", serverURL}
-	reviewArgs = append(reviewArgs, "--json")
-	doctorArgs = append(doctorArgs, "--json")
 	suggestions := []commentSuggestedCommand{
 		suggestedCommentsCommand(
 			"fetch_published_review",
@@ -290,20 +287,6 @@ func newServerReadyPayload(root string, serverURL string) serverReadyPayload {
 			"",
 			"Fetch the currently published open review comments once. Run it again when the human asks or when the agent chooses to refresh.",
 		).withPrimary().withOutput("agent_safe", "current_snapshot"),
-		suggestedCommentsCommand(
-			"inspect_review_queue_context",
-			"review queue",
-			reviewArgs,
-			"",
-			"Optional changed-file context for an agent that needs to inspect the workspace delta.",
-		),
-		suggestedCommentsCommand(
-			"check_comments_readiness",
-			"comments doctor",
-			doctorArgs,
-			"",
-			"Optional online readiness and recovery check for the comments protocol.",
-		),
 	}
 	return serverReadyPayload{
 		SchemaVersion:     1,

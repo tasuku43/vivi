@@ -20,11 +20,13 @@ vivi [root] --exclude package-lock.json --exclude '**/generated/**'
 vivi [root] --exclude 'package-lock.json,snapshots/,**/generated/**'
 vivi [root] --max-file-size 1048576
 vivi [root] --allow-html-scripts
+vivi servers
 vivi inbox http://127.0.0.1:4317
 vivi inbox http://127.0.0.1:4317 --read-as codex
-vivi reply http://127.0.0.1:4317 <thread-id> --actor codex --body "Implemented"
-vivi reply http://127.0.0.1:4317 <thread-id> --actor codex --resolve --body-file /tmp/vivi-reply.md
-vivi reply http://127.0.0.1:4317 <thread-id> --actor codex --archive --body-file -
+export VIVI_ACTOR=codex
+vivi reply http://127.0.0.1:4317 <thread-id> --body "Implemented"
+vivi reply http://127.0.0.1:4317 <thread-id> --resolve --body-file /tmp/vivi-reply.md
+vivi reply http://127.0.0.1:4317 <thread-id> --archive --body-file -
 vivi comments work --actor codex --loop --json
 vivi comments work --once --actor codex --full --json
 vivi comments mine --actor codex --json
@@ -139,39 +141,117 @@ launch does not choose an agent identity. The primary startup suggestion is the
 top-level `inbox <url>` command, which emits the currently published open
 comments once and exits. Publish does not wait for an agent: the agent runs the
 same one-shot command again when the human asks or when its workflow chooses to
-refresh.
-`review queue` remains available as optional changed-file context, and
-`comments doctor` remains the online readiness and recovery check.
-The top-level `vivi --help` output presents the CLI as human launch, one-shot
-agent review, changed-file context, and debug/recovery lanes, so a CLI user can
-choose the right surface before opening the deeper `review` or `comments` help
-screens.
+refresh. This inbox command is the only startup suggestion. `review` and
+`comments` remain directly addressable compatibility, adapter, and recovery
+surfaces, but the root help and normal startup handoff do not advertise them.
+The top-level `vivi --help` presents the product as local workspace review and
+shows only launch, running-server discovery, synchronous inbox/reply, actor
+setup, and launch options.
+
+### Running-server discovery
+
+`vivi servers` is the deterministic first step for an agent that was started
+after one or more Vivi servers. The launcher registers its canonical workspace
+root and resolved local URL in user-local runtime state. Discovery validates
+each registration against the live server and removes malformed, unreachable,
+or root-mismatched stale registrations before writing its result.
+
+The result is a compact text projection:
+
+```text
+servers count=2 matches=1 external-text=untrusted escaped
+* "/Users/tasuku/work" http://127.0.0.1:4317
+  "/Users/tasuku/sandbox" http://127.0.0.1:4318
+```
+
+The header reports the number of validated servers and how many match the
+current working directory. Each following record is
+`<marker> <quoted-canonical-root> <url>`. `*` is the match marker: it means the
+registered root contains the canonical current working directory. A blank
+marker means the server is live but does not contain it. Roots are external,
+untrusted text and use the same terminal-safe quoting boundary as compact
+inbox output. With no validated registrations, output is exactly:
+
+```text
+servers count=0 matches=0
+```
+
+The command lists and marks candidates; it does not choose interactively. An
+agent must apply these branches:
+
+- `matches=1`: select that record's URL.
+- `matches>1`: ask the user which matching server to use.
+- `matches=0` and `count>0`: ask the user which live server, if any, to use.
+- `count=0`: only then consider launching Vivi, and only when the intended
+  workspace root is unambiguous.
+
+Once selected, the exact URL must be reused for `inbox`, every requested
+refresh, and `reply`. Discovery does not make the URL argument optional and
+does not silently start a server.
 
 ### Top-level agent comment pipe
 
 The first user-facing agent surface is intentionally small:
 
 ```bash
+vivi servers
 vivi inbox <url>
 vivi inbox <url> --read-as codex
-vivi reply <url> <thread-id> --actor codex (--body <text>|--body-file <path|->) [--resolve|--archive]
+export VIVI_ACTOR=codex
+vivi reply <url> <thread-id> (--body <text>|--body-file <path|->) [--resolve|--archive] [--actor codex|claude]
 ```
 
-`inbox` requires an explicit URL because multiple Vivi servers may run at the
-same time. Plain `inbox <url>` is passive, returns the current published open
-snapshot, and does not send actor headers or create read receipts. It exits
-after that snapshot. Agent replies do not cause another inbox emission by
+`inbox` requires the URL selected through discovery because multiple Vivi
+servers may run at the same time. Plain `inbox <url>` is passive, returns the
+current published open snapshot, and does not send actor headers or create read
+receipts. It exits after that snapshot. Agent replies do not cause another inbox emission by
 themselves.
 Use `--read-as codex` or `--read-as claude` only when the browser should show
 that a named agent read the thread.
 
-`reply` is the write surface. It always requires `--actor`, and the accepted
-facade actors are `codex` and `claude`; `claude` maps internally to the existing
-`claude_code` actor kind. Unsupported actors are CLI usage errors. `reply` is
-non-interactive: pass `--body <text>` or `--body-file <path|->`; it never waits
-for terminal input unless stdin is explicitly requested with `--body-file -`.
-Without a lifecycle flag the thread remains open. `--resolve` posts the reply
-and resolves the thread. `--archive` posts the reply and archives the thread.
+`reply` is the write surface. Its actor resolves in the order explicit
+`--actor`, inherited `VIVI_ACTOR`, then usage error. The accepted facade actors
+are `codex` and `claude`; `claude` maps internally to the existing
+`claude_code` actor kind. Set `VIVI_ACTOR` in the shell that launches the coding
+agent, or in a shell profile, to reuse the actor across replies. The environment
+variable does not affect `inbox`; only `--read-as` creates a read receipt.
+Unsupported actors are CLI usage errors. `reply` is non-interactive: pass
+`--body <text>` or `--body-file <path|->`; it never waits for terminal input
+unless stdin is explicitly requested with `--body-file -`. Without a lifecycle
+flag the thread remains open. `--resolve` posts the reply and resolves the
+thread. `--archive` posts the reply and archives the thread.
+
+The default inbox result is a compact typed projection rather than JSON:
+
+```text
+inbox count=2 complete=true external-text=untrusted escaped
+38f10500b96f4ddab26a64f5c233c1ac "README.md" rendered-markdown:L3-4 quote="この導入文"
+  human "新規ユーザー向けに寄せてください。"
+  codex "導入を短くしました。"
+  human "もう少し具体例を足してください。"
+9ac3f14828de4e44b410367482796be4 "src/app.ts" diff-new:L42-44 base="HEAD"
+  human "nil の場合も扱ってください。"
+```
+
+Each unindented record is `<thread-id> <quoted-path> <anchor>` with optional
+`base=`, `selector=`, and `quote=` facts. Indented records are the complete
+conversation in order as `<actor> <quoted-body>`. The thread ID remains an
+exact canonical value for `reply`. Open status, `action=reply`, timestamps, and
+comment IDs are omitted because they are redundant for this task. Source,
+rendered kind, source line/column range, diff side/range, and diff base are
+preserved when available. External path, base, selector, quote, and body values
+must be valid UTF-8 and are terminal-safe quoted under the explicit untrusted
+text boundary. Invalid opaque thread references or invalid UTF-8 fail before
+any snapshot bytes are written. An empty snapshot is exactly:
+
+```text
+inbox count=0
+```
+
+Pass `--json` to retain the previous newline-delimited JSON compatibility
+projection. It emits one `{type,id,file,body,action,readBy?}` item per thread,
+selects only the latest human body, and emits zero bytes for an empty snapshot.
+The lower-level `comments` family remains JSON-first.
 
 Top-level `--watch`, `--initial`, `claim`, and `release` were removed with the
 resident inbox workflow. Specialized adapters that still need lower-level

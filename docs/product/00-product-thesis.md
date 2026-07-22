@@ -1,8 +1,8 @@
 # Vivi Product Thesis
 
-## A local review adapter for humans and coding agents
+## Local workspace review for humans and coding agents
 
-Vivi is a local review adapter between humans and coding agents.
+Vivi is a local workspace review surface shared by humans and coding agents.
 
 Humans need a low-friction browser interface for reading local artifacts. Coding agents need a precise command-line interface for receiving human feedback, replying to it, and closing the loop. Vivi sits between those two interfaces.
 
@@ -96,7 +96,7 @@ Diff review tools are valuable because they make code changes easier to inspect,
 
 Vivi should also avoid competing as an agent workbench.
 
-Agent workbenches are valuable because they help coordinate tasks, branches, terminals, previews, and Pull Requests. Vivi can integrate with those workflows, but it should not try to orchestrate the agent's entire working environment. Its center should remain the review adapter between the human and the agent.
+Agent workbenches are valuable because they help coordinate tasks, branches, terminals, previews, and Pull Requests. Vivi can integrate with those workflows, but it should not try to orchestrate the agent's entire working environment. Its center should remain local workspace review and the feedback handoff between the human and the agent.
 
 Vivi's distinct position is local artifact review with an agent-readable feedback loop:
 
@@ -142,7 +142,7 @@ The most important near-term UX questions are:
 - Can the agent reply in a way the human can review without losing context?
 - Can both sides see whether the feedback loop is still open or complete?
 
-If those questions are answered well, Vivi becomes more than a viewer. It becomes the local review adapter for agent-written workspaces.
+If those questions are answered well, Vivi becomes more than a viewer. It becomes the local workspace review surface for agent-written workspaces.
 
 ## Working statement
 
@@ -150,4 +150,4 @@ Vivi gives humans a beautiful local review surface and gives coding agents a CLI
 
 In short:
 
-> Vivi is a local review adapter between humans and coding agents.
+> Vivi is local workspace review for humans and coding agents.

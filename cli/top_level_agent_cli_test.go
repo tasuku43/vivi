@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -23,6 +24,7 @@ import (
 )
 
 func TestTopLevelInboxReadsOpenThreadsPassivelyAndWithReadReceipt(t *testing.T) {
+	t.Setenv("VIVI_ACTOR", "codex")
 	ctx := context.Background()
 	serverURL := newTopLevelAgentTestServer(t)
 	thread := createTopLevelAgentThread(t, ctx, serverURL, "README.md", "導入文を新規ユーザー向けに寄せてください。")
@@ -31,27 +33,227 @@ func TestTopLevelInboxReadsOpenThreadsPassivelyAndWithReadReceipt(t *testing.T) 
 	if err := runTopLevelAgentCommand(ctx, []string{"inbox", serverURL}, &passive); err != nil {
 		t.Fatalf("passive inbox failed: %v", err)
 	}
-	passiveItem := decodeSingleJSONLine(t, passive.String())
-	if passiveItem["type"] != "comment" || passiveItem["id"] != thread.ID || passiveItem["file"] != "README.md" || passiveItem["body"] != "導入文を新規ユーザー向けに寄せてください。" || passiveItem["action"] != "reply" {
-		t.Fatalf("passive inbox item = %#v", passiveItem)
-	}
-	if _, ok := passiveItem["readBy"]; ok {
-		t.Fatalf("passive inbox should not include readBy: %#v", passiveItem)
+	wantPassive := fmt.Sprintf("inbox count=1 complete=true external-text=untrusted escaped\n%s \"README.md\" source:L1\n  human \"導入文を新規ユーザー向けに寄せてください。\"\n", thread.ID)
+	if passive.String() != wantPassive {
+		t.Fatalf("passive inbox = %q, want %q", passive.String(), wantPassive)
 	}
 	if readActivityCount(t, ctx, serverURL, thread.ID) != 0 {
 		t.Fatal("plain inbox should not create read activity")
+	}
+
+	var legacyJSON bytes.Buffer
+	if err := runTopLevelAgentCommand(ctx, []string{"inbox", serverURL, "--json"}, &legacyJSON); err != nil {
+		t.Fatalf("JSON inbox failed: %v", err)
+	}
+	legacyItem := decodeSingleJSONLine(t, legacyJSON.String())
+	if legacyItem["type"] != "comment" || legacyItem["id"] != thread.ID || legacyItem["file"] != "README.md" || legacyItem["body"] != "導入文を新規ユーザー向けに寄せてください。" || legacyItem["action"] != "reply" {
+		t.Fatalf("legacy JSON inbox item = %#v", legacyItem)
+	}
+	if _, ok := legacyItem["readBy"]; ok {
+		t.Fatalf("passive JSON inbox should not include readBy: %#v", legacyItem)
 	}
 
 	var readAs bytes.Buffer
 	if err := runTopLevelAgentCommand(ctx, []string{"inbox", serverURL, "--read-as", "codex"}, &readAs); err != nil {
 		t.Fatalf("read-as inbox failed: %v", err)
 	}
-	readItem := decodeSingleJSONLine(t, readAs.String())
-	if readItem["readBy"] != "codex" {
-		t.Fatalf("read-as inbox item = %#v", readItem)
+	if !strings.HasPrefix(readAs.String(), "inbox count=1 read-as=codex complete=true external-text=untrusted escaped\n") {
+		t.Fatalf("read-as inbox = %q", readAs.String())
 	}
 	if readActivityCount(t, ctx, serverURL, thread.ID) != 1 {
 		t.Fatal("read-as inbox should create one read activity")
+	}
+}
+
+func TestTopLevelInboxProjectionKeepsAnchorsAndConversationHistory(t *testing.T) {
+	threads := []commentThreadOutput{
+		{
+			ID:     "comment-thread-1",
+			Path:   "README.md",
+			Anchor: json.RawMessage(`{"surface":"rendered","canonical":{"lineStart":3,"lineEnd":4,"quote":"fallback"},"rendered":{"kind":"markdown","textQuote":"この導入文"}}`),
+			Comments: []commentOutput{
+				{Body: "新規ユーザー向けに寄せてください。", CreatedBy: actorOutput{Kind: "human"}},
+				{Body: "導入を短くしました。", CreatedBy: actorOutput{Kind: "codex"}},
+				{Body: "もう少し具体例を足してください。", CreatedBy: actorOutput{Kind: "human"}},
+			},
+		},
+		{
+			ID:     "comment-thread-2",
+			Path:   "src/app.ts",
+			Anchor: json.RawMessage(`{"surface":"diff","canonical":{"lineStart":99,"lineEnd":99},"diff":{"base":"HEAD","side":"old","oldLineStart":42,"oldLineEnd":44}}`),
+			Comments: []commentOutput{
+				{Body: "nil の場合も扱ってください。", CreatedBy: actorOutput{Kind: "human"}},
+				{Body: "対応します。", CreatedBy: actorOutput{Kind: "claude_code"}},
+			},
+		},
+	}
+	var stdout bytes.Buffer
+	if err := writeTopLevelInboxItems(&stdout, topLevelAgentOptions{}, threads); err != nil {
+		t.Fatal(err)
+	}
+	want := "" +
+		"inbox count=2 complete=true external-text=untrusted escaped\n" +
+		"comment-thread-1 \"README.md\" rendered-markdown:L3-4 quote=\"この導入文\"\n" +
+		"  human \"新規ユーザー向けに寄せてください。\"\n" +
+		"  codex \"導入を短くしました。\"\n" +
+		"  human \"もう少し具体例を足してください。\"\n" +
+		"comment-thread-2 \"src/app.ts\" diff-old:L42-44 base=\"HEAD\"\n" +
+		"  human \"nil の場合も扱ってください。\"\n" +
+		"  claude \"対応します。\"\n"
+	if stdout.String() != want {
+		t.Fatalf("projection mismatch\ngot:\n%s\nwant:\n%s", stdout.String(), want)
+	}
+}
+
+func TestTopLevelInboxProjectionMakesEmptyAndHostileInputUnambiguous(t *testing.T) {
+	var empty bytes.Buffer
+	if err := writeTopLevelInboxItems(&empty, topLevelAgentOptions{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if empty.String() != "inbox count=0\n" {
+		t.Fatalf("empty projection = %q", empty.String())
+	}
+
+	thread := commentThreadOutput{
+		ID:       "safe-thread-1",
+		Path:     "docs/line\nbreak.md",
+		Anchor:   json.RawMessage(`{"surface":"rendered","canonical":{},"rendered":{"kind":"html","selector":"h1\nforged","textQuote":"Hello\\World"}}`),
+		Comments: []commentOutput{{Body: "first\nforged\tline\\nlast\u2028end", CreatedBy: actorOutput{Kind: "human"}}},
+	}
+	var hostile bytes.Buffer
+	if err := writeTopLevelInboxItems(&hostile, topLevelAgentOptions{}, []commentThreadOutput{thread}); err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSuffix(hostile.String(), "\n"), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("hostile text injected a physical record: %q", hostile.String())
+	}
+	for _, rawControl := range []string{"\r", "\t", "\u2028", "\u2029"} {
+		if strings.Contains(hostile.String(), rawControl) {
+			t.Fatalf("projection contains raw control %q: %q", rawControl, hostile.String())
+		}
+	}
+	for _, escaped := range []string{`line\\nbreak.md`, `selector="h1\\nforged"`, `quote="Hello\\\\World"`, `first\\nforged\\tline\\\\nlast\\u2028end`} {
+		if !strings.Contains(hostile.String(), escaped) {
+			t.Fatalf("projection missing escaped text %q: %q", escaped, hostile.String())
+		}
+	}
+
+	invalid := thread
+	invalid.ID = "unsafe\nthread"
+	var rejected bytes.Buffer
+	if err := writeTopLevelInboxItems(&rejected, topLevelAgentOptions{}, []commentThreadOutput{invalid}); err == nil || !strings.Contains(err.Error(), "invalid thread reference") {
+		t.Fatalf("invalid reference error = %v", err)
+	}
+	if rejected.Len() != 0 {
+		t.Fatalf("invalid snapshot wrote partial output: %q", rejected.String())
+	}
+
+	invalidUTF8 := thread
+	invalidUTF8.ID = "safe-thread-2"
+	invalidUTF8.Comments = []commentOutput{{Body: string([]byte{0xff}), CreatedBy: actorOutput{Kind: "human"}}}
+	var rejectedUTF8 bytes.Buffer
+	if err := writeTopLevelInboxItems(&rejectedUTF8, topLevelAgentOptions{}, []commentThreadOutput{invalidUTF8}); err == nil || !strings.Contains(err.Error(), "not valid UTF-8") {
+		t.Fatalf("invalid UTF-8 error = %v", err)
+	}
+	if rejectedUTF8.Len() != 0 {
+		t.Fatalf("invalid UTF-8 snapshot wrote partial output: %q", rejectedUTF8.String())
+	}
+}
+
+func TestTopLevelInboxProjectionHasAStableByteBudgetAgainstEquivalentJSON(t *testing.T) {
+	type semanticComment struct {
+		Actor string `json:"actor"`
+		Body  string `json:"body"`
+	}
+	type semanticThread struct {
+		ThreadID string            `json:"threadId"`
+		Path     string            `json:"path"`
+		Anchor   string            `json:"anchor"`
+		Comments []semanticComment `json:"comments"`
+	}
+	type semanticInbox struct {
+		Count        int              `json:"count"`
+		Complete     bool             `json:"complete"`
+		ExternalText string           `json:"externalText"`
+		Threads      []semanticThread `json:"threads"`
+	}
+
+	threads := make([]commentThreadOutput, 0, 5)
+	semantic := semanticInbox{Count: 5, Complete: true, ExternalText: "untrusted escaped"}
+	for index := 1; index <= 5; index++ {
+		threadID := fmt.Sprintf("comment-thread-%d", index)
+		path := fmt.Sprintf("docs/section-%d.md", index)
+		body := fmt.Sprintf("Please make section %d clearer for a first-time reader.", index)
+		response := fmt.Sprintf("Updated section %d with a concrete example.", index)
+		anchor := fmt.Sprintf("source:L%d-%d", index*10, index*10+2)
+		threads = append(threads, commentThreadOutput{
+			ID:     threadID,
+			Path:   path,
+			Anchor: json.RawMessage(fmt.Sprintf(`{"surface":"source","canonical":{"lineStart":%d,"lineEnd":%d}}`, index*10, index*10+2)),
+			Comments: []commentOutput{
+				{Body: body, CreatedBy: actorOutput{Kind: "human"}},
+				{Body: response, CreatedBy: actorOutput{Kind: "codex"}},
+			},
+		})
+		semantic.Threads = append(semantic.Threads, semanticThread{
+			ThreadID: threadID,
+			Path:     path,
+			Anchor:   anchor,
+			Comments: []semanticComment{{Actor: "human", Body: body}, {Actor: "codex", Body: response}},
+		})
+	}
+	var projection bytes.Buffer
+	if err := writeTopLevelInboxItems(&projection, topLevelAgentOptions{}, threads); err != nil {
+		t.Fatal(err)
+	}
+	jsonProjection, err := json.Marshal(semantic)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ratio := float64(projection.Len()) * 100 / float64(len(jsonProjection))
+	t.Logf("equivalent projection bytes: text=%d JSON=%d ratio=%.1f%%", projection.Len(), len(jsonProjection), ratio)
+	if len(projection.Bytes())*100 > len(jsonProjection)*75 {
+		t.Fatalf("projection byte budget regressed: text=%d JSON=%d ratio=%.1f%%", projection.Len(), len(jsonProjection), ratio)
+	}
+}
+
+func TestTopLevelAgentCommandHelpIsCommandSpecific(t *testing.T) {
+	for _, tt := range []struct {
+		command string
+		want    []string
+	}{
+		{command: "servers", want: []string{"vivi servers - identify running Vivi servers", "* means the root contains the current directory", "stale registrations", "servers count=<n> matches=<n>"}},
+		{command: "inbox", want: []string{"vivi inbox - fetch published feedback once", "vivi inbox <url> [--read-as codex|claude]", "The default read is passive."}},
+		{command: "reply", want: []string{"vivi reply - reply to published feedback", "VIVI_ACTOR", "--actor overrides it"}},
+	} {
+		t.Run(tt.command, func(t *testing.T) {
+			var stdout bytes.Buffer
+			if err := runTopLevelAgentCommand(context.Background(), []string{tt.command, "--help"}, &stdout); err != nil {
+				t.Fatalf("%s --help failed: %v", tt.command, err)
+			}
+			for _, want := range tt.want {
+				if !strings.Contains(stdout.String(), want) {
+					t.Fatalf("%s --help missing %q:\n%s", tt.command, want, stdout.String())
+				}
+			}
+		})
+	}
+}
+
+func TestTopLevelServersCommandUsesTheDefaultRegistry(t *testing.T) {
+	t.Setenv("VIVI_DATA_DIR", t.TempDir())
+	var stdout bytes.Buffer
+	if err := runTopLevelAgentCommand(context.Background(), []string{"servers"}, &stdout); err != nil {
+		t.Fatalf("servers failed: %v", err)
+	}
+	if stdout.String() != "servers count=0 matches=0\n" {
+		t.Fatalf("servers output = %q", stdout.String())
+	}
+
+	stdout.Reset()
+	if err := runTopLevelAgentCommand(context.Background(), []string{"servers", "extra"}, &stdout); err == nil || err.Error() != "error: servers accepts no arguments" {
+		t.Fatalf("servers extra argument error = %v", err)
 	}
 }
 
@@ -73,6 +275,7 @@ func TestTopLevelInboxRejectsRemovedResidentFlags(t *testing.T) {
 }
 
 func TestTopLevelReplyCanLeaveOpenResolveAndArchive(t *testing.T) {
+	t.Setenv("VIVI_ACTOR", "")
 	ctx := context.Background()
 	serverURL := newTopLevelAgentTestServer(t)
 
@@ -102,6 +305,26 @@ func TestTopLevelReplyCanLeaveOpenResolveAndArchive(t *testing.T) {
 	assertTopLevelWriteOutput(t, archiveReply.String(), "reply", archivedThread.ID, "codex", "archived")
 }
 
+func TestTopLevelReplyUsesViviActorAndExplicitFlagWins(t *testing.T) {
+	ctx := context.Background()
+	serverURL := newTopLevelAgentTestServer(t)
+
+	t.Setenv("VIVI_ACTOR", "codex")
+	envThread := createTopLevelAgentThread(t, ctx, serverURL, "README.md", "環境変数を使ってください")
+	var envReply bytes.Buffer
+	if err := runTopLevelAgentCommand(ctx, []string{"reply", serverURL, envThread.ID, "--body", "VIVI_ACTOR を使いました。"}, &envReply); err != nil {
+		t.Fatalf("reply with VIVI_ACTOR failed: %v", err)
+	}
+	assertTopLevelWriteOutput(t, envReply.String(), "reply", envThread.ID, "codex", "open")
+
+	overrideThread := createTopLevelAgentThread(t, ctx, serverURL, "docs/intro.md", "明示指定を優先してください")
+	var overrideReply bytes.Buffer
+	if err := runTopLevelAgentCommand(ctx, []string{"reply", serverURL, overrideThread.ID, "--actor", "claude", "--body", "明示指定を使いました。"}, &overrideReply); err != nil {
+		t.Fatalf("reply with explicit actor failed: %v", err)
+	}
+	assertTopLevelWriteOutput(t, overrideReply.String(), "reply", overrideThread.ID, "claude", "open")
+}
+
 func TestTopLevelClaimAndReleaseAreRemovedWithResidentInbox(t *testing.T) {
 	for _, command := range []string{"claim", "release"} {
 		var stdout bytes.Buffer
@@ -114,6 +337,7 @@ func TestTopLevelClaimAndReleaseAreRemovedWithResidentInbox(t *testing.T) {
 }
 
 func TestTopLevelReplyValidationIsNonInteractiveAndActorScoped(t *testing.T) {
+	t.Setenv("VIVI_ACTOR", "")
 	ctx := context.Background()
 	serverURL := newTopLevelAgentTestServer(t)
 	thread := createTopLevelAgentThread(t, ctx, serverURL, "README.md", "お願いします")
@@ -136,7 +360,7 @@ func TestTopLevelReplyValidationIsNonInteractiveAndActorScoped(t *testing.T) {
 		{
 			name: "missing actor",
 			args: []string{"reply", serverURL, thread.ID, "--body", "Fixed."},
-			want: "error: missing required --actor; expected one of: codex, claude",
+			want: "error: missing actor; pass --actor or set VIVI_ACTOR (expected one of: codex, claude)",
 		},
 	}
 

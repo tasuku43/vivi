@@ -1,4 +1,0 @@
-interface:
-  display_name: "Vivi Agent Loop"
-  short_description: "Watch and reply to Vivi browser comments while coding."
-  default_prompt: "Use the Vivi agent loop for this session."

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="ui/public/vivi/brand/vivi-readme.svg" alt="vivi — local review adapter" width="100%" />
+  <img src="ui/public/vivi/brand/vivi-readme.svg" alt="vivi — local workspace review" width="100%" />
 </p>
 
 # Vivi
@@ -8,7 +8,8 @@ The canonical data contract is `server/graphql/schema.graphqls`. Run
 `task generate` to regenerate the Go bindings and infrastructure-private
 TypeScript operation types.
 
-Vivi is a local review adapter between humans and coding agents.
+Vivi is a CLI-launched local workspace review surface for humans working with
+coding agents.
 
 Coding agents write. Humans read, understand the workspace, and give the next
 instruction. Vivi exists for that reading loop: it opens a local directory in a
@@ -63,20 +64,21 @@ running a downloaded binary.
 
 ## Usage
 
-The canonical `vivi` command is the Go CLI/backend. It is the only
-agent-facing CLI path and includes the local server launcher plus
-`review` and `comments` subcommands:
+The canonical `vivi` command is the Go CLI/backend. Its public workflow is the
+local server launcher, running-server discovery, and the synchronous `inbox`
+and `reply` commands:
 
 ```bash
 vivi .
 vivi ./docs
 vivi ./dist --open
 vivi . --ready-json
+vivi servers
 vivi inbox http://127.0.0.1:4317
 vivi inbox http://127.0.0.1:4317 --read-as codex
-vivi reply http://127.0.0.1:4317 <thread-id> --actor codex --body "Fixed."
-vivi reply http://127.0.0.1:4317 <thread-id> --actor codex --resolve --body-file /tmp/vivi-reply.md
-vivi review queue --actor codex --json
+export VIVI_ACTOR=codex
+vivi reply http://127.0.0.1:4317 <thread-id> --body "Fixed."
+vivi reply http://127.0.0.1:4317 <thread-id> --resolve --body-file /tmp/vivi-reply.md
 vivi . --include md,html,ts,tsx,json,css,png,jpg
 vivi . --exclude package-lock.json --exclude '**/generated/**'
 vivi . --exclude 'package-lock.json,snapshots/,**/generated/**'
@@ -110,11 +112,7 @@ OS user config directory:
 
 ```json
 {
-  "exclude": [
-    "package-lock.json",
-    "**/generated/**",
-    "snapshots/"
-  ]
+  "exclude": ["package-lock.json", "**/generated/**", "snapshots/"]
 }
 ```
 
@@ -145,25 +143,51 @@ reply to, resolve, or archive those threads through the CLI and GraphQL API.
 This keeps the human-facing UI visual and low-friction while keeping the
 agent-facing interface structured and deterministic.
 
-For coding agents, the first public surface is the top-level comment pipe:
-`inbox <url>` fetches the currently published open feedback from a specific
-running Vivi server once and exits, and
-`reply <url> <thread-id> --actor codex|claude` writes back. The human can keep
+For coding agents, the first public step is `vivi servers`. It validates the
+registered local servers, removes stale registrations, and emits a compact
+projection such as:
+
+```text
+servers count=2 matches=1 external-text=untrusted escaped
+* "/Users/tasuku/work" http://127.0.0.1:4317
+  "/Users/tasuku/sandbox" http://127.0.0.1:4318
+```
+
+`*` means that the server's canonical workspace root contains the current
+working directory. When exactly one server matches, the agent reuses its URL.
+With multiple matches, or with no match while other servers exist, it asks the
+user which server to use. Only when `count=0` may it consider launching Vivi,
+and only when the intended workspace root is unambiguous.
+
+After discovery, the top-level comment pipe stays explicit: `inbox <url>`
+fetches the currently published open feedback from that running Vivi server
+once and exits, and
+`reply <url> <thread-id>` writes back. Set `VIVI_ACTOR=codex` or
+`VIVI_ACTOR=claude` once in the shell that launches the coding agent; an
+explicit `--actor` overrides it. The human can keep
 drafting in the GUI and Publish when feedback should become agent-visible; the
 agent fetches when asked or when its workflow chooses to refresh. Add
 `--read-as codex` or `--read-as claude` only when the browser should show an
-explicit read receipt. `reply` is
+explicit read receipt. `VIVI_ACTOR` never creates a read receipt. `reply` is
 non-interactive and requires `--body <text>` or `--body-file <path|->`; add
 `--resolve` or `--archive` when the reply should also close the thread. Use
-`review queue` and `review diff` are changed-file context helpers; they are not
+`review queue` and `review diff` as changed-file context helpers; they are not
 the human-feedback intake loop. The deeper `comments` commands remain available
 for adapter authors, compatibility, debugging, protocol inspection, and
-recovery. Resident watch/claim workflows are not the default product path.
+recovery. Resident watch/claim workflows are not the default product path. The
+agent must keep the selected URL unchanged across the initial inbox read, later
+refreshes, and every reply in that feedback pass.
+
+The default inbox output is a compact text projection. It preserves the exact
+thread ID, file anchor, and full conversation without repeating JSON field
+names. External paths, selections, and bodies are quoted and escaped as
+untrusted text. `vivi inbox <url> --json` keeps the older JSON Lines shape for
+compatibility, but that legacy form contains only the latest human body.
 
 ## Product Boundary
 
-Vivi is a local read-only review adapter. It is not an IDE, editor, Git staging
-tool, Git history browser, remote file browser, cloud sync service, hosted
+Vivi is a local, read-only workspace review surface. It is not an IDE, editor,
+Git staging tool, Git history browser, remote file browser, cloud sync service, hosted
 service, task manager, agent runner, or LLM product.
 
 Vivi reads files under the workspace you choose. It does not intentionally write

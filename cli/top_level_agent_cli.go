@@ -8,7 +8,11 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 const supportedSimpleActors = "codex, claude"
@@ -27,6 +31,7 @@ type topLevelAgentOptions struct {
 	Body     string
 	Resolve  bool
 	Archive  bool
+	JSON     bool
 }
 
 type topLevelInboxItem struct {
@@ -47,7 +52,7 @@ type topLevelWriteOutput struct {
 
 func isTopLevelAgentCommand(command string) bool {
 	switch command {
-	case "inbox", "claim", "release", "reply":
+	case "servers", "inbox", "claim", "release", "reply":
 		return true
 	default:
 		return false
@@ -59,6 +64,8 @@ func runTopLevelAgentCommand(ctx context.Context, args []string, stdout io.Write
 		return errors.New("error: missing command")
 	}
 	switch args[0] {
+	case "servers":
+		return runTopLevelServers(ctx, args[1:], stdout)
 	case "inbox":
 		return runTopLevelInbox(ctx, args[1:], stdout)
 	case "claim", "release":
@@ -70,10 +77,38 @@ func runTopLevelAgentCommand(ctx context.Context, args []string, stdout io.Write
 	}
 }
 
+func runTopLevelServers(ctx context.Context, args []string, stdout io.Writer) error {
+	if hasHelpFlag(args) {
+		_, err := fmt.Fprintln(stdout, topLevelServersHelpText())
+		return err
+	}
+	if len(args) != 0 {
+		return errors.New("error: servers accepts no arguments")
+	}
+	registry, err := defaultViviServerRegistry()
+	if err != nil {
+		return fmt.Errorf("error: locate Vivi server registry: %w", err)
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("error: get current directory: %w", err)
+	}
+	servers, err := registry.List(ctx, cwd)
+	if err != nil {
+		return fmt.Errorf("error: list Vivi servers: %w", err)
+	}
+	return writeViviServersProjection(stdout, servers)
+}
+
 func runTopLevelInbox(ctx context.Context, args []string, stdout io.Writer) error {
+	if hasHelpFlag(args) {
+		_, err := fmt.Fprintln(stdout, topLevelInboxHelpText())
+		return err
+	}
 	flags := flag.NewFlagSet("vivi inbox", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	readAs := flags.String("read-as", "", "mark returned threads as read by codex or claude")
+	jsonOutput := flags.Bool("json", false, "emit legacy JSON Lines")
 	flagArgs, positional := splitTopLevelAgentFlagsAndPositionals(args)
 	if err := flags.Parse(flagArgs); err != nil {
 		return err
@@ -82,7 +117,7 @@ func runTopLevelInbox(ctx context.Context, args []string, stdout io.Writer) erro
 	if len(positional) != 1 {
 		return errors.New("error: inbox requires <url>")
 	}
-	options := topLevelAgentOptions{URL: strings.TrimRight(positional[0], "/")}
+	options := topLevelAgentOptions{URL: strings.TrimRight(positional[0], "/"), JSON: *jsonOutput}
 	if err := validateTopLevelURL(options.URL); err != nil {
 		return err
 	}
@@ -97,6 +132,10 @@ func runTopLevelInbox(ctx context.Context, args []string, stdout io.Writer) erro
 }
 
 func runTopLevelReply(ctx context.Context, args []string, stdout io.Writer) error {
+	if hasHelpFlag(args) {
+		_, err := fmt.Fprintln(stdout, topLevelReplyHelpText())
+		return err
+	}
 	options, err := parseTopLevelThreadCommand("reply", args, true)
 	if err != nil {
 		return err
@@ -166,6 +205,12 @@ func parseTopLevelThreadCommand(command string, args []string, allowBody bool) (
 			return topLevelAgentOptions{}, err
 		}
 		options.Actor = actor
+	} else if actorValue := strings.TrimSpace(os.Getenv("VIVI_ACTOR")); actorValue != "" {
+		actor, err := parseSimpleAgentActor(actorValue)
+		if err != nil {
+			return topLevelAgentOptions{}, err
+		}
+		options.Actor = actor
 	}
 	if !allowBody && (strings.TrimSpace(*body) != "" || strings.TrimSpace(*bodyFile) != "" || *resolve || *archive) {
 		return topLevelAgentOptions{}, fmt.Errorf("error: %s does not accept reply body or lifecycle flags", command)
@@ -208,6 +253,13 @@ func topLevelInboxCommentsOptions(options topLevelAgentOptions, cursor string) c
 }
 
 func writeTopLevelInboxItems(stdout io.Writer, options topLevelAgentOptions, threads []commentThreadOutput) error {
+	if options.JSON {
+		return writeTopLevelInboxJSONItems(stdout, options, threads)
+	}
+	return writeTopLevelInboxProjection(stdout, options, threads)
+}
+
+func writeTopLevelInboxJSONItems(stdout io.Writer, options topLevelAgentOptions, threads []commentThreadOutput) error {
 	for _, thread := range threads {
 		item := topLevelInboxItem{Type: "comment", ID: thread.ID, File: thread.Path, Body: latestThreadBody(thread), Action: "reply"}
 		if options.ReadAs.Name != "" {
@@ -218,6 +270,224 @@ func writeTopLevelInboxItems(stdout io.Writer, options topLevelAgentOptions, thr
 		}
 	}
 	return nil
+}
+
+func writeTopLevelInboxProjection(stdout io.Writer, options topLevelAgentOptions, threads []commentThreadOutput) error {
+	if err := validateTopLevelInboxProjection(threads); err != nil {
+		return err
+	}
+	var output strings.Builder
+	fmt.Fprintf(&output, "inbox count=%d", len(threads))
+	if options.ReadAs.Name != "" {
+		fmt.Fprintf(&output, " read-as=%s", options.ReadAs.Name)
+	}
+	if len(threads) == 0 {
+		output.WriteByte('\n')
+		_, err := io.WriteString(stdout, output.String())
+		return err
+	}
+	output.WriteString(" complete=true external-text=untrusted escaped\n")
+	for _, thread := range threads {
+		anchor := topLevelProjectedAnchorFor(thread.Anchor)
+		fmt.Fprintf(&output, "%s %s %s", thread.ID, topLevelQuoted(thread.Path), anchor.Atom)
+		if anchor.Base != "" {
+			fmt.Fprintf(&output, " base=%s", topLevelQuoted(anchor.Base))
+		}
+		if anchor.Selector != "" {
+			fmt.Fprintf(&output, " selector=%s", topLevelQuoted(anchor.Selector))
+		}
+		if anchor.Quote != "" {
+			fmt.Fprintf(&output, " quote=%s", topLevelQuoted(anchor.Quote))
+		}
+		output.WriteByte('\n')
+		for _, comment := range thread.Comments {
+			fmt.Fprintf(&output, "  %s %s\n", topLevelCommentActor(comment.CreatedBy), topLevelQuoted(comment.Body))
+		}
+	}
+	_, err := io.WriteString(stdout, output.String())
+	return err
+}
+
+type topLevelProjectedAnchor struct {
+	Atom     string
+	Base     string
+	Selector string
+	Quote    string
+}
+
+func topLevelProjectedAnchorFor(raw json.RawMessage) topLevelProjectedAnchor {
+	var anchor struct {
+		Surface   string `json:"surface"`
+		Canonical struct {
+			LineStart   int    `json:"lineStart"`
+			LineEnd     int    `json:"lineEnd"`
+			ColumnStart int    `json:"columnStart"`
+			ColumnEnd   int    `json:"columnEnd"`
+			Quote       string `json:"quote"`
+		} `json:"canonical"`
+		Rendered struct {
+			Kind            string `json:"kind"`
+			Selector        string `json:"selector"`
+			TextQuote       string `json:"textQuote"`
+			SourceLineStart int    `json:"sourceLineStart"`
+			SourceLineEnd   int    `json:"sourceLineEnd"`
+		} `json:"rendered"`
+		Diff struct {
+			Base         string `json:"base"`
+			Side         string `json:"side"`
+			OldLineStart int    `json:"oldLineStart"`
+			OldLineEnd   int    `json:"oldLineEnd"`
+			NewLineStart int    `json:"newLineStart"`
+			NewLineEnd   int    `json:"newLineEnd"`
+		} `json:"diff"`
+	}
+	if len(raw) == 0 || json.Unmarshal(raw, &anchor) != nil {
+		return topLevelProjectedAnchor{Atom: "unknown@file"}
+	}
+	prefix := anchor.Surface
+	start, end := anchor.Canonical.LineStart, anchor.Canonical.LineEnd
+	switch anchor.Surface {
+	case "source":
+		prefix = "source"
+	case "rendered":
+		prefix = "rendered"
+		if anchor.Rendered.Kind == "markdown" || anchor.Rendered.Kind == "html" {
+			prefix += "-" + anchor.Rendered.Kind
+		}
+		if start <= 0 {
+			start, end = anchor.Rendered.SourceLineStart, anchor.Rendered.SourceLineEnd
+		}
+	case "diff":
+		prefix = "diff"
+		if anchor.Diff.Side == "old" || anchor.Diff.Side == "new" {
+			prefix += "-" + anchor.Diff.Side
+			if anchor.Diff.Side == "old" && anchor.Diff.OldLineStart > 0 {
+				start, end = anchor.Diff.OldLineStart, anchor.Diff.OldLineEnd
+			}
+			if anchor.Diff.Side == "new" && anchor.Diff.NewLineStart > 0 {
+				start, end = anchor.Diff.NewLineStart, anchor.Diff.NewLineEnd
+			}
+		}
+	default:
+		prefix = "unknown"
+	}
+	projected := topLevelProjectedAnchor{Atom: prefix + topLevelLineAnchor(start, end, anchor.Canonical.ColumnStart, anchor.Canonical.ColumnEnd)}
+	if anchor.Surface == "diff" {
+		projected.Base = anchor.Diff.Base
+	}
+	projected.Quote = anchor.Canonical.Quote
+	if anchor.Surface == "rendered" && anchor.Rendered.TextQuote != "" {
+		projected.Quote = anchor.Rendered.TextQuote
+	}
+	if start <= 0 && anchor.Surface == "rendered" {
+		projected.Selector = anchor.Rendered.Selector
+	}
+	return projected
+}
+
+func topLevelLineAnchor(start, end, columnStart, columnEnd int) string {
+	if start <= 0 {
+		return "@file"
+	}
+	anchor := fmt.Sprintf(":L%d", start)
+	if end > start {
+		anchor += fmt.Sprintf("-%d", end)
+	}
+	if columnStart > 0 {
+		anchor += fmt.Sprintf(":C%d", columnStart)
+		if columnEnd > columnStart {
+			anchor += fmt.Sprintf("-%d", columnEnd)
+		}
+	}
+	return anchor
+}
+
+func topLevelCommentActor(actor actorOutput) string {
+	switch actor.Kind {
+	case "human", "codex":
+		return actor.Kind
+	case "claude_code":
+		return "claude"
+	default:
+		return "unknown"
+	}
+}
+
+func topLevelQuoted(value string) string {
+	return strconv.Quote(topLevelSafeExternalText(value))
+}
+
+func topLevelSafeExternalText(value string) string {
+	var output strings.Builder
+	for _, r := range value {
+		if r == '\\' {
+			output.WriteString(`\\`)
+			continue
+		}
+		if r == '\u2028' || r == '\u2029' {
+			fmt.Fprintf(&output, `\u%04X`, r)
+			continue
+		}
+		if unicode.Is(unicode.C, r) {
+			switch r {
+			case '\t':
+				output.WriteString(`\t`)
+			case '\r':
+				output.WriteString(`\r`)
+			case '\n':
+				output.WriteString(`\n`)
+			default:
+				if r <= 0xffff {
+					fmt.Fprintf(&output, `\u%04X`, r)
+				} else {
+					fmt.Fprintf(&output, `\U%08X`, r)
+				}
+			}
+			continue
+		}
+		output.WriteRune(r)
+	}
+	return output.String()
+}
+
+func validateTopLevelInboxProjection(threads []commentThreadOutput) error {
+	for _, thread := range threads {
+		if !validTopLevelThreadRef(thread.ID) {
+			return fmt.Errorf("error: invalid thread reference %q", thread.ID)
+		}
+		if !utf8.ValidString(thread.Path) {
+			return errors.New("error: inbox path is not valid UTF-8")
+		}
+		anchor := topLevelProjectedAnchorFor(thread.Anchor)
+		for _, value := range []string{anchor.Base, anchor.Selector, anchor.Quote} {
+			if !utf8.ValidString(value) {
+				return errors.New("error: inbox anchor text is not valid UTF-8")
+			}
+		}
+		for _, comment := range thread.Comments {
+			if !utf8.ValidString(comment.Body) {
+				return errors.New("error: inbox comment body is not valid UTF-8")
+			}
+		}
+	}
+	return nil
+}
+
+func validTopLevelThreadRef(value string) bool {
+	if len(value) == 0 || len(value) > 128 || !isTopLevelThreadRefStart(value[0]) {
+		return false
+	}
+	for index := 1; index < len(value); index++ {
+		character := value[index]
+		if !isTopLevelThreadRefStart(character) && character != '.' && character != '_' && character != ':' && character != '-' {
+			return false
+		}
+	}
+	return true
+}
+
+func isTopLevelThreadRefStart(character byte) bool {
+	return character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z' || character >= '0' && character <= '9'
 }
 
 func topLevelCommentsOptions(options topLevelAgentOptions, actor simpleAgentActor) commentsCommandOptions {
@@ -253,7 +523,50 @@ func parseSimpleAgentActor(value string) (simpleAgentActor, error) {
 }
 
 func missingActorError() error {
-	return fmt.Errorf("error: missing required --actor; expected one of: %s", supportedSimpleActors)
+	return fmt.Errorf("error: missing actor; pass --actor or set VIVI_ACTOR (expected one of: %s)", supportedSimpleActors)
+}
+
+func topLevelInboxHelpText() string {
+	return strings.Join([]string{
+		"vivi inbox - fetch published feedback once",
+		"",
+		"Usage:",
+		"  vivi inbox <url> [--read-as codex|claude] [--json]",
+		"",
+		"The default read is passive. It returns the current open snapshot and exits.",
+		"Use --read-as only when Vivi should record a read receipt.",
+		"Use --json for the legacy JSON Lines projection.",
+		"Text output: <thread-id> <quoted-path> <anchor>, followed by indented <actor> <quoted-body> records.",
+	}, "\n")
+}
+
+func topLevelServersHelpText() string {
+	return strings.Join([]string{
+		"vivi servers - identify running Vivi servers",
+		"",
+		"Usage:",
+		"  vivi servers",
+		"",
+		"Lists validated running servers and prunes stale registrations.",
+		"* means the root contains the current directory.",
+		"Text output: servers count=<n> matches=<n>, followed by <marker> <quoted-root> <url> records.",
+	}, "\n")
+}
+
+func topLevelReplyHelpText() string {
+	return strings.Join([]string{
+		"vivi reply - reply to published feedback",
+		"",
+		"Usage:",
+		"  vivi reply <url> <thread-id>",
+		"             (--body <text> | --body-file <path|->)",
+		"             [--resolve | --archive]",
+		"             [--actor codex|claude]",
+		"",
+		"Actor:",
+		"  VIVI_ACTOR sets the default actor; --actor overrides it.",
+		"  export VIVI_ACTOR=codex",
+	}, "\n")
 }
 
 func validateTopLevelURL(rawURL string) error {

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Apply Vivi Feedback"
+  short_description: "Apply published Vivi review feedback."
+  default_prompt: "Use $apply-feedback to apply my published Vivi feedback."
