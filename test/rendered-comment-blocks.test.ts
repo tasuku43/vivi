@@ -249,5 +249,17 @@ line
       width: 312,
       maxHeight: 430,
     });
+
+    expect(
+      positionHtmlRenderedThread(
+        { width: 1200, height: 800 },
+        { left: 280, top: 90, width: 390, height: 650 },
+      ),
+    ).toEqual({
+      left: 304,
+      top: 185,
+      width: 342,
+      maxHeight: 430,
+    });
   });
 });

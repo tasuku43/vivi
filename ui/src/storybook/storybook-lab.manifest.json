@@ -170,6 +170,7 @@
         "Files/HTML Preview States/SinglePreviewDraftFormFixedSlot",
         "Files/HTML Preview States/PreviewMultipleRenderedHtmlLineThreads",
         "Files/HTML Preview States/PreviewDraftComposerReplacesTarget",
+        "Files/HTML Preview States/PreviewDraftOnlyThreadFollowUpKeepsThreadId",
         "Files/HTML Preview States/SourceHtmlComment",
         "Files/Viewer Coverage States/JsonSourceCommentsUseInlineThread",
         "Files/Open File Surface States/HtmlSource",

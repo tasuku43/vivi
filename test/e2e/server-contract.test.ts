@@ -142,8 +142,9 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   expect(previewHtml).toContain("drafting-rendered-comment");
   expect(previewHtml).toContain("rendered-comment-marker");
   expect(previewHtml).toContain(
-    'document.querySelector(`[data-vivi-comment-block-id="${escapeSelectorValue(comment.blockId)}"]`)',
+    "block.dataset.viviCommentBlockId === comment.blockId",
   );
+  expect(previewHtml).not.toContain("escapeSelectorValue");
   expect(previewHtml).toContain("spansMultipleLines");
   expect(previewHtml).toContain('data-vivi-html-theme="dark"');
   expect(previewHtml).toContain("--vivi-rendered-palette:#0b1218");

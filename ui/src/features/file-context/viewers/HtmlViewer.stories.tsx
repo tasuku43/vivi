@@ -1,8 +1,13 @@
+import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import docReaderMockHtml from "../../../../../docs/ui-mocks/02-doc-reader.html?raw";
 import type { ViviComment } from "../../../domain/comments.js";
 import { addRenderedCommentBlockIdsToHtml } from "../../../domain/rendered-comment-blocks.js";
+import {
+  draftReviewCommentAsViviComment,
+  type CommentDraft,
+} from "../../../state/comments.js";
 import {
   commentsForPath,
   humanTasuku,
@@ -241,6 +246,96 @@ export const PreviewKeepsThreadReplyFocused: Story = {
     await expect(
       within(thread).getByText(/HTML rendered comments should be visible/),
     ).toBeVisible();
+  },
+};
+
+export const PreviewDraftOnlyThreadFollowUpKeepsThreadId: Story = {
+  name: "HTML preview continues a just-saved draft thread",
+  tags: ["interaction"],
+  args: {
+    mode: "preview",
+    comments: [],
+    previewSrcDoc: htmlMultiTargetPreviewStoryDocument(sampleFiles.html.path),
+  },
+  render: function HtmlDraftOnlyThreadFollowUpStory(args) {
+    const [comments, setComments] = useState<ViviComment[]>([]);
+    const saveComment = async (
+      draft: CommentDraft,
+      body: string,
+      rect?: { left: number; top: number; width: number; height: number },
+    ) => {
+      await args.onCreateComment?.(draft, body, rect);
+      const id = draft.threadId ? "html-draft-follow-up" : "html-draft-root";
+      const next = draftReviewCommentAsViviComment({
+        id,
+        threadId: draft.threadId,
+        path: draft.path,
+        viewerKind: draft.viewerKind,
+        anchor: draft.anchor,
+        body,
+        source: "human",
+        createdBy: humanTasuku,
+        createdAt: draft.threadId
+          ? "2026-06-25T09:01:00.000Z"
+          : "2026-06-25T09:00:00.000Z",
+        updatedAt: draft.threadId
+          ? "2026-06-25T09:01:00.000Z"
+          : "2026-06-25T09:00:00.000Z",
+      });
+      setComments((current) => [...current, next]);
+    };
+    return (
+      <HtmlViewer {...args} comments={comments} onCreateComment={saveComment} />
+    );
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const frame = await waitForHtmlStoryFrame(
+      canvasElement,
+      sampleFiles.html.path,
+    );
+    await waitForHtmlPreviewReady(frame, sampleFiles.html.path);
+
+    clickHtmlStoryBlockId(frame, "html-preview-p-1", { altKey: true });
+    const firstBody = "First pending note from the HTML preview.";
+    await userEvent.type(
+      await canvas.findByLabelText("New line comment"),
+      firstBody,
+    );
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Save pending draft comment" }),
+    );
+
+    await expect(canvas.findByText(firstBody)).resolves.toBeVisible();
+    const followUpInput = await canvas.findByLabelText("Continue thread");
+    await expect(followUpInput).toBeVisible();
+    const viewer = canvasElement.querySelector<HTMLElement>(".html-viewer");
+    const threadHost = canvasElement.querySelector<HTMLElement>(
+      ".html-rendered-comment-thread-host",
+    );
+    await expect(viewer).toBeInTheDocument();
+    await expect(threadHost).toBeInTheDocument();
+    expect(threadHost!.getBoundingClientRect().right).toBeLessThanOrEqual(
+      viewer!.getBoundingClientRect().right + 1,
+    );
+
+    const followUpBody = "Second pending note in the same HTML thread.";
+    await userEvent.type(followUpInput, followUpBody);
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Add follow-up" }),
+    );
+
+    const calls = (
+      args.onCreateComment as unknown as {
+        mock: { calls: Array<[CommentDraft, string]> };
+      }
+    ).mock.calls;
+    await expect(calls).toHaveLength(2);
+    await expect(calls[0]?.[0].threadId).toBeUndefined();
+    await expect(calls[1]?.[0].threadId).toMatch(
+      /^draft-thread:html-draft-root:/,
+    );
+    await expect(calls[1]?.[1]).toBe(followUpBody);
   },
 };
 

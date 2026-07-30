@@ -6,8 +6,11 @@ import type { FilePayload } from "../../../domain/fs-node.js";
 import { renderedCommentBlocksForHtml } from "../../../domain/rendered-comment-blocks.js";
 import type { CommentActivitySummary } from "../../../state/comment-activity.js";
 import {
+  codeCommentThreads,
   lineRangeForQuote,
   latestPublishedStatus,
+  matchingDraftPreviewThread,
+  matchingOpenThreadForDraft,
   renderedCommentDraft,
   sourceTextForLineRange,
   visibleThreadComments,
@@ -112,6 +115,7 @@ export function HtmlViewer({
     html: string;
   } | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const viewerRef = useRef<HTMLElement | null>(null);
   const mode =
     controlledMode === "source" || controlledMode === "preview"
       ? controlledMode
@@ -293,16 +297,36 @@ export function HtmlViewer({
       setRenderedThreadPosition(null);
       return;
     }
-    const update = () =>
+    const update = () => {
+      const viewerRect = viewerRef.current?.getBoundingClientRect();
       setRenderedThreadPosition(
-        positionHtmlRenderedThread({
-          width: window.innerWidth,
-          height: window.innerHeight,
-        }),
+        positionHtmlRenderedThread(
+          {
+            width: window.innerWidth,
+            height: window.innerHeight,
+          },
+          viewerRect
+            ? {
+                left: viewerRect.left,
+                top: viewerRect.top,
+                width: viewerRect.width,
+                height: viewerRect.height,
+              }
+            : undefined,
+        ),
       );
+    };
     update();
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(() => update());
+    if (viewerRef.current) observer?.observe(viewerRef.current);
     window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", update);
+    };
   }, [renderedThreadTargets]);
 
   const openRenderedDraft = (
@@ -396,13 +420,15 @@ export function HtmlViewer({
       target,
       visibleRenderedComments,
     );
-    const thread = renderedThreadModel(file.path, target.draft, threadComments);
     const threadId =
-      thread.comments[0]?.threadId ??
-      thread.comments[0]?.id ??
+      threadComments[0]?.threadId ??
+      threadComments[0]?.id ??
       target.draft.threadId;
+    const replyDraft = threadId ? { ...target.draft, threadId } : target.draft;
+    const thread = renderedThreadModel(file.path, replyDraft, threadComments);
     const key = renderedHtmlThreadTargetKey(file.path, target);
     return {
+      draft: replyDraft,
       key,
       position: renderedThreadPosition,
       target,
@@ -412,7 +438,7 @@ export function HtmlViewer({
   });
 
   return (
-    <section className={`${surfaceStyles.viewer} html-viewer`}>
+    <section ref={viewerRef} className={`${surfaceStyles.viewer} html-viewer`}>
       <ViewerToolbar
         status={`sandboxed · scripts ${allowHtmlScripts ? "on" : "off"}`}
       >
@@ -519,7 +545,7 @@ export function HtmlViewer({
             <CodeCommentThread
               className="rendered-comment-thread html-rendered-comment-thread"
               thread={entry.thread}
-              draft={entry.target.draft}
+              draft={entry.draft}
               activity={
                 entry.threadId ? threadActivities[entry.threadId] : undefined
               }
@@ -638,14 +664,30 @@ function commentsForRenderedHtmlTarget(
   target: { blockIds: string[]; draft: CommentDraft },
   comments: ViviComment[],
 ): ViviComment[] {
+  const renderedHtmlComments = comments.filter(
+    (comment) =>
+      comment.path === target.draft.path &&
+      comment.anchor.surface === "rendered" &&
+      comment.anchor.rendered?.kind === "html",
+  );
   if (target.draft.threadId) {
-    return comments
+    return renderedHtmlComments
       .filter(
         (comment) => (comment.threadId ?? comment.id) === target.draft.threadId,
       )
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
-  return [];
+  const draftThread = matchingDraftPreviewThread(
+    codeCommentThreads(renderedHtmlComments),
+    renderedThreadModel(target.draft.path, target.draft, []),
+  );
+  const openThread =
+    draftThread ??
+    matchingOpenThreadForDraft(
+      codeCommentThreads(renderedHtmlComments),
+      target.draft,
+    );
+  return openThread?.comments ?? [];
 }
 
 function renderedThreadModel(
@@ -678,16 +720,28 @@ function renderedHtmlThreadTargetKey(
     : JSON.stringify([path, lineStart, lineEnd, target.blockIds.join("|")]);
 }
 
-export function positionHtmlRenderedThread(viewport: {
-  width: number;
-  height: number;
-}): HtmlRenderedThreadPosition {
+export function positionHtmlRenderedThread(
+  viewport: {
+    width: number;
+    height: number;
+  },
+  container?: DOMRectLike,
+): HtmlRenderedThreadPosition {
   const margin = 24;
-  const width = Math.min(520, Math.max(300, viewport.width - margin * 2));
+  const bounds = container ?? {
+    left: 0,
+    top: 0,
+    width: viewport.width,
+    height: viewport.height,
+  };
+  const width = Math.min(520, Math.max(300, bounds.width - margin * 2));
   const maxHeight = Math.max(220, viewport.height - margin * 2);
   const preferredHeight = Math.min(430, maxHeight);
   return {
-    left: Math.max(margin, viewport.width - width - margin),
+    left: Math.max(
+      bounds.left + margin,
+      bounds.left + bounds.width - width - margin,
+    ),
     top: Math.min(
       Math.max((viewport.height - preferredHeight) / 2, margin),
       viewport.height - margin - Math.min(preferredHeight, maxHeight),

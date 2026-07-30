@@ -1713,7 +1713,7 @@ function injectHtmlPreviewRuntime(
         })
       : [];
     if (comment.blockId) {
-      const byBlock = document.querySelector(\`[data-vivi-comment-block-id="\${escapeSelectorValue(comment.blockId)}"]\`);
+      const byBlock = commentableBlocks().find((block) => block.dataset.viviCommentBlockId === comment.blockId) ?? null;
       const closest = byBlock ? closestBlock(byBlock) : null;
       if (closest) {
         const spansMultipleLines = Number.isInteger(comment.sourceLineStart) && Number.isInteger(comment.sourceLineEnd) && comment.sourceLineEnd > comment.sourceLineStart;
