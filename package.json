@@ -52,7 +52,7 @@
     "check": "npm run generate:ui-graphql && npm run validate:scaffold && npm run security:policy && npm run lint && npm run test:architecture && npm run dead-code && npm run storybook:verify && npm run storybook:snapshots:verify && npm run typecheck && npm run test && npm run eval && npm run build && npm run build:go && npm run e2e && npm run build:storybook && npm run test:go"
   },
   "dependencies": {
-    "graphql": "^16.14.2",
+    "graphql": "^17.0.2",
     "marked": "18.0.6",
     "mermaid": "^11.16.0",
     "react": "19.2.7",
