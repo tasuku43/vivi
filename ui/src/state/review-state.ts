@@ -11,8 +11,6 @@ export type ReviewFileState = "queued" | "reviewing" | "reviewed";
 export type {
   AcceptedReviewEntry,
   ReviewDecisionEntry,
-  ReviewDecisionReason,
-  ReviewLedgerSnapshot,
   ReviewReceiptEntry,
   ReviewReceiptReason,
 } from "../domain/review-ledger.js";
