@@ -232,6 +232,23 @@ it("can show the same file in two split panes", () => {
   ]);
 });
 
+it("does not let a late preview response downgrade a normal tab", () => {
+  const file: FilePayload = {
+    path: "README.md",
+    viewerKind: "markdown",
+    encoding: "utf8",
+    content: "# Hello",
+    etag: "sha256:test",
+    size: 7,
+    mtimeMs: 1,
+  };
+
+  const normal = upsertOpenTab([], file, "main", "normal");
+  const afterLatePreview = upsertOpenTab(normal, file, "main", "preview");
+
+  expect(afterLatePreview[0]?.isPreview).not.toBe(true);
+});
+
 it("prepares Review Queue opens by clearing stale viewer state", () => {
   const layout = setPaneActivePath(initialEditorLayout, "main", "README.md");
   const transition = reviewQueueOpenTransition({
@@ -264,6 +281,13 @@ it("detects when active comments are already rendered inside the viewer", () => 
       canonical: {},
     },
   };
+  const renderedHtmlComment = {
+    anchor: {
+      surface: "rendered" as const,
+      canonical: { lineStart: 4 },
+      rendered: { kind: "html" as const },
+    },
+  };
 
   expect(
     activeCommentRendersInViewerThread({
@@ -281,6 +305,14 @@ it("detects when active comments are already rendered inside the viewer", () => 
       viewerMode: "preview",
     }),
   ).toBe(false);
+  expect(
+    activeCommentRendersInViewerThread({
+      comment: renderedHtmlComment,
+      diffEnabled: false,
+      viewerKind: "html",
+      viewerMode: "preview",
+    }),
+  ).toBe(true);
   expect(
     activeCommentRendersInViewerThread({
       comment: sourceComment,
@@ -876,6 +908,22 @@ it("selects a neighboring tab when the active tab closes", () => {
 
   expect(result.tabs.map((tab) => tab.path)).toEqual(["a.md", "c.ts"]);
   expect(result.nextActivePath).toBe("a.md");
+});
+
+it("keeps the active tab selected when an inactive tab closes", () => {
+  const result = closeOpenTab(
+    [
+      { path: "README.md", viewerKind: "markdown", paneId: "main" },
+      { path: "index.html", viewerKind: "html", paneId: "main" },
+    ],
+    "README.md",
+    "index.html",
+  );
+
+  expect(result).toEqual({
+    tabs: [{ path: "index.html", viewerKind: "html", paneId: "main" }],
+    nextActivePath: "index.html",
+  });
 });
 
 it("maps workspace keyboard shortcuts to app actions", () => {

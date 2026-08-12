@@ -124,10 +124,12 @@ import {
 import {
   activeCommentRendersInViewerThread,
   commentAnchorThreadKey,
+  commentLineLabelForAnchor,
   draftReviewCommentAsViviComment,
   visibleThreadComments,
   type CommentDraft,
 } from "../../state/comments.js";
+import type { CommentInputSession } from "../../state/comment-input-session.js";
 import {
   activeTextSearchResult,
   codeSelectionForTextSearchTarget,
@@ -652,6 +654,23 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     await openReviewTarget(target, "normal");
   }
 
+  async function resumeCommentInput(session: CommentInputSession) {
+    const paneId = layout.activePaneId;
+    setDiffEnabled(false);
+    setViewerModes((modes) => ({
+      ...modes,
+      [session.draft.path]:
+        session.draft.anchor.surface === "source" ? "source" : "rendered",
+    }));
+    const payload = await loadFile(session.draft.path, paneId, "normal");
+    commentInputs.start(session.draft, session.rect);
+    const lineNumber = session.draft.anchor.canonical.lineStart;
+    if (lineNumber && session.draft.anchor.surface === "source") {
+      focusSourceLine(paneId, lineNumber);
+    }
+    return payload;
+  }
+
   const panes = useMemo(() => flattenPanes(layout), [layout]);
   const activePane =
     panes.find((pane) => pane.id === layout.activePaneId) ?? panes[0];
@@ -670,6 +689,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         : [],
     [comments, selectedPath],
   );
+  const resumableCommentInput = [...commentInputs.sessions]
+    .reverse()
+    .find((session) => session.status === "collapsed" && session.body.trim());
   const quickOpenRecentFiles = useMemo<RecentFileSearchResult[]>(() => {
     const seen = new Set<string>();
     const candidates: RecentFileSearchResult[] = [];
@@ -1075,6 +1097,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   useEffect(() => {
     activeFilePaths.current = activePanePaths(panes);
   }, [panes]);
+
+  useEffect(() => {
+    if (inspectorCollapsedByViewport) setCompactInspectorOpen(false);
+  }, [inspectorCollapsedByViewport, selectedPath]);
 
   useEffect(() => {
     commentsRef.current = comments;
@@ -2615,6 +2641,16 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                     session.body.trim(),
                   ).length
                 }
+                resumableInput={
+                  resumableCommentInput
+                    ? {
+                        path: resumableCommentInput.draft.path,
+                        location: commentLineLabelForAnchor(
+                          resumableCommentInput.draft.anchor.canonical,
+                        ),
+                      }
+                    : null
+                }
                 commentsLoading={commentsLoading}
                 knownMissingCommentPaths={knownMissingCommentPathSet}
                 threadActivities={commentActivitySummaries}
@@ -2629,6 +2665,14 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                   void publishDraftReviewComments(draftIds).catch((err) =>
                     setError(String(err)),
                   )
+                }
+                onResumeInput={
+                  resumableCommentInput
+                    ? () =>
+                        void resumeCommentInput(resumableCommentInput).catch(
+                          (err) => setError(String(err)),
+                        )
+                    : undefined
                 }
                 onCommentStatusChange={(id, status) =>
                   void updateCommentStatus(id, status).catch((err) =>

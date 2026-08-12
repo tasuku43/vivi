@@ -61,6 +61,10 @@ interface Props {
   reviewComments?: ViviComment[];
   draftComments?: DraftReviewComment[];
   unsavedInputCount?: number;
+  resumableInput?: {
+    path: string;
+    location: string;
+  } | null;
   commentsLoading?: boolean;
   knownMissingCommentPaths?: ReadonlySet<string>;
   threadActivities?: Record<string, CommentActivitySummary>;
@@ -84,6 +88,7 @@ interface Props {
   onOpenComment?: (comment: ViviComment) => void;
   onOpenDraft?: (draft: DraftReviewComment) => void;
   onPublishDrafts?: (draftIds?: string[]) => void | Promise<void>;
+  onResumeInput?: () => void;
   onCommentStatusChange?: (threadId: string, status: CommentStatus) => void;
 }
 
@@ -107,6 +112,7 @@ export function Inspector({
   reviewComments = comments,
   draftComments = [],
   unsavedInputCount = 0,
+  resumableInput = null,
   knownMissingCommentPaths = emptyMissingCommentPaths,
   threadActivities = {},
   activeCommentId = null,
@@ -118,6 +124,7 @@ export function Inspector({
   onOpenComment,
   onOpenDraft,
   onPublishDrafts,
+  onResumeInput,
 }: Props) {
   const hiddenReviewThreads = summarizeActiveThreads(reviewComments).filter(
     (thread) =>
@@ -521,11 +528,23 @@ export function Inspector({
       <div className="inspect-body">
         <div className="inspector-review-mode">
           {unsavedInputCount ? (
-            <p className="review-unsaved-input-summary" role="status">
-              <strong>{unsavedInputCount}</strong>{" "}
-              {unsavedInputCount === 1 ? "input" : "inputs"} in progress
-              <span>Not included in Publish until saved.</span>
-            </p>
+            <div className="review-unsaved-input-summary" role="status">
+              <p>
+                <strong>{unsavedInputCount}</strong>{" "}
+                {unsavedInputCount === 1 ? "input" : "inputs"} in progress
+                <span>Not included in Publish until saved.</span>
+              </p>
+              {resumableInput && onResumeInput ? (
+                <button
+                  type="button"
+                  aria-label={`Resume input in ${resumableInput.path}, ${resumableInput.location}`}
+                  onClick={onResumeInput}
+                >
+                  Resume {basenameForPath(resumableInput.path)} ·{" "}
+                  {resumableInput.location}
+                </button>
+              ) : null}
+            </div>
           ) : null}
           <section className="review-state-summary" aria-label="Review states">
             {reviewStateSections.map((section) => (

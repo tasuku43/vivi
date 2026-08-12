@@ -90,11 +90,13 @@
         "Review/Queue States/InReviewFileThreadExpansion",
         "Review/Queue States/InReviewReadReceiptPlayground",
         "Review/Queue States/ReviewQueueItemWithLatestAgentActivity",
+        "Review/Queue States/UnsavedInputCanResume",
         "Review/Queue States/GitReviewUnavailable",
         "Review/Activity States/CommentsWatchDisconnected"
       ],
       "interactionStories": [
         "Review/Queue States/InReviewFileThreadExpansionInteraction",
+        "Review/Queue States/UnsavedInputCanResume",
         "Workspace/Workbench States/InspectorThreadClickOpensRenderedMarkdownThread"
       ]
     },

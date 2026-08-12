@@ -6,6 +6,7 @@ import type { FilePayload } from "../../../domain/fs-node.js";
 import { renderedCommentBlocksForHtml } from "../../../domain/rendered-comment-blocks.js";
 import type { CommentActivitySummary } from "../../../state/comment-activity.js";
 import {
+  commentAnchorThreadKey,
   codeCommentThreads,
   lineRangeForQuote,
   latestPublishedStatus,
@@ -407,6 +408,23 @@ export function HtmlViewer({
   ]);
 
   const closeRenderedThreadTarget = (key: string) => {
+    const closingTarget = renderedThreadTargets.find(
+      (target) => renderedHtmlThreadTargetKey(file.path, target) === key,
+    );
+    if (closingTarget) {
+      const closingAnchorKey = commentAnchorThreadKey(
+        file.path,
+        closingTarget.draft.anchor,
+      );
+      for (const session of commentInputs.sessions) {
+        if (
+          commentAnchorThreadKey(session.draft.path, session.draft.anchor) ===
+          closingAnchorKey
+        ) {
+          commentInputs.collapse(session.id);
+        }
+      }
+    }
     setRenderedThreadTargets((items) =>
       items.filter(
         (item) => renderedHtmlThreadTargetKey(file.path, item) !== key,

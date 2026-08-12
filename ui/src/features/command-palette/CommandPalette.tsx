@@ -1,5 +1,5 @@
 import type { KeyboardEvent } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { SearchPaletteMode } from "../../state/search-palette.js";
 import {
   buildCommandActionItems,
@@ -24,6 +24,11 @@ import type {
 } from "../../domain/search.js";
 import fileIconStyles from "../../shared/components/FileIcon.module.css";
 import sharedUiStyles from "../../shared/styles/SharedUi.module.css";
+import {
+  focusModalEntry,
+  restoreModalFocus,
+  trapModalTab,
+} from "../../shared/components/modal-focus.js";
 import styles from "./CommandPalette.module.css";
 
 interface Props {
@@ -60,6 +65,9 @@ export function CommandPalette({
   onRunAction,
 }: Props) {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const paletteRef = useRef<HTMLElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   const hasActionMode = actions.length > 0 || mode === "action";
   const availableModes = useMemo<SearchPaletteMode[]>(
     () => (hasActionMode ? ["file", "text", "action"] : ["file", "text"]),
@@ -75,6 +83,16 @@ export function CommandPalette({
   useEffect(() => {
     if (open) setSelectedIndex(0);
   }, [mode, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    returnFocusRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    focusModalEntry(paletteRef.current, inputRef.current);
+    return () => restoreModalFocus(returnFocusRef.current);
+  }, [open]);
 
   if (!open) return null;
 
@@ -124,10 +142,13 @@ export function CommandPalette({
   return (
     <div className={styles.overlay} role="presentation" onClick={onClose}>
       <section
+        ref={paletteRef}
         className={styles.palette}
         role="dialog"
+        aria-modal="true"
         aria-label={title}
         onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => trapModalTab(event, paletteRef.current)}
       >
         <div className={styles.top}>
           <div
@@ -170,7 +191,7 @@ export function CommandPalette({
             ) : null}
           </div>
           <input
-            autoFocus
+            ref={inputRef}
             className={styles.input}
             placeholder={placeholder}
             value={query}
@@ -317,9 +338,7 @@ export function CommandPalette({
                 </div>
                 <div>
                   <span>Search text</span>
-                  <kbd className={sharedUiStyles.keycap}>
-                    Cmd/Ctrl Shift F
-                  </kbd>
+                  <kbd className={sharedUiStyles.keycap}>Cmd/Ctrl Shift F</kbd>
                 </div>
               </>
             ) : (
@@ -338,9 +357,7 @@ export function CommandPalette({
                 </div>
                 <div>
                   <span>Search text</span>
-                  <kbd className={sharedUiStyles.keycap}>
-                    Cmd/Ctrl Shift F
-                  </kbd>
+                  <kbd className={sharedUiStyles.keycap}>Cmd/Ctrl Shift F</kbd>
                 </div>
               </>
             )}

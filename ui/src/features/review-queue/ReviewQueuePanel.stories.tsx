@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, fn, userEvent, within } from "storybook/test";
 import type { ReviewChangeItem } from "../../state/git-review.js";
 import { summarizeThreadActivity } from "../../state/comment-activity.js";
 import {
@@ -26,6 +26,7 @@ import sharedUiStyles from "../../shared/styles/SharedUi.module.css";
 import { Inspector } from "./Inspector.js";
 
 const noop = () => undefined;
+const resumeUnsavedInput = fn();
 const staleThreadOnlyComment = {
   ...sampleComments[0]!,
   id: "stale-thread-only-comment",
@@ -201,6 +202,29 @@ export const ReviewQueueItemWithPendingDrafts: Story = {
         name: /Show \d+ pending for/,
       }),
     ).toBeVisible();
+  },
+};
+
+export const UnsavedInputCanResume: Story = {
+  name: "Collapsed unsaved input can be resumed",
+  tags: ["interaction"],
+  args: {
+    unsavedInputCount: 2,
+    resumableInput: {
+      path: sampleFiles.markdown.path,
+      location: "Line 7",
+    },
+    onResumeInput: resumeUnsavedInput,
+  },
+  play: async ({ canvasElement }) => {
+    resumeUnsavedInput.mockClear();
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole("button", {
+        name: `Resume input in ${sampleFiles.markdown.path}, Line 7`,
+      }),
+    );
+    await expect(resumeUnsavedInput).toHaveBeenCalledOnce();
   },
 };
 

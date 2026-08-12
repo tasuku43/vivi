@@ -28,12 +28,7 @@ export function upsertOpenTab(
             viewerKind: file.viewerKind,
             changed: false,
             removed: false,
-            isPreview:
-              mode === "normal"
-                ? false
-                : mode === "preview"
-                  ? tab.isPreview !== false
-                  : tab.isPreview,
+            isPreview: mode === "normal" ? false : tab.isPreview,
           }
         : tab,
     );

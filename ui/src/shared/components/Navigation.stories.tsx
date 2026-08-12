@@ -257,17 +257,47 @@ export const Tabs: Story = {
 
 export const ShortcutHelpOverlay: Story = {
   name: "Shortcut help overlay is open",
-  render: () => <ShortcutHelp open onClose={() => undefined} />,
+  render: () => <ShortcutHelpHarness />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    const trigger = canvas.getByRole("button", {
+      name: "Show keyboard shortcuts",
+    });
+    await userEvent.click(trigger);
+    const close = canvas.getByRole("button", {
+      name: "Close keyboard shortcuts",
+    });
+    await waitFor(() => expect(close).toHaveFocus());
+    await userEvent.tab();
+    await expect(close).toHaveFocus();
     await expect(canvas.getByText("Open next in-review reply")).toBeVisible();
     await expect(canvas.getByText("Return to current thread")).toBeVisible();
     await expect(
       canvas.getByText("Resolve / reopen current thread"),
     ).toBeVisible();
     await expect(canvas.getByText("Archive current thread")).toBeVisible();
+    await userEvent.click(close);
+    await waitFor(() => expect(trigger).toHaveFocus());
+    await userEvent.click(trigger);
+    await waitFor(() =>
+      expect(
+        canvas.getByRole("button", { name: "Close keyboard shortcuts" }),
+      ).toHaveFocus(),
+    );
   },
 };
+
+function ShortcutHelpHarness() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        Show keyboard shortcuts
+      </button>
+      <ShortcutHelp open={open} onClose={() => setOpen(false)} />
+    </>
+  );
+}
 
 export const Statusbar: Story = {
   name: "Statusbar summarizes watchers, tabs, and server state",

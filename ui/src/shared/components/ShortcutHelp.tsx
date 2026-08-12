@@ -1,3 +1,9 @@
+import { useEffect, useRef } from "react";
+import {
+  focusModalEntry,
+  restoreModalFocus,
+  trapModalTab,
+} from "./modal-focus.js";
 import styles from "./ShortcutHelp.module.css";
 import sharedUiStyles from "../styles/SharedUi.module.css";
 
@@ -71,11 +77,26 @@ interface ShortcutHelpProps {
 }
 
 export function ShortcutHelp({ open, onClose }: ShortcutHelpProps) {
+  const panelRef = useRef<HTMLElement | null>(null);
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    returnFocusRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    focusModalEntry(panelRef.current, closeRef.current);
+    return () => restoreModalFocus(returnFocusRef.current);
+  }, [open]);
+
   if (!open) return null;
 
   return (
     <div className={styles.overlay} role="presentation" onClick={onClose}>
       <section
+        ref={panelRef}
         className={styles.panel}
         role="dialog"
         aria-modal="true"
@@ -83,6 +104,7 @@ export function ShortcutHelp({ open, onClose }: ShortcutHelpProps) {
         aria-labelledby="shortcut-help-title"
         aria-describedby="shortcut-help-description"
         onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => trapModalTab(event, panelRef.current)}
       >
         <div className={styles.header}>
           <div>
@@ -97,6 +119,7 @@ export function ShortcutHelp({ open, onClose }: ShortcutHelpProps) {
             </p>
           </div>
           <button
+            ref={closeRef}
             type="button"
             className={styles.close}
             aria-label="Close keyboard shortcuts"

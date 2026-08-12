@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, fn, userEvent, within } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import { sampleFiles } from "../../storybook/fixtures/review-lab.js";
 import { CommandPalette } from "./CommandPalette.js";
 
@@ -67,7 +67,9 @@ export const QuickOpen: Story = {
     await expect(
       canvas.getByRole("dialog", { name: "Quick open" }),
     ).toBeInTheDocument();
-    await userEvent.type(canvas.getByLabelText("Quick open query"), "-new");
+    const input = canvas.getByLabelText("Quick open query");
+    await waitFor(() => expect(input).toHaveFocus());
+    await userEvent.type(input, "-new");
     await expect(args.onQueryChange).toHaveBeenCalled();
     await userEvent.keyboard("{Enter}");
     await expect(args.onOpenPath).toHaveBeenCalledWith(
@@ -117,6 +119,9 @@ export const Actions: Story = {
     await expect(
       canvas.getByRole("dialog", { name: "Run command" }),
     ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(canvas.getByLabelText("Run command query")).toHaveFocus(),
+    );
     await userEvent.keyboard("{Enter}");
     await expect(args.onRunAction).toHaveBeenCalledWith("next-open-thread");
   },

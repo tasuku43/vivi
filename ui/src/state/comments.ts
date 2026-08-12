@@ -88,6 +88,14 @@ export function activeCommentRendersInViewerThread({
 }): boolean {
   if (diffEnabled || !comment || !viewerKind) return false;
   if (viewerKind === "markdown" && viewerMode === "rendered") return true;
+  if (
+    viewerKind === "html" &&
+    viewerMode === "preview" &&
+    comment.anchor.surface === "rendered" &&
+    comment.anchor.rendered?.kind === "html"
+  ) {
+    return true;
+  }
   if (!comment.anchor.canonical.lineStart) return false;
   if (viewerKind === "code") return true;
   if (viewerKind === "markdown" && viewerMode === "source") return true;
