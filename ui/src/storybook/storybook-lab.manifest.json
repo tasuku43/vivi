@@ -77,7 +77,8 @@
       "stage": "wired-feature",
       "intent": "Connect the approved document-first hierarchy to the active file, outline, feedback, drafts, and optional change evidence used by the real workbench.",
       "reviewFocus": [
-        "the current document is more prominent than repository-wide review state",
+        "the repository-wide review queue remains the default work surface",
+        "the current document inspector remains directly reachable from the queue and can return to review",
         "outline and feedback navigate the real active document",
         "Changes remains an explicit optional lens",
         "double-click commenting guidance leaves single-click and drag for reading"

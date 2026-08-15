@@ -323,8 +323,9 @@ export const PreviewDraftOnlyThreadFollowUpKeepsThreadId: Story = {
       canvas.getByRole("button", { name: "Add follow-up" }),
     );
     await waitFor(() =>
-      expect(canvas.queryByLabelText("Continue thread")).toBeNull(),
+      expect(canvas.getByLabelText("Continue thread")).toHaveValue(""),
     );
+    await expect(canvas.getByLabelText("Continue thread")).toHaveFocus();
 
     const calls = (
       args.onCreateComment as unknown as {

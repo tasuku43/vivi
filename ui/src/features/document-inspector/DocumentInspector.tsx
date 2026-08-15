@@ -33,6 +33,8 @@ export interface DocumentInspectorProps {
   onPublishDrafts?: (draftIds?: string[]) => void | Promise<void>;
   onResumeInput?: () => void;
   onToggleChanges?: () => void;
+  reviewQueueCount?: number;
+  onOpenReviewQueue?: () => void;
 }
 
 export function DocumentInspector({
@@ -55,6 +57,8 @@ export function DocumentInspector({
   onPublishDrafts,
   onResumeInput,
   onToggleChanges,
+  reviewQueueCount = 0,
+  onOpenReviewQueue,
 }: DocumentInspectorProps) {
   const documentDrafts = file
     ? draftComments.filter((draft) => draft.path === file.path)
@@ -72,7 +76,19 @@ export function DocumentInspector({
     >
       <header className={styles.header}>
         <span>Document</span>
-        <strong>{file ? formatKind(file.viewerKind) : "No document"}</strong>
+        <div className={styles.headerActions}>
+          <strong>{file ? formatKind(file.viewerKind) : "No document"}</strong>
+          {onOpenReviewQueue ? (
+            <button
+              className={styles.surfaceSwitch}
+              type="button"
+              aria-label={`Open review queue${reviewQueueCount ? `, ${reviewQueueCount} items` : ""}`}
+              onClick={onOpenReviewQueue}
+            >
+              Review{reviewQueueCount ? ` ${reviewQueueCount}` : ""}
+            </button>
+          ) : null}
+        </div>
       </header>
 
       <div className={styles.body}>

@@ -271,6 +271,10 @@ export const RenderedSameAnchorFollowUpKeepsThreadId: Story = {
       threadId: "thread-agents-l1",
     });
     await expect(calls.at(-1)?.[1]).toBe(followUp);
+    await expect(canvas.getByLabelText("Continue thread")).toHaveValue("");
+    await waitFor(() =>
+      expect(canvas.getByLabelText("Continue thread")).toHaveFocus(),
+    );
   },
 };
 

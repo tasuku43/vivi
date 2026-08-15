@@ -33,6 +33,7 @@ it("restores Source input after reload and clears its composer after publish", a
   await page.goto(server.url);
 
   await page.locator('[data-tree-path="README.md"]').click();
+  await page.getByRole("button", { name: "Document" }).click();
   await page.getByRole("button", { name: "Source", exact: true }).click();
   await page.getByRole("button", { name: "Add comment on line 1" }).click();
   await page
@@ -87,6 +88,7 @@ it("deletes a saved pending comment before publish", async () => {
   await page.goto(server.url);
 
   await page.locator('[data-tree-path="README.md"]').click();
+  await page.getByRole("button", { name: "Document" }).click();
   await page.getByRole("button", { name: "Source", exact: true }).click();
   await page.getByRole("button", { name: "Add comment on line 1" }).click();
   await page
@@ -130,6 +132,7 @@ it("closes a saved HTML composer and reopens its pending thread on demand", asyn
   await page.goto(server.url);
 
   await page.locator('[data-tree-path="index.html"]').click();
+  await page.getByRole("button", { name: "Document" }).click();
   const previewFrame = page.frameLocator('iframe[title="index.html"]');
   await previewFrame.getByText("HTML Fixture", { exact: true }).dblclick();
 
@@ -165,12 +168,21 @@ it("closes a saved HTML composer and reopens its pending thread on demand", asyn
 
   const secondBody = "Second pending note in the same HTML thread.";
   await followUp.fill(secondBody);
-  await page.getByRole("button", { name: "Add follow-up" }).click();
+  await followUp.press("Control+Enter");
 
   await expect
-    .poll(() => page.getByText(secondBody, { exact: true }).count())
+    .poll(() =>
+      page
+        .getByRole("article", { name: "Comment thread for line 4" })
+        .getByText(secondBody, { exact: true })
+        .count(),
+    )
     .toBe(1);
-  await expect.poll(() => followUp.count()).toBe(0);
+  await expect.poll(() => followUp.count()).toBe(1);
+  await expect.poll(() => followUp.inputValue()).toBe("");
+  await expect
+    .poll(() => followUp.evaluate((node) => node === document.activeElement))
+    .toBe(true);
   await expect
     .poll(() =>
       page.getByRole("button", { name: "Publish all 2 pending" }).count(),
@@ -182,6 +194,12 @@ it("closes a saved HTML composer and reopens its pending thread on demand", asyn
       page.getByRole("button", { name: "Publish all 2 pending" }).count(),
     )
     .toBe(0);
+  await expect
+    .poll(() =>
+      page.getByRole("article", { name: "Comment thread for line 4" }).count(),
+    )
+    .toBe(1);
+  await page.getByRole("button", { name: "Close comment thread" }).click();
   await expect
     .poll(() =>
       page.getByRole("article", { name: "Comment thread for line 4" }).count(),

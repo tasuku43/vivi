@@ -108,6 +108,14 @@ export function CodeCommentThread({
         ),
         trimmed,
       );
+      if (isReplyComposer) {
+        // A follow-up often comes as a short sequence of thoughts. Clear the
+        // submitted body but keep the same composer active until the user
+        // explicitly moves focus or closes the thread.
+        input.change(draft, "");
+        window.requestAnimationFrame(() => textareaRef.current?.focus());
+        return;
+      }
       // Saving moves the thought into the durable pending-draft collection.
       // Remove the local composer immediately so it cannot cover or push down
       // the next rendered block the user wants to comment on.

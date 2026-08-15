@@ -133,16 +133,17 @@ The implementation intentionally avoids editable textareas, project-wide indexin
 
 ## Feedback and right inspector
 
-The right inspector describes the current document. Its default order is
-outline, open feedback/local drafts, then source/path details. Repository-wide
-Review Queue behavior below is retained as historical implementation context
-while it is removed from the primary product surface.
+The right inspector opens on the repository-wide Review Queue. The queue is the
+primary workflow for moving through work that needs attention. A persistent
+Document entry switches the same inspector to the current document's outline,
+open feedback/local drafts, and source details. This keeps queue processing
+central without making diff the default document view.
 
 The right inspector is primarily a review navigation surface. It should answer which files and threads need attention before it offers per-file helpers.
 
 Requirements:
 
-- The top section should be Review Queue: a deduplicated file list, primarily from Git working-tree changes against `HEAD` when Git is available.
+- The Review surface should lead with a deduplicated file queue, primarily from Git working-tree changes against `HEAD` when Git is available. It is the inspector's default surface; Document is the contextual secondary surface while reading.
 - The Review Queue is a file-level work queue: it is the union of Git changes and files with authoritative `open` comment threads. Files with only `resolved` threads stay out of the queue and remain available from the Comments history filter; files with only `archived` threads are hidden from the browser UI.
 - Accepting a change as-is is a local right-inspector review decision, not a Git operation. It hides the current `path + change fingerprint` from the active queue, keeps it recoverable while its recent receipt is visible, and never hides the file when an authoritative `open` comment thread or a saved pending draft exists.
 - `Reviewed` is not a durable file or thread lifecycle state. It is a short-lived completion receipt for a review stop that just left active attention, such as a manually accepted diff or a resolved feedback thread. When that receipt expires, the item leaves the Reviewed section without returning to Needs Review as long as its current fingerprint is still covered by a review decision.
@@ -154,8 +155,8 @@ Requirements:
 - Watcher events may feed the queue when Git status is unavailable, but they should be collapsed by file path instead of shown as raw event history.
 - Markdown and HTML documents should expose an H1/H2 outline under "In this file" below the Review Queue.
 - Comments should preserve the surface where the issue was seen, such as rendered Markdown, HTML preview, source, or diff.
-- Typed comment input is browser-local working state until the user saves it as a pending draft. Outside clicks do not close it. Escape and the close action collapse it without deleting text; explicit Discard removes it. Open and collapsed input survives file, tab, rendered/source navigation, and page reload for the same workspace. A successful Save promotes the text into a durable pending draft and removes the browser-local input session. Stored unsaved input expires after 30 days.
-- Pending drafts are the Publish boundary. Unsaved input is shown separately and never contributes to the Publish count. Rendered Markdown and HTML preview show a compact Source-input return action when typed Source input exists for the active file. Saving keeps the pending draft available through its document marker and inspector entry, but closes the inline/floating composer so the user can immediately double-click the next block. Opening that marker or inspector entry resumes the same pending thread. Deleting its last pending message closes the now-empty thread. Successful Publish retains the published thread without restoring a local composer. When the underlying file hash changes, an open input becomes stale and requires Re-anchor or Discard before it can be saved.
+- Typed comment input is browser-local working state until the user saves it as a pending draft. Outside clicks do not close it. Escape and the close action collapse it without deleting text; explicit Discard removes it. Open and collapsed input survives file, tab, rendered/source navigation, and page reload for the same workspace. Saving the first comment promotes the text into a durable pending draft and removes the browser-local input session. Saving a follow-up clears that session body but keeps its textarea focused so consecutive replies do not require another click. Stored unsaved input expires after 30 days.
+- Pending drafts are the Publish boundary. Unsaved input is shown separately and never contributes to the Publish count. Rendered Markdown and HTML preview show a compact Source-input return action when typed Source input exists for the active file. Saving the first comment keeps the pending draft available through its document marker and inspector entry, but closes the inline/floating composer so the user can immediately double-click the next block. Opening that marker or inspector entry resumes the same pending thread; follow-up saves keep that thread open and ready for the next input until focus moves or the user closes it. Deleting its last pending message closes the now-empty thread. Successful Publish retains the published thread without restoring a local composer. When the underlying file hash changes, an open input becomes stale and requires Re-anchor or Discard before it can be saved.
 - HTML preview comments should use one fixed floating composer near the right-middle of the viewport. Unlike source/code comments, opening a second HTML preview target replaces the current composer instead of keeping multiple block-local forms open.
 - The active heading should be highlightable later as the user scrolls.
 - File type, path, watch status, size, and last update information should be minimized or kept behind a lightweight details disclosure.

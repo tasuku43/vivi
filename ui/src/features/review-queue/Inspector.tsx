@@ -88,6 +88,7 @@ interface Props {
   onOpenComment?: (comment: ViviComment) => void;
   onOpenDraft?: (draft: DraftReviewComment) => void;
   onPublishDrafts?: (draftIds?: string[]) => void | Promise<void>;
+  onOpenDocument?: () => void;
   onResumeInput?: () => void;
   onCommentStatusChange?: (threadId: string, status: CommentStatus) => void;
 }
@@ -124,6 +125,7 @@ export function Inspector({
   onOpenComment,
   onOpenDraft,
   onPublishDrafts,
+  onOpenDocument,
   onResumeInput,
 }: Props) {
   const hiddenReviewThreads = summarizeActiveThreads(reviewComments).filter(
@@ -514,6 +516,15 @@ export function Inspector({
                 : "clear"}
           </strong>
         </span>
+        {onOpenDocument ? (
+          <button
+            className={`${sharedUiStyles.commandButton} ${sharedUiStyles.commandButtonSecondary} command-button command-button-secondary`}
+            type="button"
+            onClick={onOpenDocument}
+          >
+            Document
+          </button>
+        ) : null}
         {queueItems.length ? (
           <button
             className={`${sharedUiStyles.commandButton} ${sharedUiStyles.commandButtonSecondary} command-button command-button-secondary review-next-action`}

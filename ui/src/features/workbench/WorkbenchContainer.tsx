@@ -24,6 +24,7 @@ import {
   type OpenTab,
 } from "../../shared/components/OpenTabs.js";
 import { DocumentInspector } from "../document-inspector/DocumentInspector.js";
+import { Inspector } from "../review-queue/Inspector.js";
 import { InlineCommentCard } from "../comments/components/InlineCommentCard.js";
 import { useCommentInputSessions } from "../comments/CommentInputSessionProvider.js";
 import { DraftReviewCommentActionsProvider } from "../comments/DraftReviewCommentActions.js";
@@ -341,6 +342,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const [viewportWidth, setViewportWidth] = useState(readViewportWidth);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [inspectorVisible, setInspectorVisible] = useState(true);
+  const [inspectorSurface, setInspectorSurface] = useState<
+    "document" | "review"
+  >("review");
   const [compactInspectorOpen, setCompactInspectorOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(defaultSidebarWidth);
   const [inspectorWidth, setInspectorWidth] = useState(defaultInspectorWidth);
@@ -875,6 +879,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       reviewDecisionPathSet(reviewDecisions, currentReviewFingerprintByPath),
     [currentReviewFingerprintByPath, reviewDecisions],
   );
+  const acceptedReviewChanges = useMemo(
+    () =>
+      reviewChanges.filter((change) => acceptedReviewPathSet.has(change.path)),
+    [acceptedReviewPathSet, reviewChanges],
+  );
   const attentionCommentThreadCount = useMemo(
     () => countAttentionCommentThreads(comments, unreadReviewPathSet),
     [comments, unreadReviewPathSet],
@@ -922,6 +931,12 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     () => summarizeReviewQueue(reviewItems),
     [reviewItems],
   );
+  const hiddenAcceptedReviewChanges = useMemo(() => {
+    const activeQueuePaths = new Set(reviewItems.map((item) => item.path));
+    return acceptedReviewChanges.filter(
+      (change) => !activeQueuePaths.has(change.path),
+    );
+  }, [acceptedReviewChanges, reviewItems]);
   const visibleReviewedReceipts = useMemo(
     () =>
       visibleReviewReceipts(
@@ -1659,6 +1674,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }
 
   function focusReviewQueue() {
+    setInspectorSurface("review");
     if (inspectorCollapsedByViewport) {
       setCompactInspectorOpen(true);
     } else {
@@ -2572,69 +2588,162 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                 }}
                 onDoubleClick={() => setInspectorWidth(defaultInspectorWidth)}
               />
-              <DocumentInspector
-                file={file}
-                comments={activeFileComments}
-                draftComments={draftComments}
-                commentsLoading={commentsLoading}
-                activeCommentId={activeCommentId}
-                unsavedInputCount={
-                  commentInputs.sessions.filter((session) =>
-                    session.body.trim(),
-                  ).length
-                }
-                resumableInput={
-                  resumableCommentInput
-                    ? {
-                        path: resumableCommentInput.draft.path,
-                        location: commentLineLabelForAnchor(
-                          resumableCommentInput.draft.anchor.canonical,
-                        ),
-                      }
-                    : null
-                }
-                outline={activeFileOutline}
-                activeOutlineId={
-                  activeOutlineByPane[layout.activePaneId] ?? null
-                }
-                change={
-                  selectedPath
-                    ? (reviewChanges.find(
-                        (change) => change.path === selectedPath,
-                      ) ?? null)
-                    : null
-                }
-                diffStat={
-                  selectedPath ? (reviewDiffStats[selectedPath] ?? null) : null
-                }
-                diffLoading={
-                  selectedPath ? Boolean(loadingDiffs[selectedPath]) : false
-                }
-                changesVisible={Boolean(
-                  file && diffEnabled && supportsDiffMode(file),
-                )}
-                onOutlineSelect={(id) => jumpToOutline(id)}
-                onOpenComment={openCommentFromPanel}
-                onOpenDraft={(draft) =>
-                  void openDraftReviewComment(draft).catch((err) =>
-                    setError(String(err)),
-                  )
-                }
-                onPublishDrafts={(draftIds) =>
-                  void publishDraftReviewComments(draftIds).catch((err) =>
-                    setError(String(err)),
-                  )
-                }
-                onResumeInput={
-                  resumableCommentInput
-                    ? () =>
-                        void resumeCommentInput(resumableCommentInput).catch(
-                          (err) => setError(String(err)),
-                        )
-                    : undefined
-                }
-                onToggleChanges={() => toggleHeadDiff(selectedPath)}
-              />
+              {inspectorSurface === "document" ? (
+                <DocumentInspector
+                  file={file}
+                  comments={activeFileComments}
+                  draftComments={draftComments}
+                  commentsLoading={commentsLoading}
+                  activeCommentId={activeCommentId}
+                  unsavedInputCount={
+                    commentInputs.sessions.filter((session) =>
+                      session.body.trim(),
+                    ).length
+                  }
+                  resumableInput={
+                    resumableCommentInput
+                      ? {
+                          path: resumableCommentInput.draft.path,
+                          location: commentLineLabelForAnchor(
+                            resumableCommentInput.draft.anchor.canonical,
+                          ),
+                        }
+                      : null
+                  }
+                  outline={activeFileOutline}
+                  activeOutlineId={
+                    activeOutlineByPane[layout.activePaneId] ?? null
+                  }
+                  change={
+                    selectedPath
+                      ? (reviewChanges.find(
+                          (change) => change.path === selectedPath,
+                        ) ?? null)
+                      : null
+                  }
+                  diffStat={
+                    selectedPath
+                      ? (reviewDiffStats[selectedPath] ?? null)
+                      : null
+                  }
+                  diffLoading={
+                    selectedPath ? Boolean(loadingDiffs[selectedPath]) : false
+                  }
+                  changesVisible={Boolean(
+                    file && diffEnabled && supportsDiffMode(file),
+                  )}
+                  onOutlineSelect={(id) => jumpToOutline(id)}
+                  onOpenComment={openCommentFromPanel}
+                  onOpenDraft={(draft) =>
+                    void openDraftReviewComment(draft).catch((err) =>
+                      setError(String(err)),
+                    )
+                  }
+                  onPublishDrafts={(draftIds) =>
+                    void publishDraftReviewComments(draftIds).catch((err) =>
+                      setError(String(err)),
+                    )
+                  }
+                  onResumeInput={
+                    resumableCommentInput
+                      ? () =>
+                          void resumeCommentInput(resumableCommentInput).catch(
+                            (err) => setError(String(err)),
+                          )
+                      : undefined
+                  }
+                  onToggleChanges={() => toggleHeadDiff(selectedPath)}
+                  reviewQueueCount={reviewQueueProgress.total}
+                  onOpenReviewQueue={() => setInspectorSurface("review")}
+                />
+              ) : (
+                <Inspector
+                  file={file}
+                  fileRemoved={activeFileRemoved}
+                  reviewChanges={reviewChanges}
+                  acceptedReviewChanges={hiddenAcceptedReviewChanges}
+                  reviewReceipts={visibleReviewedReceipts}
+                  reviewItems={reviewItems}
+                  reviewLoading={gitReviewLoading && gitReview === null}
+                  reviewUnavailableReason={gitReview?.reason ?? null}
+                  reviewDiffStats={reviewDiffStats}
+                  loadingReviewDiffs={loadingDiffs}
+                  unreadReviewPaths={unreadReviewPathSet}
+                  comments={activeFileComments}
+                  reviewComments={comments}
+                  draftComments={draftComments}
+                  unsavedInputCount={
+                    commentInputs.sessions.filter((session) =>
+                      session.body.trim(),
+                    ).length
+                  }
+                  resumableInput={
+                    resumableCommentInput
+                      ? {
+                          path: resumableCommentInput.draft.path,
+                          location: commentLineLabelForAnchor(
+                            resumableCommentInput.draft.anchor.canonical,
+                          ),
+                        }
+                      : null
+                  }
+                  commentsLoading={commentsLoading}
+                  knownMissingCommentPaths={knownMissingCommentPathSet}
+                  threadActivities={commentActivitySummaries}
+                  activeCommentId={activeCommentId}
+                  onOpenComment={openCommentFromPanel}
+                  onOpenDraft={(draft) =>
+                    void openDraftReviewComment(draft).catch((err) =>
+                      setError(String(err)),
+                    )
+                  }
+                  onPublishDrafts={(draftIds) =>
+                    void publishDraftReviewComments(draftIds).catch((err) =>
+                      setError(String(err)),
+                    )
+                  }
+                  onResumeInput={
+                    resumableCommentInput
+                      ? () =>
+                          void resumeCommentInput(resumableCommentInput).catch(
+                            (err) => setError(String(err)),
+                          )
+                      : undefined
+                  }
+                  onCommentStatusChange={(id, status) =>
+                    void updateCommentStatus(id, status).catch((err) =>
+                      setError(String(err)),
+                    )
+                  }
+                  selectedCodeRange={
+                    file?.path ? (codeSelections[file.path] ?? null) : null
+                  }
+                  outline={activeFileOutline}
+                  activeOutlineId={
+                    activeOutlineByPane[layout.activePaneId] ?? null
+                  }
+                  activePath={selectedPath}
+                  refreshedAt={
+                    file?.path ? refreshedFiles[file.path] : undefined
+                  }
+                  activePaneId={layout.activePaneId}
+                  onOpenEventPath={(path) =>
+                    openReviewQueueItem(path, "preview")
+                  }
+                  onConfirmEventPath={(path) =>
+                    openReviewQueueItem(path, "normal")
+                  }
+                  onOpenNextUnread={openLatestUnreadReviewFile}
+                  onOpenNextChanged={() => openReviewQueueFile("next")}
+                  onOpenPreviousChanged={() => openReviewQueueFile("previous")}
+                  onOpenAllChanged={openAllChangedFiles}
+                  onAcceptReviewPath={acceptReviewPath}
+                  onRestoreAcceptedReviewPath={restoreAcceptedReviewPath}
+                  onRevealInTree={revealActiveFileInTree}
+                  onOutlineSelect={(id) => jumpToOutline(id)}
+                  onOpenDocument={() => setInspectorSurface("document")}
+                />
+              )}
             </>
           ) : null}
         </div>

@@ -42,6 +42,8 @@ const meta = {
     onOpenDraft: fn(),
     onPublishDrafts: fn(),
     onToggleChanges: fn(),
+    onOpenReviewQueue: fn(),
+    reviewQueueCount: 4,
   },
   parameters: {
     layout: "centered",
@@ -66,6 +68,11 @@ export const DocumentNavigationInteraction: Story = {
 
     await userEvent.click(canvas.getByRole("button", { name: "Show changes" }));
     await expect(args.onToggleChanges).toHaveBeenCalled();
+
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Open review queue, 4 items" }),
+    );
+    await expect(args.onOpenReviewQueue).toHaveBeenCalled();
 
     const thread = canvas.getByRole("button", {
       name: /This sentence captures the feedback layer well/,

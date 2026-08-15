@@ -1,6 +1,13 @@
 import { useState, type ComponentProps } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, fn, userEvent, within } from "storybook/test";
+import {
+  expect,
+  fireEvent,
+  fn,
+  userEvent,
+  waitFor,
+  within,
+} from "storybook/test";
 import type { CommentStatus, ViviComment } from "../../domain/comments.js";
 import { draftReviewCommentAsViviComment } from "../../state/comments.js";
 import { summarizeThreadActivity } from "../../state/comment-activity.js";
@@ -84,6 +91,7 @@ export const Open: Story = {
   args: args("open"),
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
+    const followUp = canvas.getByLabelText("Continue thread");
     await expect(
       canvas.getByRole("article", { name: "Comment thread for lines 9-12" }),
     ).toBeInTheDocument();
@@ -91,14 +99,12 @@ export const Open: Story = {
     await expect(
       canvas.getByLabelText("Continue thread"),
     ).toHaveAccessibleDescription(/Continue thread.*to add follow-up/);
-    await userEvent.type(
-      canvas.getByLabelText("Continue thread"),
-      "Following up",
-    );
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Add follow-up" }),
-    );
+    await userEvent.type(followUp, "Following up");
+    await fireEvent.keyDown(followUp, { key: "Enter", metaKey: true });
     await expect(args.onCreateComment).toHaveBeenCalled();
+    await waitFor(() => expect(followUp).toHaveValue(""));
+    await expect(followUp).toHaveFocus();
+    await expect(args.onClose).not.toHaveBeenCalled();
     await expect(
       (args.onCreateComment as unknown as { mock: { calls: unknown[][] } }).mock
         .calls[0]?.[0],

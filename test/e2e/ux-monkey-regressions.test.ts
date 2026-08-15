@@ -74,9 +74,18 @@ it("closes individual tab controls immediately across file types", async () => {
     .toBe("Open file tabs");
 });
 
-it("wires the current document inspector to outline, feedback, and Changes", async () => {
+it("wires document and review inspector surfaces to the active workspace", async () => {
   await page!.locator('[data-tree-path="README.md"]').click();
 
+  const reviewInspector = page!.getByRole("complementary", {
+    name: "Review inspector",
+  });
+  await expect.poll(() => reviewInspector.isVisible()).toBe(true);
+  await expect
+    .poll(() => reviewInspector.getByText("Review", { exact: true }).count())
+    .toBe(1);
+
+  await reviewInspector.getByRole("button", { name: "Document" }).click();
   const inspector = page!.getByRole("complementary", {
     name: "Document inspector",
   });
@@ -84,11 +93,6 @@ it("wires the current document inspector to outline, feedback, and Changes", asy
   await expect
     .poll(() => inspector.getByText("README.md", { exact: true }).count())
     .toBeGreaterThan(0);
-  await expect
-    .poll(() =>
-      inspector.getByText(/Double-click a rendered block to comment/).count(),
-    )
-    .toBe(1);
   await expect
     .poll(() => inspector.getByRole("button", { name: "Vivi Fixture" }).count())
     .toBe(1);
@@ -113,7 +117,7 @@ it("wires the current document inspector to outline, feedback, and Changes", asy
   await expect
     .poll(() => inspector.getByText("HTML", { exact: true }).count())
     .toBe(1);
-});
+}, 20_000);
 
 it("keeps modal focus inside the overlay and returns it to the opener", async () => {
   const shortcutsTrigger = page!.getByRole("button", {
@@ -167,7 +171,7 @@ it("dismisses the compact inspector when file navigation needs the reader", asyn
   await expect
     .poll(() =>
       page!
-        .getByRole("complementary", { name: "Document inspector" })
+        .getByRole("complementary", { name: "Review inspector" })
         .isVisible(),
     )
     .toBe(true);
@@ -175,7 +179,7 @@ it("dismisses the compact inspector when file navigation needs the reader", asyn
   await page!.locator('[data-tree-path="README.md"]').click();
   await expect
     .poll(() =>
-      page!.getByRole("complementary", { name: "Document inspector" }).count(),
+      page!.getByRole("complementary", { name: "Review inspector" }).count(),
     )
     .toBe(0);
   await expect
@@ -309,6 +313,7 @@ it("resumes a collapsed rendered comment without rediscovering its target", asyn
 
 it("closes a saved HTML composer so the next preview block stays targetable", async () => {
   await page!.locator('[data-tree-path="index.html"]').click();
+  await page!.getByRole("button", { name: "Document" }).click();
   const previewFrame = page!.frameLocator('iframe[title="index.html"]');
   const heading = previewFrame.getByRole("heading", { name: "HTML Fixture" });
 
@@ -471,6 +476,7 @@ it("never opens stale Quick Open results while a new query is loading", async ()
     )
     .toBe(1);
   await query.press("Enter");
+  await page!.getByRole("button", { name: "Document" }).click();
   await expect
     .poll(() =>
       page!

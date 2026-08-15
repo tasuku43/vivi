@@ -12,7 +12,7 @@ A build is acceptable when a user can:
 4. Open Markdown and HTML documents from the tree and keep multiple documents open as tabs.
 5. Switch tabs without losing tree expansion state.
 6. View Markdown as a rendered document and HTML in a sandboxed preview, and toggle either source as supporting evidence.
-7. See an H1/H2 outline and open feedback for the current document in the right inspector.
+7. Start from a repository-wide Review Queue, move through items needing attention, and switch the right inspector to the current document's H1/H2 outline and open feedback when local context is needed.
 8. Double-click any rendered heading, paragraph, list item, or similar block to open a comment composer, whether or not Git reports a change.
 9. Single-click and pointer-drag document text normally without opening a composer; drag selection remains selectable and copyable.
 10. Save, publish, resume, reply to, resolve, and archive anchored feedback without losing its document context.
@@ -21,7 +21,7 @@ A build is acceptable when a user can:
 13. Add or remove a Markdown or HTML document externally and see the filtered real directory tree update.
 14. Keep the default rendered document free of diff rails, dimming, and review prerequisites.
 15. Enable an independent Changes lens only when change evidence is useful, then return explicitly to the clean document.
-16. Keep browser-local comment input across outside clicks, document/tab navigation, rendered/source changes, and reload. Explicit Discard removes it; successful Save promotes it to a durable pending draft and closes the local composer so the next document block is immediately available.
+16. Keep browser-local comment input across outside clicks, document/tab navigation, rendered/source changes, and reload. Explicit Discard removes it. Saving the first comment promotes it to a durable pending draft and closes the local composer so the next document block is immediately available; saving a follow-up clears the submitted body but keeps the same composer focused for consecutive replies.
 17. Reject paths outside the selected root and keep watcher, search, tree, read, and Git-change boundaries aligned to supported document extensions.
 
 ## Evaluation function
@@ -49,6 +49,7 @@ Add or update tests for:
 - add/unlink event updating the tree,
 - rendered Markdown and HTML single-click/drag/double-click comment gesture separation,
 - document-focused feedback and outline rendering,
+- Document/Review inspector switching and review-queue navigation,
 - watcher-event filtering and SSE tree refresh for Markdown and HTML additions/removals,
 - optional diff-from-`HEAD` rendering inside the open document surface,
 - resumable comment input transitions: outside click, Escape/collapse, navigation and reload restoration, rendered-to-source return, explicit discard, successful save, individual pending-draft deletion, publish cleanup, and stale-anchor re-anchoring.
