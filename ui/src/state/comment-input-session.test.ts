@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { CommentDraft } from "./comments.js";
 import {
   buildStoredCommentInputSessions,
-  commentInputAnchorKey,
   commentInputSessionStorageKeyForRoot,
   commentInputSessionTtlMs,
   commentInputSessionId,
@@ -158,7 +157,7 @@ describe("comment input sessions", () => {
     expect(unsavedCommentInputCount(empty, "OTHER.md")).toBe(0);
   });
 
-  it("keeps saved input in place until its draft anchor is published", () => {
+  it("removes local input after it has been saved as a pending draft", () => {
     const input = draft();
     const started = reduceCommentInputSessions([], {
       type: "change",
@@ -166,15 +165,10 @@ describe("comment input sessions", () => {
       body: "Save, then publish",
     });
     const saved = reduceCommentInputSessions(started, {
-      type: "mark-saved",
+      type: "discard",
       id: commentInputSessionId(input),
     });
-    const published = reduceCommentInputSessions(saved, {
-      type: "discard-anchors",
-      anchorKeys: [commentInputAnchorKey(input)],
-    });
 
-    expect(saved[0]).toMatchObject({ body: "", status: "saved" });
-    expect(published).toEqual([]);
+    expect(saved).toEqual([]);
   });
 });

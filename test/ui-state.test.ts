@@ -173,10 +173,6 @@ import {
   initialExpandedPaths,
   visibleTreeRows,
 } from "../ui/src/state/tree-expansion.js";
-import {
-  explorerFilterLabel,
-  explorerFilterText,
-} from "../ui/src/state/tree-filter.js";
 import { treeKeyboardAction } from "../ui/src/state/tree-navigation.js";
 
 it("opens, updates, and marks tabs by path", () => {
@@ -725,13 +721,13 @@ it("summarizes workspace status as a human-facing bottom bar", () => {
 
   expect(summary.workspace).toBe("Watching 42 files · 3 tabs open");
   expect(summary.activeFile).toBe("brief.md · preview · rendered");
-  expect(summary.review).toBe("4 files to review · 2 threads open · 1 draft");
+  expect(summary.review).toBe("2 threads open · 1 draft");
   expect(summary.server).toBe("Live · waiting for file changes");
   expect(summary.serverTone).toBe("live");
   expect(summary.detail).toBe("1 review refresh · last review 18ms");
 });
 
-it("keeps the review status in a loading state before changed files arrive", () => {
+it("keeps feedback independent while change evidence is loading", () => {
   const summary = summarizeWorkspaceStatus({
     tree: {
       root: "/workspace",
@@ -762,8 +758,8 @@ it("keeps the review status in a loading state before changed files arrive", () 
     },
   });
 
-  expect(summary.review).toBe("Loading review files · 2 threads open");
-  expect(summary.review).not.toContain("0 files to review");
+  expect(summary.review).toBe("2 threads open");
+  expect(summary.review).not.toContain("review");
   expect(summary.server).toBe("Live · waiting for file changes");
   expect(summary.serverTone).toBe("live");
 });
@@ -821,7 +817,7 @@ it("summarizes pending server work without exposing raw refresh logs", () => {
   expect(summary.activeFile).toBe(
     "app.ts · kept · source · HEAD diff · changed · removed",
   );
-  expect(summary.review).toBe("1 file to review · 0 threads open");
+  expect(summary.review).toBe("0 threads open");
   expect(summary.server).toBe("Updating review + 2 diffs");
   expect(summary.serverTone).toBe("pending");
   expect(summary.detail).toBe(
@@ -1023,52 +1019,6 @@ it("maps workspace keyboard shortcuts to app actions", () => {
       shiftKey: false,
     }),
   ).toBe("dismiss-overlays");
-});
-
-it("summarizes the Explorer filter with review-path context", () => {
-  expect(explorerFilterText({ active: false, reviewPathCount: 0 })).toBe(
-    "live",
-  );
-  expect(explorerFilterText({ active: false, reviewPathCount: 3 })).toBe(
-    "live 3",
-  );
-  expect(explorerFilterText({ active: true, reviewPathCount: 3 })).toBe(
-    "changed 3",
-  );
-  expect(
-    explorerFilterText({
-      active: false,
-      reviewLoading: true,
-      reviewPathCount: 0,
-    }),
-  ).toBe("live ...");
-  expect(
-    explorerFilterText({
-      active: true,
-      reviewLoading: true,
-      reviewPathCount: 0,
-    }),
-  ).toBe("changed ...");
-  expect(explorerFilterLabel({ active: false, reviewPathCount: 1 })).toBe(
-    "Showing the live tree, 1 review path available",
-  );
-  expect(explorerFilterLabel({ active: true, reviewPathCount: 3 })).toBe(
-    "Showing changed and review paths only, 3 review paths",
-  );
-  expect(
-    explorerFilterLabel({
-      active: false,
-      reviewLoading: true,
-      reviewPathCount: 0,
-    }),
-  ).toBe("Showing the live tree while review paths load");
-  expect(
-    explorerFilterLabel({
-      active: true,
-      reviewLoading: true,
-      reviewPathCount: 0,
-    }),
-  ).toBe("Showing changed and review paths while review paths load");
 });
 
 it("closes other tabs while keeping the active tab in the pane", () => {
@@ -2446,7 +2396,7 @@ it("builds review navigation targets without changing thread lifecycle state", (
         pendingDiffPaths: 0,
       },
     }).review,
-  ).toBe("13 files to review · 2 threads open");
+  ).toBe("2 threads open");
   expect(
     openThreadNavigationTargets(comments, { reviewBatchId: "batch-1" }),
   ).toHaveLength(1);

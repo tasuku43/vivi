@@ -157,7 +157,7 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   expect(await css.text()).toContain("rgb(255, 0, 0)");
 }, 10000);
 
-it("targets the nearest rendered HTML block in the UI mock index cards", async () => {
+it("targets a rendered HTML block only on double-click", async () => {
   const indexHtml = await readFile("docs/ui-mocks/index.html", "utf8");
   await writeFile(path.join(dir, "index.html"), indexHtml);
   const service = new ViewerService({
@@ -167,19 +167,17 @@ it("targets the nearest rendered HTML block in the UI mock index cards", async (
   server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
 
   const titleLine = lineNumberFor(indexHtml, "<h2>01 Classic explorer</h2>");
-  const cardLine = lineNumberFor(
-    indexHtml,
-    '<a class="mock-card" href="01-classic-explorer.html"',
-  );
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
     await page.goto(`${server.url}/preview/html?path=index.html`);
 
+    await expectNoHtmlBlockTarget(page, async () => {
+      await page.getByRole("heading", { name: "01 Classic explorer" }).click();
+    });
+
     const titleTargetPromise = nextHtmlBlockTarget(page);
-    await page
-      .getByRole("heading", { name: "01 Classic explorer" })
-      .click({ modifiers: ["Alt"] });
+    await page.getByRole("heading", { name: "01 Classic explorer" }).dblclick();
     const titleTarget = await titleTargetPromise;
     expect(titleTarget).toMatchObject({
       type: "vivi-html-block-target",
@@ -187,17 +185,6 @@ it("targets the nearest rendered HTML block in the UI mock index cards", async (
       sourceLineStart: titleLine,
       sourceLineEnd: titleLine,
     });
-
-    const cardTargetPromise = nextHtmlBlockTarget(page);
-    await page
-      .locator('a.mock-card[href="01-classic-explorer.html"] .tag')
-      .click({ modifiers: ["Alt"] });
-    const cardTarget = await cardTargetPromise;
-    expect(cardTarget.type).toBe("vivi-html-block-target");
-    expect(cardTarget.text).toContain("01 Classic explorer");
-    expect(cardTarget.text).toContain("Open mock");
-    expect(cardTarget.sourceLineStart).toBe(cardLine);
-    expect(cardTarget.sourceLineEnd).toBeGreaterThan(cardLine);
   } finally {
     await browser.close();
   }
@@ -293,16 +280,21 @@ it("does not dim broad layout containers during a complex rendered HTML draft fl
     const page = await browser.newPage();
     await page.goto(`${server.url}/preview/html?path=index.html`);
 
+    const paragraph = page.getByText(
+      "This layout treats Markdown as the primary surface.",
+    );
     await expectNoHtmlBlockTarget(page, async () => {
-      await page
-        .getByText("This layout treats Markdown as the primary surface.")
-        .click();
+      await paragraph.click();
     });
+    await expectNoHtmlBlockTarget(page, async () => {
+      await paragraph.selectText();
+    });
+    expect(
+      await page.evaluate(() => document.getSelection()?.toString()),
+    ).toContain("This layout treats Markdown as the primary surface.");
 
     const targetPromise = nextHtmlBlockTarget(page);
-    await page
-      .getByText("This layout treats Markdown as the primary surface.")
-      .click({ modifiers: ["Alt"] });
+    await paragraph.dblclick();
     const target = await targetPromise;
     expect(target).toMatchObject({
       type: "vivi-html-block-target",
@@ -382,7 +374,7 @@ it("preserves authored HTML styles during a rendered HTML draft flow", async () 
     await page
       .getByText("02 Document reader", { exact: true })
       .first()
-      .click({ modifiers: ["Alt"] });
+      .dblclick();
     await targetPromise;
     await page.mouse.move(500, 540);
 

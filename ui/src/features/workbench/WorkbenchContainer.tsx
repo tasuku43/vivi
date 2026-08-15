@@ -23,7 +23,7 @@ import {
   type DraggedTabPayload,
   type OpenTab,
 } from "../../shared/components/OpenTabs.js";
-import { Inspector } from "../review-queue/Inspector.js";
+import { DocumentInspector } from "../document-inspector/DocumentInspector.js";
 import { InlineCommentCard } from "../comments/components/InlineCommentCard.js";
 import { useCommentInputSessions } from "../comments/CommentInputSessionProvider.js";
 import { DraftReviewCommentActionsProvider } from "../comments/DraftReviewCommentActions.js";
@@ -74,15 +74,10 @@ import {
   type SplitEdge,
 } from "../../state/editor-layout.js";
 import {
-  filterTreeToPaths,
   flattenFiles,
   isPathKnownMissing,
   replaceDirectoryChildren,
 } from "../../state/files.js";
-import {
-  explorerFilterLabel,
-  explorerFilterText,
-} from "../../state/tree-filter.js";
 import {
   activePanePaths,
   decideLiveRefresh,
@@ -352,7 +347,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const [resizingWorkbenchPane, setResizingWorkbenchPane] = useState<
     "sidebar" | "inspector" | null
   >(null);
-  const [treeChangedOnly, setTreeChangedOnly] = useState(false);
   const [treeReveal, setTreeReveal] = useState<{
     path: string;
     revision: number;
@@ -691,7 +685,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   );
   const resumableCommentInput = [...commentInputs.sessions]
     .reverse()
-    .find((session) => session.status === "collapsed" && session.body.trim());
+    .find(
+      (session) =>
+        session.body.trim() &&
+        (session.status === "collapsed" || session.draft.path !== selectedPath),
+    );
   const quickOpenRecentFiles = useMemo<RecentFileSearchResult[]>(() => {
     const seen = new Set<string>();
     const candidates: RecentFileSearchResult[] = [];
@@ -877,11 +875,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       reviewDecisionPathSet(reviewDecisions, currentReviewFingerprintByPath),
     [currentReviewFingerprintByPath, reviewDecisions],
   );
-  const acceptedReviewChanges = useMemo(
-    () =>
-      reviewChanges.filter((change) => acceptedReviewPathSet.has(change.path)),
-    [acceptedReviewPathSet, reviewChanges],
-  );
   const attentionCommentThreadCount = useMemo(
     () => countAttentionCommentThreads(comments, unreadReviewPathSet),
     [comments, unreadReviewPathSet],
@@ -929,12 +922,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     () => summarizeReviewQueue(reviewItems),
     [reviewItems],
   );
-  const hiddenAcceptedReviewChanges = useMemo(() => {
-    const activeQueuePaths = new Set(reviewItems.map((item) => item.path));
-    return acceptedReviewChanges.filter(
-      (change) => !activeQueuePaths.has(change.path),
-    );
-  }, [acceptedReviewChanges, reviewItems]);
   const visibleReviewedReceipts = useMemo(
     () =>
       visibleReviewReceipts(
@@ -973,14 +960,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const changedPathSet = useMemo(
     () => new Set(reviewChanges.map((change) => change.path)),
     [reviewChanges],
-  );
-  const reviewPathSet = useMemo(
-    () => new Set(reviewItems.map((item) => item.path)),
-    [reviewItems],
-  );
-  const reviewTreePathSet = useMemo(
-    () => new Set([...changedPathSet, ...reviewPathSet]),
-    [changedPathSet, reviewPathSet],
   );
   const openTabPathSet = useMemo(
     () => new Set(openTabs.map((tab) => tab.path)),
@@ -1081,18 +1060,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       unreadReviewPathSet.size,
     ],
   );
-  const sidebarNodes = useMemo(
-    () =>
-      treeChangedOnly && tree
-        ? filterTreeToPaths(tree.nodes, reviewTreePathSet)
-        : (tree?.nodes ?? []),
-    [reviewTreePathSet, tree, treeChangedOnly],
-  );
-  const explorerFilterSummary = {
-    active: treeChangedOnly,
-    reviewLoading: gitReviewLoading && gitReview === null,
-    reviewPathCount: reviewTreePathSet.size,
-  };
+  const sidebarNodes = tree?.nodes ?? [];
 
   useEffect(() => {
     activeFilePaths.current = activePanePaths(panes);
@@ -1921,7 +1889,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
 
   function revealActiveFileInTree(path = selectedPath) {
     if (!path) return;
-    setTreeChangedOnly(false);
     setTreeReveal((current) => ({
       path,
       revision: (current?.revision ?? 0) + 1,
@@ -2127,9 +2094,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       return;
     }
 
+    setFileSearchResults([]);
+    setFileSearchLoading(true);
     const controller = new AbortController();
     const timeout = window.setTimeout(() => {
-      setFileSearchLoading(true);
       client
         .searchFiles({
           query,
@@ -2244,9 +2212,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       return;
     }
 
+    setTextSearchResults([]);
+    setTextSearchLoading(true);
     const controller = new AbortController();
     const timeout = window.setTimeout(() => {
-      setTextSearchLoading(true);
       client
         .searchText({ query, limit: 40, signal: controller.signal })
         .then(setTextSearchResults)
@@ -2494,23 +2463,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               />
               <aside
                 className={`${sharedUiStyles.sidebar} sidebar`}
-                aria-label="File explorer"
+                aria-label="Documents"
               >
                 <div className={`${sharedUiStyles.panelTitle} panel-title`}>
-                  <span>Explorer</span>
-                  <button
-                    aria-label={explorerFilterLabel(explorerFilterSummary)}
-                    className={
-                      treeChangedOnly
-                        ? `${sharedUiStyles.pill} ${sharedUiStyles.filterPill} ${sharedUiStyles.pillActive} pill filter-pill active`
-                        : `${sharedUiStyles.pill} ${sharedUiStyles.filterPill} pill filter-pill`
-                    }
-                    title={explorerFilterLabel(explorerFilterSummary)}
-                    type="button"
-                    onClick={() => setTreeChangedOnly((value) => !value)}
-                  >
-                    {explorerFilterText(explorerFilterSummary)}
-                  </button>
+                  <span>Documents</span>
                 </div>
                 {tree ? (
                   <TreeSidebar
@@ -2518,15 +2474,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                     selectedPath={selectedPath}
                     revealPath={treeReveal?.path ?? null}
                     revealRevision={treeReveal?.revision ?? 0}
-                    changedPaths={changedPathSet}
-                    reviewPaths={reviewPathSet}
-                    reviewStateByPath={reviewStateByPath}
-                    unreadReviewPaths={unreadReviewPathSet}
                     activePaths={openTabPathSet}
                     currentStopPath={activeComment?.path ?? null}
                     commentCountsByPath={treeCommentCountsByPath}
                     openThreadCountsByPath={treeOpenThreadCountsByPath}
-                    removedPaths={reviewState.removedPaths}
                     loadingDirectoryPaths={loadingDirectoryPaths}
                     onLoadDirectory={(path) => loadDirectory(path)}
                     onSelect={(path) =>
@@ -2621,21 +2572,12 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                 }}
                 onDoubleClick={() => setInspectorWidth(defaultInspectorWidth)}
               />
-              <Inspector
+              <DocumentInspector
                 file={file}
-                fileRemoved={activeFileRemoved}
-                reviewChanges={reviewChanges}
-                acceptedReviewChanges={hiddenAcceptedReviewChanges}
-                reviewReceipts={visibleReviewedReceipts}
-                reviewItems={reviewItems}
-                reviewLoading={gitReviewLoading && gitReview === null}
-                reviewUnavailableReason={gitReview?.reason ?? null}
-                reviewDiffStats={reviewDiffStats}
-                loadingReviewDiffs={loadingDiffs}
-                unreadReviewPaths={unreadReviewPathSet}
                 comments={activeFileComments}
-                reviewComments={comments}
                 draftComments={draftComments}
+                commentsLoading={commentsLoading}
+                activeCommentId={activeCommentId}
                 unsavedInputCount={
                   commentInputs.sessions.filter((session) =>
                     session.body.trim(),
@@ -2651,10 +2593,27 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                       }
                     : null
                 }
-                commentsLoading={commentsLoading}
-                knownMissingCommentPaths={knownMissingCommentPathSet}
-                threadActivities={commentActivitySummaries}
-                activeCommentId={activeCommentId}
+                outline={activeFileOutline}
+                activeOutlineId={
+                  activeOutlineByPane[layout.activePaneId] ?? null
+                }
+                change={
+                  selectedPath
+                    ? (reviewChanges.find(
+                        (change) => change.path === selectedPath,
+                      ) ?? null)
+                    : null
+                }
+                diffStat={
+                  selectedPath ? (reviewDiffStats[selectedPath] ?? null) : null
+                }
+                diffLoading={
+                  selectedPath ? Boolean(loadingDiffs[selectedPath]) : false
+                }
+                changesVisible={Boolean(
+                  file && diffEnabled && supportsDiffMode(file),
+                )}
+                onOutlineSelect={(id) => jumpToOutline(id)}
                 onOpenComment={openCommentFromPanel}
                 onOpenDraft={(draft) =>
                   void openDraftReviewComment(draft).catch((err) =>
@@ -2674,33 +2633,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                         )
                     : undefined
                 }
-                onCommentStatusChange={(id, status) =>
-                  void updateCommentStatus(id, status).catch((err) =>
-                    setError(String(err)),
-                  )
-                }
-                selectedCodeRange={
-                  file?.path ? (codeSelections[file.path] ?? null) : null
-                }
-                outline={activeFileOutline}
-                activeOutlineId={
-                  activeOutlineByPane[layout.activePaneId] ?? null
-                }
-                activePath={selectedPath}
-                refreshedAt={file?.path ? refreshedFiles[file.path] : undefined}
-                activePaneId={layout.activePaneId}
-                onOpenEventPath={(path) => openReviewQueueItem(path, "preview")}
-                onConfirmEventPath={(path) =>
-                  openReviewQueueItem(path, "normal")
-                }
-                onOpenNextUnread={openLatestUnreadReviewFile}
-                onOpenNextChanged={() => openReviewQueueFile("next")}
-                onOpenPreviousChanged={() => openReviewQueueFile("previous")}
-                onOpenAllChanged={openAllChangedFiles}
-                onAcceptReviewPath={acceptReviewPath}
-                onRestoreAcceptedReviewPath={restoreAcceptedReviewPath}
-                onRevealInTree={revealActiveFileInTree}
-                onOutlineSelect={(id) => jumpToOutline(id)}
+                onToggleChanges={() => toggleHeadDiff(selectedPath)}
               />
             </>
           ) : null}
@@ -2718,7 +2651,17 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
           textResults={textSearchResults}
           textLoading={textSearchLoading}
           actions={commandActions}
-          onQueryChange={setPaletteQuery}
+          onQueryChange={(query) => {
+            setPaletteQuery(query);
+            const searching = Boolean(query.trim());
+            if (paletteMode === "file") {
+              setFileSearchResults([]);
+              setFileSearchLoading(searching);
+            } else if (paletteMode === "text") {
+              setTextSearchResults([]);
+              setTextSearchLoading(searching);
+            }
+          }}
           onModeChange={(mode) => {
             setPaletteMode(mode);
             setPaletteQuery("");
@@ -2980,14 +2923,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                           paneFile.path,
                         )
                       : []
-                  }
-                  reviewState={
-                    paneFile?.path ? reviewStateForPath(paneFile.path) : null
-                  }
-                  onMarkReviewed={
-                    paneFile?.path && canAcceptReviewPath(paneFile.path)
-                      ? () => markReviewPathReviewedAndAdvance(paneFile.path)
-                      : undefined
                   }
                   activeCommentId={activeCommentId}
                   expandActiveCommentThread

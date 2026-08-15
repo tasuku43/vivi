@@ -13,6 +13,7 @@ import {
 export interface NodeWatcherOptions {
   rootDir: string;
   ignoredNames?: Set<string>;
+  includeExtensions?: Set<string>;
   excludePatterns?: string[];
   debounceMs?: number;
   maxPendingEvents?: number;
@@ -50,6 +51,7 @@ export class NodeWatcher implements WatcherPort {
   private version = 1;
   private readonly rootDir: string;
   private readonly ignoredNames: Set<string>;
+  private readonly includeExtensions?: Set<string>;
   private readonly isExcludedPath: (relativePath: string) => boolean;
   private readonly debounceMs: number;
   private readonly maxPendingEvents: number;
@@ -65,6 +67,7 @@ export class NodeWatcher implements WatcherPort {
     if (typeof options === "string") {
       this.rootDir = path.resolve(options);
       this.ignoredNames = defaultIgnoredNames;
+      this.includeExtensions = undefined;
       this.isExcludedPath = createPathExcluder();
       this.debounceMs = 50;
       this.maxPendingEvents = 2_000;
@@ -73,6 +76,7 @@ export class NodeWatcher implements WatcherPort {
     } else {
       this.rootDir = path.resolve(options.rootDir);
       this.ignoredNames = options.ignoredNames ?? defaultIgnoredNames;
+      this.includeExtensions = options.includeExtensions;
       this.isExcludedPath = createPathExcluder(options.excludePatterns);
       this.debounceMs = options.debounceMs ?? 50;
       this.maxPendingEvents = options.maxPendingEvents ?? 2_000;
@@ -159,6 +163,8 @@ export class NodeWatcher implements WatcherPort {
     const previous = this.knownPaths.get(relativePath);
     const kind = await this.kindFor(relativePath);
 
+    if (kind === "file" && !this.isIncluded(relativePath)) return;
+
     if (!kind) {
       if (previous) {
         this.knownPaths.delete(relativePath);
@@ -198,6 +204,15 @@ export class NodeWatcher implements WatcherPort {
     } catch {
       return null;
     }
+  }
+
+  private isIncluded(relativePath: string): boolean {
+    if (!this.includeExtensions?.size) return true;
+    const extension = path
+      .extname(relativePath)
+      .toLowerCase()
+      .replace(/^\./, "");
+    return this.includeExtensions.has(extension);
   }
 
   private async shouldUseRecursiveWatch(): Promise<boolean> {

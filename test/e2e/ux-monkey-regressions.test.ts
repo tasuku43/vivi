@@ -74,6 +74,47 @@ it("closes individual tab controls immediately across file types", async () => {
     .toBe("Open file tabs");
 });
 
+it("wires the current document inspector to outline, feedback, and Changes", async () => {
+  await page!.locator('[data-tree-path="README.md"]').click();
+
+  const inspector = page!.getByRole("complementary", {
+    name: "Document inspector",
+  });
+  await expect.poll(() => inspector.isVisible()).toBe(true);
+  await expect
+    .poll(() => inspector.getByText("README.md", { exact: true }).count())
+    .toBeGreaterThan(0);
+  await expect
+    .poll(() =>
+      inspector.getByText(/Double-click a rendered block to comment/).count(),
+    )
+    .toBe(1);
+  await expect
+    .poll(() => inspector.getByRole("button", { name: "Vivi Fixture" }).count())
+    .toBe(1);
+
+  await inspector.getByRole("button", { name: "Show changes" }).click();
+  await expect
+    .poll(() =>
+      inspector.getByRole("button", { name: "Back to document" }).count(),
+    )
+    .toBe(1);
+  await expect
+    .poll(() =>
+      page!.getByTestId("viewer-diff-toggle").getAttribute("aria-pressed"),
+    )
+    .toBe("true");
+
+  await inspector.getByRole("button", { name: "Back to document" }).click();
+  await page!.locator('[data-tree-path="index.html"]').click();
+  await expect
+    .poll(() => inspector.getByText("index.html", { exact: true }).count())
+    .toBeGreaterThan(0);
+  await expect
+    .poll(() => inspector.getByText("HTML", { exact: true }).count())
+    .toBe(1);
+});
+
 it("keeps modal focus inside the overlay and returns it to the opener", async () => {
   const shortcutsTrigger = page!.getByRole("button", {
     name: "Keyboard shortcuts",
@@ -126,7 +167,7 @@ it("dismisses the compact inspector when file navigation needs the reader", asyn
   await expect
     .poll(() =>
       page!
-        .getByRole("complementary", { name: "Review inspector" })
+        .getByRole("complementary", { name: "Document inspector" })
         .isVisible(),
     )
     .toBe(true);
@@ -134,7 +175,7 @@ it("dismisses the compact inspector when file navigation needs the reader", asyn
   await page!.locator('[data-tree-path="README.md"]').click();
   await expect
     .poll(() =>
-      page!.getByRole("complementary", { name: "Review inspector" }).count(),
+      page!.getByRole("complementary", { name: "Document inspector" }).count(),
     )
     .toBe(0);
   await expect
@@ -156,11 +197,22 @@ it("keeps typed feedback through outside clicks and comment close controls", asy
     .poll(() => input.inputValue())
     .toBe("Keep this thought while I inspect the workspace");
 
+  await page!.locator('[data-tree-path="index.html"]').click();
+  await expect.poll(() => input.count()).toBe(0);
+  await page!
+    .getByRole("button", { name: /Resume input in README\.md/ })
+    .click();
+  await expect
+    .poll(() =>
+      page!.getByRole("textbox", { name: "New line comment" }).inputValue(),
+    )
+    .toBe("Keep this thought while I inspect the workspace");
+
   await page!.getByRole("button", { name: "Close comment thread" }).click();
   await expect.poll(() => input.count()).toBe(0);
 
   await page!
-    .getByRole("button", { name: "Resume input in README.md, L1" })
+    .getByRole("button", { name: /Resume input in README\.md/ })
     .click();
   await expect
     .poll(() =>
@@ -175,18 +227,77 @@ it("keeps typed feedback through outside clicks and comment close controls", asy
     .toBe(0);
 }, 20_000);
 
+it("removes a saved Markdown composer before the next block is targeted", async () => {
+  await page!.locator('[data-tree-path="README.md"]').click();
+  const heading = page!.getByRole("heading", { name: "Vivi Fixture" });
+  await heading.dblclick();
+
+  const firstBody = "First note in a rapid Markdown pass";
+  await page!
+    .getByRole("textbox", { name: "New line comment" })
+    .fill(firstBody);
+  await page!
+    .getByRole("button", { name: "Save pending draft comment" })
+    .click();
+
+  await expect
+    .poll(() => page!.getByRole("textbox", { name: /comment|thread/i }).count())
+    .toBe(0);
+  await expect
+    .poll(() => page!.getByRole("article", { name: /Comment thread/ }).count())
+    .toBe(0);
+
+  const paragraph = page!.getByText("Contract workspace changed", {
+    exact: true,
+  });
+  await paragraph.dblclick();
+  await expect
+    .poll(() =>
+      page!.getByRole("textbox", { name: "New line comment" }).count(),
+    )
+    .toBe(1);
+}, 20_000);
+
 it("resumes a collapsed rendered comment without rediscovering its target", async () => {
   await page!.locator('[data-tree-path="README.md"]').click();
-  await page!
-    .getByRole("heading", { name: "Vivi Fixture" })
-    .click({ modifiers: ["Alt"] });
+  const heading = page!.getByRole("heading", { name: "Vivi Fixture" });
+  await heading.click();
+  await expect
+    .poll(() =>
+      page!.getByRole("textbox", { name: "New line comment" }).count(),
+    )
+    .toBe(0);
+
+  const paragraph = page!.getByText("Contract workspace changed", {
+    exact: true,
+  });
+  const bounds = await paragraph.boundingBox();
+  expect(bounds).not.toBeNull();
+  await page!.mouse.move(bounds!.x + 4, bounds!.y + bounds!.height / 2);
+  await page!.mouse.down();
+  await page!.mouse.move(
+    bounds!.x + bounds!.width - 4,
+    bounds!.y + bounds!.height / 2,
+    { steps: 6 },
+  );
+  await page!.mouse.up();
+  await expect
+    .poll(() =>
+      page!.getByRole("textbox", { name: "New line comment" }).count(),
+    )
+    .toBe(0);
+  await expect
+    .poll(() => page!.evaluate(() => window.getSelection()?.toString() ?? ""))
+    .toContain("Contract workspace changed");
+
+  await heading.dblclick();
   const input = page!.getByRole("textbox", { name: "New line comment" });
   await input.fill("Return me to this rendered heading");
   await page!.getByRole("button", { name: "Close comment thread" }).click();
   await expect.poll(() => input.count()).toBe(0);
 
   await page!
-    .getByRole("button", { name: "Resume input in README.md, L1" })
+    .getByRole("button", { name: /Resume input in README\.md/ })
     .click();
   await expect
     .poll(() =>
@@ -196,14 +307,12 @@ it("resumes a collapsed rendered comment without rediscovering its target", asyn
   await page!.getByRole("button", { name: "Discard" }).click();
 }, 20_000);
 
-it("keeps one HTML thread through repeated targeting and closes it after mode changes", async () => {
+it("closes a saved HTML composer so the next preview block stays targetable", async () => {
   await page!.locator('[data-tree-path="index.html"]').click();
   const previewFrame = page!.frameLocator('iframe[title="index.html"]');
   const heading = previewFrame.getByRole("heading", { name: "HTML Fixture" });
 
-  await heading.click({ modifiers: ["Alt"] });
-  await heading.click({ modifiers: ["Alt"] });
-  await heading.click({ modifiers: ["Alt"] });
+  await heading.dblclick();
   await expect
     .poll(() => page!.getByRole("article", { name: /Comment thread/ }).count())
     .toBe(1);
@@ -222,8 +331,22 @@ it("keeps one HTML thread through repeated targeting and closes it after mode ch
     .poll(() => page!.getByText(body, { exact: true }).count())
     .toBe(1);
   await expect
-    .poll(() => page!.getByRole("textbox", { name: "Continue thread" }).count())
+    .poll(() => page!.getByRole("textbox", { name: /comment|thread/i }).count())
+    .toBe(0);
+  await expect
+    .poll(() => page!.getByRole("article", { name: /Comment thread/ }).count())
+    .toBe(0);
+
+  const paragraph = previewFrame.getByText("Second HTML comment target", {
+    exact: true,
+  });
+  await paragraph.dblclick();
+  await expect
+    .poll(() =>
+      page!.getByRole("textbox", { name: "New line comment" }).count(),
+    )
     .toBe(1);
+  await page!.getByRole("button", { name: "Close comment thread" }).click();
 
   await page!.getByRole("button", { name: "Source", exact: true }).click();
   await expect
@@ -233,11 +356,6 @@ it("keeps one HTML thread through repeated targeting and closes it after mode ch
   await expect
     .poll(() => page!.getByText(body, { exact: true }).count())
     .toBe(1);
-  await expect
-    .poll(() => page!.getByRole("article", { name: /Comment thread/ }).count())
-    .toBe(1);
-
-  await page!.getByRole("button", { name: "Close comment thread" }).click();
   await expect
     .poll(() => page!.getByRole("article", { name: /Comment thread/ }).count())
     .toBe(0);
@@ -319,4 +437,46 @@ it("survives rapid viewer, tree, palette, and layout transitions", async () => {
     .toBe(0);
   await page!.getByRole("button", { name: "Expand inspector" }).click();
   await expect.poll(() => page!.getByRole("dialog").count()).toBe(0);
+}, 20_000);
+
+it("never opens stale Quick Open results while a new query is loading", async () => {
+  await page!.locator('[data-tree-path="README.md"]').click();
+  await page!.getByRole("button", { name: "Open command palette" }).click();
+  const query = page!.getByLabel("Quick open query");
+
+  await query.fill("README");
+  await expect
+    .poll(() =>
+      page!.getByRole("option", { name: /README\.md.*open file/ }).count(),
+    )
+    .toBe(1);
+
+  await query.fill("index.html");
+  await expect
+    .poll(() => page!.getByText("Searching file names...").count())
+    .toBe(1);
+  await expect
+    .poll(() =>
+      page!.getByRole("option", { name: /README\.md.*open file/ }).count(),
+    )
+    .toBe(0);
+  await query.press("Enter");
+  await expect
+    .poll(() => page!.getByRole("dialog", { name: "Quick open" }).count())
+    .toBe(1);
+
+  await expect
+    .poll(() =>
+      page!.getByRole("option", { name: /index\.html.*open file/ }).count(),
+    )
+    .toBe(1);
+  await query.press("Enter");
+  await expect
+    .poll(() =>
+      page!
+        .getByRole("complementary", { name: "Document inspector" })
+        .getByText("index.html", { exact: true })
+        .count(),
+    )
+    .toBeGreaterThan(0);
 }, 20_000);

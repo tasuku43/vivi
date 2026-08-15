@@ -8,7 +8,10 @@ The UI should serve the human side of Vivi's review-adapter model: humans read i
 
 ## Finalized direction
 
-The first polished UI should be based on the classic explorer layout, with a document-reader inspector and a modal search palette.
+The product is a document-first reader with a real filtered directory tree, a
+document inspector, and a modal search palette. This supersedes the earlier
+generic-workspace and Review-Queue-first details retained later in this ADR as
+implementation history.
 
 The preferred mockup is:
 
@@ -16,7 +19,10 @@ The preferred mockup is:
 docs/ui-mocks/06-classic-reader-commandk.html
 ```
 
-This direction was chosen because it keeps the mental model simple: the filesystem tree stays visible, open files stay visible as tabs, the active file is central, and secondary navigation lives in a right inspector.
+This direction keeps the mental model simple: the real directory tree stays
+visible but contains only supported documents, open documents stay visible as
+tabs, the clean rendered document is central, and feedback plus outline live in
+the right inspector. Changes are an optional lens, not the default organizer.
 
 ## Color and theme system
 
@@ -61,9 +67,9 @@ Prefer adding color roles by product state rather than by visual intensity:
 The app should use this default layout:
 
 ```text
-left sidebar     : live directory tree
+left sidebar     : live real directory tree filtered to supported documents
 main center      : open-file tabs and active viewer
-right inspector  : Review Queue, comments, Markdown/HTML H1/H2 outline, file metadata, recent file events
+right inspector  : current-document outline, feedback, and disclosed source details
 search overlay   : Cmd/Ctrl + K quick open, Cmd/Ctrl + Shift + F text search
 bottom status    : watched file count, open tab count, connection/server status
 ```
@@ -72,7 +78,8 @@ The layout should degrade responsively. On narrow screens the right inspector ma
 
 ## Sidebar tree
 
-The sidebar is the stable spatial map of the selected root directory.
+The sidebar is the stable spatial map of the selected root directory. Labels
+and nesting must come from real paths; Vivi must not invent semantic groups.
 
 Requirements:
 
@@ -80,16 +87,17 @@ Requirements:
 - It should preserve expanded/collapsed state across live updates whenever possible.
 - It should preserve the selected path when the active file changes.
 - It should ignore `.git`, `node_modules`, and common build caches by default.
+- It should hide non-document files and directories with no supported document descendants.
 - It should not mount a React component for every file in very large trees once virtualization is introduced.
 
 ## Tabs
 
-Tabs are required because users will open several files while reviewing generated output and source files.
+Tabs are required because users will open several documents while reviewing.
 
 Requirements:
 
 - Opening a file from the tree should create or activate a tab.
-- Tabs should preserve open-file context across Markdown, HTML, code, text, and image files.
+- Tabs should preserve open-document context across supported document adapters.
 - Open tabs, active panes, and split layout should survive browser refresh for the same selected root.
 - Closing a tab should remove it from automatic refresh restoration, while keeping it eligible for recent-file affordances.
 - The active tab should drive the main viewer.
@@ -100,15 +108,11 @@ The refresh-restoration state is browser-local UI state, so it belongs in localS
 
 ## Main viewer
 
-The main viewer should dispatch by viewer kind:
+The main viewer should dispatch by document kind:
 
 - Markdown: rendered document with source toggle.
 - HTML: sandboxed iframe preview with source toggle.
-- Code: syntax-highlighted source.
-- Text/log: plain text viewer.
-- Image: image preview.
-- Structured files: readable code-style view initially; richer viewers can come later.
-- Unsupported or large files: safe fallback with raw/download/size information.
+- Unsupported files do not appear as independent destinations.
 
 The active viewer should update without a full page refresh when the open file changes on disk.
 
@@ -129,6 +133,11 @@ The implementation intentionally avoids editable textareas, project-wide indexin
 
 ## Feedback and right inspector
 
+The right inspector describes the current document. Its default order is
+outline, open feedback/local drafts, then source/path details. Repository-wide
+Review Queue behavior below is retained as historical implementation context
+while it is removed from the primary product surface.
+
 The right inspector is primarily a review navigation surface. It should answer which files and threads need attention before it offers per-file helpers.
 
 Requirements:
@@ -145,8 +154,8 @@ Requirements:
 - Watcher events may feed the queue when Git status is unavailable, but they should be collapsed by file path instead of shown as raw event history.
 - Markdown and HTML documents should expose an H1/H2 outline under "In this file" below the Review Queue.
 - Comments should preserve the surface where the issue was seen, such as rendered Markdown, HTML preview, source, or diff.
-- Typed comment input is browser-local working state until the user saves it as a pending draft. Outside clicks do not close it. Escape and the close action collapse it without deleting text; only the explicit Discard action removes it. Open and collapsed input survives file, tab, rendered/source navigation, and page reload for the same workspace. Stored input expires after 30 days.
-- Pending drafts are the Publish boundary. Unsaved input is shown separately and never contributes to the Publish count. Rendered Markdown and HTML preview show a compact Source-input return action when typed Source input exists for the active file. Saving keeps the pending draft visible in place; successful Publish removes the local composer while retaining the published thread. When the underlying file hash changes, an open input becomes stale and requires Re-anchor or Discard before it can be saved.
+- Typed comment input is browser-local working state until the user saves it as a pending draft. Outside clicks do not close it. Escape and the close action collapse it without deleting text; explicit Discard removes it. Open and collapsed input survives file, tab, rendered/source navigation, and page reload for the same workspace. A successful Save promotes the text into a durable pending draft and removes the browser-local input session. Stored unsaved input expires after 30 days.
+- Pending drafts are the Publish boundary. Unsaved input is shown separately and never contributes to the Publish count. Rendered Markdown and HTML preview show a compact Source-input return action when typed Source input exists for the active file. Saving keeps the pending draft available through its document marker and inspector entry, but closes the inline/floating composer so the user can immediately double-click the next block. Opening that marker or inspector entry resumes the same pending thread. Deleting its last pending message closes the now-empty thread. Successful Publish retains the published thread without restoring a local composer. When the underlying file hash changes, an open input becomes stale and requires Re-anchor or Discard before it can be saved.
 - HTML preview comments should use one fixed floating composer near the right-middle of the viewport. Unlike source/code comments, opening a second HTML preview target replaces the current composer instead of keeping multiple block-local forms open.
 - The active heading should be highlightable later as the user scrolls.
 - File type, path, watch status, size, and last update information should be minimized or kept behind a lightweight details disclosure.
@@ -157,7 +166,7 @@ Requirements:
 
 Current diff support:
 
-- Supported: Markdown (`.md`, `.markdown`, `.mdown`), HTML (`.html`, `.htm`), code extensions, JSON (`.json`, `.jsonc`), text and delimited files (`.txt`, `.log`, `.csv`, `.tsv`), Mermaid (`.mmd`, `.mermaid`), images (`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg`), `Dockerfile`, and unknown extensions through generic line/binary diff.
+- Supported document destinations: Markdown (`.md`, `.markdown`, `.mdown`) and HTML (`.html`, `.htm`). Code, structured data, text, images, and unknown files do not appear as independent destinations.
 - Not yet supported: none among files that can be opened in the current viewer surface.
 - Later polish: CSV/TSV can graduate from source diff to table-aware diff, Mermaid can add rendered diagram comparison, and binary images can add side-by-side committed/working previews.
 

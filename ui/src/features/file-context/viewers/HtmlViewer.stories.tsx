@@ -196,17 +196,13 @@ export const PreviewRenderedHtmlThread: Story = {
     ).resolves.toBeInTheDocument();
     const frame = canvas.getByTitle(sampleFiles.html.path) as HTMLIFrameElement;
     await waitForHtmlDraftPreviewReady(frame);
-
-    clickHtmlStoryBlockId(frame, "html-p-1");
-    await expect(canvas.queryByLabelText("New line comment")).toBeNull();
-
-    clickHtmlStoryBlockId(frame, "html-p-1", { altKey: true });
-    await waitFor(() =>
-      expect(canvas.getByLabelText("New line comment")).toBeVisible(),
-    );
+    const thread = await canvas.findByRole("article", {
+      name: "Comment thread for lines 6-7",
+    });
     await expect(
-      canvas.queryByText(/HTML rendered comments should be visible/),
-    ).toBeNull();
+      within(thread).getByText(/HTML rendered comments should be visible/),
+    ).toBeVisible();
+    await expect(canvas.queryByLabelText("New line comment")).toBeNull();
   },
 };
 
@@ -225,8 +221,6 @@ export const PreviewKeepsThreadReplyFocused: Story = {
     ).resolves.toBeInTheDocument();
     const frame = canvas.getByTitle(sampleFiles.html.path) as HTMLIFrameElement;
     await waitForHtmlDraftPreviewReady(frame);
-
-    openHtmlStoryComment(frame);
 
     const thread = await canvas.findByRole("article", {
       name: "Comment thread for lines 6-7",
@@ -296,7 +290,7 @@ export const PreviewDraftOnlyThreadFollowUpKeepsThreadId: Story = {
     );
     await waitForHtmlPreviewReady(frame, sampleFiles.html.path);
 
-    clickHtmlStoryBlockId(frame, "html-preview-p-1", { altKey: true });
+    doubleClickHtmlStoryBlockId(frame, "html-preview-p-1");
     const firstBody = "First pending note from the HTML preview.";
     await userEvent.type(
       await canvas.findByLabelText("New line comment"),
@@ -306,9 +300,13 @@ export const PreviewDraftOnlyThreadFollowUpKeepsThreadId: Story = {
       canvas.getByRole("button", { name: "Save pending draft comment" }),
     );
 
-    await expect(canvas.findByText(firstBody)).resolves.toBeVisible();
+    await waitFor(() =>
+      expect(canvas.queryByLabelText("New line comment")).toBeNull(),
+    );
+    openHtmlStoryCommentById(frame, "draft:html-draft-root");
     const followUpInput = await canvas.findByLabelText("Continue thread");
     await expect(followUpInput).toBeVisible();
+    await expect(canvas.getByText(firstBody)).toBeVisible();
     const viewer = canvasElement.querySelector<HTMLElement>(".html-viewer");
     const threadHost = canvasElement.querySelector<HTMLElement>(
       ".html-rendered-comment-thread-host",
@@ -324,6 +322,9 @@ export const PreviewDraftOnlyThreadFollowUpKeepsThreadId: Story = {
     await userEvent.click(
       canvas.getByRole("button", { name: "Add follow-up" }),
     );
+    await waitFor(() =>
+      expect(canvas.queryByLabelText("Continue thread")).toBeNull(),
+    );
 
     const calls = (
       args.onCreateComment as unknown as {
@@ -336,6 +337,11 @@ export const PreviewDraftOnlyThreadFollowUpKeepsThreadId: Story = {
       /^draft-thread:html-draft-root:/,
     );
     await expect(calls[1]?.[1]).toBe(followUpBody);
+
+    doubleClickHtmlStoryBlockId(frame, "html-preview-p-2");
+    await expect(
+      canvas.findByLabelText("New line comment"),
+    ).resolves.toBeVisible();
   },
 };
 
@@ -432,7 +438,7 @@ export const PreviewDraftComposerReplacesTarget: Story = {
     ) as HTMLIFrameElement;
     await waitForHtmlPreviewReady(frame, multiTargetHtmlFile.path);
 
-    clickHtmlStoryBlockId(frame, "html-preview-p-1", { altKey: true });
+    doubleClickHtmlStoryBlockId(frame, "html-preview-p-1");
     await expect(
       await canvas.findByRole("article", {
         name: "Comment thread for line 6",
@@ -440,7 +446,7 @@ export const PreviewDraftComposerReplacesTarget: Story = {
     ).toBeVisible();
     await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(1);
 
-    clickHtmlStoryBlockId(frame, "html-preview-p-2", { altKey: true });
+    doubleClickHtmlStoryBlockId(frame, "html-preview-p-2");
     await expect(
       await canvas.findByRole("article", {
         name: "Comment thread for line 8",
@@ -479,12 +485,9 @@ export const SinglePreviewDraftFormFixedSlot: Story = {
     );
     await expect(canvas.queryByLabelText("New line comment")).toBeNull();
 
-    clickHtmlStoryBlock(
+    doubleClickHtmlStoryBlock(
       frame,
       "This layout treats Markdown as the primary surface.",
-      {
-        altKey: true,
-      },
     );
     await waitFor(() =>
       expect(canvas.getAllByLabelText("New line comment")).toHaveLength(1),
@@ -528,7 +531,7 @@ export const SinglePreviewDraftFormFixedSlot: Story = {
     await userEvent.click(submit);
     await waitFor(() => expect(args.onCreateComment).toHaveBeenCalled());
 
-    clickHtmlStoryBlock(frame, "Rendered", { altKey: true });
+    doubleClickHtmlStoryBlock(frame, "Rendered");
     await waitFor(() => {
       expect(
         canvas.getByRole("article", {
@@ -832,7 +835,6 @@ function htmlMultiTargetPreviewStoryDocument(path: string): string {
         const blockById = (id) => blocks.find((item) => item.dataset.viviCommentBlockId === id);
         const readableText = (block) => (block?.innerText || block?.textContent || "").replace(/\\s+/g, " ").trim();
         const postReady = () => parent.postMessage({ type: "vivi-story-html-ready", path }, "*");
-        const hasRenderedCommentModifier = (event) => event.altKey || event.ctrlKey || event.metaKey;
         const postTarget = (type, block, id) => {
           const rect = block.getBoundingClientRect();
           parent.postMessage({
@@ -881,9 +883,9 @@ function htmlMultiTargetPreviewStoryDocument(path: string): string {
             postReady();
             return;
           }
-          if (event.source === parent && event.data?.type === "vivi-story-click-block") {
+          if (event.source === parent && event.data?.type === "vivi-story-double-click-block") {
             const block = blockById(event.data.blockId);
-            if (block && hasRenderedCommentModifier(event.data)) postTarget("vivi-html-block-target", block);
+            if (block) postTarget("vivi-html-block-target", block);
             return;
           }
           if (event.source === parent && event.data?.type === "vivi-story-open-comment") {
@@ -894,10 +896,10 @@ function htmlMultiTargetPreviewStoryDocument(path: string): string {
           if (event.source !== parent || event.data?.type !== "vivi-html-comments" || event.data.path !== path) return;
           applyComments(event.data);
         });
-        blocks.forEach((block) => block.addEventListener("click", (event) => {
-          if (!hasRenderedCommentModifier(event)) return;
+        blocks.forEach((block) => block.addEventListener("dblclick", (event) => {
           event.preventDefault();
           event.stopPropagation();
+          document.getSelection()?.removeAllRanges();
           postTarget("vivi-html-block-target", block);
         }));
         postReady();
@@ -963,7 +965,6 @@ function htmlDocReaderDraftPreviewStoryDocument(path: string): string {
           rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
         }, "*");
       };
-      const hasRenderedCommentModifier = (event) => event.altKey || event.ctrlKey || event.metaKey;
       const classState = () => ({
         type: "vivi-story-hover-state",
         path,
@@ -990,9 +991,9 @@ function htmlDocReaderDraftPreviewStoryDocument(path: string): string {
           postReady();
           return;
         }
-        if (event.source === parent && event.data?.type === "vivi-story-click-text") {
+        if (event.source === parent && event.data?.type === "vivi-story-double-click-text") {
           const block = commentableBlocks().find((item) => readableText(item).includes(event.data.text));
-          if (block && hasRenderedCommentModifier(event.data)) postBlock(block);
+          if (block) postBlock(block);
           return;
         }
         if (event.source === parent && event.data?.type === "vivi-story-hover-layout") {
@@ -1006,12 +1007,12 @@ function htmlDocReaderDraftPreviewStoryDocument(path: string): string {
         openBlockIds = Array.isArray(event.data.openBlockIds) ? event.data.openBlockIds : [];
         applyHighlights();
       });
-      document.addEventListener("click", (event) => {
+      document.addEventListener("dblclick", (event) => {
         const block = closestBlock(event.target);
         if (!block) return;
-        if (!hasRenderedCommentModifier(event)) return;
         event.preventDefault();
         event.stopPropagation();
+        document.getSelection()?.removeAllRanges();
         postBlock(block);
       });
       document.addEventListener("pointermove", (event) => setHoveredBlock(renderedThreadOpen() ? null : closestBlock(event.target)));
@@ -1096,9 +1097,8 @@ function htmlDraftPreviewStoryDocument(path: string): string {
             rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
           }, "*");
         };
-        const hasRenderedCommentModifier = (event) => event.altKey || event.ctrlKey || event.metaKey;
         window.addEventListener("message", (event) => {
-          if (event.source === parent && event.data?.type === "vivi-story-click-block") {
+          if (event.source === parent && event.data?.type === "vivi-story-double-click-block") {
             const block = blocks.find((item) => item.dataset.viviCommentBlockId === event.data.blockId);
             if (block) postBlock(block);
             return;
@@ -1130,10 +1130,10 @@ function htmlDraftPreviewStoryDocument(path: string): string {
             if (drafting.has(block.dataset.viviCommentBlockId)) block.classList.add("drafting-rendered-comment");
           });
         });
-        blocks.forEach((block) => block.addEventListener("click", (event) => {
-          if (!hasRenderedCommentModifier(event)) return;
+        blocks.forEach((block) => block.addEventListener("dblclick", (event) => {
           event.preventDefault();
           event.stopPropagation();
+          document.getSelection()?.removeAllRanges();
           postBlock(block);
         }));
         postReady();
@@ -1143,19 +1143,22 @@ function htmlDraftPreviewStoryDocument(path: string): string {
 </html>`;
 }
 
-function clickHtmlStoryBlock(
-  frame: HTMLIFrameElement,
-  text: string,
-  init: MouseEventInit = {},
-): void {
+function clickHtmlStoryBlock(frame: HTMLIFrameElement, text: string): void {
   frame.contentWindow?.postMessage(
     {
       type: "vivi-story-click-text",
       text,
-      altKey: init.altKey === true,
-      ctrlKey: init.ctrlKey === true,
-      metaKey: init.metaKey === true,
     },
+    "*",
+  );
+}
+
+function doubleClickHtmlStoryBlock(
+  frame: HTMLIFrameElement,
+  text: string,
+): void {
+  frame.contentWindow?.postMessage(
+    { type: "vivi-story-double-click-text", text },
     "*",
   );
 }
@@ -1163,23 +1166,22 @@ function clickHtmlStoryBlock(
 function clickHtmlStoryBlockId(
   frame: HTMLIFrameElement,
   blockId: string,
-  init: MouseEventInit = {},
 ): void {
   frame.contentWindow?.postMessage(
     {
       type: "vivi-story-click-block",
       blockId,
-      altKey: init.altKey === true,
-      ctrlKey: init.ctrlKey === true,
-      metaKey: init.metaKey === true,
     },
     "*",
   );
 }
 
-function openHtmlStoryComment(frame: HTMLIFrameElement): void {
+function doubleClickHtmlStoryBlockId(
+  frame: HTMLIFrameElement,
+  blockId: string,
+): void {
   frame.contentWindow?.postMessage(
-    { type: "vivi-story-open-comment", id: "comment-html-rendered" },
+    { type: "vivi-story-double-click-block", blockId },
     "*",
   );
 }
@@ -1400,6 +1402,7 @@ function htmlCommentPreviewStoryDocument(path: string): string {
 	        const path = ${JSON.stringify(path)};
 	        const blocks = Array.from(document.querySelectorAll("[data-vivi-comment-block-id='html-h1-1'], [data-vivi-comment-block-id='html-p-1']"));
 	        const block = document.querySelector("[data-vivi-comment-block-id='html-p-1']");
+	        let activeCommentId = null;
 	        const postReady = () => parent.postMessage({ type: "vivi-story-html-ready", path }, "*");
 	        const postTarget = (type, id) => {
 	          const firstRect = blocks[0].getBoundingClientRect();
@@ -1453,9 +1456,9 @@ function htmlCommentPreviewStoryDocument(path: string): string {
 	            postReady();
 	            return;
 	          }
-	          if (event.source === parent && event.data?.type === "vivi-story-click-block") {
+	          if (event.source === parent && event.data?.type === "vivi-story-double-click-block") {
 	            const targetBlock = blocks.find((item) => item.dataset.viviCommentBlockId === event.data.blockId);
-	            if (targetBlock && hasRenderedCommentModifier(event.data)) postTarget("vivi-html-block-target");
+	            if (targetBlock) postTarget("vivi-html-block-target");
 	            return;
 	          }
 	          if (event.source === parent && event.data?.type === "vivi-story-open-comment") {
@@ -1463,8 +1466,10 @@ function htmlCommentPreviewStoryDocument(path: string): string {
 	            return;
 	          }
 	          if (event.source !== parent || event.data?.type !== "vivi-html-comments" || event.data.path !== path) return;
+	          const previousActiveCommentId = activeCommentId;
+	          activeCommentId = typeof event.data.activeCommentId === "string" ? event.data.activeCommentId : null;
 	          applyRange();
-	          if (event.data.activeCommentId === "comment-html-rendered") blocks.forEach((item) => item.classList.add("active-rendered-comment"));
+	          if (activeCommentId === "comment-html-rendered") blocks.forEach((item) => item.classList.add("active-rendered-comment"));
 	          if (event.data.draftingBlockIds?.some((id) => id === "html-h1-1" || id === "html-p-1")) blocks.forEach((item) => item.classList.add("drafting-rendered-comment"));
 	          if (!block.querySelector(".rendered-comment-marker")) {
 	            const action = document.createElement("button");
@@ -1481,12 +1486,14 @@ function htmlCommentPreviewStoryDocument(path: string): string {
             });
             block.append(action);
           }
+	          if (activeCommentId === "comment-html-rendered" && activeCommentId !== previousActiveCommentId) {
+	            postTarget("vivi-html-comment-open", activeCommentId);
+	          }
         });
-        const hasRenderedCommentModifier = (event) => event.altKey || event.ctrlKey || event.metaKey;
-        block.addEventListener("click", (event) => {
-          if (!hasRenderedCommentModifier(event)) return;
+        block.addEventListener("dblclick", (event) => {
           event.preventDefault();
           event.stopPropagation();
+          document.getSelection()?.removeAllRanges();
           postTarget("vivi-html-block-target");
         });
         postReady();

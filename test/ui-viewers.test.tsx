@@ -199,14 +199,14 @@ it("renders workspace status as a readable local-review instrument", () => {
   const html = renderToStaticMarkup(<WorkspaceStatusbar status={status} />);
 
   expect(workspaceStatusbarLabel(status)).toBe(
-    "Workspace status · Workspace: Watching 42 files · 3 tabs open · Current file: brief.md · preview · rendered · Review: 4 files to review · 2 threads open · 1 draft · Live updates: Updating review + 2 diffs",
+    "Workspace status · Workspace: Watching 42 files · 3 tabs open · Current file: brief.md · preview · rendered · Feedback: 4 files to review · 2 threads open · 1 draft · Live updates: Updating review + 2 diffs",
   );
   expect(html).toContain(
-    'aria-label="Workspace status · Workspace: Watching 42 files · 3 tabs open · Current file: brief.md · preview · rendered · Review: 4 files to review · 2 threads open · 1 draft · Live updates: Updating review + 2 diffs"',
+    'aria-label="Workspace status · Workspace: Watching 42 files · 3 tabs open · Current file: brief.md · preview · rendered · Feedback: 4 files to review · 2 threads open · 1 draft · Live updates: Updating review + 2 diffs"',
   );
   expect(html).toContain("Workspace");
   expect(html).toContain("Current");
-  expect(html).toContain("Review");
+  expect(html).toContain("Feedback");
   expect(html).toContain("Live");
   expect(html).toContain(
     'aria-label="Workspace: Watching 42 files · 3 tabs open"',
@@ -215,7 +215,7 @@ it("renders workspace status as a readable local-review instrument", () => {
     'aria-label="Current file: brief.md · preview · rendered"',
   );
   expect(html).toContain(
-    'aria-label="Review: 4 files to review · 2 threads open · 1 draft"',
+    'aria-label="Feedback: 4 files to review · 2 threads open · 1 draft"',
   );
   expect(html).toContain(
     'aria-label="Live updates: Updating review + 2 diffs"',

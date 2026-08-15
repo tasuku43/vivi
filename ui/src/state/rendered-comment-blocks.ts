@@ -53,23 +53,6 @@ export function isInteractiveRenderedCommentTarget(
   );
 }
 
-export function renderedCommentBlocksForSelection(
-  root: HTMLElement | null,
-): HTMLElement[] {
-  if (!root) return [];
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) return [];
-  if (!selection.toString().trim()) return [];
-  const range = selection.getRangeAt(0);
-  return commentableRenderedBlocks(root).filter((block) => {
-    try {
-      return range.intersectsNode(block);
-    } catch {
-      return false;
-    }
-  });
-}
-
 export function targetForRenderedCommentBlock(
   block: HTMLElement,
 ): RenderedCommentBlockTarget | null {

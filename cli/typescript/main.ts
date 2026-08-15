@@ -45,6 +45,13 @@ interface ShutdownProcess {
 
 const shutdownTimeoutMs = 3_000;
 export const version = "0.0.0";
+const defaultDocumentExtensions = new Set([
+  "md",
+  "markdown",
+  "mdown",
+  "html",
+  "htm",
+]);
 
 export function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = {
@@ -52,6 +59,7 @@ export function parseArgs(argv: string[]): CliOptions {
     host: "127.0.0.1",
     port: 4317,
     open: false,
+    includeExtensions: new Set(defaultDocumentExtensions),
     allowHtmlScripts: false,
     excludePatterns: [],
   };
@@ -95,6 +103,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   });
   const watcher = new NodeWatcher({
     rootDir,
+    includeExtensions: options.includeExtensions,
     excludePatterns: options.excludePatterns,
   });
   const changeReview = new GitChangeReview({
@@ -218,7 +227,7 @@ export function helpText(): string {
     "  --host <host>              Host to bind (default: 127.0.0.1)",
     "  --port <port>              Port to bind (default: 4317, 0 for random)",
     "  --open                     Open the browser after startup",
-    "  --include <extensions>     Comma-separated extension allow-list",
+    "  --include <extensions>     Document extension allow-list (default: md,markdown,mdown,html,htm)",
     "  --exclude <glob>           Exclude a workspace-relative glob; repeat or comma-separate (wins over --include)",
     "  --max-file-size <bytes>    Rich preview byte limit",
     "  --allow-html-scripts       Allow scripts in HTML preview for trusted files",

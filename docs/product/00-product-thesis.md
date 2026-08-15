@@ -14,7 +14,7 @@ This document is the highest-level product reference. For the shorter product su
 
 Coding agents write. Humans read, judge, and redirect. The best interface for those two sides is not the same.
 
-For humans, the right interface is a browser-based local review surface. It should make generated work easy to inspect across Markdown, HTML, source code, images, structured files, rendered views, and diffs. The UI should reduce cognitive load, preserve workspace context, and make feedback feel natural at the point where the human notices the issue.
+For humans, the right interface is a browser-based document reader. It should open local Markdown and HTML documents as readable artifacts and make feedback natural at the exact place where the human notices an issue. Markdown and HTML are both required document adapters from the first complete slice. Source and diffs are supporting evidence, not independent product destinations.
 
 For coding agents, the right interface is a command-line contract. Agents do not need a beautiful visual interface. They need clear, structured, current feedback: what is open, where it is anchored, what the human said, what needs a reply, and what can be resolved.
 
@@ -28,14 +28,13 @@ Vivi should be designed as three connected interfaces, not as one generic app.
 
 The browser UI is for reading.
 
-It should help the human understand the workspace with as little friction as possible. The file tree, tabs, rendered Markdown, safe HTML preview, source viewer, image viewer, structured file viewers, outlines, diffs, and review queue all serve this purpose.
+It should help the human understand documents with as little friction as possible. A filtered real directory tree, tabs, rendered documents, outlines, anchored feedback, source evidence, and an optional Changes lens all serve this purpose.
 
-The human should be able to review generated artifacts directly, not only their source diffs. A report should be readable as a report. An HTML file should be visible as a page. Markdown should be readable as a document. Images and screenshots should be visible as artifacts, not reduced to filenames.
+The human should review a document directly, not enter through its source diff. Markdown should read as a document, HTML should read as the authored page inside a safe preview, and every commentable rendered block should accept anchored feedback regardless of Git state.
 
 The browser interface is successful when the human can quickly answer:
 
-- What changed?
-- What was generated?
+- What does this document say?
 - What needs attention?
 - What do I want the agent to do next?
 
@@ -98,9 +97,9 @@ Vivi should also avoid competing as an agent workbench.
 
 Agent workbenches are valuable because they help coordinate tasks, branches, terminals, previews, and Pull Requests. Vivi can integrate with those workflows, but it should not try to orchestrate the agent's entire working environment. Its center should remain local workspace review and the feedback handoff between the human and the agent.
 
-Vivi's distinct position is local artifact review with an agent-readable feedback loop:
+Vivi's distinct position is local document review with an agent-readable feedback loop:
 
-- broader than a diff viewer,
+- more focused than a generic workspace viewer,
 - lighter than an IDE,
 - more structured than copying prompts,
 - more local and pre-PR than GitHub review,

@@ -28,10 +28,10 @@ export function WorkspaceStatusbar({ status }: WorkspaceStatusbarProps) {
       </span>
       <span
         className={styles.group}
-        aria-label={`Review: ${status.review}`}
+        aria-label={`Feedback: ${status.review}`}
         aria-live="polite"
       >
-        <span className={styles.label}>Review</span>
+        <span className={styles.label}>Feedback</span>
         {status.review}
       </span>
       <span
@@ -51,12 +51,14 @@ export function WorkspaceStatusbar({ status }: WorkspaceStatusbarProps) {
   );
 }
 
-export function workspaceStatusbarLabel(status: WorkspaceStatusSummary): string {
+export function workspaceStatusbarLabel(
+  status: WorkspaceStatusSummary,
+): string {
   return [
     "Workspace status",
     `Workspace: ${status.workspace}`,
     `Current file: ${status.activeFile}`,
-    `Review: ${status.review}`,
+    `Feedback: ${status.review}`,
     `Live updates: ${status.server}`,
   ].join(" · ");
 }

@@ -3,7 +3,6 @@ import type {
   CommentActor,
   CommentThreadActivityEvent,
   DraftReviewComment,
-  PublishedReviewBatch,
   ViviComment,
 } from "../../domain/comments.js";
 import type {
@@ -12,15 +11,10 @@ import type {
   TreeSnapshot,
 } from "../../domain/fs-node.js";
 import type { ReviewChangeItem } from "../../state/git-review.js";
-import { buildDiffStat, type DiffStat } from "../../state/git-review.js";
 import {
   summarizeThreadActivity,
   type CommentActivitySummary,
 } from "../../state/comment-activity.js";
-import {
-  buildReviewQueueItems,
-  type ReviewQueueItem,
-} from "../../state/review-queue.js";
 import type { OpenTab } from "../../state/tabs.js";
 
 export const storyNow = new Date("2026-06-20T09:30:00.000Z").getTime();
@@ -47,11 +41,6 @@ export const claudeAgent: CommentActor = {
   id: "claude-code:run-7",
   kind: "claude-code",
   displayName: "Claude Code",
-};
-
-export const unknownCodingAgent: CommentActor = {
-  id: "coding-agent",
-  kind: "unknown",
 };
 
 export const sampleWorkspaceTree: TreeSnapshot = {
@@ -167,6 +156,167 @@ export const sampleMarkdownFile = filePayload(
     "Agents read open threads, reply with context, and mark threads when resolved.",
   ].join("\n"),
 );
+
+export interface DocumentReaderFixture {
+  workspace: string;
+  documents: DocumentReaderNode[];
+  activePath: string;
+  title: string;
+  eyebrow: string;
+  blocks: Array<{
+    id: string;
+    kind: "heading" | "paragraph" | "list";
+    text: string;
+    source: string;
+    changed?: boolean;
+  }>;
+  outline: Array<{
+    label: string;
+    depth: 1 | 2;
+  }>;
+  thread: {
+    blockId: string;
+    human: string;
+    agent: string;
+  };
+  details: Array<{
+    label: string;
+    value: string;
+  }>;
+}
+
+export type DocumentReaderNode =
+  | {
+      kind: "directory";
+      path: string;
+      name: string;
+      children: DocumentReaderNode[];
+    }
+  | {
+      kind: "file";
+      path: string;
+      name: string;
+      format: "markdown" | "html";
+      commentCount: number;
+      changeCount: number;
+    };
+
+export const documentReaderFixture: DocumentReaderFixture = {
+  workspace: "product-docs",
+  documents: [
+    {
+      kind: "file",
+      path: "README.md",
+      name: "README.md",
+      format: "markdown",
+      commentCount: 1,
+      changeCount: 2,
+    },
+    {
+      kind: "directory",
+      path: "docs",
+      name: "docs",
+      children: [
+        {
+          kind: "file",
+          path: "docs/getting-started.md",
+          name: "getting-started.md",
+          format: "markdown",
+          commentCount: 0,
+          changeCount: 0,
+        },
+        {
+          kind: "directory",
+          path: "docs/guides",
+          name: "guides",
+          children: [
+            {
+              kind: "file",
+              path: "docs/guides/reviewing.html",
+              name: "reviewing.html",
+              format: "html",
+              commentCount: 2,
+              changeCount: 0,
+            },
+            {
+              kind: "file",
+              path: "docs/guides/agent-loop.md",
+              name: "agent-loop.md",
+              format: "markdown",
+              commentCount: 0,
+              changeCount: 1,
+            },
+          ],
+        },
+      ],
+    },
+  ],
+  activePath: "README.md",
+  eyebrow: "Living document",
+  title: "Review work where it is meant to be read",
+  blocks: [
+    {
+      id: "introduction",
+      kind: "paragraph",
+      text: "Vivi opens local documents as readable artifacts, then keeps feedback attached to the exact place where it was noticed.",
+      source:
+        "Vivi opens local documents as readable artifacts, then keeps feedback attached to the exact place where it was noticed.",
+    },
+    {
+      id: "feedback-heading",
+      kind: "heading",
+      text: "Feedback belongs to the document",
+      source: "## Feedback belongs to the document",
+    },
+    {
+      id: "feedback-loop",
+      kind: "paragraph",
+      text: "A reader can comment on any heading, paragraph, list, or rendered block without first entering a review mode.",
+      source:
+        "A reader can comment on any heading, paragraph, list, or rendered block without first entering a review mode.",
+      changed: true,
+    },
+    {
+      id: "reader-actions",
+      kind: "list",
+      text: "Read naturally|Comment in place|Return when the agent replies",
+      source:
+        "- Read naturally\n- Comment in place\n- Return when the agent replies",
+    },
+    {
+      id: "changes-heading",
+      kind: "heading",
+      text: "Changes are a lens, not the destination",
+      source: "## Changes are a lens, not the destination",
+    },
+    {
+      id: "changes-lens",
+      kind: "paragraph",
+      text: "When change context matters, the reader can reveal it without replacing the clean document or restricting where feedback can be left.",
+      source:
+        "When change context matters, the reader can reveal it without replacing the clean document or restricting where feedback can be left.",
+      changed: true,
+    },
+  ],
+  outline: [
+    { label: "Review work where it is meant to be read", depth: 1 },
+    { label: "Feedback belongs to the document", depth: 2 },
+    { label: "Changes are a lens, not the destination", depth: 2 },
+  ],
+  thread: {
+    blockId: "feedback-loop",
+    human:
+      "Keep this true even when the document has no Git change. Commenting is the core action.",
+    agent:
+      "Agreed. The comment affordance is independent from the optional Changes lens.",
+  },
+  details: [
+    { label: "Format", value: "Markdown" },
+    { label: "Path", value: "README.md" },
+    { label: "Watching", value: "4 documents" },
+    { label: "Updated", value: "just now" },
+  ],
+};
 
 export const sampleHtmlFile = filePayload(
   "review-preview.html",
@@ -625,54 +775,6 @@ export const sampleDraftComments: DraftReviewComment[] = [
   },
 ];
 
-export const manyDraftReviewComments: DraftReviewComment[] = [
-  ...sampleDraftComments,
-  ...Array.from({ length: 16 }, (_, index) =>
-    draftComment({
-      id: `draft-review-many-${index + 1}`,
-      path:
-        index % 3 === 0
-          ? sampleCodeFile.path
-          : index % 3 === 1
-            ? sampleMarkdownFile.path
-            : sampleHtmlFile.path,
-      viewerKind:
-        index % 3 === 0 ? "text" : index % 3 === 1 ? "markdown" : "html",
-      lineStart: 3 + index,
-      lineEnd: 3 + index,
-      quote: `draft review fixture ${index + 1}`,
-      body: `Queued draft review comment ${index + 1} for tray density checks.`,
-    }),
-  ),
-];
-
-export const samplePublishedReviewBatch: PublishedReviewBatch = {
-  reviewBatchId: "review-batch-story-001",
-  publishedAt: "2026-06-20T09:14:00.000Z",
-  threads: [
-    {
-      id: "thread-md-rendered",
-      path: sampleMarkdownFile.path,
-      status: "open",
-      reviewBatchId: "review-batch-story-001",
-      anchor: sampleComments[4]!.anchor,
-      createdAt: "2026-06-20T09:14:00.000Z",
-      updatedAt: "2026-06-20T09:14:00.000Z",
-      comments: [sampleComments[4]!],
-    },
-    {
-      id: "thread-html-rendered",
-      path: sampleHtmlFile.path,
-      status: "open",
-      reviewBatchId: "review-batch-story-001",
-      anchor: sampleComments[5]!.anchor,
-      createdAt: "2026-06-20T09:14:00.000Z",
-      updatedAt: "2026-06-20T09:14:00.000Z",
-      comments: [sampleComments[5]!],
-    },
-  ],
-};
-
 export const sampleActivityEvents: CommentThreadActivityEvent[] = [
   activity(
     "activity-created-workbench",
@@ -727,32 +829,6 @@ export const sampleActivityEvents: CommentThreadActivityEvent[] = [
 
 export const sampleThreadActivities =
   buildThreadActivities(sampleActivityEvents);
-export const sampleReviewDiffStats: Record<string, DiffStat | null> = {
-  [sampleDiff.path]: buildDiffStat(sampleDiff),
-  [markdownDiff.path]: buildDiffStat(markdownDiff),
-  [htmlDiff.path]: buildDiffStat(htmlDiff),
-  "docs/agent-handoff.md": { additions: 7, deletions: 1 },
-  "server/comments/comments.go": { additions: 11, deletions: 5 },
-  "server/graphql/schema.graphqls": { additions: 9, deletions: 0 },
-};
-
-export const sampleUnreadReviewPaths = new Set<string>([
-  sampleCodeFile.path,
-  sampleMarkdownFile.path,
-]);
-export const sampleCompletedThreadPaths = new Set<string>([
-  "docs/agent-handoff.md",
-  "server/comments/comments.go",
-]);
-
-export const sampleReviewQueueItems: ReviewQueueItem[] = buildReviewQueueItems(
-  sampleReviewChanges,
-  sampleComments,
-  sampleThreadActivities,
-  sampleUnreadReviewPaths,
-  { completedThreadPaths: sampleCompletedThreadPaths },
-);
-
 export const sampleTabs: OpenTab[] = [
   {
     path: sampleCodeFile.path,
@@ -769,37 +845,11 @@ export const sampleTabs: OpenTab[] = [
   },
 ];
 
-export const manyReviewComments: ViviComment[] = [
-  ...sampleComments,
-  ...Array.from({ length: 18 }, (_, index) =>
-    sourceComment({
-      id: `comment-many-${index + 1}`,
-      threadId: `thread-many-${index + 1}`,
-      path: `ui/src/features/review-lab/file-${index + 1}.tsx`,
-      viewerKind: "text",
-      lineStart: 3 + index,
-      lineEnd: 3 + index,
-      quote: `review fixture ${index + 1}`,
-      body: `Fixture comment ${index + 1} covering queue density and scrolling behavior.`,
-      status: index % 5 === 0 ? "resolved" : "open",
-      createdAt: `2026-06-20T08:${String(10 + index).padStart(2, "0")}:00.000Z`,
-      updatedAt: `2026-06-20T08:${String(10 + index).padStart(2, "0")}:00.000Z`,
-    }),
-  ),
-];
-
 export function commentsForPath(
   path: string,
   comments = sampleComments,
 ): ViviComment[] {
   return comments.filter((comment) => comment.path === path);
-}
-
-export function draftsForPath(
-  path: string,
-  drafts = sampleDraftComments,
-): DraftReviewComment[] {
-  return drafts.filter((draft) => draft.path === path);
 }
 
 function filePayload(

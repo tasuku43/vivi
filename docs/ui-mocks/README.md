@@ -2,9 +2,9 @@
 
 This directory contains static HTML mockups that define the intended product feel for the first polished implementation. They are self-contained files with no external CDN or package dependency.
 
-## Current product direction
+## Current implementation reference
 
-The preferred direction is `06-classic-reader-commandk.html`.
+The currently wired UI was based on `06-classic-reader-commandk.html`.
 
 It combines:
 
@@ -20,6 +20,14 @@ center : tabs plus active viewer
 right  : document outline, metadata, and recent file events
 modal  : Cmd/Ctrl + K command palette
 ```
+
+## Approved replacement direction
+
+`40-living-document-review-states.html` is the approved replacement direction.
+It narrows the library to documents, keeps ordinary rendered reading and
+comment-anywhere as the core loop, and exposes changes only as an optional lens.
+The matching Storybook facade is the visual contract before this direction is
+wired into the application.
 
 ## Mockup roles
 
@@ -44,6 +52,8 @@ modal  : Cmd/Ctrl + K command palette
 - `36-rendered-change-cards.html`: concept mock for treating rendered Markdown/HTML diffs as reviewable change cards with explicit Added/Removed/Changed rails, source hunk affordances, and comment anchors outside the rendered content.
 - `37-in-review-read-receipts.html`: three alternatives for showing agent read receipts, unread agent replies, and human read boundaries in the In Review workflow.
 - `38-resumable-comment-composer.html`: three policies for preserving typed comment input across line, file, tab, mode, inspector, outside-click, Escape, and file-change transitions without changing Publish into an agent synchronization gate.
+- `39-document-only-directions.html`: three product-boundary concepts for narrowing Vivi to document review, from a reversible document filter to a document-native semantic review model and a guided review journey.
+- `40-living-document-review-states.html`: the selected document-first direction with normal reading and comment-anywhere as the default, plus optional comment, thread, and change-lens states.
 
 ## Implementation guidance
 

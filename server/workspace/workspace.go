@@ -219,11 +219,7 @@ func (fsys *FS) readDirectory(relativePath string, depth int, bounded bool) (Tre
 		return TreeSnapshot{}, err
 	}
 	stats := &TreeStats{}
-	scanDepth := depth
-	if !bounded {
-		scanDepth = 1_000_000
-	}
-	nodes, err := fsys.scan(resolved.relative, nil, scanDepth, stats)
+	allNodes, err := fsys.scan(resolved.relative, nil, stats)
 	if err != nil {
 		operation.Record(context.Background(), "workspace.read_tree", telemetry.OperationStats{
 			DurationMs:         time.Since(started).Milliseconds(),
@@ -234,6 +230,11 @@ func (fsys *FS) readDirectory(relativePath string, depth int, bounded bool) (Tre
 		})
 		return TreeSnapshot{}, err
 	}
+	nodes := allNodes
+	if bounded {
+		nodes = projectTreeDepth(allNodes, depth)
+	}
+	stats.ReturnedNodes = countTreeNodes(nodes)
 	stats.DurationMs = time.Since(started).Milliseconds()
 	operation.Record(context.Background(), "workspace.read_tree", telemetry.OperationStats{
 		DurationMs:         stats.DurationMs,
@@ -673,7 +674,7 @@ func (fsys *FS) resolvePath(input string, requireNonEmpty bool) (resolvedPath, e
 	return resolvedPath{absolute: absolute, relative: relative}, nil
 }
 
-func (fsys *FS) scan(relativeDir string, parent *string, depth int, stats *TreeStats) ([]Node, error) {
+func (fsys *FS) scan(relativeDir string, parent *string, stats *TreeStats) ([]Node, error) {
 	absoluteDir, ok := fsys.internalAbsolutePath(relativeDir)
 	if !ok {
 		return nil, requestError("path escapes root")
@@ -709,15 +710,13 @@ func (fsys *FS) scan(relativeDir string, parent *string, depth int, stats *TreeS
 			continue
 		}
 		if info.IsDir() {
-			var children []Node
-			loaded := false
-			if depth > 1 {
-				childParent := relative
-				children, err = fsys.scan(relative, &childParent, depth-1, stats)
-				if err != nil {
-					return nil, err
-				}
-				loaded = true
+			childParent := relative
+			children, err := fsys.scan(relative, &childParent, stats)
+			if err != nil {
+				return nil, err
+			}
+			if len(children) == 0 {
+				continue
 			}
 			nodes = append(nodes, Node{
 				ID:             relative,
@@ -726,11 +725,10 @@ func (fsys *FS) scan(relativeDir string, parent *string, depth int, stats *TreeS
 				Kind:           "directory",
 				ParentPath:     parent,
 				Children:       children,
-				ChildrenLoaded: boolPtr(loaded),
+				ChildrenLoaded: boolPtr(true),
 				MtimeMs:        mtimeMs(info),
 				Version:        fsys.version,
 			})
-			stats.ReturnedNodes++
 			continue
 		}
 		if !info.Mode().IsRegular() {
@@ -751,9 +749,35 @@ func (fsys *FS) scan(relativeDir string, parent *string, depth int, stats *TreeS
 			MtimeMs:    mtimeMs(info),
 			Version:    fsys.version,
 		})
-		stats.ReturnedNodes++
 	}
 	return nodes, nil
+}
+
+func projectTreeDepth(nodes []Node, depth int) []Node {
+	projected := make([]Node, 0, len(nodes))
+	for _, node := range nodes {
+		next := node
+		if node.Kind == "directory" {
+			loaded := depth > 1
+			next.ChildrenLoaded = boolPtr(loaded)
+			if loaded {
+				next.Children = projectTreeDepth(node.Children, depth-1)
+			} else {
+				next.Children = nil
+			}
+		}
+		projected = append(projected, next)
+	}
+	return projected
+}
+
+func countTreeNodes(nodes []Node) int {
+	count := 0
+	for _, node := range nodes {
+		count++
+		count += countTreeNodes(node.Children)
+	}
+	return count
 }
 
 func (fsys *FS) walkFiles(relativeDir string, stats *SearchStats, onFile func(FileSearchResult) bool) error {

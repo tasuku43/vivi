@@ -29,6 +29,7 @@ func TestHelpTextSurfacesOneShotAgentReview(t *testing.T) {
 		"Run 'vivi servers --help', 'vivi inbox --help', or 'vivi reply --help' for details.",
 		"--ready-json",
 		"--exclude <glob>",
+		"Document extension allow-list (default: md,markdown,mdown,html,htm)",
 		"wins over --include",
 		"$XDG_CONFIG_HOME/vivi/config.json",
 		"default: ~/.config/vivi/config.json",
@@ -53,6 +54,19 @@ func TestHelpTextSurfacesOneShotAgentReview(t *testing.T) {
 	} {
 		if strings.Contains(help, hiddenCommand) {
 			t.Fatalf("common help should not expose non-core command %q\n%s", hiddenCommand, help)
+		}
+	}
+}
+
+func TestDefaultLaunchIncludesMarkdownAndHTMLDocuments(t *testing.T) {
+	got := parseInclude(defaultDocumentInclude)
+	want := []string{"md", "markdown", "mdown", "html", "htm"}
+	if len(got) != len(want) {
+		t.Fatalf("default include = %#v, want %#v", got, want)
+	}
+	for index := range want {
+		if got[index] != want[index] {
+			t.Fatalf("default include = %#v, want %#v", got, want)
 		}
 	}
 }

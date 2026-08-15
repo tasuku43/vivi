@@ -933,6 +933,7 @@ pre{border:1px solid %s;border-radius:8px;padding:12px;overflow:auto;}
   let draftingBlockIds = [];
   let openBlockIds = [];
   let openBlockIdGroups = [];
+  let pendingRenderedThreadOpen = false;
   let hoveredBlock = null;
   const post = (message) => parent.postMessage({ path, ...message }, "*");
   const escapeSelectorValue = (value) => String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
@@ -974,7 +975,7 @@ pre{border:1px solid %s;border-radius:8px;padding:12px;overflow:auto;}
     Boolean(element.querySelector(blockSelector));
   const isCommentableBlock = (element) =>
     element?.matches?.(blockSelector) && !isLayoutContainerBlock(element);
-  const renderedThreadOpen = () => openBlockIds.length > 0 || draftingBlockIds.length > 0;
+  const renderedThreadOpen = () => pendingRenderedThreadOpen || openBlockIds.length > 0 || draftingBlockIds.length > 0;
   const closestBlock = (target) => {
     if (!target || target.nodeType !== Node.ELEMENT_NODE) return null;
     let element = target;
@@ -1091,17 +1092,17 @@ pre{border:1px solid %s;border-radius:8px;padding:12px;overflow:auto;}
 	      block.classList.add("rendered-comment-range-join-after");
 	      block.style.setProperty("--rendered-comment-join-after", gap + "px");
 	    });
-	  };
+  };
   const bindBlockAction = (block) => {
-    if (block.dataset.viviCommentClickBound === "true") return;
-    block.dataset.viviCommentClickBound = "true";
-    block.addEventListener("click", (event) => {
+    if (block.dataset.viviCommentDblclickBound === "true") return;
+    block.dataset.viviCommentDblclickBound = "true";
+    block.addEventListener("dblclick", (event) => {
       if (event.target.closest?.(".rendered-comment-marker")) return;
       if (event.target.closest?.(interactiveSelector)) return;
-      if (document.getSelection()?.toString().trim()) return;
-      if (!hasRenderedCommentModifier(event)) return;
+      if (block.dataset.viviCommentId) return;
       event.preventDefault();
       event.stopPropagation();
+      document.getSelection()?.removeAllRanges();
       const target = targetForBlocks([block]);
       postTarget(target);
     });
@@ -1154,6 +1155,10 @@ pre{border:1px solid %s;border-radius:8px;padding:12px;overflow:auto;}
   };
   const postTarget = (target, type = "vivi-html-block-target", id) => {
     if (!target) return;
+    if (type === "vivi-html-block-target" || type === "vivi-html-comment-open") {
+      pendingRenderedThreadOpen = true;
+      setHoveredBlock(null);
+    }
     post({ type, id, ...target });
   };
   const postThreadLayout = () => {
@@ -1166,17 +1171,6 @@ pre{border:1px solid %s;border-radius:8px;padding:12px;overflow:auto;}
       if (target) post({ type: "vivi-html-thread-layout", blockIds: target.blockIds, rect: target.rect });
     }
   };
-  const publishSelection = () => {
-    const selection = document.getSelection();
-    if (!selection?.toString().trim() || !selection.rangeCount) return;
-    const range = selection.getRangeAt(0);
-    const blocks = commentableBlocks().filter((block) => {
-      try { return range.intersectsNode(block); } catch { return false; }
-    });
-    postTarget(targetForBlocks(blocks, selection.toString()));
-  };
-  const publishSoon = () => window.requestAnimationFrame(() => window.setTimeout(publishSelection, 0));
-  const hasRenderedCommentModifier = (event) => event.altKey || event.ctrlKey || event.metaKey;
   const workspacePathForHref = (href) => {
     if (typeof href !== "string") return null;
     const trimmed = href.trim();
@@ -1203,13 +1197,20 @@ pre{border:1px solid %s;border-radius:8px;padding:12px;overflow:auto;}
     if (event.source && event.source !== parent) return;
     const data = event.data;
     if (data?.type !== "vivi-html-comments" || data.path !== path) return;
+    const previousActiveCommentId = activeCommentId;
     renderedComments = Array.isArray(data.comments) ? data.comments : [];
     activeCommentId = typeof data.activeCommentId === "string" ? data.activeCommentId : null;
     draftingBlockIds = Array.isArray(data.draftingBlockIds) ? data.draftingBlockIds : [];
     openBlockIds = Array.isArray(data.openBlockIds) ? data.openBlockIds : [];
     openBlockIdGroups = Array.isArray(data.openBlockIdGroups) ? data.openBlockIdGroups.filter((group) => Array.isArray(group)) : [];
+    pendingRenderedThreadOpen = false;
     if (renderedThreadOpen()) setHoveredBlock(null);
     applyHighlights();
+    if (activeCommentId && activeCommentId !== previousActiveCommentId && !renderedThreadOpen()) {
+      const comment = renderedComments.find((item) => item.id === activeCommentId);
+      const target = targetForBlocks(comment ? findBlocksForComment(comment) : []);
+      postTarget(target, "vivi-html-comment-open", activeCommentId);
+    }
   });
   document.addEventListener("click", (event) => {
     const link = event.target.closest?.("a[href]");
@@ -1232,33 +1233,24 @@ pre{border:1px solid %s;border-radius:8px;padding:12px;overflow:auto;}
       return;
     }
     if (!block) {
+      pendingRenderedThreadOpen = false;
       post({ type: "vivi-html-comment-clear" });
       return;
     }
     if (event.target.closest?.(interactiveSelector)) return;
     if (document.getSelection()?.toString().trim()) return;
     const commentId = block.dataset.viviCommentId;
-    if (!hasRenderedCommentModifier(event)) {
-      if (commentId) {
-        event.preventDefault();
-        event.stopPropagation();
-        const comment = renderedComments.find((item) => item.id === commentId);
-        const commentBlocks = comment ? findBlocksForComment(comment) : [];
-        const targetBlocks = commentBlocks.length ? commentBlocks : [block];
-        const target = targetForBlocks(targetBlocks);
-        postTarget(target, "vivi-html-comment-open", commentId);
-      }
-      return;
-    }
+    if (!commentId) return;
     event.preventDefault();
     event.stopPropagation();
-    const target = targetForBlocks([block]);
-    postTarget(target);
+    const comment = renderedComments.find((item) => item.id === commentId);
+    const commentBlocks = comment ? findBlocksForComment(comment) : [];
+    const targetBlocks = commentBlocks.length ? commentBlocks : [block];
+    const target = targetForBlocks(targetBlocks);
+    postTarget(target, "vivi-html-comment-open", commentId);
   });
   document.addEventListener("pointermove", (event) => setHoveredBlock(renderedThreadOpen() ? null : closestBlock(event.target)));
   document.addEventListener("pointerleave", () => setHoveredBlock(null));
-  document.addEventListener("mouseup", publishSoon);
-  document.addEventListener("keyup", publishSoon);
   window.addEventListener("scroll", () => window.requestAnimationFrame(postThreadLayout), true);
   window.addEventListener("resize", postThreadLayout);
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", applyHighlights, { once: true });

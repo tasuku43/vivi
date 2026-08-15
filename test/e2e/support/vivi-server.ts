@@ -11,6 +11,7 @@ export interface StartServerOptions {
   host?: string;
   port?: number;
   allowHtmlScripts?: boolean;
+  useProductDefaults?: boolean;
   gitReviewTimeoutMs?: number;
   extraEnv?: Record<string, string>;
 }
@@ -22,6 +23,7 @@ export async function startViviServer({
   host = "127.0.0.1",
   port = 0,
   allowHtmlScripts = false,
+  useProductDefaults = false,
   gitReviewTimeoutMs,
   extraEnv,
 }: StartServerOptions): Promise<StartedServer> {
@@ -40,6 +42,7 @@ export async function startViviServer({
     host,
     port,
     allowHtmlScripts,
+    useProductDefaults,
     gitReviewTimeoutMs,
   });
   const child = spawn(command, args, {
@@ -66,6 +69,7 @@ function serverArgs(options: {
   host: string;
   port: number;
   allowHtmlScripts: boolean;
+  useProductDefaults: boolean;
   gitReviewTimeoutMs?: number;
 }): string[] {
   const template = process.env.VIVI_E2E_SERVER_ARGS;
@@ -88,6 +92,9 @@ function serverArgs(options: {
       ];
 
   const expanded = args.map((arg) => replacements[arg] ?? arg);
+  if (!options.useProductDefaults) {
+    insertAppFlag(expanded, "--include", "");
+  }
   if (options.allowHtmlScripts) {
     insertAppFlag(expanded, "--allow-html-scripts");
   }

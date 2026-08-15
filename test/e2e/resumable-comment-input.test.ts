@@ -95,6 +95,10 @@ it("deletes a saved pending comment before publish", async () => {
   await page
     .getByRole("button", { name: "Save pending draft comment" })
     .click();
+  await page
+    .getByRole("complementary", { name: "Document inspector" })
+    .getByRole("button", { name: /Remove this pending thought/ })
+    .click();
 
   const deletePending = page.getByRole("button", {
     name: "Delete pending draft comment 1",
@@ -104,13 +108,16 @@ it("deletes a saved pending comment before publish", async () => {
 
   await expect.poll(() => deletePending.count()).toBe(0);
   await expect
+    .poll(() => page.getByRole("article", { name: /Comment thread/ }).count())
+    .toBe(0);
+  await expect
     .poll(() =>
       page.getByRole("button", { name: "Publish all 1 pending" }).count(),
     )
     .toBe(0);
 }, 40_000);
 
-it("continues a just-saved HTML preview comment in the same pending thread", async () => {
+it("closes a saved HTML composer and reopens its pending thread on demand", async () => {
   server = await startViviServer({
     rootDir: fixture.rootDir,
     gitReviewTimeoutMs: 1_000,
@@ -124,9 +131,7 @@ it("continues a just-saved HTML preview comment in the same pending thread", asy
 
   await page.locator('[data-tree-path="index.html"]').click();
   const previewFrame = page.frameLocator('iframe[title="index.html"]');
-  await previewFrame
-    .getByText("HTML Fixture", { exact: true })
-    .click({ modifiers: ["Alt"] });
+  await previewFrame.getByText("HTML Fixture", { exact: true }).dblclick();
 
   const firstBody = "First pending HTML review note.";
   await page.getByRole("textbox", { name: "New line comment" }).fill(firstBody);
@@ -137,13 +142,20 @@ it("continues a just-saved HTML preview comment in the same pending thread", asy
   await expect
     .poll(() => page.getByText(firstBody, { exact: true }).count())
     .toBe(1);
+  await expect
+    .poll(() => page.getByRole("textbox", { name: "New line comment" }).count())
+    .toBe(0);
+  await page
+    .getByRole("complementary", { name: "Document inspector" })
+    .getByRole("button", { name: new RegExp(firstBody) })
+    .click();
   const followUp = page.getByRole("textbox", { name: "Continue thread" });
   await expect.poll(() => followUp.count()).toBe(1);
   const threadBounds = await page
     .getByRole("article", { name: "Comment thread for line 4" })
     .boundingBox();
   const inspectorBounds = await page
-    .getByRole("complementary", { name: "Review inspector" })
+    .getByRole("complementary", { name: "Document inspector" })
     .boundingBox();
   expect(threadBounds).not.toBeNull();
   expect(inspectorBounds).not.toBeNull();
@@ -158,6 +170,7 @@ it("continues a just-saved HTML preview comment in the same pending thread", asy
   await expect
     .poll(() => page.getByText(secondBody, { exact: true }).count())
     .toBe(1);
+  await expect.poll(() => followUp.count()).toBe(0);
   await expect
     .poll(() =>
       page.getByRole("button", { name: "Publish all 2 pending" }).count(),
@@ -169,8 +182,6 @@ it("continues a just-saved HTML preview comment in the same pending thread", asy
       page.getByRole("button", { name: "Publish all 2 pending" }).count(),
     )
     .toBe(0);
-  await expect.poll(() => followUp.count()).toBe(1);
-  await page.getByRole("button", { name: "Close comment thread" }).click();
   await expect
     .poll(() =>
       page.getByRole("article", { name: "Comment thread for line 4" }).count(),

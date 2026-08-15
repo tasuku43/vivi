@@ -35,7 +35,11 @@ it("parses documented CLI switches", () => {
 });
 
 it("keeps HTML scripts disabled unless explicitly allowed", () => {
-  expect(parseArgs([]).allowHtmlScripts).toBe(false);
+  const defaults = parseArgs([]);
+  expect(defaults.allowHtmlScripts).toBe(false);
+  expect(defaults.includeExtensions).toEqual(
+    new Set(["md", "markdown", "mdown", "html", "htm"]),
+  );
   expect(parseArgs(["--no-html-scripts"]).allowHtmlScripts).toBe(false);
 });
 
@@ -45,6 +49,9 @@ it("shows Vivi command help without the old pre-release name", () => {
   expect(help).toContain("vivi [root]");
   expect(help).toContain("--version");
   expect(help).toContain("--exclude <glob>");
+  expect(help).toContain(
+    "Document extension allow-list (default: md,markdown,mdown,html,htm)",
+  );
   expect(help).toContain("wins over --include");
   expect(help).not.toContain(["path", "lens"].join(""));
 });

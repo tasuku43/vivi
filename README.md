@@ -8,18 +8,18 @@ The canonical data contract is `server/graphql/schema.graphqls`. Run
 `task generate` to regenerate the Go bindings and infrastructure-private
 TypeScript operation types.
 
-Vivi is a CLI-launched local workspace review surface for humans working with
+Vivi is a CLI-launched local document review surface for humans working with
 coding agents.
 
 Coding agents write. Humans read, understand the workspace, and give the next
 instruction. Vivi exists for that reading loop: it opens a local directory in a
-rich browser UI with a live file tree, open-file tabs, rendered Markdown, safe
-HTML preview, code/text/image/JSON/CSV/Mermaid viewers, comments, and a Review
-Queue for working-tree changes.
+rich browser UI with a document-only live directory tree, open-document tabs,
+rendered Markdown, sandboxed HTML preview, anchored comments, and an optional
+Changes lens.
 
 Vivi gives humans a browser-based review surface and gives coding agents a
 CLI-readable feedback loop. It is not a diff-only viewer. It is a local file
-viewer for reading the whole workspace and the surrounding context with low
+viewer for reading the whole document and its feedback context with low
 cognitive load.
 
 See [docs/README.md](docs/README.md) for the documentation map,
@@ -71,7 +71,7 @@ and `reply` commands:
 ```bash
 vivi .
 vivi ./docs
-vivi ./dist --open
+vivi ./docs --open
 vivi . --ready-json
 vivi servers
 vivi inbox http://127.0.0.1:4317
@@ -79,7 +79,6 @@ vivi inbox http://127.0.0.1:4317 --read-as codex
 export VIVI_ACTOR=codex
 vivi reply http://127.0.0.1:4317 <thread-id> --body "Fixed."
 vivi reply http://127.0.0.1:4317 <thread-id> --resolve --body-file /tmp/vivi-reply.md
-vivi . --include md,html,ts,tsx,json,css,png,jpg
 vivi . --exclude package-lock.json --exclude '**/generated/**'
 vivi . --exclude 'package-lock.json,snapshots/,**/generated/**'
 vivi . --max-file-size 2097152
@@ -95,8 +94,11 @@ Defaults:
 - ignores `.git`, `node_modules`, and common build caches,
 - loads reusable exclude patterns from the global `vivi/config.json` when it
   exists,
+- includes Markdown (`.md`, `.markdown`, `.mdown`) and HTML (`.html`, `.htm`)
+  documents by default and hides non-document files plus directories that
+  contain no documents,
 - applies repeatable or comma-separated `--exclude <glob>` patterns to the
-  file tree, previews, search, watcher events, and Git Review Queue,
+  document tree, reads, search, watcher events, and change evidence,
 - renders HTML in a sandboxed iframe,
 - stores browser UI state in `localStorage`,
 - does not store file contents in `localStorage`,
@@ -126,15 +128,15 @@ over `--include`, and symlinks in the config path are followed normally.
 
 ## What Vivi Shows
 
-- A stable sidebar file tree for the selected workspace.
-- Open-file tabs and split panes for reading several files together.
-- Markdown, HTML, code, text/log, image/SVG, JSON, CSV/TSV, and Mermaid viewers.
-- A right inspector with Markdown/HTML H1/H2 outline, metadata, comments, and
-  Review Queue.
+- A stable document-only directory tree for the selected workspace.
+- Open-document tabs and split panes for reading several documents together.
+- Rendered Markdown and sandboxed HTML preview, with source available as
+  supporting evidence.
+- A current-document inspector with H1/H2 outline, feedback, source details,
+  and an optional Changes lens.
 - A modal command palette on `Cmd/Ctrl+K`.
 - Live file refresh from watcher events.
-- Working-tree Review Queue entries for added, modified, deleted, and renamed
-  files when Git is available.
+- Working-tree change evidence disclosed only when the reader enables Changes.
 
 ## Feedback Loop
 

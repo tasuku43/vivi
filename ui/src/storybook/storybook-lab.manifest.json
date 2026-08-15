@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "purpose": "Vivi Storybook is the fast UI regression lab and facade-review surface for the local review adapter. Every product-facing UI slice should be represented by at least one stable story and, when the behavior is interactive, one representative interaction story.",
+  "purpose": "Vivi Storybook is the fast UI regression lab and facade-review surface for the local document viewer. Every product-facing UI slice should be represented by at least one stable story and, when the behavior is interactive, one representative interaction story.",
   "reviewStages": [
     {
       "id": "html-concept",
@@ -24,14 +24,14 @@
     "ui/src/features/comments/Activity.stories.tsx",
     "ui/src/features/comments/CodeCommentThread.stories.tsx",
     "ui/src/features/comments/ResumableCommentComposerFacade.stories.tsx",
+    "ui/src/features/document-inspector/DocumentInspector.stories.tsx",
     "ui/src/features/file-context/FileContextPane.stories.tsx",
     "ui/src/features/file-context/components/FileViewer.stories.tsx",
     "ui/src/features/file-context/viewers/CodeViewer.stories.tsx",
     "ui/src/features/file-context/viewers/DiffViewer.stories.tsx",
     "ui/src/features/file-context/viewers/HtmlViewer.stories.tsx",
     "ui/src/features/file-context/viewers/MarkdownViewer.stories.tsx",
-    "ui/src/features/review-queue/ReviewQueuePanel.stories.tsx",
-    "ui/src/features/workbench/WorkbenchView.stories.tsx",
+    "ui/src/features/workbench/DocumentReaderFacade.stories.tsx",
     "ui/src/shared/components/Navigation.stories.tsx"
   ],
   "surfaces": [
@@ -49,55 +49,45 @@
       "interactionStories": []
     },
     {
-      "id": "workspace-shell",
-      "label": "Workspace shell",
+      "id": "document-reader",
+      "label": "Document-first reader",
       "stage": "storybook-facade",
-      "intent": "Preserve the classic local workspace frame: topbar, live tree, tabs, active viewer, right inspector, and status states.",
+      "intent": "Define the replacement product surface: open a document, read naturally, comment on any block, and reveal changes only as an optional lens.",
       "reviewFocus": [
-        "sidebar remains the stable spatial map",
-        "tabs make multi-file context visible",
-        "active viewer is visually primary",
-        "right inspector is available without competing with reading"
+        "normal reading is the default state and does not imply a review queue",
+        "every rendered block uses the same hover and double-click comment affordance whether or not it changed",
+        "single click and drag remain ordinary text-selection gestures and never open comment input",
+        "comment input and open threads stay attached to the document location",
+        "change context appears only after the reader enables the Changes lens",
+        "the sidebar preserves the real nested directory structure while hiding non-document files and empty directories"
       ],
       "requiredStories": [
-        "Workspace/Workbench States/WorkspaceWithFileTreeAndSelectedFile",
-        "Workspace/Workbench States/LoadingState",
-        "Workspace/Workbench States/PendingFileLoadState",
-        "Workspace/Workbench States/ErrorState",
-        "Workspace/Workbench States/MissingSourceErrorState",
-        "Workspace/Workbench States/DisconnectedState",
-        "Workspace/Navigation Chrome/SidebarFileTree",
-        "Workspace/Navigation Chrome/Tabs",
-        "Workspace/Navigation Chrome/Statusbar"
+        "Documents/Reader States/ReadingDocument",
+        "Documents/Reader States/WritingComment",
+        "Documents/Reader States/OpenThread",
+        "Documents/Reader States/ChangesLens"
       ],
       "interactionStories": [
-        "Workspace/Workbench States/WorkspaceWithFileTreeAndSelectedFile"
+        "Documents/Reader States/CommentAnywhereInteraction"
       ]
     },
     {
-      "id": "review-navigation",
-      "label": "Review navigation",
-      "stage": "storybook-facade",
-      "intent": "Keep Review Queue, unread activity, and agent replies visible as the primary right-inspector workflow.",
+      "id": "wired-document-inspector",
+      "label": "Wired document inspector",
+      "stage": "wired-feature",
+      "intent": "Connect the approved document-first hierarchy to the active file, outline, feedback, drafts, and optional change evidence used by the real workbench.",
       "reviewFocus": [
-        "open review work is easier to find than completed history",
-        "agent activity is visible without creating false unread work",
-        "per-thread agent read and reply-read states remain visible inside in-review files",
-        "queue rows expose enough metadata to choose the next file"
+        "the current document is more prominent than repository-wide review state",
+        "outline and feedback navigate the real active document",
+        "Changes remains an explicit optional lens",
+        "double-click commenting guidance leaves single-click and drag for reading"
       ],
       "requiredStories": [
-        "Review/Queue States/ReviewQueueItemWithOpenThreads",
-        "Review/Queue States/InReviewFileThreadExpansion",
-        "Review/Queue States/InReviewReadReceiptPlayground",
-        "Review/Queue States/ReviewQueueItemWithLatestAgentActivity",
-        "Review/Queue States/UnsavedInputCanResume",
-        "Review/Queue States/GitReviewUnavailable",
-        "Review/Activity States/CommentsWatchDisconnected"
+        "Documents/Inspector States/CurrentDocument",
+        "Documents/Inspector States/ChangesVisible"
       ],
       "interactionStories": [
-        "Review/Queue States/InReviewFileThreadExpansionInteraction",
-        "Review/Queue States/UnsavedInputCanResume",
-        "Workspace/Workbench States/InspectorThreadClickOpensRenderedMarkdownThread"
+        "Documents/Inspector States/DocumentNavigationInteraction"
       ]
     },
     {
@@ -129,37 +119,23 @@
     },
     {
       "id": "viewer-coverage",
-      "label": "Viewer coverage",
+      "label": "Document viewer coverage",
       "stage": "storybook-facade",
-      "intent": "Cover every product viewer surface: Markdown, HTML, code, JSON, CSV/text, Mermaid, image, unknown text, large text, and binary metadata.",
+      "intent": "Cover the two product document surfaces: rendered/source Markdown and sandboxed/source HTML.",
       "reviewFocus": [
-        "viewer kind is obvious without implying editing",
-        "fallback states remain readable and safe",
-        "toolbar controls stay stable across file types"
+        "Markdown and HTML remain readable without implying editing",
+        "rendered and source modes preserve document context",
+        "HTML preview remains sandboxed"
       ],
       "requiredStories": [
-        "Files/Viewer Coverage States/UnknownTextFallback",
         "Files/Viewer Coverage States/MarkdownKnownViewer",
-        "Files/Viewer Coverage States/CodeWithLocalOutline",
         "Files/Viewer Coverage States/HtmlKnownViewer",
-        "Files/Viewer Coverage States/JsonKnownViewer",
-        "Files/Viewer Coverage States/CsvTableFallback",
-        "Files/Viewer Coverage States/MermaidKnownViewer",
-        "Files/Viewer Coverage States/ImageKnownViewer",
-        "Files/Viewer Coverage States/BinaryMetadata",
-        "Files/Viewer Coverage States/LargeTextLimitedPreview",
-        "Files/Viewer Coverage States/LargeBinaryMetadata",
         "Files/Markdown Review States/RenderedMarkdownSyntaxGallery",
         "Files/Markdown Review States/RenderedMarkdownMultipleLineThreads",
         "Files/Markdown Review States/RenderedShowsSourceInputReturn",
         "Files/HTML Preview States/PreviewHtmlPatternGallery"
       ],
       "interactionStories": [
-        "Files/Code Review States/SourceWithOpenThread",
-        "Files/Code Review States/SourceWithStackedLineThreads",
-        "Files/Code Review States/SourceCommentActionPointerClickOpensComposer",
-        "Files/Code Review States/SourceLineNumberPointerClickOnlySelects",
-        "Files/Code Review States/DraftOnlyThreadFollowUpKeepsThreadId",
         "Files/Markdown Review States/RenderedBlockClickDraft",
         "Files/Markdown Review States/RenderedShowsSourceInputReturn",
         "Files/Markdown Review States/RenderedMarkdownSyntaxGallery",
@@ -174,7 +150,6 @@
         "Files/HTML Preview States/PreviewDraftComposerReplacesTarget",
         "Files/HTML Preview States/PreviewDraftOnlyThreadFollowUpKeepsThreadId",
         "Files/HTML Preview States/SourceHtmlComment",
-        "Files/Viewer Coverage States/JsonSourceCommentsUseInlineThread",
         "Files/Open File Surface States/HtmlSource",
         "Files/Viewer Coverage States/ViewerToolbarStickyByExtension"
       ]
@@ -208,27 +183,22 @@
     },
     {
       "id": "diff-review",
-      "label": "Diff review",
+      "label": "Document changes lens",
       "stage": "storybook-facade",
-      "intent": "Keep source diffs, rendered Markdown/HTML diffs, unavailable diffs, binary diffs, and diff comments visible.",
+      "intent": "Keep Markdown and HTML change evidence available as an optional lens without turning it into the primary workflow.",
       "reviewFocus": [
-        "added, removed, and unavailable diff states are easy to distinguish",
-        "diff comments stay anchored to the reviewed surface",
-        "rendered diff review remains readable beside source diff review"
+        "normal document reading remains the default",
+        "change comments stay anchored to the document surface",
+        "rendered Markdown and HTML changes remain readable"
       ],
       "requiredStories": [
-        "Review/Diff States/DiffCommentOnAddedLine",
-        "Review/Diff States/DiffCommentOnRemovedLine",
         "Review/Diff States/RenderedMarkdownComment",
         "Review/Diff States/RenderedMarkdownCodeFenceReplacement",
         "Review/Diff States/RenderedMarkdownRemovedComment",
         "Review/Diff States/RenderedHtmlComment",
-        "Review/Diff States/Unavailable",
-        "Review/Diff States/BinaryDiff",
-        "Files/Open File Surface States/CodeDiff"
+        "Review/Diff States/Unavailable"
       ],
       "interactionStories": [
-        "Review/Diff States/DiffCommentOnAddedLine",
         "Review/Diff States/RenderedMarkdownComment",
         "Review/Diff States/RenderedMarkdownCodeFenceReplacement",
         "Review/Diff States/RenderedMarkdownRemovedComment",
@@ -252,31 +222,12 @@
         "Navigation/Search and Command States/Loading",
         "Navigation/Search and Command States/Empty",
         "Workspace/Navigation Chrome/TopbarStory",
-        "Workspace/Navigation Chrome/ShortcutHelpOverlay",
-        "Workspace/Workbench States/CommandPaletteOpen",
-        "Workspace/Workbench States/ShortcutHelpOpen"
+        "Workspace/Navigation Chrome/ShortcutHelpOverlay"
       ],
       "interactionStories": [
         "Navigation/Search and Command States/QuickOpen",
         "Navigation/Search and Command States/Actions"
       ]
-    },
-    {
-      "id": "stress-and-empty-states",
-      "label": "Stress and empty states",
-      "stage": "storybook-facade",
-      "intent": "Make dense review sessions, empty workspaces, long lists, loading states, and missing results easy to inspect before E2E.",
-      "reviewFocus": [
-        "empty states explain what is absent without marketing copy",
-        "dense states remain scannable",
-        "long lists preserve stable layout and scrolling"
-      ],
-      "requiredStories": [
-        "Workspace/Workbench States/EmptyWorkspace",
-        "Workspace/Workbench States/ManyFilesManyComments",
-        "Review/Queue States/ManyFiles"
-      ],
-      "interactionStories": []
     }
   ],
   "agentWorkflow": [

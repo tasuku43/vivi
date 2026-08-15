@@ -259,7 +259,7 @@ export function DiffToggleButton({
       type="button"
       onClick={onToggle}
     >
-      {enabled ? "Back to file" : "Diff from HEAD"}
+      {enabled ? "Back to document" : "Changes"}
     </button>
   );
 }

@@ -59,6 +59,11 @@ Use these documents first when behavior changes:
 - `docs/research/26-cli-interface-concepts.md`: exploration artifact for agent CLI
   shape. It may contain rejected concepts, but its "current observed surface"
   should not contradict README, help output, or tests.
+- `docs/research/29-living-document-review-direction.md`: approved product-boundary
+  direction for a document-native Vivi, currently represented by a Storybook
+  facade but not yet wired. It becomes an implementation contract when the
+  product thesis, ADR, contracts, and acceptance criteria are updated with the
+  first vertical slice.
 - `docs/ui-mocks/`: static product intent and visual explorations, not literal
   implementation requirements unless referenced by current UI decisions.
 

@@ -1,8 +1,7 @@
 import type { CommentDraft } from "./comments.js";
 import { commentAnchorThreadKey } from "./comments.js";
 
-export type CommentInputSessionStatus =
-  "open" | "saved" | "collapsed" | "stale";
+export type CommentInputSessionStatus = "open" | "collapsed" | "stale";
 
 export interface CommentInputSession {
   id: string;
@@ -30,7 +29,6 @@ export type CommentInputSessionAction =
     }
   | { type: "collapse"; id: string }
   | { type: "discard"; id: string }
-  | { type: "mark-saved"; id: string }
   | { type: "discard-anchors"; anchorKeys: string[] }
   | { type: "mark-path-version"; path: string; fileHash: string }
   | { type: "reanchor"; id: string; draft: CommentDraft };
@@ -56,13 +54,6 @@ export function reduceCommentInputSessions(
     const keys = new Set(action.anchorKeys);
     return sessions.filter(
       (session) => !keys.has(commentInputAnchorKey(session.draft)),
-    );
-  }
-  if (action.type === "mark-saved") {
-    return sessions.map((session) =>
-      session.id === action.id
-        ? { ...session, body: "", status: "saved" }
-        : session,
     );
   }
   if (action.type === "collapse") {
@@ -206,7 +197,6 @@ function isCommentInputSession(value: unknown): value is CommentInputSession {
     typeof value.id === "string" &&
     typeof value.body === "string" &&
     (value.status === "open" ||
-      value.status === "saved" ||
       value.status === "collapsed" ||
       value.status === "stale") &&
     typeof draft.path === "string" &&

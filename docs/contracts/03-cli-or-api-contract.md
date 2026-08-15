@@ -15,7 +15,7 @@ vivi [root] --port 4317
 vivi [root] --host 127.0.0.1
 vivi [root] --open
 vivi [root] --port 0 --ready-json
-vivi [root] --include md,html,ts,tsx,json
+vivi [root] --include md,markdown,mdown,html,htm
 vivi [root] --exclude package-lock.json --exclude '**/generated/**'
 vivi [root] --exclude 'package-lock.json,snapshots/,**/generated/**'
 vivi [root] --max-file-size 1048576
@@ -101,6 +101,13 @@ Default port: `4317`. When that default port is unavailable and the user did
 not pass `--port`, the launcher increments mechanically to the next available
 local port, such as `4318` or `4319`. Explicit `--port` values still fail if
 that port cannot be bound.
+
+Default document extensions: `.md`, `.markdown`, `.mdown`, `.html`, and `.htm`.
+Tree, search, direct-read, watcher-event, and Git-change boundaries apply the
+same allow-list. The tree preserves real directory nesting and omits directories
+with no included document descendants. `--include` remains an explicit local
+override; it is not a compatibility promise for the removed generic-viewer
+product.
 
 Default security posture: local-only, sandboxed HTML preview, local CSS enabled for practical artifact inspection, and HTML script execution disabled. Use `--allow-html-scripts` only when intentionally reviewing generated HTML that needs script execution.
 
@@ -2061,14 +2068,13 @@ Rendered Markdown and HTML comments target a readable rendered block rather than
 an arbitrary text range. `rendered.blockId` is Vivi's per-render block identity
 for paragraphs, headings, list items, code blocks, table rows, and similar
 reader-visible units; `selector` and `textQuote` remain as fallback anchors.
-In rendered mode, the same block owns the click-to-add interaction, drafting
-highlight, persisted highlight, and active-comment highlight. A saved Markdown
+In rendered mode, the same block owns the double-click-to-add interaction,
+drafting highlight, persisted highlight, and active-comment highlight. Single
+click and pointer-drag remain native reading and text-selection interactions and
+must not open a composer. A saved Markdown
 block also shows a compact comment marker whose badge reports the number of
 messages mapped to that block; both the marker and highlighted block open the
-same replyable inline thread. A rendered Markdown selection may span multiple
-blocks; Vivi normalizes that selection to one canonical source line range,
-highlights every intersecting rendered block, and places the inline thread and
-count marker at the final selected block, matching source range comments. Because the thread
+same replyable inline thread. Because the thread
 remains in document flow, it stays at the commented location while the reader
 scrolls. Sandboxed HTML previews keep the
 same block anchor and highlight model, while the HTML iframe receives only

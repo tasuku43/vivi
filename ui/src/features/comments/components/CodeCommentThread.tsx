@@ -108,7 +108,11 @@ export function CodeCommentThread({
         ),
         trimmed,
       );
-      input.markSaved(input.id);
+      // Saving moves the thought into the durable pending-draft collection.
+      // Remove the local composer immediately so it cannot cover or push down
+      // the next rendered block the user wants to comment on.
+      input.discard(input.id);
+      onClose();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -127,10 +131,16 @@ export function CodeCommentThread({
 
   async function deletePendingDraft(id: string) {
     if (!deleteDraft || deletingDraftId) return;
+    const closesDraftOnlyThread =
+      !hasPublishedComments && thread.comments.length === 1;
     setDeletingDraftId(id);
     setError(null);
     try {
       await deleteDraft(id);
+      if (closesDraftOnlyThread) {
+        input.discard(input.id);
+        onClose();
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {

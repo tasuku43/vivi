@@ -56,6 +56,7 @@ export async function createContractFixture(): Promise<ContractFixture> {
       "<html><head><title>Fixture</title></head>",
       "<body>",
       "<h1>HTML Fixture</h1>",
+      "<p>Second HTML comment target</p>",
       "<script>window.viviScriptRan = true;</script>",
       "</body></html>",
       "",

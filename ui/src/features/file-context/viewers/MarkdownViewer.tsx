@@ -15,7 +15,6 @@ import type { CommentActivitySummary } from "../../../state/comment-activity.js"
 import { renderedCommentBlockAttribute } from "../../../domain/rendered-comment-blocks.js";
 import {
   renderedCommentDraft,
-  scheduleSelectionCommentUpdate,
   sourceTextForLineRange,
   latestPublishedStatus,
   matchingOpenThreadForDraft,
@@ -32,7 +31,6 @@ import {
   closestRenderedCommentBlock,
   findBlocksForRenderedComment,
   isInteractiveRenderedCommentTarget,
-  renderedCommentBlocksForSelection,
   renderedCommentSummaryForComment,
   rectLikeFromElement,
   type RenderedCommentBlockTarget,
@@ -156,17 +154,6 @@ export function MarkdownViewer({
     if (!markdown) return;
     renderMermaidBlocks(markdown, theme);
   }, [diffEnabled, mode, theme]);
-  const updateRenderedSelectionComment = () => {
-    const blocks = renderedCommentBlocksForSelection(markdownRef.current);
-    const target = targetForRenderedCommentBlocks(
-      blocks,
-      window.getSelection()?.toString(),
-    );
-    if (!target) return;
-    openRenderedDraft(target, blocks);
-    window.getSelection()?.removeAllRanges();
-  };
-
   useLayoutEffect(() => {
     if (mode !== "rendered" || diffEnabled || !markdownRef.current) return;
     markdownRef.current.innerHTML = html;
@@ -452,14 +439,25 @@ export function MarkdownViewer({
       return;
     }
     if (isInteractiveRenderedCommentTarget(event.target)) return;
-    if (window.getSelection()?.toString().trim()) return;
-    if (hasRenderedCommentModifier(event)) {
-      startRenderedComment(block);
-      return;
-    }
     if (block.dataset.viviCommentId) {
       openRenderedComment(block);
     }
+  };
+
+  const onRenderedDoubleClick = (event: MouseEvent<HTMLElement>) => {
+    if (
+      event.target instanceof Element &&
+      event.target.closest(".rendered-comment-thread")
+    ) {
+      return;
+    }
+    if (isInteractiveRenderedCommentTarget(event.target)) return;
+    const block = closestRenderedCommentBlock(
+      markdownRef.current,
+      event.target,
+    );
+    if (!block) return;
+    startRenderedComment(block);
   };
 
   const renderedThreadEntries = renderedThreadTargets.map((target) => {
@@ -540,11 +538,8 @@ export function MarkdownViewer({
         <article
           className={`${styles.document} ${renderedMarkdownStyles.renderedMarkdownStyles} markdown markdown-document`}
           ref={markdownRef}
-          onMouseUp={() =>
-            scheduleSelectionCommentUpdate(updateRenderedSelectionComment)
-          }
-          onKeyUp={updateRenderedSelectionComment}
           onClick={onRenderedClick}
+          onDoubleClick={onRenderedDoubleClick}
         />
       ) : (
         <SourceCommentSurface
@@ -656,12 +651,6 @@ function scheduleListItemThreadHostInset(
 function cssPixelValue(value: string): number {
   const parsed = Number.parseFloat(value);
   return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function hasRenderedCommentModifier(
-  event: Pick<MouseEvent<HTMLElement>, "altKey" | "ctrlKey" | "metaKey">,
-): boolean {
-  return event.altKey || event.ctrlKey || event.metaKey;
 }
 
 function openWorkspaceLink(

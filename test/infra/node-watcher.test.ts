@@ -81,6 +81,32 @@ it("drops watcher events that match configured exclude globs", async () => {
   await watcher.stop();
 });
 
+it("emits file events only for configured document extensions", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "vivi-doc-watcher-"));
+  await writeFile(path.join(dir, "guide.md"), "# Guide\n");
+  await writeFile(path.join(dir, "app.ts"), "export const hidden = true\n");
+  const watcher = new NodeWatcher({
+    rootDir: dir,
+    includeExtensions: new Set(["md"]),
+  }) as unknown as {
+    emitCurrentState(
+      path: string,
+      onEvent: (event: unknown) => void,
+    ): Promise<void>;
+    stop(): Promise<void>;
+  };
+  const events: unknown[] = [];
+
+  await watcher.emitCurrentState("guide.md", (event) => events.push(event));
+  await watcher.emitCurrentState("app.ts", (event) => events.push(event));
+
+  expect(events).toEqual([
+    expect.objectContaining({ type: "add", path: "guide.md", kind: "file" }),
+  ]);
+  await watcher.stop();
+  await rm(dir, { recursive: true, force: true });
+});
+
 it("starts without synchronously opening the recursive watcher", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "vivi-watcher-"));
   const watcher = new NodeWatcher({

@@ -1,0 +1,307 @@
+.root {
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-content-primary);
+}
+
+.header {
+  min-height: 42px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--vivi-color-border-default);
+  color: var(--vivi-color-content-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.header strong {
+  color: var(--vivi-color-content-subtle);
+  font-size: 10px;
+}
+
+.body {
+  height: calc(100% - 43px);
+  overflow: auto;
+  padding-bottom: 28px;
+}
+
+.identity {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 16px 14px;
+  border-bottom: 1px solid var(--vivi-color-border-soft);
+}
+
+.identity div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.identity strong,
+.identity span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.identity strong {
+  font-size: 13px;
+}
+.identity span {
+  color: var(--vivi-color-content-muted);
+  font-size: 11px;
+}
+
+.kindDot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--vivi-color-selection-indicator);
+  box-shadow: 0 0 0 4px var(--vivi-color-selection-surface-subtle);
+}
+
+.kindDot[data-kind="html"] {
+  background: var(--vivi-color-change-text);
+  box-shadow: 0 0 0 4px var(--vivi-color-change-surface-muted);
+}
+
+.section {
+  padding: 16px 14px;
+  border-bottom: 1px solid var(--vivi-color-border-soft);
+}
+
+.section > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.section h2 {
+  margin: 0;
+  color: var(--vivi-color-content-subtle);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.section > header > span {
+  min-width: 20px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--vivi-color-surface-palette);
+  color: var(--vivi-color-content-muted);
+  font-size: 10px;
+  text-align: center;
+}
+
+.outline,
+.feedbackList {
+  display: grid;
+  gap: 3px;
+}
+
+.outlineItem,
+.thread,
+.feedbackRow button {
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.outlineItem {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 7px 8px;
+  font-size: 12px;
+}
+
+.outlineItem:hover,
+.outlineItem.active {
+  background: var(--vivi-color-selection-surface-subtle);
+  color: var(--vivi-color-selection-text);
+}
+
+.outlineNested {
+  padding-left: 20px;
+  color: var(--vivi-color-content-muted);
+}
+.outlineItem small {
+  color: var(--vivi-color-content-subtle);
+}
+
+.gestureHint,
+.empty {
+  margin: 0 0 10px;
+  color: var(--vivi-color-content-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.unsaved {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 9px;
+  border: 1px solid var(--vivi-color-comment-border);
+  border-radius: 7px;
+  background: var(--vivi-color-comment-surface);
+  font-size: 11px;
+}
+
+.unsaved button,
+.publish,
+.changeCard button {
+  border: 1px solid var(--vivi-color-border-default);
+  border-radius: 6px;
+  background: var(--vivi-color-surface-panel-raised);
+  color: var(--vivi-color-content-primary);
+  padding: 6px 9px;
+  cursor: pointer;
+}
+
+.thread,
+.feedbackRow button {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 8px;
+  padding: 9px;
+  border: 1px solid transparent;
+}
+
+.thread:hover,
+.activeThread,
+.feedbackRow button:hover {
+  border-color: var(--vivi-color-review-border);
+  background: var(--vivi-color-review-surface);
+}
+
+.thread strong,
+.feedbackRow strong {
+  font-size: 11px;
+}
+.thread small,
+.feedbackRow small {
+  grid-column: 1 / -1;
+  color: var(--vivi-color-content-muted);
+  line-height: 1.35;
+}
+
+.status {
+  padding: 1px 5px;
+  border-radius: 999px;
+  color: var(--vivi-color-content-muted);
+  background: var(--vivi-color-surface-palette);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.open {
+  color: var(--vivi-color-review-text);
+  background: var(--vivi-color-review-surface-active);
+}
+.resolved {
+  color: var(--vivi-color-success-text);
+  background: var(--vivi-color-success-surface);
+}
+.pending {
+  color: var(--vivi-color-comment-text);
+  background: var(--vivi-color-comment-surface-active);
+}
+
+.messageCount {
+  grid-column: 1 / -1;
+  color: var(--vivi-color-content-subtle);
+  font-size: 9px;
+}
+
+.publish {
+  margin-top: 5px;
+  border-color: var(--vivi-color-comment-border);
+  color: var(--vivi-color-comment-text);
+}
+
+.changeCard {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--vivi-color-border-soft);
+  border-radius: 8px;
+  background: var(--vivi-color-surface-chrome);
+}
+
+.changeActive {
+  border-color: var(--vivi-color-change-border);
+  background: var(--vivi-color-change-surface);
+}
+
+.changeCard div {
+  display: grid;
+  gap: 4px;
+}
+.changeCard strong {
+  font-size: 12px;
+}
+.changeCard span {
+  color: var(--vivi-color-content-muted);
+  font-size: 10px;
+}
+.changeCard button {
+  border-color: var(--vivi-color-change-border);
+  color: var(--vivi-color-change-text);
+}
+
+.details {
+  margin: 14px;
+  color: var(--vivi-color-content-muted);
+  font-size: 11px;
+}
+.details summary {
+  cursor: pointer;
+}
+.details dl {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.details dl div {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 8px;
+}
+.details dt {
+  color: var(--vivi-color-content-subtle);
+}
+.details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--vivi-color-content-primary);
+}
+
+.noDocument {
+  display: grid;
+  gap: 6px;
+  padding: 24px 16px;
+  color: var(--vivi-color-content-muted);
+  font-size: 12px;
+}
+
+.noDocument strong {
+  color: var(--vivi-color-content-primary);
+}

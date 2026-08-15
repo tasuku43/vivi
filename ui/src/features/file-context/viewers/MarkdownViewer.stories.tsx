@@ -112,6 +112,7 @@ export const RenderedShowsSourceInputReturn: Story = {
 };
 
 export const RenderedBlockClickDraft: Story = {
+  name: "Rendered Markdown starts a draft only on double-click",
   tags: ["interaction"],
   args: {
     mode: "rendered",
@@ -126,14 +127,19 @@ export const RenderedBlockClickDraft: Story = {
     await expect(canvas.queryByLabelText("New line comment")).toBeNull();
     await expect(heading).not.toHaveClass("drafting-rendered-comment");
 
-    await clickRenderedBlock(heading, { altKey: true });
+    await fireEvent.mouseDown(heading, { clientX: 20, clientY: 10 });
+    await fireEvent.mouseMove(heading, { clientX: 160, clientY: 10 });
+    await fireEvent.mouseUp(heading, { clientX: 160, clientY: 10 });
+    await expect(canvas.queryByLabelText("New line comment")).toBeNull();
+
+    await doubleClickRenderedBlock(heading);
     await expect(canvas.getByLabelText("New line comment")).toBeInTheDocument();
     await expect(heading).toHaveClass("drafting-rendered-comment");
   },
 };
 
 export const RenderedCommentModifierClickStartsDraftComposer: Story = {
-  name: "Rendered Markdown modifier click continues an existing thread",
+  name: "Rendered Markdown double-click continues an existing thread",
   tags: ["interaction"],
   args: {
     mode: "rendered",
@@ -153,7 +159,7 @@ export const RenderedCommentModifierClickStartsDraftComposer: Story = {
       }),
     ).toBeInTheDocument();
 
-    await clickRenderedBlock(commentedText, { altKey: true });
+    await doubleClickRenderedBlock(commentedText);
 
     await expect(canvas.getByLabelText("Continue thread")).toBeInTheDocument();
     await expect(
@@ -247,7 +253,7 @@ export const RenderedSameAnchorFollowUpKeepsThreadId: Story = {
     const heading = canvas.getByRole("heading", {
       name: "Agent instructions",
     });
-    await clickRenderedBlock(heading, { altKey: true });
+    await doubleClickRenderedBlock(heading);
 
     const followUp = "Keep this pending reply on the L1 thread.";
     await userEvent.type(canvas.getByLabelText("Continue thread"), followUp);
@@ -509,19 +515,15 @@ export const MultipleRenderedDraftFormsStayOpen: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await clickRenderedBlock(
+    await doubleClickRenderedBlock(
       canvas.getByRole("heading", { name: "Review Surface" }),
-      {
-        altKey: true,
-      },
     );
     await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(1);
 
-    await clickRenderedBlock(
+    await doubleClickRenderedBlock(
       canvas.getByText(
         "Vivi keeps the human review surface close to the files that changed.",
       ),
-      { altKey: true },
     );
 
     await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(2);
@@ -558,15 +560,11 @@ export const RenderedListDraftFormsDoNotBridge: Story = {
       .getByText(/source\/rendered split-view exploration/)
       .closest("li")!;
 
-    await clickRenderedBlock(
+    await doubleClickRenderedBlock(
       canvas.getByText(/long-form Markdown reading model/),
-      {
-        altKey: true,
-      },
     );
-    await clickRenderedBlock(
+    await doubleClickRenderedBlock(
       canvas.getByText(/source\/rendered split-view exploration/),
-      { altKey: true },
     );
 
     await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(2);
@@ -785,9 +783,8 @@ export const RenderedMarkdownOpenThreadBesideNewDraft: Story = {
       canvas.getByRole("article", { name: "Comment thread for line 3" }),
     ).toBeVisible();
 
-    await clickRenderedBlock(
+    await doubleClickRenderedBlock(
       canvas.getByRole("heading", { name: "Marker placement" }),
-      { altKey: true },
     );
     const draftComposer = canvas.getByLabelText("New line comment");
     await expect(draftComposer).toBeVisible();
@@ -969,8 +966,12 @@ function renderedSnapshotLayoutSignature(root: HTMLElement): string {
     .join("|");
 }
 
-function clickRenderedBlock(element: Element, init: MouseEventInit = {}): void {
-  fireEvent.click(element, init);
+function clickRenderedBlock(element: Element): void {
+  fireEvent.click(element);
+}
+
+function doubleClickRenderedBlock(element: Element): void {
+  fireEvent.dblClick(element);
 }
 
 function SourceInputReturnHarness() {

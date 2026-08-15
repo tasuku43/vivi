@@ -1,0 +1,1158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Document-only Vivi directions</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --canvas: #0b1017;
+        --panel: #111923;
+        --panel-raised: #172231;
+        --reader: #f5f2ea;
+        --reader-text: #20252c;
+        --reader-muted: #67707c;
+        --line: #273548;
+        --line-strong: #3b4e66;
+        --text: #e3edf6;
+        --muted: #91a0b1;
+        --subtle: #68788b;
+        --cyan: #62cfdd;
+        --cyan-soft: rgba(98, 207, 221, 0.13);
+        --amber: #d8ae63;
+        --amber-soft: rgba(216, 174, 99, 0.15);
+        --green: #65c991;
+        --red: #ed7d83;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--canvas);
+        color: var(--text);
+      }
+      button {
+        font: inherit;
+      }
+      body {
+        padding: 24px;
+      }
+
+      .page {
+        width: min(1500px, 100%);
+        margin: 0 auto;
+      }
+      .eyebrow {
+        color: var(--cyan);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 8px 0 8px;
+        font-size: clamp(28px, 4vw, 48px);
+        letter-spacing: -0.04em;
+      }
+      .intro {
+        max-width: 820px;
+        margin: 0;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.65;
+      }
+
+      .positioning {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 18px;
+        align-items: center;
+        margin: 22px 0;
+        padding: 16px 18px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--panel);
+      }
+      .positioning strong {
+        display: block;
+        margin-bottom: 3px;
+        font-size: 14px;
+      }
+      .positioning span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .arrow {
+        color: var(--cyan);
+        font-size: 24px;
+      }
+
+      .concept-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      .concept-tab {
+        min-height: 86px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--panel);
+        color: var(--muted);
+        text-align: left;
+        padding: 14px;
+        cursor: pointer;
+      }
+      .concept-tab:hover {
+        border-color: var(--line-strong);
+      }
+      .concept-tab.active {
+        border-color: var(--cyan);
+        background: var(--cyan-soft);
+        color: var(--text);
+      }
+      .concept-tab b {
+        display: block;
+        color: inherit;
+        font-size: 14px;
+        margin-bottom: 5px;
+      }
+      .concept-tab small {
+        display: block;
+        line-height: 1.45;
+      }
+      .recommended {
+        display: inline-block;
+        margin-left: 7px;
+        padding: 2px 6px;
+        border-radius: 99px;
+        background: var(--cyan-soft);
+        color: var(--cyan);
+        font-size: 9px;
+        letter-spacing: 0.06em;
+      }
+
+      .concept {
+        display: none;
+      }
+      .concept.active {
+        display: block;
+      }
+      .concept-note {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr 1fr;
+        gap: 1px;
+        overflow: hidden;
+        margin-bottom: 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--line);
+      }
+      .note-cell {
+        background: var(--panel);
+        padding: 12px 14px;
+      }
+      .note-cell label {
+        display: block;
+        margin-bottom: 5px;
+        color: var(--subtle);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .note-cell p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .workbench {
+        display: grid;
+        grid-template-columns: 238px minmax(540px, 1fr) 286px;
+        grid-template-rows: 42px 660px 30px;
+        min-width: 1050px;
+        overflow: hidden;
+        border: 1px solid var(--line-strong);
+        border-radius: 12px;
+        background: var(--panel);
+        box-shadow: 0 22px 60px rgba(0, 0, 0, 0.35);
+      }
+      .topbar {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--line);
+        background: #0e151e;
+      }
+      .brand {
+        font-size: 14px;
+        font-weight: 900;
+      }
+      .brand::before {
+        content: "▰";
+        margin-right: 7px;
+        color: var(--cyan);
+      }
+      .crumb {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .top-spacer {
+        flex: 1;
+      }
+      .chip {
+        padding: 5px 8px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.02);
+        font-size: 11px;
+      }
+
+      .left,
+      .right {
+        overflow: hidden;
+        background: var(--panel);
+      }
+      .left {
+        border-right: 1px solid var(--line);
+      }
+      .right {
+        border-left: 1px solid var(--line);
+      }
+      .pane-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 38px;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--line);
+        color: var(--subtle);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+      }
+      .count {
+        color: var(--cyan);
+      }
+      .nav {
+        padding: 9px 7px;
+      }
+      .folder {
+        margin: 7px 6px 4px;
+        color: var(--subtle);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        min-height: 32px;
+        padding: 6px 8px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted);
+        text-align: left;
+        font-size: 12px;
+      }
+      .row.active {
+        background: var(--cyan-soft);
+        color: var(--text);
+        box-shadow: inset 2px 0 var(--cyan);
+      }
+      .row .icon {
+        color: var(--cyan);
+      }
+      .row .title {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .row .delta {
+        margin-left: auto;
+        color: var(--amber);
+        font-size: 10px;
+      }
+      .muted-row {
+        opacity: 0.48;
+      }
+
+      .center {
+        min-width: 0;
+        background: #0e151e;
+      }
+      .tabs {
+        display: flex;
+        align-items: center;
+        height: 38px;
+        border-bottom: 1px solid var(--line);
+      }
+      .doc-tab {
+        height: 100%;
+        padding: 0 14px;
+        border-right: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 11px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .doc-tab.active {
+        background: var(--panel);
+        color: var(--text);
+        border-top: 2px solid var(--cyan);
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 42px;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .toolbar strong {
+        color: var(--text);
+      }
+      .toolbar .spacer {
+        flex: 1;
+      }
+      .mode {
+        padding: 5px 8px;
+        border-radius: 5px;
+        background: var(--cyan-soft);
+        color: var(--cyan);
+      }
+
+      .reader-wrap {
+        height: 580px;
+        overflow: hidden;
+        padding: 20px 28px;
+      }
+      .reader {
+        width: min(760px, 100%);
+        min-height: 100%;
+        margin: 0 auto;
+        padding: 42px 54px;
+        border-radius: 8px;
+        background: var(--reader);
+        color: var(--reader-text);
+        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.22);
+      }
+      .reader .kicker {
+        color: #64707c;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .reader h2 {
+        margin: 10px 0 8px;
+        font-family: Georgia, serif;
+        font-size: 32px;
+        letter-spacing: -0.025em;
+      }
+      .reader h3 {
+        margin: 28px 0 8px;
+        font-family: Georgia, serif;
+        font-size: 20px;
+      }
+      .reader p,
+      .reader li {
+        color: #48515c;
+        font-family: Georgia, serif;
+        font-size: 15px;
+        line-height: 1.7;
+      }
+      .reader ul {
+        padding-left: 22px;
+      }
+      .changed {
+        position: relative;
+        margin: 18px -16px;
+        padding: 12px 16px;
+        border-radius: 6px;
+        background: rgba(216, 174, 99, 0.11);
+      }
+      .changed::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 3px;
+        border-radius: 3px;
+        background: var(--amber);
+      }
+      .change-label {
+        color: #8b6828;
+        font-family: Inter, sans-serif;
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .comment-pin {
+        float: right;
+        margin: 0 -8px 0 10px;
+        padding: 4px 7px;
+        border: 1px solid rgba(38, 117, 128, 0.32);
+        border-radius: 99px;
+        background: rgba(98, 207, 221, 0.16);
+        color: #267580;
+        font:
+          700 10px Inter,
+          sans-serif;
+      }
+
+      .inspector {
+        padding-bottom: 12px;
+      }
+      .inspect-section {
+        padding: 13px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .inspect-section h4 {
+        margin: 0 0 9px;
+        color: var(--subtle);
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .progress {
+        height: 4px;
+        margin: 8px 0 5px;
+        border-radius: 99px;
+        background: var(--line);
+        overflow: hidden;
+      }
+      .progress span {
+        display: block;
+        width: 62%;
+        height: 100%;
+        background: var(--cyan);
+      }
+      .summary {
+        display: flex;
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .outline-row {
+        display: flex;
+        gap: 8px;
+        padding: 5px 0;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .outline-row.active {
+        color: var(--text);
+      }
+      .outline-row.h2 {
+        padding-left: 14px;
+      }
+      .review-card {
+        margin-top: 8px;
+        padding: 9px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .review-card b {
+        display: block;
+        font-size: 11px;
+      }
+      .review-card small {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        line-height: 1.35;
+      }
+      .review-card.open {
+        border-color: rgba(98, 207, 221, 0.42);
+      }
+
+      .status {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 0 12px;
+        border-top: 1px solid var(--line);
+        background: #0d141d;
+        color: var(--subtle);
+        font-size: 10px;
+      }
+      .status b {
+        color: var(--muted);
+      }
+
+      /* B: document identity over filesystem identity */
+      .b .row {
+        min-height: 39px;
+      }
+      .b .row .meta {
+        display: block;
+        margin-top: 2px;
+        color: var(--subtle);
+        font-size: 10px;
+      }
+      .b .doc-name {
+        min-width: 0;
+      }
+      .b .reader-wrap {
+        background: #101823;
+      }
+      .b .toolbar {
+        justify-content: center;
+      }
+      .b .toolbar .doc-location {
+        margin-right: auto;
+      }
+      .b .toolbar .spacer {
+        display: none;
+      }
+      .b .right {
+        background: #111a25;
+      }
+
+      /* C: review flow over navigation */
+      .c {
+        grid-template-columns: 270px minmax(540px, 1fr) 256px;
+      }
+      .c .left {
+        background: #0f1721;
+      }
+      .c .review-stop {
+        margin: 8px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+      .c .review-stop.active {
+        border-color: var(--cyan);
+        background: var(--cyan-soft);
+      }
+      .c .review-stop b {
+        display: block;
+        font-size: 12px;
+      }
+      .c .review-stop small {
+        display: block;
+        margin-top: 5px;
+        color: var(--muted);
+        line-height: 1.4;
+      }
+      .c .step {
+        display: inline-grid;
+        place-items: center;
+        width: 19px;
+        height: 19px;
+        margin-right: 6px;
+        border-radius: 99px;
+        background: var(--line);
+        color: var(--text);
+        font-size: 10px;
+      }
+      .c .active .step {
+        background: var(--cyan);
+        color: #071116;
+      }
+      .c .reader-wrap {
+        padding-inline: 36px;
+      }
+
+      .scope-table {
+        width: 100%;
+        margin: 24px 0 0;
+        border-collapse: collapse;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--panel);
+        font-size: 12px;
+      }
+      .scope-table th,
+      .scope-table td {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+      }
+      .scope-table th {
+        color: var(--subtle);
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .scope-table td {
+        color: var(--muted);
+      }
+      .scope-table td:first-child {
+        color: var(--text);
+        font-weight: 700;
+      }
+      .yes {
+        color: var(--green) !important;
+      }
+      .no {
+        color: var(--red) !important;
+      }
+      .later {
+        color: var(--amber) !important;
+      }
+
+      @media (max-width: 1120px) {
+        body {
+          padding: 14px;
+        }
+        .workbench {
+          transform-origin: top left;
+          transform: scale(0.82);
+          width: 121.95%;
+          margin-bottom: -118px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="eyebrow">Vivi product boundary exploration · 39</div>
+      <h1>What if Vivi only reviewed documents?</h1>
+      <p class="intro">
+        The useful cut is not “hide code extensions.” It is to make every
+        visible object a document with structure, rendered meaning, semantic
+        change, and anchored feedback. Assets may support a document without
+        becoming review destinations of their own.
+      </p>
+
+      <div class="positioning">
+        <div>
+          <strong>Today</strong
+          ><span>Local workspace review across every artifact</span>
+        </div>
+        <div class="arrow">→</div>
+        <div>
+          <strong>Sharper promise</strong
+          ><span>Read and review agent-written documents before they ship</span>
+        </div>
+      </div>
+
+      <nav class="concept-tabs" aria-label="Document-only concepts">
+        <button class="concept-tab" data-concept="a">
+          <b>A · Document Lens</b>
+          <small
+            >Keep the workspace shell; filter first-class surfaces to
+            documents.</small
+          >
+        </button>
+        <button class="concept-tab active" data-concept="b">
+          <b
+            >B · Living Document Review
+            <span class="recommended">RECOMMENDED</span></b
+          >
+          <small
+            >Organize around document identity, structure, and rendered
+            change.</small
+          >
+        </button>
+        <button class="concept-tab" data-concept="c">
+          <b>C · Review Journey</b>
+          <small
+            >Replace browsing with a guided sequence of document change
+            stops.</small
+          >
+        </button>
+      </nav>
+
+      <section class="concept" id="concept-a">
+        <div class="concept-note">
+          <div class="note-cell">
+            <label>Thesis</label>
+            <p>
+              Vivi remains familiar, but only documents enter the tree, tabs,
+              search, and Review Queue.
+            </p>
+          </div>
+          <div class="note-cell">
+            <label>Wins when</label>
+            <p>
+              We want a reversible product cut and fast validation with existing
+              architecture.
+            </p>
+          </div>
+          <div class="note-cell">
+            <label>Risk</label>
+            <p>
+              Can feel like the current product with an extension allow-list.
+            </p>
+          </div>
+        </div>
+        <div class="workbench a">
+          <header class="topbar">
+            <div class="brand">Vivi</div>
+            <div class="crumb">handbook / 12 documents</div>
+            <div class="top-spacer"></div>
+            <span class="chip">All docs ⌘K</span
+            ><span class="chip">Search text ⇧⌘F</span>
+          </header>
+          <aside class="left">
+            <div class="pane-title">
+              Documents <span class="count">12</span>
+            </div>
+            <div class="nav">
+              <div class="folder">Getting started</div>
+              <button class="row active">
+                <span class="icon">▤</span
+                ><span class="title">Introduction.md</span
+                ><span class="delta">+2</span></button
+              ><button class="row">
+                <span class="icon">▤</span
+                ><span class="title">Installation.md</span>
+              </button>
+              <div class="folder">Guides</div>
+              <button class="row">
+                <span class="icon">◇</span
+                ><span class="title">Deploy preview.html</span
+                ><span class="delta">+1</span></button
+              ><button class="row">
+                <span class="icon">▤</span
+                ><span class="title">Agent workflow.mdx</span></button
+              ><button class="row">
+                <span class="icon">▤</span
+                ><span class="title">Troubleshooting.md</span
+                ><span class="delta">+4</span>
+              </button>
+              <div class="folder">Supporting assets</div>
+              <button class="row muted-row">
+                <span class="icon">◌</span
+                ><span class="title">8 linked assets (hidden)</span>
+              </button>
+            </div>
+          </aside>
+          <section class="center">
+            <div class="tabs">
+              <div class="doc-tab active">▤ Introduction.md</div>
+              <div class="doc-tab">◇ Deploy preview.html</div>
+            </div>
+            <div class="toolbar">
+              <strong>Introduction.md</strong>
+              <div class="spacer"></div>
+              <span class="mode">Rendered</span><span>Source</span
+              ><span>Changes 2</span>
+            </div>
+            <div class="reader-wrap">
+              <article class="reader">
+                <div class="kicker">Getting started</div>
+                <h2>Build with a shared review loop</h2>
+                <p>
+                  Vivi gives people a calm place to read work produced with
+                  coding agents, while keeping feedback precise enough for the
+                  next change.
+                </p>
+                <div class="changed">
+                  <span class="comment-pin">1 comment</span>
+                  <div class="change-label">Changed since HEAD</div>
+                  <h3>Review the document, not the file</h3>
+                  <p>
+                    Open the rendered result, move through changed sections, and
+                    attach feedback to the paragraph where the meaning breaks.
+                  </p>
+                </div>
+                <h3>Keep the handoff local</h3>
+                <p>
+                  Published feedback remains attached to the document and can be
+                  retrieved by the coding agent.
+                </p>
+              </article>
+            </div>
+          </section>
+          <aside class="right">
+            <div class="pane-title">Document</div>
+            <div class="inspector">
+              <div class="inspect-section">
+                <h4>Review progress</h4>
+                <div class="summary">
+                  <span>3 of 5 documents</span><span>62%</span>
+                </div>
+                <div class="progress"><span></span></div>
+              </div>
+              <div class="inspect-section">
+                <h4>In this document</h4>
+                <div class="outline-row active">
+                  01 · Build with a shared review loop
+                </div>
+                <div class="outline-row h2">
+                  Review the document, not the file
+                </div>
+                <div class="outline-row h2">Keep the handoff local</div>
+              </div>
+              <div class="inspect-section">
+                <h4>Open feedback</h4>
+                <div class="review-card open">
+                  <b>“document, not the file”</b
+                  ><small>Can we make the benefit concrete here?</small>
+                </div>
+              </div>
+            </div>
+          </aside>
+          <footer class="status">
+            <b>DOCS</b> 12 visible · 8 supporting assets hidden
+            <b>LIVE</b> watching rendered documents
+          </footer>
+        </div>
+      </section>
+
+      <section class="concept active" id="concept-b">
+        <div class="concept-note">
+          <div class="note-cell">
+            <label>Thesis</label>
+            <p>
+              The primary model is a living document: title, sections, rendered
+              versions, change stops, and feedback.
+            </p>
+          </div>
+          <div class="note-cell">
+            <label>Wins when</label>
+            <p>
+              We want a distinct category and the best foundation for semantic
+              document diffs.
+            </p>
+          </div>
+          <div class="note-cell">
+            <label>Risk</label>
+            <p>
+              Requires a document model above paths and extensions; HTML parity
+              is real work.
+            </p>
+          </div>
+        </div>
+        <div class="workbench b">
+          <header class="topbar">
+            <div class="brand">Vivi</div>
+            <div class="crumb">Product handbook</div>
+            <div class="top-spacer"></div>
+            <span class="chip">5 changed documents</span
+            ><span class="chip">Open document ⌘K</span>
+          </header>
+          <aside class="left">
+            <div class="pane-title">
+              Handbook <span class="count">5 changed</span>
+            </div>
+            <div class="nav">
+              <div class="folder">Needs review</div>
+              <button class="row active">
+                <span class="icon">●</span
+                ><span class="doc-name"
+                  ><span class="title">Build with a shared review loop</span
+                  ><span class="meta"
+                    >Introduction · 2 sections changed</span
+                  ></span
+                ><span class="delta">2</span></button
+              ><button class="row">
+                <span class="icon">●</span
+                ><span class="doc-name"
+                  ><span class="title">Deploy a preview safely</span
+                  ><span class="meta">Guide · 1 section changed</span></span
+                ><span class="delta">1</span></button
+              ><button class="row">
+                <span class="icon">●</span
+                ><span class="doc-name"
+                  ><span class="title">Troubleshoot local updates</span
+                  ><span class="meta"
+                    >Reference · 4 sections changed</span
+                  ></span
+                ><span class="delta">4</span>
+              </button>
+              <div class="folder">Reviewed</div>
+              <button class="row">
+                <span class="icon" style="color: var(--green)">✓</span
+                ><span class="doc-name"
+                  ><span class="title">Install Vivi</span
+                  ><span class="meta">No open feedback</span></span
+                >
+              </button>
+            </div>
+          </aside>
+          <section class="center">
+            <div class="tabs">
+              <div class="doc-tab active">Build with a shared review loop</div>
+            </div>
+            <div class="toolbar">
+              <span class="doc-location">Introduction · Updated 4 min ago</span
+              ><span>Previous change</span
+              ><span class="mode">Change 1 of 2</span><span>Next change →</span>
+            </div>
+            <div class="reader-wrap">
+              <article class="reader">
+                <div class="kicker">Getting started · Introduction</div>
+                <h2>Build with a shared review loop</h2>
+                <p>
+                  Vivi gives people a calm place to read work produced with
+                  coding agents, while keeping feedback precise enough for the
+                  next change.
+                </p>
+                <div class="changed">
+                  <span class="comment-pin">Comment on section</span>
+                  <div class="change-label">
+                    Meaning changed · source lines 18–24
+                  </div>
+                  <h3>Review the document, not the file</h3>
+                  <p>
+                    Open the rendered result, move through changed sections, and
+                    attach feedback to the paragraph where the meaning breaks.
+                  </p>
+                </div>
+                <h3>Keep the handoff local</h3>
+                <p>
+                  Published feedback remains attached to the document and can be
+                  retrieved by the coding agent.
+                </p>
+              </article>
+            </div>
+          </section>
+          <aside class="right">
+            <div class="pane-title">Review</div>
+            <div class="inspector">
+              <div class="inspect-section">
+                <h4>This document</h4>
+                <div class="summary">
+                  <span>2 change stops</span><span>1 open thread</span>
+                </div>
+                <div class="progress"><span style="width: 50%"></span></div>
+              </div>
+              <div class="inspect-section">
+                <h4>Change map</h4>
+                <div class="outline-row">○ Intro copy</div>
+                <div class="outline-row active">● Review the document</div>
+                <div class="outline-row">○ Keep the handoff local</div>
+              </div>
+              <div class="inspect-section">
+                <h4>At this change</h4>
+                <div class="review-card open">
+                  <b>Meaning changed</b
+                  ><small>1 paragraph rewritten · no heading change</small>
+                </div>
+                <div class="review-card">
+                  <b>Source</b><small>Introduction.md · lines 18–24</small>
+                </div>
+              </div>
+            </div>
+          </aside>
+          <footer class="status">
+            <b>REVIEW</b> 1 of 2 changes · 3 of 5 documents remain
+            <b>LIVE</b> version f9a14c2
+          </footer>
+        </div>
+      </section>
+
+      <section class="concept" id="concept-c">
+        <div class="concept-note">
+          <div class="note-cell">
+            <label>Thesis</label>
+            <p>
+              The default job is finishing a review. Vivi opens directly into an
+              ordered set of rendered document changes.
+            </p>
+          </div>
+          <div class="note-cell">
+            <label>Wins when</label>
+            <p>
+              Users arrive to approve or redirect an agent’s latest document
+              pass.
+            </p>
+          </div>
+          <div class="note-cell">
+            <label>Risk</label>
+            <p>
+              Weakens free exploration and can feel too workflow-heavy for
+              casual reading.
+            </p>
+          </div>
+        </div>
+        <div class="workbench c">
+          <header class="topbar">
+            <div class="brand">Vivi</div>
+            <div class="crumb">Review · Agent documentation pass</div>
+            <div class="top-spacer"></div>
+            <span class="chip">5 documents · 7 changes</span
+            ><span class="chip">Exit review</span>
+          </header>
+          <aside class="left">
+            <div class="pane-title">
+              Review journey <span class="count">3 / 7</span>
+            </div>
+            <div class="review-stop">
+              <b><span class="step">✓</span>Introduction</b
+              ><small>Opening paragraph · reviewed</small>
+            </div>
+            <div class="review-stop">
+              <b><span class="step">✓</span>Introduction</b
+              ><small>Audience and outcome · reviewed</small>
+            </div>
+            <div class="review-stop active">
+              <b><span class="step">3</span>Introduction</b
+              ><small>“Review the document” · 1 open thread</small>
+            </div>
+            <div class="review-stop">
+              <b><span class="step">4</span>Deploy a preview</b
+              ><small>Security defaults · new section</small>
+            </div>
+            <div class="review-stop">
+              <b><span class="step">5</span>Troubleshooting</b
+              ><small>Watcher recovery · rewritten</small>
+            </div>
+          </aside>
+          <section class="center">
+            <div class="tabs">
+              <div class="doc-tab active">
+                Stop 3 · Introduction / Review the document
+              </div>
+            </div>
+            <div class="toolbar">
+              <span>← Previous</span>
+              <div class="spacer"></div>
+              <span class="mode">Rendered change</span
+              ><span>Source context</span><span>Accept & next →</span>
+            </div>
+            <div class="reader-wrap">
+              <article class="reader">
+                <div class="kicker">Change 3 of 7 · Introduction</div>
+                <h2>Build with a shared review loop</h2>
+                <p style="opacity: 0.45">
+                  Vivi gives people a calm place to read work produced with
+                  coding agents.
+                </p>
+                <div class="changed">
+                  <span class="comment-pin">1 open thread</span>
+                  <div class="change-label">
+                    Current review stop · rewritten paragraph
+                  </div>
+                  <h3>Review the document, not the file</h3>
+                  <p>
+                    Open the rendered result, move through changed sections, and
+                    attach feedback to the paragraph where the meaning breaks.
+                  </p>
+                </div>
+                <p style="opacity: 0.45">
+                  Published feedback remains attached to the document.
+                </p>
+              </article>
+            </div>
+          </section>
+          <aside class="right">
+            <div class="pane-title">Decision</div>
+            <div class="inspector">
+              <div class="inspect-section">
+                <h4>Open feedback</h4>
+                <div class="review-card open">
+                  <b>Human · just now</b
+                  ><small>“Can we make the benefit concrete here?”</small>
+                </div>
+                <div class="review-card">
+                  <b>Agent</b><small>Waiting for published feedback</small>
+                </div>
+              </div>
+              <div class="inspect-section">
+                <h4>Actions</h4>
+                <button class="row active">
+                  <span>Publish feedback</span
+                  ><span class="delta">⌘↵</span></button
+                ><button class="row"><span>Accept this change</span></button
+                ><button class="row"><span>Skip for later</span></button>
+              </div>
+            </div>
+          </aside>
+          <footer class="status">
+            <b>JOURNEY</b> 2 reviewed · 1 in discussion · 4 remaining
+            <b>NEXT</b> new security section
+          </footer>
+        </div>
+      </section>
+
+      <table class="scope-table">
+        <thead>
+          <tr>
+            <th>Surface</th>
+            <th>First-class now</th>
+            <th>Supporting only</th>
+            <th>Out of product</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Markdown / MDX</td>
+            <td class="yes">
+              Rendered, source, outline, semantic diff, comments
+            </td>
+            <td>—</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td>HTML documents</td>
+            <td class="yes">
+              Sandboxed rendered view, DOM/section diff, comments
+            </td>
+            <td>CSS, images, fonts, scripts</td>
+            <td>Standalone asset review</td>
+          </tr>
+          <tr>
+            <td>AsciiDoc / reStructuredText</td>
+            <td class="later">Later, when the document model is stable</td>
+            <td>Linked assets</td>
+            <td>Generic text fallback as a promise</td>
+          </tr>
+          <tr>
+            <td>Code / JSON / logs / CSV</td>
+            <td>—</td>
+            <td class="later">Source context only when embedded or linked</td>
+            <td class="no">Tree, tabs, search results, Review Queue</td>
+          </tr>
+          <tr>
+            <td>Images / SVG / PDF</td>
+            <td class="later">Only if treated as pages in a document</td>
+            <td>Embedded document dependencies</td>
+            <td class="no">Generic media viewer</td>
+          </tr>
+        </tbody>
+      </table>
+    </main>
+
+    <script>
+      const tabs = document.querySelectorAll("[data-concept]");
+      const concepts = document.querySelectorAll(".concept");
+      tabs.forEach((tab) =>
+        tab.addEventListener("click", () => {
+          tabs.forEach((item) => item.classList.remove("active"));
+          concepts.forEach((item) => item.classList.remove("active"));
+          tab.classList.add("active");
+          document
+            .querySelector(`#concept-${tab.dataset.concept}`)
+            .classList.add("active");
+        }),
+      );
+    </script>
+  </body>
+</html>

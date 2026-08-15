@@ -21,6 +21,7 @@ afterEach(async () => {
 it("serves the language-independent workspace API contract", async () => {
   server = await startViviServer({
     rootDir: fixture.rootDir,
+    useProductDefaults: true,
     extraEnv: { VIVI_DATA_DIR: `${fixture.outsideDir}/vivi-data` },
   });
 
@@ -42,22 +43,13 @@ it("serves the language-independent workspace API contract", async () => {
     }>;
     stats: { scannedDirectories: number; returnedNodes: number };
   }>("/api/tree?depth=1");
-  expect(pathsFromTree(tree.nodes)).toEqual(
-    expect.arrayContaining([
-      ".hidden.txt",
-      "README.md",
-      "assets",
-      "docs",
-      "empty-dir",
-      "agent-cache",
-      "agent-output",
-      "index.html",
-      "large.log",
-      "readme-link.md",
-      "src.ts",
-      "untracked.md",
-    ]),
-  );
+  expect(pathsFromTree(tree.nodes)).toEqual([
+    "README.md",
+    "docs",
+    "index.html",
+    "readme-link.md",
+    "untracked.md",
+  ]);
   expect(JSON.stringify(tree)).not.toContain("node_modules");
   expect(JSON.stringify(tree)).not.toContain(".cache");
   expect(JSON.stringify(tree)).not.toContain(".tmp-go-build-cache");
@@ -90,46 +82,14 @@ it("serves the language-independent workspace API contract", async () => {
     content: expect.stringContaining("# Vivi Fixture"),
   });
 
-  const binary = await fetchJson<{
-    encoding: string;
-    content: string;
-    mimeType: string;
-  }>("/api/file?path=assets%2Fpixel.png");
-  expect(binary).toMatchObject({
-    encoding: "base64",
-    mimeType: "image/png",
-  });
-  expect(binary.content.length).toBeGreaterThan(0);
-
-  await expect(fetchJson("/api/file?path=agent-output")).resolves.toMatchObject(
-    {
-      path: "agent-output",
-      viewerKind: "text",
-      encoding: "utf8",
-      content: expect.stringContaining("next=review"),
-      mimeType: "text/plain; charset=utf-8",
-    },
-  );
-  await expect(fetchJson("/api/file?path=agent-cache")).resolves.toMatchObject({
-    path: "agent-cache",
-    viewerKind: "binary",
-    encoding: "none",
-    content: "",
-    mimeType: "application/octet-stream",
-  });
-
-  const large = await fetchJson<{
-    path: string;
-    encoding: string;
-    truncated: boolean;
-    previewBytes: number;
-  }>("/api/file?path=large.log");
-  expect(large).toMatchObject({
-    path: "large.log",
+  await expectStatus("/api/file?path=assets%2Fpixel.png", 400);
+  await expect(fetchJson("/api/file?path=index.html")).resolves.toMatchObject({
+    path: "index.html",
+    viewerKind: "html",
     encoding: "utf8",
-    truncated: true,
-    previewBytes: 1024 * 1024,
+    content: expect.stringContaining("HTML Fixture"),
   });
+  await expectStatus("/api/file?path=src.ts", 400);
 
   await expectStatus("/api/file?path=..%2Fsecret.txt", 400);
   await expectStatus("/api/file?path=outside-link.txt", 400);
@@ -156,7 +116,6 @@ it("serves the language-independent workspace API contract", async () => {
     expect.arrayContaining([
       { path: "README.md", status: "modified", kind: "file" },
       { path: "docs/guide.md", status: "modified", kind: "file" },
-      { path: "src.ts", status: "modified", kind: "file" },
       { path: "untracked.md", status: "added", kind: "file" },
       { path: "deleted.md", status: "deleted", kind: "file" },
     ]),
@@ -270,10 +229,11 @@ it("serves the language-independent workspace API contract", async () => {
   );
 });
 
-it("keeps HTML preview scripts disabled unless explicitly allowed", async () => {
+it("allows HTML preview scripts only when explicitly requested", async () => {
   server = await startViviServer({
     rootDir: fixture.rootDir,
     allowHtmlScripts: true,
+    useProductDefaults: true,
   });
 
   const preview = await fetchRoute("/preview/html?path=index.html");

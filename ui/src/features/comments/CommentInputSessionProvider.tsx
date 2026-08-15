@@ -27,7 +27,6 @@ interface CommentInputSessionContextValue {
   change: (draft: CommentDraft, body: string, rect?: CommentInputRect) => void;
   collapse: (id: string) => void;
   discard: (id: string) => void;
-  markSaved: (id: string) => void;
   discardAnchors: (anchorKeys: string[]) => void;
   markPathVersion: (path: string, fileHash: string) => void;
   reanchor: (id: string, draft: CommentDraft) => void;
@@ -40,7 +39,6 @@ const emptyCommentInputSessionContext: CommentInputSessionContextValue = {
   change: () => undefined,
   collapse: () => undefined,
   discard: () => undefined,
-  markSaved: () => undefined,
   discardAnchors: () => undefined,
   markPathVersion: () => undefined,
   reanchor: () => undefined,
@@ -96,10 +94,6 @@ export function CommentInputSessionProvider({
     (id: string) => dispatch({ type: "discard", id }),
     [],
   );
-  const markSaved = useCallback(
-    (id: string) => dispatch({ type: "mark-saved", id }),
-    [],
-  );
   const discardAnchors = useCallback(
     (anchorKeys: string[]) => dispatch({ type: "discard-anchors", anchorKeys }),
     [],
@@ -140,7 +134,6 @@ export function CommentInputSessionProvider({
       change,
       collapse,
       discard,
-      markSaved,
       discardAnchors,
       markPathVersion,
       reanchor,
@@ -151,7 +144,6 @@ export function CommentInputSessionProvider({
       discard,
       discardAnchors,
       markPathVersion,
-      markSaved,
       reanchor,
       sessions,
       setWorkspaceRoot,

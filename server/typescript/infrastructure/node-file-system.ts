@@ -87,12 +87,16 @@ export class NodeFileSystem implements FileSystemPort {
     const depth = Math.max(1, options.depth ?? 1);
     const stats = createTreeStats();
     const startedAt = performance.now();
-    const nodes = await this.scanDirectory(
+    let nodes = await this.scanDirectory(
       resolved.relativePath,
       resolved.relativePath || null,
-      depth,
+      this.includeExtensions?.size ? Number.POSITIVE_INFINITY : depth,
       stats,
     );
+    if (this.includeExtensions?.size) {
+      nodes = projectTreeDepth(nodes, depth);
+      stats.returnedNodes = countTreeNodes(nodes);
+    }
     return {
       root: this.rootDir,
       version: this.version,
@@ -349,6 +353,7 @@ export class NodeFileSystem implements FileSystemPort {
                 stats,
               )
             : undefined;
+        if (this.includeExtensions?.size && children?.length === 0) continue;
         nodes.push({
           id: relativePath,
           path: relativePath,
@@ -732,5 +737,26 @@ function isMissingPathError(error: unknown): boolean {
     error !== null &&
     "code" in error &&
     (error as { code?: unknown }).code === "ENOENT"
+  );
+}
+
+function projectTreeDepth(nodes: FsNode[], depth: number): FsNode[] {
+  return nodes.map((node) => {
+    if (node.kind !== "directory") return node;
+    const childrenLoaded = depth > 1;
+    return {
+      ...node,
+      children: childrenLoaded
+        ? projectTreeDepth(node.children ?? [], depth - 1)
+        : undefined,
+      childrenLoaded,
+    };
+  });
+}
+
+function countTreeNodes(nodes: FsNode[]): number {
+  return nodes.reduce(
+    (count, node) => count + 1 + countTreeNodes(node.children ?? []),
+    0,
   );
 }

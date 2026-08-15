@@ -7,6 +7,15 @@ import (
 	"testing"
 )
 
+func nodePaths(nodes []Node) []string {
+	paths := []string{}
+	for _, node := range nodes {
+		paths = append(paths, node.Path)
+		paths = append(paths, nodePaths(node.Children)...)
+	}
+	return paths
+}
+
 func TestReadFileSniffsUnknownTextLikeFiles(t *testing.T) {
 	root := t.TempDir()
 	mustWrite(t, root, "agent-note", []byte("status=ok\nnext=review\n"))
@@ -197,6 +206,57 @@ func TestExcludeGlobWinsOverIncludeAcrossTreeReadAndWatch(t *testing.T) {
 	}
 	if _, ok := entries["src/generated/client.md"]; ok {
 		t.Fatalf("watch entries included excluded subtree: %#v", entries)
+	}
+}
+
+func TestDocumentTreePrunesDirectoriesWithoutIncludedDocuments(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, root, "README.md", []byte("# Visible\n"))
+	mustWrite(t, root, "docs/guide.md", []byte("# Guide\n"))
+	mustWrite(t, root, "docs/nested/deep.markdown", []byte("# Deep\n"))
+	mustWrite(t, root, "docs/assets/logo.png", []byte("not a document\n"))
+	mustWrite(t, root, "src/app.ts", []byte("export const hidden = true\n"))
+	if err := os.MkdirAll(filepath.Join(root, "empty"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	fsys, err := New(Options{
+		Root:    root,
+		Include: []string{"md", "markdown", "mdown"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	shallow, err := fsys.ReadDirectory("", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := nodePaths(shallow.Nodes); strings.Join(got, ",") != "README.md,docs" {
+		t.Fatalf("shallow paths = %#v, want only root document and document directory", got)
+	}
+	docs := shallow.Nodes[1]
+	if docs.ChildrenLoaded == nil || *docs.ChildrenLoaded {
+		t.Fatalf("docs childrenLoaded = %#v, want false", docs.ChildrenLoaded)
+	}
+	if shallow.Stats.ReturnedNodes != 2 {
+		t.Fatalf("returned nodes = %d, want 2", shallow.Stats.ReturnedNodes)
+	}
+
+	full, err := fsys.ReadTree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	serialized := strings.Join(nodePaths(full.Nodes), "\n")
+	for _, want := range []string{"README.md", "docs", "docs/guide.md", "docs/nested", "docs/nested/deep.markdown"} {
+		if !strings.Contains(serialized, want) {
+			t.Fatalf("full tree lost %q:\n%s", want, serialized)
+		}
+	}
+	for _, hidden := range []string{"docs/assets", "logo.png", "src", "app.ts", "empty"} {
+		if strings.Contains(serialized, hidden) {
+			t.Fatalf("full tree included %q:\n%s", hidden, serialized)
+		}
 	}
 }
 

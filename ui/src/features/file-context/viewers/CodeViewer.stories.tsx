@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState, type ComponentProps } from "react";
-import { expect, fn, userEvent, within } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import { draftReviewCommentAsViviComment } from "../../../state/comments.js";
 import {
   commentsForPath,
@@ -642,6 +642,7 @@ export const SourceActiveThreadStaysVisibleBesideDraft: Story = {
 };
 
 export const SavedInlineDraftRemainsVisible: Story = {
+  name: "Saved inline draft closes its composer",
   tags: ["interaction"],
   args: {
     comments: [],
@@ -663,11 +664,12 @@ export const SavedInlineDraftRemainsVisible: Story = {
       canvas.getByRole("button", { name: "Save pending draft comment" }),
     );
 
+    await waitFor(() =>
+      expect(canvas.queryByLabelText("New line comment")).toBeNull(),
+    );
     await expect(
-      canvas.getByText("Persist this draft in place."),
-    ).toBeVisible();
-    await expect(canvas.getByText("1 message")).toBeVisible();
-    expect(canvas.getAllByText("Pending draft").length).toBeGreaterThan(0);
+      canvas.queryByRole("article", { name: "Comment thread for line 6" }),
+    ).toBeNull();
   },
 };
 

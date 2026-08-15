@@ -45,8 +45,6 @@ export interface WorkspaceStatusSummary {
 export function summarizeWorkspaceStatus({
   tree,
   openTabCount,
-  reviewFileCount,
-  reviewLoading = false,
   openThreadCount,
   draftCount,
   connectionStatus,
@@ -61,17 +59,13 @@ export function summarizeWorkspaceStatus({
       : `Watching ${watchedFiles} ${watchedFiles === 1 ? "file" : "files"}`,
     `${openTabCount} ${openTabCount === 1 ? "tab" : "tabs"} open`,
   ].join(" · ");
-  const reviewFileLabel =
-    (reviewLoading || metrics.pendingGitRefresh) && reviewFileCount === 0
-      ? "Loading review files"
-      : `${reviewFileCount} ${reviewFileCount === 1 ? "file" : "files"} to review`;
-  const review = [
-    reviewFileLabel,
-    `${openThreadCount} ${openThreadCount === 1 ? "thread" : "threads"} open`,
-    draftCount ? `${draftCount} draft${draftCount === 1 ? "" : "s"}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const review =
+    [
+      `${openThreadCount} ${openThreadCount === 1 ? "thread" : "threads"} open`,
+      draftCount ? `${draftCount} draft${draftCount === 1 ? "" : "s"}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ") || "No open feedback";
   const activeFileLabel = activeFileStatusLabel(activeFile ?? null);
   const pending = [
     metrics.pendingGitRefresh ? "review" : null,
@@ -99,11 +93,15 @@ export function summarizeWorkspaceStatus({
             : "Live · waiting for file changes";
   const detail = [
     `${metrics.gitRefreshes} review refresh${metrics.gitRefreshes === 1 ? "" : "es"}`,
-    metrics.lastGitRefreshMs !== null ? `last review ${metrics.lastGitRefreshMs}ms` : null,
+    metrics.lastGitRefreshMs !== null
+      ? `last review ${metrics.lastGitRefreshMs}ms`
+      : null,
     metrics.diffRefreshes
       ? `${metrics.diffRefreshes} diff refresh${metrics.diffRefreshes === 1 ? "" : "es"}`
       : null,
-    metrics.lastDiffRefreshMs !== null ? `last diff ${metrics.lastDiffRefreshMs}ms` : null,
+    metrics.lastDiffRefreshMs !== null
+      ? `last diff ${metrics.lastDiffRefreshMs}ms`
+      : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -117,7 +115,9 @@ export function summarizeWorkspaceStatus({
   };
 }
 
-function activeFileStatusLabel(activeFile: ActiveFileStatusInput | null): string {
+function activeFileStatusLabel(
+  activeFile: ActiveFileStatusInput | null,
+): string {
   if (!activeFile) return "No active file";
   if (activeFile.sourceMissing) {
     return [basenameForPath(activeFile.path), "source missing"]

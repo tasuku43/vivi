@@ -26,6 +26,8 @@ import (
 var version = "0.0.0"
 var viviExecutable = "vivi"
 
+const defaultDocumentInclude = "md,markdown,mdown,html,htm"
+
 func main() {
 	viviExecutable = invokedViviExecutable(os.Args)
 	if err := run(os.Args[1:]); err != nil {
@@ -69,7 +71,7 @@ func run(args []string) error {
 	port := flags.Int("port", 4317, "port to bind")
 	portExplicit := hasFlagArg(args, "port")
 	open := flags.Bool("open", false, "open browser after startup")
-	include := flags.String("include", "", "comma-separated extension allow-list")
+	include := flags.String("include", defaultDocumentInclude, "comma-separated document extension allow-list")
 	exclude := commaListFlag{}
 	flags.Var(&exclude, "exclude", "workspace-relative glob to exclude (repeatable or comma-separated)")
 	maxFileSize := flags.Int64("max-file-size", 1024*1024, "rich preview byte limit")
@@ -255,7 +257,7 @@ func helpText() string {
 		"  --host <host>              Host to bind (default: 127.0.0.1)",
 		"  --port <port>              Port to bind (default: 4317, auto-increments when unavailable; 0 for random)",
 		"  --open                     Open the browser after startup",
-		"  --include <extensions>     Comma-separated extension allow-list",
+		"  --include <extensions>     Document extension allow-list (default: md,markdown,mdown,html,htm)",
 		"  --exclude <glob>           Exclude a workspace-relative glob; repeat or comma-separate (wins over --include)",
 		"  --max-file-size <bytes>    Rich preview byte limit",
 		"  --allow-html-scripts       Allow scripts in HTML preview for trusted files",
