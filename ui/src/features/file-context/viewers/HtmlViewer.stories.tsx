@@ -300,12 +300,10 @@ export const PreviewDraftOnlyThreadFollowUpKeepsThreadId: Story = {
       canvas.getByRole("button", { name: "Save pending draft comment" }),
     );
 
-    await waitFor(() =>
-      expect(canvas.queryByLabelText("New line comment")).toBeNull(),
-    );
-    openHtmlStoryCommentById(frame, "draft:html-draft-root");
     const followUpInput = await canvas.findByLabelText("Continue thread");
     await expect(followUpInput).toBeVisible();
+    await expect(followUpInput).toHaveValue("");
+    await waitFor(() => expect(followUpInput).toHaveFocus());
     await expect(canvas.getByText(firstBody)).toBeVisible();
     const viewer = canvasElement.querySelector<HTMLElement>(".html-viewer");
     const threadHost = canvasElement.querySelector<HTMLElement>(
@@ -325,7 +323,9 @@ export const PreviewDraftOnlyThreadFollowUpKeepsThreadId: Story = {
     await waitFor(() =>
       expect(canvas.getByLabelText("Continue thread")).toHaveValue(""),
     );
-    await expect(canvas.getByLabelText("Continue thread")).toHaveFocus();
+    await waitFor(() =>
+      expect(canvas.getByLabelText("Continue thread")).toHaveFocus(),
+    );
 
     const calls = (
       args.onCreateComment as unknown as {

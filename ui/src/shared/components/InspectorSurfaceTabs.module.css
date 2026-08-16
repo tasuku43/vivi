@@ -1,0 +1,69 @@
+.root {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  flex: 0 0 44px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--vivi-color-border-default);
+  background: var(--vivi-color-surface-panel);
+}
+
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--vivi-color-content-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tab::after {
+  position: absolute;
+  right: 14px;
+  bottom: -1px;
+  left: 14px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: transparent;
+  content: "";
+}
+
+.tab:hover {
+  color: var(--vivi-color-content-primary);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-accent-surface-subtle) 45%,
+    transparent
+  );
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--vivi-color-focus-ring);
+  outline-offset: -3px;
+}
+
+.active {
+  color: var(--vivi-color-content-primary);
+}
+
+.active::after {
+  background: var(--vivi-color-accent);
+}
+
+.count {
+  min-width: 20px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--vivi-color-accent-surface-subtle);
+  color: var(--vivi-color-accent);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+}

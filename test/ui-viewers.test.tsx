@@ -2816,14 +2816,14 @@ it("groups pending draft replies under their existing Review Queue thread", () =
       props["aria-label"]?.includes("2 pending")
     );
   });
-  const publishButton = findElement(inspector, (element) => {
+  const readyPanel = findElement(inspector, (element) => {
     const props = element.props as {
-      className?: string;
-      onClick?: () => void;
+      scope?: string;
+      onPublish?: () => void;
     };
-    return props.className === "review-thread-publish-button";
+    return props.scope === "workspace" && Boolean(props.onPublish);
   });
-  (publishButton.props as { onClick: () => void }).onClick();
+  (readyPanel.props as { onPublish: () => void }).onPublish();
   const html = renderToStaticMarkup(inspector);
 
   expect(threadBadge).toBeTruthy();
@@ -2833,8 +2833,10 @@ it("groups pending draft replies under their existing Review Queue thread", () =
     "Second pending follow-up.",
   );
   expect(html).not.toContain("Open pending item, src/app.ts");
-  expect(html).toContain("Publish 2 pending in src/app.ts, L2");
-  expect(publishedDraftIds).toEqual([["draft-reply-two", "draft-reply-one"]]);
+  expect(html).toContain('aria-label="Workspace ready to publish"');
+  expect(html).toContain("Ready to publish");
+  expect(html).toContain("Publish 2");
+  expect(publishedDraftIds).toEqual([["draft-reply-one", "draft-reply-two"]]);
 });
 
 it("groups pending draft-only thread messages as one Review Queue row", () => {
@@ -2922,14 +2924,14 @@ it("groups pending draft-only thread messages as one Review Queue row", () => {
       props["aria-label"]?.includes("3 pending")
     );
   });
-  const publishButton = findElement(inspector, (element) => {
+  const readyPanel = findElement(inspector, (element) => {
     const props = element.props as {
-      className?: string;
-      onClick?: () => void;
+      scope?: string;
+      onPublish?: () => void;
     };
-    return props.className === "review-thread-publish-button";
+    return props.scope === "workspace" && Boolean(props.onPublish);
   });
-  (publishButton.props as { onClick: () => void }).onClick();
+  (readyPanel.props as { onPublish: () => void }).onPublish();
   const html = renderToStaticMarkup(inspector);
 
   expect(threadBadge).toBeTruthy();
@@ -2939,9 +2941,10 @@ it("groups pending draft-only thread messages as one Review Queue row", () => {
     "Third private note.",
   );
   expect(html.match(/review-thread-hairline-row/g)?.length).toBe(1);
-  expect(html).toContain("Publish 3 pending in src/app.ts, L2");
+  expect(html).toContain('aria-label="Workspace ready to publish"');
+  expect(html).toContain("Publish 3");
   expect(publishedDraftIds).toEqual([
-    ["draft-only-three", "draft-only-two", "draft-only-one"],
+    ["draft-only-one", "draft-only-two", "draft-only-three"],
   ]);
 });
 
@@ -3037,8 +3040,9 @@ it("groups separate draft-only threads on the same file without splitting their 
   expect(html.match(/review-thread-hairline-row/g)?.length).toBe(2);
   expect(html).not.toContain("Latest reply in first draft thread.");
   expect(html).not.toContain("Latest reply in second draft thread.");
-  expect(html).toContain("Publish 2 pending in src/app.ts, L2");
-  expect(html).toContain("Publish 2 pending in src/app.ts, L3");
+  expect(html).toContain('aria-label="Workspace ready to publish"');
+  expect(html).toContain("4 ready");
+  expect(html).toContain("Publish 4");
 });
 
 it("omits explicit inspector reveal when Review Queue already navigates files", () => {

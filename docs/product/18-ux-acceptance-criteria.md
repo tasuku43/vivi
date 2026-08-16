@@ -21,8 +21,9 @@ A build is acceptable when a user can:
 13. Add or remove a Markdown or HTML document externally and see the filtered real directory tree update.
 14. Keep the default rendered document free of diff rails, dimming, and review prerequisites.
 15. Enable an independent Changes lens only when change evidence is useful, then return explicitly to the clean document.
-16. Keep browser-local comment input across outside clicks, document/tab navigation, rendered/source changes, and reload. Explicit Discard removes it. Saving the first comment promotes it to a durable pending draft and closes the local composer so the next document block is immediately available; saving a follow-up clears the submitted body but keeps the same composer focused for consecutive replies.
+16. Keep browser-local comment input across outside clicks, document/tab navigation, rendered/source changes, and reload. Explicit Discard removes it. In rendered Markdown and HTML preview, saving the first comment promotes it to a durable pending thread, clears the same composer into an empty follow-up, and keeps that input focused. Saving later follow-ups likewise clears the submitted body and preserves focus for consecutive replies. Publishing saved drafts must not discard a next unsaved thought at the same anchor.
 17. Reject paths outside the selected root and keep watcher, search, tree, read, and Git-change boundaries aligned to supported document extensions.
+18. Move between the repository Review Queue and current Document through two persistent inspector tabs whose labels and positions stay fixed; keep Review selected by default and keep “Next queued” within the Review workflow rather than treating it as navigation.
 
 ## Evaluation function
 

@@ -35,6 +35,7 @@ export function CodeCommentThread({
   activeCommentId = null,
   currentActorId,
   onDeleteDraft,
+  keepOpenAfterCreate = false,
 }: {
   thread: CodeCommentThreadModel;
   draft: CommentDraft;
@@ -46,6 +47,7 @@ export function CodeCommentThread({
   activeCommentId?: string | null;
   currentActorId?: string;
   onDeleteDraft?: DraftReviewCommentDeleteHandler;
+  keepOpenAfterCreate?: boolean;
 }) {
   const hasThreadMessages = thread.comments.length > 0;
   const hasPublishedComments = thread.comments.some(
@@ -62,6 +64,9 @@ export function CodeCommentThread({
   const deleteDraft = onDeleteDraft ?? inheritedDeleteDraft;
   const threadRef = useRef<HTMLElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const refocusAfterSubmitRef = useRef(false);
+  const latestBodyRef = useRef(body);
+  latestBodyRef.current = body;
   const threadStatus: CommentStatus = thread.status;
   const threadBadgeStatus = hasPublishedComments ? threadStatus : "draft";
   const threadBadgeLabel = hasPublishedComments
@@ -95,11 +100,30 @@ export function CodeCommentThread({
     textareaRef.current?.focus();
   }, [hasThreadMessages, thread.key]);
 
+  useEffect(() => {
+    if (!refocusAfterSubmitRef.current || body) return;
+    const frame = window.requestAnimationFrame(() => {
+      if (!textareaRef.current || textareaRef.current.disabled) return;
+      textareaRef.current.focus();
+      refocusAfterSubmitRef.current = false;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [body, draft.threadId, isReplyComposer, saving, thread.comments.length]);
+
   async function submit() {
     const trimmed = body.trim();
     if (!trimmed || !onCreateComment || saving || stale) return;
+    const keepComposerOpen = isReplyComposer || keepOpenAfterCreate;
     setSaving(true);
     setError(null);
+    if (keepComposerOpen) {
+      // Clear immediately, before the local API round trip completes. This is
+      // what lets a rapid follow-up start as a fresh thought instead of being
+      // appended to the text that is currently being saved.
+      refocusAfterSubmitRef.current = true;
+      latestBodyRef.current = "";
+      input.change(draft, "");
+    }
     try {
       await onCreateComment(
         draftForCommentComposerIntent(
@@ -108,12 +132,13 @@ export function CodeCommentThread({
         ),
         trimmed,
       );
-      if (isReplyComposer) {
+      if (keepComposerOpen) {
         // A follow-up often comes as a short sequence of thoughts. Clear the
         // submitted body but keep the same composer active until the user
-        // explicitly moves focus or closes the thread.
-        input.change(draft, "");
-        window.requestAnimationFrame(() => textareaRef.current?.focus());
+        // explicitly moves focus or closes the thread. HTML preview uses the
+        // same behavior after its first message because its composer already
+        // occupies a fixed slot and does not block the next rendered target.
+        if (!isReplyComposer) input.discard(input.id);
         return;
       }
       // Saving moves the thought into the durable pending-draft collection.
@@ -122,6 +147,15 @@ export function CodeCommentThread({
       input.discard(input.id);
       onClose();
     } catch (cause) {
+      if (keepComposerOpen) {
+        const nextThought = latestBodyRef.current.trim();
+        const restoredBody = nextThought
+          ? `${trimmed}\n\n${latestBodyRef.current}`
+          : body;
+        latestBodyRef.current = restoredBody;
+        input.change(draft, restoredBody);
+        refocusAfterSubmitRef.current = true;
+      }
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setSaving(false);
@@ -333,12 +367,13 @@ export function CodeCommentThread({
           autoFocus={!hasThreadMessages}
           rows={2}
           value={body}
-          disabled={stale}
+          disabled={stale || (saving && !isReplyComposer)}
           placeholder={isReplyComposer ? "Add a follow-up" : "Add a comment"}
           aria-label={isReplyComposer ? "Continue thread" : "New line comment"}
           aria-describedby={`${composerModeId} ${replyHintId}`}
           aria-keyshortcuts="Meta+Enter Control+Enter"
           onChange={(event) => {
+            latestBodyRef.current = event.currentTarget.value;
             input.change(draft, event.currentTarget.value);
             if (error) setError(null);
           }}

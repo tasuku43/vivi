@@ -69,10 +69,31 @@ export const DocumentNavigationInteraction: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Show changes" }));
     await expect(args.onToggleChanges).toHaveBeenCalled();
 
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Open review queue, 4 items" }),
+    const reviewTab = canvas.getByRole("tab", {
+      name: "Review queue 4 items",
+    });
+    await expect(reviewTab).toHaveAttribute("aria-selected", "false");
+    await expect(canvas.getByRole("tab", { name: "Document" })).toHaveAttribute(
+      "aria-selected",
+      "true",
     );
+    await userEvent.click(reviewTab);
     await expect(args.onOpenReviewQueue).toHaveBeenCalled();
+
+    const readyPanel = within(
+      canvas.getByRole("region", {
+        name: "Current document ready to publish",
+      }),
+    );
+    await expect(readyPanel.getByText("Ready to publish")).toBeVisible();
+    await userEvent.click(
+      readyPanel.getByRole("button", { name: /Review \d+/ }),
+    );
+    await expect(args.onOpenDraft).toHaveBeenCalled();
+    await userEvent.click(
+      readyPanel.getByRole("button", { name: /Publish \d+/ }),
+    );
+    await expect(args.onPublishDrafts).toHaveBeenCalled();
 
     const thread = canvas.getByRole("button", {
       name: /This sentence captures the feedback layer well/,

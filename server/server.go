@@ -932,7 +932,8 @@ pre{border:1px solid %s;border-radius:8px;padding:12px;overflow:auto;}
   let activeCommentId = null;
   let draftingBlockIds = [];
   let openBlockIds = [];
-  let openBlockIdGroups = [];
+	  let openBlockIdGroups = [];
+	  let renderedCommentStateSignature = "";
   let pendingRenderedThreadOpen = false;
   let hoveredBlock = null;
   const post = (message) => parent.postMessage({ path, ...message }, "*");
@@ -1193,10 +1194,22 @@ pre{border:1px solid %s;border-radius:8px;padding:12px;overflow:auto;}
     }
     return parts.length ? parts.join("/") : null;
   };
-  window.addEventListener("message", (event) => {
+	  window.addEventListener("message", (event) => {
     if (event.source && event.source !== parent) return;
-    const data = event.data;
-    if (data?.type !== "vivi-html-comments" || data.path !== path) return;
+	    const data = event.data;
+	    if (data?.type !== "vivi-html-comments" || data.path !== path) return;
+	    const nextRenderedCommentStateSignature = JSON.stringify([
+	      data.activeCommentId ?? null,
+	      data.comments ?? [],
+	      data.draftingBlockIds ?? [],
+	      data.openBlockIds ?? [],
+	      data.openBlockIdGroups ?? []
+	    ]);
+	    if (nextRenderedCommentStateSignature === renderedCommentStateSignature) {
+	      postThreadLayout();
+	      return;
+	    }
+	    renderedCommentStateSignature = nextRenderedCommentStateSignature;
     const previousActiveCommentId = activeCommentId;
     renderedComments = Array.isArray(data.comments) ? data.comments : [];
     activeCommentId = typeof data.activeCommentId === "string" ? data.activeCommentId : null;

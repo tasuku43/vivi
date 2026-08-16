@@ -43,6 +43,11 @@ import { gitReviewUnavailableGuidance } from "../../state/git-review-refresh.js"
 import type { OutlineHeading } from "../../state/outline.js";
 import { CommentStatusBadge } from "../comments/components/CommentStatusBadge.js";
 import fileIconStyles from "../../shared/components/FileIcon.module.css";
+import { InspectorSurfaceTabs } from "../../shared/components/InspectorSurfaceTabs.js";
+import {
+  ReadyToPublishPanel,
+  type ReadyToPublishItem,
+} from "../../shared/components/ReadyToPublishPanel.js";
 import sharedUiStyles from "../../shared/styles/SharedUi.module.css";
 
 interface Props {
@@ -149,6 +154,7 @@ export function Inspector({
       item.threadCounts.open > 0 ||
       (item.pendingDraftCount ?? 0) > 0,
   ).length;
+  const reviewQueueCount = queueItems.filter(isReviewQueueItemOpenable).length;
   const queuePosition = reviewQueuePosition(queueItems, activePath);
   const hiddenReviewWork = usesReceiptHistory
     ? reviewedReceipts.length
@@ -170,6 +176,23 @@ export function Inspector({
   const pendingDraftCount = reviewingItems.reduce(
     (total, item) => total + (item.pendingDraftCount ?? 0),
     0,
+  );
+  const reviewingDraftIds = new Set(
+    reviewingItems.flatMap((item) => item.pendingDraftIds ?? []),
+  );
+  const workspaceReadyDraftGroups = groupDraftsByPath(
+    draftComments.filter((draft) => reviewingDraftIds.has(draft.id)),
+  );
+  const workspaceReadyItems: ReadyToPublishItem[] = workspaceReadyDraftGroups.map(
+    ([path, drafts]) => ({
+      id: path,
+      title: basenameForPath(path),
+      detail: `${pendingDraftCountLabel(drafts.length)} · ${directoryForPath(path)}`,
+      count: drafts.length,
+    }),
+  );
+  const workspaceReadyDrafts = workspaceReadyDraftGroups.flatMap(
+    ([, drafts]) => drafts,
   );
   const reviewStateSections = [
     {
@@ -363,7 +386,7 @@ export function Inspector({
               return (
                 <div className="review-thread-hairline-item" key={thread.id}>
                   <button
-                    className={`review-thread-hairline-row${activeThread || activePendingDraft ? " active" : ""}${pendingDrafts.length ? " has-publish-action" : ""}`}
+                    className={`review-thread-hairline-row${activeThread || activePendingDraft ? " active" : ""}`}
                     type="button"
                     aria-label={`Open ${threadReceipt.ariaLabel} thread in ${thread.path}, ${sourceLineLabel}${pendingDrafts.length ? `, ${pendingDraftCountLabel(pendingDrafts.length)}` : ""}`}
                     onClick={() => onOpenComment?.(primaryComment)}
@@ -405,20 +428,6 @@ export function Inspector({
                       </span>
                     </span>
                   </button>
-                  {pendingDrafts.length ? (
-                    <button
-                      className="review-thread-publish-button"
-                      type="button"
-                      aria-label={`Publish ${pendingDraftCountLabel(pendingDrafts.length)} in ${thread.path}, ${sourceLineLabel}`}
-                      onClick={() =>
-                        void onPublishDrafts?.(
-                          pendingDrafts.map((draft) => draft.id),
-                        )
-                      }
-                    >
-                      Publish
-                    </button>
-                  ) : null}
                 </div>
               );
             })}
@@ -444,7 +453,7 @@ export function Inspector({
               return (
                 <div className="review-thread-hairline-item" key={group.id}>
                   <button
-                    className={`review-thread-hairline-row${activeDraft ? " active" : ""} has-publish-action`}
+                    className={`review-thread-hairline-row${activeDraft ? " active" : ""}`}
                     type="button"
                     aria-label={`${ariaAction}, ${latestDraft.path}, ${sourceLineLabel}${group.drafts.length > 1 ? `, ${pendingDraftCountLabel(group.drafts.length)}` : ""}`}
                     onClick={() => onOpenDraft?.(latestDraft)}
@@ -473,22 +482,6 @@ export function Inspector({
                       </span>
                     </span>
                   </button>
-                  <button
-                    className="review-thread-publish-button"
-                    type="button"
-                    aria-label={
-                      group.drafts.length > 1
-                        ? `Publish ${pendingDraftCountLabel(group.drafts.length)} in ${latestDraft.path}, ${sourceLineLabel}`
-                        : `Publish pending item, ${latestDraft.path}, ${sourceLineLabel}`
-                    }
-                    onClick={() =>
-                      void onPublishDrafts?.(
-                        group.drafts.map((draft) => draft.id),
-                      )
-                    }
-                  >
-                    Publish
-                  </button>
                 </div>
               );
             })}
@@ -503,11 +496,15 @@ export function Inspector({
       className={`${styles.inspectorRoot} ${sharedUiStyles.inspector} inspector review-thread-pattern-a`}
       aria-label="Review inspector"
     >
+      <InspectorSurfaceTabs
+        activeSurface="review"
+        reviewQueueCount={reviewQueueCount}
+        onSelectDocument={onOpenDocument}
+      />
       <div
         className={`${sharedUiStyles.panelTitle} panel-title review-panel-title`}
       >
         <span className="review-panel-heading">
-          <span>Review</span>
           <strong>
             {needActionCount
               ? `${needActionCount} attention ${needActionCount === 1 ? "item" : "items"}`
@@ -515,16 +512,8 @@ export function Inspector({
                 ? "loading"
                 : "clear"}
           </strong>
+          <span>Changes and open feedback</span>
         </span>
-        {onOpenDocument ? (
-          <button
-            className={`${sharedUiStyles.commandButton} ${sharedUiStyles.commandButtonSecondary} command-button command-button-secondary`}
-            type="button"
-            onClick={onOpenDocument}
-          >
-            Document
-          </button>
-        ) : null}
         {queueItems.length ? (
           <button
             className={`${sharedUiStyles.commandButton} ${sharedUiStyles.commandButtonSecondary} command-button command-button-secondary review-next-action`}
@@ -538,7 +527,7 @@ export function Inspector({
       </div>
       <div className="inspect-body">
         <div className="inspector-review-mode">
-          {unsavedInputCount ? (
+          {unsavedInputCount && !pendingDraftCount ? (
             <div className="review-unsaved-input-summary" role="status">
               <p>
                 <strong>{unsavedInputCount}</strong>{" "}
@@ -603,25 +592,30 @@ export function Inspector({
                     </small>
                   </summary>
                   {section.state === "reviewing" && pendingDraftCount ? (
-                    <div
-                      className="review-section-publish-control"
-                      aria-label="Pending draft publish actions"
-                    >
-                      <button
-                        className="review-publish-action"
-                        type="button"
-                        aria-label={`Publish all ${pendingDraftCount} pending`}
-                        onClick={() =>
-                          void onPublishDrafts?.(
-                            reviewingItems.flatMap(
-                              (item) => item.pendingDraftIds ?? [],
-                            ),
-                          )
-                        }
-                      >
-                        Publish pending
-                      </button>
-                    </div>
+                    <ReadyToPublishPanel
+                      scope="workspace"
+                      items={workspaceReadyItems}
+                      localInput={resumableInput}
+                      excludedInputCount={unsavedInputCount}
+                      onOpenItem={(item) =>
+                        onOpenDraft?.(
+                          workspaceReadyDraftGroups.find(
+                            ([path]) => path === item.id,
+                          )?.[1][0]!,
+                        )
+                      }
+                      onResumeInput={() => onResumeInput?.()}
+                      onReview={() =>
+                        workspaceReadyDrafts[0]
+                          ? onOpenDraft?.(workspaceReadyDrafts[0])
+                          : undefined
+                      }
+                      onPublish={() =>
+                        void onPublishDrafts?.(
+                          workspaceReadyDrafts.map((draft) => draft.id),
+                        )
+                      }
+                    />
                   ) : null}
                   {section.items.length ? (
                     <div className="review-state-section-list">
@@ -1115,6 +1109,16 @@ function DiffStatBadge({
 
 function basenameForPath(path: string): string {
   return path.split("/").filter(Boolean).at(-1) ?? path;
+}
+
+function groupDraftsByPath(
+  drafts: DraftReviewComment[],
+): Array<[string, DraftReviewComment[]]> {
+  const groups = new Map<string, DraftReviewComment[]>();
+  for (const draft of drafts) {
+    groups.set(draft.path, [...(groups.get(draft.path) ?? []), draft]);
+  }
+  return [...groups.entries()];
 }
 
 function reviewPathLabel(change: ReviewChangeItem): string {

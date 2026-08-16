@@ -1,4 +1,6 @@
 .root {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   height: 100%;
   overflow: hidden;
@@ -6,96 +8,55 @@
   color: var(--vivi-color-content-primary);
 }
 
-.header {
-  min-height: 42px;
-  padding: 0 14px;
+.contextHeader {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--vivi-color-border-default);
-  color: var(--vivi-color-content-muted);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.header strong {
-  color: var(--vivi-color-content-subtle);
-  font-size: 10px;
-}
-
-.headerActions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.surfaceSwitch {
-  border: 1px solid var(--vivi-color-border-default);
-  border-radius: 999px;
-  background: var(--vivi-color-surface-raised);
-  color: var(--vivi-color-content-primary);
-  padding: 4px 8px;
-  font: inherit;
-  letter-spacing: 0.04em;
-  text-transform: none;
-  cursor: pointer;
-}
-
-.surfaceSwitch:hover,
-.surfaceSwitch:focus-visible {
-  border-color: var(--vivi-color-accent-border);
-  color: var(--vivi-color-accent);
-}
-
-.body {
-  height: calc(100% - 43px);
-  overflow: auto;
-  padding-bottom: 28px;
-}
-
-.identity {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 16px 14px;
+  gap: 12px;
+  min-height: 58px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--vivi-color-border-soft);
 }
 
-.identity div {
-  min-width: 0;
+.contextHeader > div {
   display: grid;
+  min-width: 0;
   gap: 3px;
 }
 
-.identity strong,
-.identity span {
+.contextHeader strong,
+.contextHeader span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.identity strong {
+.contextHeader strong {
+  color: var(--vivi-color-content-primary);
   font-size: 13px;
 }
-.identity span {
+
+.contextHeader span {
   color: var(--vivi-color-content-muted);
-  font-size: 11px;
+  font-size: 10px;
 }
 
-.kindDot {
-  width: 8px;
-  height: 8px;
+.feedbackCount {
   flex: 0 0 auto;
+  padding: 3px 7px;
+  border: 1px solid var(--vivi-color-comment-border);
   border-radius: 999px;
-  background: var(--vivi-color-selection-indicator);
-  box-shadow: 0 0 0 4px var(--vivi-color-selection-surface-subtle);
+  background: var(--vivi-color-comment-surface);
+  color: var(--vivi-color-comment-text) !important;
+  font-weight: 750;
 }
 
-.kindDot[data-kind="html"] {
-  background: var(--vivi-color-change-text);
-  box-shadow: 0 0 0 4px var(--vivi-color-change-surface-muted);
+.body {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  padding-bottom: 28px;
 }
 
 .section {

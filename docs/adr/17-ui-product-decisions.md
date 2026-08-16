@@ -139,10 +139,19 @@ Document entry switches the same inspector to the current document's outline,
 open feedback/local drafts, and source details. This keeps queue processing
 central without making diff the default document view.
 
+Review Queue and Document are presented as two equal-width, persistent tabs at
+the top of the inspector. Their labels and positions do not change between
+surfaces. Review Queue remains selected by default and keeps its active queue
+position while Document provides contextual reading helpers. “Next queued” is
+a Review Queue workflow action below the tabs, not a third navigation mode.
+
 The right inspector is primarily a review navigation surface. It should answer which files and threads need attention before it offers per-file helpers.
 
 Requirements:
 
+- Review Queue and Document should remain visible as stable inspector tabs on
+  both surfaces, with the active destination clearly selected and the active
+  queue count visible on Review Queue.
 - The Review surface should lead with a deduplicated file queue, primarily from Git working-tree changes against `HEAD` when Git is available. It is the inspector's default surface; Document is the contextual secondary surface while reading.
 - The Review Queue is a file-level work queue: it is the union of Git changes and files with authoritative `open` comment threads. Files with only `resolved` threads stay out of the queue and remain available from the Comments history filter; files with only `archived` threads are hidden from the browser UI.
 - Accepting a change as-is is a local right-inspector review decision, not a Git operation. It hides the current `path + change fingerprint` from the active queue, keeps it recoverable while its recent receipt is visible, and never hides the file when an authoritative `open` comment thread or a saved pending draft exists.
@@ -156,7 +165,7 @@ Requirements:
 - Markdown and HTML documents should expose an H1/H2 outline under "In this file" below the Review Queue.
 - Comments should preserve the surface where the issue was seen, such as rendered Markdown, HTML preview, source, or diff.
 - Typed comment input is browser-local working state until the user saves it as a pending draft. Outside clicks do not close it. Escape and the close action collapse it without deleting text; explicit Discard removes it. Open and collapsed input survives file, tab, rendered/source navigation, and page reload for the same workspace. Saving the first comment promotes the text into a durable pending draft and removes the browser-local input session. Saving a follow-up clears that session body but keeps its textarea focused so consecutive replies do not require another click. Stored unsaved input expires after 30 days.
-- Pending drafts are the Publish boundary. Unsaved input is shown separately and never contributes to the Publish count. Rendered Markdown and HTML preview show a compact Source-input return action when typed Source input exists for the active file. Saving the first comment keeps the pending draft available through its document marker and inspector entry, but closes the inline/floating composer so the user can immediately double-click the next block. Opening that marker or inspector entry resumes the same pending thread; follow-up saves keep that thread open and ready for the next input until focus moves or the user closes it. Deleting its last pending message closes the now-empty thread. Successful Publish retains the published thread without restoring a local composer. When the underlying file hash changes, an open input becomes stale and requires Re-anchor or Discard before it can be saved.
+- Pending drafts are the Publish boundary. Unsaved input is shown separately and never contributes to the Publish count. Rendered Markdown and HTML preview show a compact Source-input return action when typed Source input exists for the active file. Saving the first rendered comment keeps the pending draft available through its document marker and inspector entry, turns the same composer into the saved thread's empty follow-up input, and keeps focus there for consecutive thoughts. Double-clicking another rendered block can still open a separate Markdown composer or replace the fixed HTML composer. Opening a marker or inspector entry resumes the same pending thread; later saves likewise keep that thread open and ready for the next input until focus moves or the user closes it. Deleting its last pending message closes the now-empty thread. Successful Publish retains the published thread while preserving any next unsaved thought at the same anchor. When the underlying file hash changes, an open input becomes stale and requires Re-anchor or Discard before it can be saved.
 - HTML preview comments should use one fixed floating composer near the right-middle of the viewport. Unlike source/code comments, opening a second HTML preview target replaces the current composer instead of keeping multiple block-local forms open.
 - The active heading should be highlightable later as the user scrolls.
 - File type, path, watch status, size, and last update information should be minimized or kept behind a lightweight details disclosure.

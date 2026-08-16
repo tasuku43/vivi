@@ -117,6 +117,11 @@ export function HtmlViewer({
   } | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const viewerRef = useRef<HTMLElement | null>(null);
+  const renderedThreadTargetsRef = useRef(renderedThreadTargets);
+  renderedThreadTargetsRef.current = renderedThreadTargets;
+  const renderedThreadStateKey = htmlRenderedThreadStateKey(
+    renderedThreadTargets,
+  );
   const mode =
     controlledMode === "source" || controlledMode === "preview"
       ? controlledMode
@@ -181,13 +186,13 @@ export function HtmlViewer({
         type: "vivi-html-comments",
         path: file.path,
         activeCommentId,
-        draftingBlockIds: renderedThreadTargets.flatMap(
+        draftingBlockIds: renderedThreadTargetsRef.current.flatMap(
           (target) => target.blockIds,
         ),
-        openBlockIds: renderedThreadTargets.flatMap(
+        openBlockIds: renderedThreadTargetsRef.current.flatMap(
           (target) => target.blockIds,
         ),
-        openBlockIdGroups: renderedThreadTargets.map(
+        openBlockIdGroups: renderedThreadTargetsRef.current.map(
           (target) => target.blockIds,
         ),
         comments: visibleRenderedComments
@@ -283,13 +288,11 @@ export function HtmlViewer({
 
   useEffect(() => {
     postRenderedCommentState();
-    const timeout = window.setTimeout(postRenderedCommentState, 0);
-    return () => window.clearTimeout(timeout);
   }, [
     activeCommentId,
     file.path,
     mode,
-    renderedThreadTargets,
+    renderedThreadStateKey,
     visibleRenderedComments,
   ]);
 
@@ -570,6 +573,7 @@ export function HtmlViewer({
               activeCommentId={activeCommentId}
               currentActorId={currentActorId}
               onCreateComment={onCreateComment}
+              keepOpenAfterCreate
               onStatusChange={onCommentStatusChange}
               onClose={() => closeRenderedThreadTarget(entry.key)}
             />
@@ -592,6 +596,12 @@ interface HtmlRenderedThreadPosition {
   top: number;
   width: number;
   maxHeight?: number;
+}
+
+export function htmlRenderedThreadStateKey(
+  targets: readonly { blockIds: readonly string[] }[],
+): string {
+  return JSON.stringify(targets.map((target) => target.blockIds));
 }
 
 function renderedTargetFromMessage(

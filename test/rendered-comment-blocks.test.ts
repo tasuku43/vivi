@@ -4,7 +4,10 @@ import {
   renderedCommentBlocksForHtml,
 } from "../ui/src/domain/rendered-comment-blocks.js";
 import { positionInlineCommentCard } from "../ui/src/features/comments/components/InlineCommentCard.js";
-import { positionHtmlRenderedThread } from "../ui/src/features/file-context/viewers/HtmlViewer.js";
+import {
+  htmlRenderedThreadStateKey,
+  positionHtmlRenderedThread,
+} from "../ui/src/features/file-context/viewers/HtmlViewer.js";
 import {
   renderedCommentActionLabel,
   renderedCommentSourceRange,
@@ -261,5 +264,29 @@ line
       width: 342,
       maxHeight: 430,
     });
+  });
+
+  it("does not treat iframe layout-only updates as new rendered comment state", () => {
+    const before = [
+      {
+        blockIds: ["vivi-block-4", "vivi-block-5"],
+        rect: { left: 10, top: 20, width: 300, height: 80 },
+      },
+    ];
+    const afterLayout = [
+      {
+        blockIds: ["vivi-block-4", "vivi-block-5"],
+        rect: { left: 10.5, top: 20.5, width: 300, height: 81 },
+      },
+    ];
+
+    expect(htmlRenderedThreadStateKey(before)).toBe(
+      htmlRenderedThreadStateKey(afterLayout),
+    );
+    expect(
+      htmlRenderedThreadStateKey([
+        { blockIds: ["vivi-block-6"], rect: afterLayout[0]!.rect },
+      ]),
+    ).not.toBe(htmlRenderedThreadStateKey(before));
   });
 });

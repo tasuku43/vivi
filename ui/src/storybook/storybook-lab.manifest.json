@@ -31,6 +31,7 @@
     "ui/src/features/file-context/viewers/DiffViewer.stories.tsx",
     "ui/src/features/file-context/viewers/HtmlViewer.stories.tsx",
     "ui/src/features/file-context/viewers/MarkdownViewer.stories.tsx",
+    "ui/src/features/review-queue/PublishFlowFacade.stories.tsx",
     "ui/src/features/workbench/DocumentReaderFacade.stories.tsx",
     "ui/src/shared/components/Navigation.stories.tsx"
   ],
@@ -78,7 +79,8 @@
       "intent": "Connect the approved document-first hierarchy to the active file, outline, feedback, drafts, and optional change evidence used by the real workbench.",
       "reviewFocus": [
         "the repository-wide review queue remains the default work surface",
-        "the current document inspector remains directly reachable from the queue and can return to review",
+        "Review Queue and Document remain visible as two stable inspector tabs with a clear active state",
+        "the current document inspector remains directly reachable from the queue and can return to the preserved review position",
         "outline and feedback navigate the real active document",
         "Changes remains an explicit optional lens",
         "double-click commenting guidance leaves single-click and drag for reading"
@@ -117,6 +119,23 @@
         "Review/Inline Comment States/SelfCommentOwnership",
         "Review/Inline Comment States/UserWritesOneDraftComment"
       ]
+    },
+    {
+      "id": "publish-flow",
+      "label": "Unified publish flow",
+      "stage": "storybook-facade",
+      "intent": "Keep saved private feedback recognizable across Review Queue and Document while making the publish scope explicit.",
+      "reviewFocus": [
+        "Review Queue publishes ready feedback across the workspace",
+        "Document publishes only ready feedback from the current document",
+        "typing input is recoverable but visibly excluded from Publish",
+        "the same component, state labels, action order, and colors survive the inspector tab switch"
+      ],
+      "requiredStories": [
+        "Review/Publish Flow/WorkspaceScope",
+        "Review/Publish Flow/CurrentDocumentScope"
+      ],
+      "interactionStories": ["Review/Publish Flow/UnifiedPublishInteraction"]
     },
     {
       "id": "viewer-coverage",

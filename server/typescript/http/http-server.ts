@@ -1625,6 +1625,7 @@ function injectHtmlPreviewRuntime(
   let draftingBlockIds = [];
   let openBlockIds = [];
   let openBlockIdGroups = [];
+  let renderedCommentStateSignature = "";
   let hoveredBlock = null;
   let pendingRenderedThreadOpen = false;
   const post = (message) => parent.postMessage({ path, ...message }, "*");
@@ -1902,6 +1903,18 @@ function injectHtmlPreviewRuntime(
     if (event.source && event.source !== parent) return;
     const data = event.data;
     if (data?.type !== "vivi-html-comments" || data.path !== path) return;
+    const nextRenderedCommentStateSignature = JSON.stringify([
+      data.activeCommentId ?? null,
+      data.comments ?? [],
+      data.draftingBlockIds ?? [],
+      data.openBlockIds ?? [],
+      data.openBlockIdGroups ?? []
+    ]);
+    if (nextRenderedCommentStateSignature === renderedCommentStateSignature) {
+      postThreadLayout();
+      return;
+    }
+    renderedCommentStateSignature = nextRenderedCommentStateSignature;
     const previousActiveCommentId = activeCommentId;
     renderedComments = Array.isArray(data.comments) ? data.comments : [];
     activeCommentId = typeof data.activeCommentId === "string" ? data.activeCommentId : null;

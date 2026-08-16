@@ -1,5 +1,9 @@
 :local(.inspectorRoot) {
+  display: flex;
+  height: 100%;
   min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .compactEmpty {
@@ -8,6 +12,7 @@
 }
 
 :global(.review-panel-title) {
+  position: static;
   min-height: 60px;
   flex-basis: 60px;
   align-items: center;
@@ -44,6 +49,9 @@
 }
 
 :global(.inspect-body) {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
   padding: 14px;
 }
 

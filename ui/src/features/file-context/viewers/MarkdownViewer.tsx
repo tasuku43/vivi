@@ -14,9 +14,12 @@ import type { FilePayload } from "../../../domain/fs-node.js";
 import type { CommentActivitySummary } from "../../../state/comment-activity.js";
 import { renderedCommentBlockAttribute } from "../../../domain/rendered-comment-blocks.js";
 import {
+  codeCommentThreads,
+  commentAnchorThreadKey,
   renderedCommentDraft,
   sourceTextForLineRange,
   latestPublishedStatus,
+  matchingDraftPreviewThread,
   matchingOpenThreadForDraft,
   visibleThreadComments,
   type CodeCommentThread as CodeCommentThreadModel,
@@ -303,7 +306,10 @@ export function MarkdownViewer({
       });
       if (
         renderedThreadTargets.some(
-          (target) => renderedThreadTargetKey(file.path, target) === key,
+          (target) =>
+            renderedThreadTargetKey(file.path, target) === key ||
+            commentAnchorThreadKey(file.path, target.draft.anchor) ===
+              commentAnchorThreadKey(file.path, session.draft.anchor),
         )
       ) {
         continue;
@@ -462,17 +468,23 @@ export function MarkdownViewer({
 
   const renderedThreadEntries = renderedThreadTargets.map((target) => {
     const threadComments = commentsForRenderedTarget(
+      file.path,
       target,
       visibleRenderedComments,
     );
-    const thread = renderedThreadModel(file.path, target.draft, threadComments);
     const threadId =
-      thread.comments[0]?.threadId ??
-      thread.comments[0]?.id ??
+      threadComments[0]?.threadId ??
+      threadComments[0]?.id ??
       target.draft.threadId;
+    const replyDraft = threadId ? { ...target.draft, threadId } : target.draft;
+    const thread = renderedThreadModel(
+      file.path,
+      replyDraft,
+      threadComments,
+    );
     return {
       key: renderedThreadTargetKey(file.path, target),
-      target,
+      target: { ...target, draft: replyDraft },
       thread,
       threadId,
     };
@@ -572,6 +584,7 @@ export function MarkdownViewer({
             activeCommentId={activeCommentId}
             currentActorId={currentActorId}
             onCreateComment={onCreateComment}
+            keepOpenAfterCreate
             onStatusChange={onCommentStatusChange}
             onClose={() => closeRenderedThreadTarget(entry.key)}
           />,
@@ -674,17 +687,29 @@ function openWorkspaceLink(
 }
 
 function commentsForRenderedTarget(
+  path: string,
   target: { blockIds: string[]; draft: CommentDraft },
   comments: ViviComment[],
 ): ViviComment[] {
+  const renderedMarkdownComments = comments.filter(
+    (comment) =>
+      comment.path === path && comment.viewerKind === "markdown",
+  );
   if (target.draft.threadId) {
-    return comments
+    return renderedMarkdownComments
       .filter(
         (comment) => (comment.threadId ?? comment.id) === target.draft.threadId,
       )
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
-  return [];
+  const threads = codeCommentThreads(renderedMarkdownComments);
+  const draftThread = matchingDraftPreviewThread(
+    threads,
+    renderedThreadModel(path, target.draft, []),
+  );
+  const openThread =
+    draftThread ?? matchingOpenThreadForDraft(threads, target.draft);
+  return openThread?.comments ?? [];
 }
 
 function matchingOpenRenderedThreadId(

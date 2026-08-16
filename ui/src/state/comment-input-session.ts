@@ -30,6 +30,7 @@ export type CommentInputSessionAction =
   | { type: "collapse"; id: string }
   | { type: "discard"; id: string }
   | { type: "discard-anchors"; anchorKeys: string[] }
+  | { type: "discard-empty-anchors"; anchorKeys: string[] }
   | { type: "mark-path-version"; path: string; fileHash: string }
   | { type: "reanchor"; id: string; draft: CommentDraft };
 
@@ -38,6 +39,20 @@ export function commentInputSessionId(draft: CommentDraft): string {
     draft.threadId ?? null,
     commentAnchorThreadKey(draft.path, draft.anchor),
   ]);
+}
+
+export function commentInputSessionForDraft(
+  sessions: readonly CommentInputSession[],
+  draft: CommentDraft,
+): CommentInputSession | undefined {
+  const id = commentInputSessionId(draft);
+  return (
+    sessions.find((session) => session.id === id) ??
+    sessions.find(
+      (session) =>
+        commentInputAnchorKey(session.draft) === commentInputAnchorKey(draft),
+    )
+  );
 }
 
 export function reduceCommentInputSessions(
@@ -54,6 +69,14 @@ export function reduceCommentInputSessions(
     const keys = new Set(action.anchorKeys);
     return sessions.filter(
       (session) => !keys.has(commentInputAnchorKey(session.draft)),
+    );
+  }
+  if (action.type === "discard-empty-anchors") {
+    const keys = new Set(action.anchorKeys);
+    return sessions.filter(
+      (session) =>
+        Boolean(session.body.trim()) ||
+        !keys.has(commentInputAnchorKey(session.draft)),
     );
   }
   if (action.type === "collapse") {
@@ -80,7 +103,7 @@ export function reduceCommentInputSessions(
   }
 
   const id = commentInputSessionId(action.draft);
-  const existing = sessions.find((session) => session.id === id);
+  const existing = commentInputSessionForDraft(sessions, action.draft);
   if (!existing) {
     return [
       ...sessions,
@@ -94,9 +117,10 @@ export function reduceCommentInputSessions(
     ];
   }
   return sessions.map((session) => {
-    if (session.id !== id) return session;
+    if (session.id !== existing.id) return session;
     return {
       ...session,
+      id,
       draft: session.status === "stale" ? session.draft : action.draft,
       body: action.type === "change" ? action.body : session.body,
       status: session.status === "stale" ? "stale" : "open",

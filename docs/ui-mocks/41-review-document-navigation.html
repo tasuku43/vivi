@@ -1,0 +1,1192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Review / Document navigation directions - Vivi mock</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #081119;
+        --panel: #0e1a22;
+        --panel-2: #12212b;
+        --panel-3: #172a34;
+        --line: #263a46;
+        --line-strong: #365260;
+        --text: #eef5f7;
+        --muted: #9cadb5;
+        --subtle: #6e818b;
+        --cyan: #75d5d8;
+        --cyan-soft: rgba(117, 213, 216, 0.12);
+        --green: #8ed9bd;
+        --amber: #e2bd6b;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--text);
+      }
+      body {
+        padding: 28px;
+      }
+      button {
+        font: inherit;
+      }
+      button:not(:disabled) {
+        cursor: pointer;
+      }
+
+      .page {
+        width: min(1600px, 100%);
+        margin: 0 auto;
+      }
+      .eyebrow {
+        color: var(--cyan);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 7px 0 10px;
+        font-size: clamp(28px, 4vw, 44px);
+        letter-spacing: -0.04em;
+      }
+      .intro {
+        max-width: 920px;
+        margin: 0;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.65;
+      }
+      .principle {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        width: fit-content;
+        margin-top: 18px;
+        padding: 9px 12px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: var(--panel);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .principle strong {
+        color: var(--text);
+      }
+
+      .concepts {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 22px;
+        margin-top: 28px;
+      }
+      .concept {
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        overflow: hidden;
+        background: rgba(14, 26, 34, 0.62);
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.2);
+      }
+      .concept-head {
+        min-height: 132px;
+        padding: 18px 20px 16px;
+        border-bottom: 1px solid var(--line);
+        background: linear-gradient(
+          145deg,
+          rgba(23, 42, 52, 0.9),
+          rgba(14, 26, 34, 0.7)
+        );
+      }
+      .concept-head > div:first-child {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .letter {
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 30px;
+        flex: 0 0 auto;
+        border: 1px solid var(--line-strong);
+        border-radius: 9px;
+        color: var(--cyan);
+        font-weight: 850;
+      }
+      .concept h2 {
+        margin: 0;
+        font-size: 18px;
+        letter-spacing: -0.02em;
+      }
+      .thesis {
+        margin: 7px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .best {
+        display: inline-flex;
+        margin-top: 12px;
+        color: var(--green);
+        font-size: 11px;
+        font-weight: 750;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .demo {
+        padding: 18px;
+        background: #09131b;
+      }
+      .frame {
+        width: min(100%, 392px);
+        height: 660px;
+        margin: 0 auto;
+        overflow: hidden;
+        border: 1px solid var(--line-strong);
+        border-radius: 9px;
+        background: var(--panel);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+      }
+      .view {
+        height: 100%;
+      }
+      .view[hidden] {
+        display: none;
+      }
+
+      .label {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .title {
+        font-size: 16px;
+        font-weight: 780;
+      }
+      .count {
+        min-width: 20px;
+        padding: 2px 7px;
+        border-radius: 99px;
+        background: var(--cyan-soft);
+        color: var(--cyan);
+        font-size: 11px;
+        font-weight: 800;
+        text-align: center;
+      }
+      .button {
+        min-height: 30px;
+        padding: 5px 10px;
+        border: 1px solid var(--line-strong);
+        border-radius: 7px;
+        background: var(--panel-2);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .button:hover,
+      .button:focus-visible {
+        border-color: var(--cyan);
+        color: var(--text);
+        outline: none;
+      }
+      .primary {
+        border-color: rgba(117, 213, 216, 0.44);
+        background: var(--cyan-soft);
+        color: var(--cyan);
+      }
+      .icon-button {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: transparent;
+        color: var(--muted);
+      }
+
+      .queue-summary {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        border-bottom: 1px solid var(--line);
+      }
+      .metric {
+        padding: 11px 13px 10px;
+        border-right: 1px solid var(--line);
+      }
+      .metric:last-child {
+        border-right: 0;
+      }
+      .metric strong {
+        display: block;
+        font-size: 19px;
+        line-height: 1;
+      }
+      .metric span {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+      }
+      .section-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 38px;
+        padding: 0 13px;
+        border-bottom: 1px solid var(--line);
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 760;
+      }
+      .section-title small {
+        color: var(--subtle);
+        font-weight: 600;
+      }
+      .queue-row {
+        display: grid;
+        grid-template-columns: 10px 1fr auto;
+        gap: 10px;
+        align-items: center;
+        min-height: 58px;
+        padding: 9px 13px;
+        border-bottom: 1px solid var(--line);
+        background: transparent;
+        color: inherit;
+        text-align: left;
+        width: 100%;
+        border-top: 0;
+        border-left: 0;
+        border-right: 0;
+      }
+      .queue-row:hover,
+      .queue-row.active {
+        background: var(--cyan-soft);
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--subtle);
+      }
+      .dot.live {
+        background: var(--cyan);
+        box-shadow: 0 0 0 3px rgba(117, 213, 216, 0.12);
+      }
+      .file {
+        min-width: 0;
+      }
+      .file strong {
+        display: block;
+        overflow: hidden;
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .file small {
+        display: block;
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 10px;
+      }
+      .pill {
+        padding: 2px 7px;
+        border: 1px solid rgba(142, 217, 189, 0.35);
+        border-radius: 99px;
+        color: var(--green);
+        font-size: 10px;
+        font-weight: 800;
+      }
+      .empty {
+        display: flex;
+        gap: 9px;
+        align-items: flex-start;
+        padding: 12px 14px 14px;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.45;
+      }
+      .empty strong {
+        color: var(--text);
+      }
+      .doc-identity {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 16px 14px;
+        border-bottom: 1px solid var(--line);
+      }
+      .doc-identity .dot {
+        flex: 0 0 auto;
+      }
+      .doc-identity strong,
+      .doc-identity small {
+        display: block;
+      }
+      .doc-identity strong {
+        font-size: 13px;
+      }
+      .doc-identity small {
+        color: var(--muted);
+        font-size: 10px;
+      }
+      .doc-section {
+        padding: 15px 14px;
+        border-bottom: 1px solid var(--line);
+      }
+      .doc-section > header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+      .outline {
+        display: grid;
+        gap: 3px;
+      }
+      .outline div {
+        display: flex;
+        justify-content: space-between;
+        padding: 7px 8px;
+        border-radius: 6px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .outline div.active {
+        background: var(--cyan-soft);
+        color: var(--text);
+      }
+      .feedback {
+        padding: 10px;
+        border: 1px solid rgba(117, 213, 216, 0.42);
+        border-radius: 7px;
+        background: rgba(117, 213, 216, 0.1);
+      }
+      .feedback strong {
+        font-size: 11px;
+      }
+      .feedback p {
+        margin: 6px 0 3px;
+        font-size: 13px;
+      }
+      .feedback small {
+        color: var(--muted);
+        font-size: 10px;
+      }
+      .change-card {
+        padding: 11px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+      .change-card strong,
+      .change-card small {
+        display: block;
+      }
+      .change-card strong {
+        font-size: 11px;
+      }
+      .change-card small {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 10px;
+      }
+
+      /* A — full-width, stable destinations */
+      .a-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        height: 44px;
+        border-bottom: 1px solid var(--line);
+      }
+      .a-tab {
+        position: relative;
+        border: 0;
+        background: transparent;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 730;
+      }
+      .a-tab.active {
+        color: var(--text);
+      }
+      .a-tab.active::after {
+        content: "";
+        position: absolute;
+        right: 14px;
+        bottom: -1px;
+        left: 14px;
+        height: 2px;
+        border-radius: 2px 2px 0 0;
+        background: var(--cyan);
+      }
+      .a-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 58px;
+        padding: 10px 13px;
+        border-bottom: 1px solid var(--line);
+      }
+      .a-toolbar small {
+        display: block;
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 10px;
+      }
+
+      /* B — queue is home, document is a drill-in */
+      .b-home {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 66px;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+      }
+      .b-home .title {
+        margin-top: 2px;
+      }
+      .b-doc-head {
+        padding: 12px 14px 10px;
+        border-bottom: 1px solid var(--line);
+      }
+      .back {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--cyan);
+        font-size: 11px;
+        font-weight: 760;
+      }
+      .b-doc-head .doc-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 13px;
+      }
+      .selected-ribbon {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 13px;
+        border-bottom: 1px solid rgba(117, 213, 216, 0.24);
+        background: var(--cyan-soft);
+        color: var(--muted);
+        font-size: 10px;
+      }
+      .selected-ribbon strong {
+        color: var(--text);
+      }
+
+      /* C — persistent navigation spine */
+      .c-shell {
+        display: grid;
+        grid-template-columns: 56px 1fr;
+        height: 100%;
+      }
+      .c-rail {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 9px;
+        padding: 12px 8px;
+        border-right: 1px solid var(--line);
+        background: #0a151d;
+      }
+      .rail-brand {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        margin-bottom: 7px;
+        border-radius: 9px;
+        background: var(--cyan-soft);
+        color: var(--cyan);
+        font-weight: 900;
+      }
+      .rail-mode {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 42px;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--subtle);
+        font-size: 17px;
+      }
+      .rail-mode.active {
+        background: var(--panel-3);
+        color: var(--text);
+      }
+      .rail-mode.active::before {
+        content: "";
+        position: absolute;
+        top: 10px;
+        bottom: 10px;
+        left: -8px;
+        width: 2px;
+        border-radius: 2px;
+        background: var(--cyan);
+      }
+      .rail-count {
+        position: absolute;
+        top: 3px;
+        right: 1px;
+        min-width: 16px;
+        padding: 1px 4px;
+        border-radius: 99px;
+        background: var(--cyan);
+        color: #071117;
+        font-size: 8px;
+        font-weight: 900;
+      }
+      .c-main {
+        min-width: 0;
+      }
+      .c-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 58px;
+        padding: 10px 13px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      /* D — workflow progress is the navigation */
+      .d-progress {
+        padding: 12px 13px;
+        border-bottom: 1px solid var(--line);
+        background: linear-gradient(
+          100deg,
+          rgba(117, 213, 216, 0.12),
+          transparent
+        );
+      }
+      .d-topline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .d-kicker {
+        color: var(--cyan);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .d-actions {
+        display: flex;
+        gap: 6px;
+      }
+      .progress-track {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        align-items: center;
+        margin-top: 9px;
+      }
+      .track {
+        height: 4px;
+        overflow: hidden;
+        border-radius: 99px;
+        background: var(--line);
+      }
+      .track span {
+        display: block;
+        width: 50%;
+        height: 100%;
+        background: var(--cyan);
+      }
+      .progress-track small {
+        color: var(--muted);
+        font-size: 10px;
+      }
+      .d-context {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 9px 13px;
+        border-bottom: 1px solid var(--line);
+      }
+      .d-context button {
+        color: var(--cyan);
+      }
+
+      .tradeoff {
+        padding: 14px 18px 17px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+      .tradeoff strong {
+        color: var(--text);
+      }
+      .recommend {
+        border-color: rgba(117, 213, 216, 0.52);
+      }
+      .recommend .concept-head {
+        box-shadow: inset 3px 0 0 var(--cyan);
+      }
+      .recommend-tag {
+        padding: 4px 8px;
+        border-radius: 99px;
+        background: var(--cyan-soft);
+        color: var(--cyan);
+        font-size: 10px;
+        font-weight: 850;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      @media (max-width: 1050px) {
+        .concepts {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 560px) {
+        body {
+          padding: 14px;
+        }
+        .demo {
+          padding: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="eyebrow">Vivi · Inspector navigation study</div>
+      <h1>Review is home. Document is context.</h1>
+      <p class="intro">
+        Four ways to move between the review queue and the active document
+        without making them look like two unrelated buttons. Every concept keeps
+        Review as the default, preserves queue position when inspecting a
+        document, and separates navigation from the “Next queued” workflow
+        action.
+      </p>
+      <div class="principle">
+        <strong>State model</strong>
+        Review queue → open work item → read/comment in document → return to the
+        same queue position → next item
+      </div>
+
+      <section class="concepts">
+        <article class="concept recommend" data-concept>
+          <header class="concept-head">
+            <div>
+              <div>
+                <h2>A. Stable workspace tabs</h2>
+                <p class="thesis">
+                  Use the entire inspector header as two stable destinations.
+                  Mode never changes its label or location.
+                </p>
+              </div>
+              <span class="recommend-tag">Recommended</span>
+            </div>
+            <span class="best">Best for: obviousness + low learning cost</span>
+          </header>
+          <div class="demo">
+            <div class="frame">
+              <div class="a-tabs" role="tablist" aria-label="Inspector view">
+                <button class="a-tab active" data-switch="queue">
+                  Review queue <span class="count">2</span>
+                </button>
+                <button class="a-tab" data-switch="document">Document</button>
+              </div>
+              <div class="view" data-view="queue">
+                <div class="a-toolbar">
+                  <div>
+                    <div class="title">2 need attention</div>
+                    <small>Changes and open feedback</small>
+                  </div>
+                  <button class="button primary">Next queued →</button>
+                </div>
+                <div class="queue-summary">
+                  <div class="metric">
+                    <strong>0</strong><span>Queued</span>
+                  </div>
+                  <div class="metric">
+                    <strong>2</strong><span>In review</span>
+                  </div>
+                  <div class="metric">
+                    <strong>0</strong><span>Reviewed</span>
+                  </div>
+                </div>
+                <div class="section-title"><span>Queued</span></div>
+                <div class="empty">
+                  <span class="dot"></span>
+                  <div>
+                    <strong>No queued files</strong><br />New HEAD evidence will
+                    appear here.
+                  </div>
+                </div>
+                <div class="section-title">
+                  <span>In review</span><small>2 files</small>
+                </div>
+                <button class="queue-row active">
+                  <span class="dot live"></span
+                  ><span class="file"
+                    ><strong>CommentStatusBadge.module.css</strong
+                    ><small>1 open · unread activity</small></span
+                  ><span class="pill">1 open</span>
+                </button>
+                <button class="queue-row">
+                  <span class="dot"></span
+                  ><span class="file"
+                    ><strong>04-data-model.md</strong
+                    ><small>1 open · no new movement</small></span
+                  ><span class="pill">1 open</span>
+                </button>
+                <div class="section-title">
+                  <span>Reviewed</span><small>0 reviewed</small>
+                </div>
+              </div>
+              <div class="view" data-view="document" hidden>
+                <div class="a-toolbar">
+                  <div>
+                    <div class="title">04-data-model.md</div>
+                    <small>docs/contracts · Markdown</small>
+                  </div>
+                  <span class="pill">1 open</span>
+                </div>
+                <div class="doc-section">
+                  <header>
+                    <span class="label">In this document</span
+                    ><span class="count">6</span>
+                  </header>
+                  <div class="outline">
+                    <div>Data model <small>:1</small></div>
+                    <div class="active">`FsNode` <small>:3</small></div>
+                    <div>Normalized path policy <small>:35</small></div>
+                    <div>Tree state strategy <small>:43</small></div>
+                    <div>Version and hash strategy <small>:59</small></div>
+                  </div>
+                </div>
+                <div class="doc-section">
+                  <header>
+                    <span class="label">Feedback</span
+                    ><span class="count">1</span>
+                  </header>
+                  <div class="feedback">
+                    <strong>OPEN · L45</strong>
+                    <p>fuga</p>
+                    <small>2 messages</small>
+                  </div>
+                </div>
+                <div class="doc-section">
+                  <header><span class="label">Changes</span></header>
+                  <div class="change-card">
+                    <strong>No working-tree changes</strong
+                    ><small>The document stays in normal reading mode.</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="tradeoff">
+            <strong>Tradeoff:</strong> most conventional and accessible, but it
+            visually grants Document equal width even though Review is the
+            product home. The active underline and queue count must carry that
+            hierarchy.
+          </div>
+        </article>
+
+        <article class="concept" data-concept>
+          <header class="concept-head">
+            <div>
+              <div>
+                <h2>B. Queue home + contextual drill-in</h2>
+                <p class="thesis">
+                  Do not model Document as a peer mode. Enter document context
+                  from the active review item and return with a single explicit
+                  back action.
+                </p>
+              </div>
+              <div class="letter">B</div>
+            </div>
+            <span class="best">Best for: strongest queue-first hierarchy</span>
+          </header>
+          <div class="demo">
+            <div class="frame">
+              <div class="view" data-view="queue">
+                <div class="b-home">
+                  <div>
+                    <span class="label">Review queue</span>
+                    <div class="title">2 need attention</div>
+                  </div>
+                  <button class="button primary">Next queued →</button>
+                </div>
+                <div class="queue-summary">
+                  <div class="metric">
+                    <strong>0</strong><span>Queued</span>
+                  </div>
+                  <div class="metric">
+                    <strong>2</strong><span>In review</span>
+                  </div>
+                  <div class="metric">
+                    <strong>0</strong><span>Reviewed</span>
+                  </div>
+                </div>
+                <div class="section-title">
+                  <span>In review</span
+                  ><small>Current position preserved</small>
+                </div>
+                <button class="queue-row active" data-switch="document">
+                  <span class="dot live"></span
+                  ><span class="file"
+                    ><strong>04-data-model.md</strong
+                    ><small>Open document context →</small></span
+                  ><span class="pill">1 open</span>
+                </button>
+                <button class="queue-row">
+                  <span class="dot"></span
+                  ><span class="file"
+                    ><strong>CommentStatusBadge.module.css</strong
+                    ><small>1 open · unread activity</small></span
+                  ><span class="pill">1 open</span>
+                </button>
+                <div class="section-title">
+                  <span>Reviewed</span><small>0 reviewed</small>
+                </div>
+              </div>
+              <div class="view" data-view="document" hidden>
+                <div class="b-doc-head">
+                  <button class="back" data-switch="queue">
+                    ← Review queue <span class="count">2</span>
+                  </button>
+                  <div class="doc-line">
+                    <div>
+                      <span class="label">Document context</span>
+                      <div class="title">04-data-model.md</div>
+                    </div>
+                    <span class="pill">1 open</span>
+                  </div>
+                </div>
+                <div class="selected-ribbon">
+                  <span>Review position</span
+                  ><strong>In review · 1 of 2</strong>
+                </div>
+                <div class="doc-section">
+                  <header>
+                    <span class="label">In this document</span
+                    ><span class="count">6</span>
+                  </header>
+                  <div class="outline">
+                    <div>Data model <small>:1</small></div>
+                    <div class="active">`FsNode` <small>:3</small></div>
+                    <div>Normalized path policy <small>:35</small></div>
+                    <div>Tree state strategy <small>:43</small></div>
+                    <div>Comments <small>:66</small></div>
+                  </div>
+                </div>
+                <div class="doc-section">
+                  <header>
+                    <span class="label">Feedback</span
+                    ><span class="count">1</span>
+                  </header>
+                  <div class="feedback">
+                    <strong>OPEN · L45</strong>
+                    <p>fuga</p>
+                    <small>2 messages</small>
+                  </div>
+                </div>
+                <div class="doc-section">
+                  <button
+                    class="button primary"
+                    data-switch="queue"
+                    style="width: 100%"
+                  >
+                    Done with context · return to queue
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="tradeoff">
+            <strong>Tradeoff:</strong> clearest product hierarchy and least
+            chrome. It is less convenient for users who repeatedly jump into the
+            outline outside of an active review item.
+          </div>
+        </article>
+
+        <article class="concept" data-concept>
+          <header class="concept-head">
+            <div>
+              <div>
+                <h2>C. Persistent inspector spine</h2>
+                <p class="thesis">
+                  Reserve a slim navigation rail for inspector destinations.
+                  Review remains visibly selected even as the document changes.
+                </p>
+              </div>
+              <div class="letter">C</div>
+            </div>
+            <span class="best"
+              >Best for: fast repeat switching + future inspector tools</span
+            >
+          </header>
+          <div class="demo">
+            <div class="frame c-shell">
+              <nav class="c-rail" aria-label="Inspector destinations">
+                <div class="rail-brand">V</div>
+                <button
+                  class="rail-mode active"
+                  data-switch="queue"
+                  title="Review queue"
+                >
+                  ☷<span class="rail-count">2</span></button
+                ><button
+                  class="rail-mode"
+                  data-switch="document"
+                  title="Document"
+                >
+                  ▤
+                </button>
+              </nav>
+              <div class="c-main">
+                <div class="view" data-view="queue">
+                  <div class="c-head">
+                    <div>
+                      <span class="label">Review</span>
+                      <div class="title">2 attention items</div>
+                    </div>
+                    <button class="icon-button" title="Next queued">→</button>
+                  </div>
+                  <div class="queue-summary">
+                    <div class="metric">
+                      <strong>0</strong><span>Queued</span>
+                    </div>
+                    <div class="metric">
+                      <strong>2</strong><span>Review</span>
+                    </div>
+                    <div class="metric">
+                      <strong>0</strong><span>Done</span>
+                    </div>
+                  </div>
+                  <div class="section-title">In review</div>
+                  <button class="queue-row active">
+                    <span class="dot live"></span
+                    ><span class="file"
+                      ><strong>CommentStatusBadge.module.css</strong
+                      ><small>1 open · unread</small></span
+                    ><span class="pill">1</span></button
+                  ><button class="queue-row">
+                    <span class="dot"></span
+                    ><span class="file"
+                      ><strong>04-data-model.md</strong
+                      ><small>1 open · quiet</small></span
+                    ><span class="pill">1</span>
+                  </button>
+                  <div class="section-title">
+                    <span>Reviewed</span><small>0</small>
+                  </div>
+                </div>
+                <div class="view" data-view="document" hidden>
+                  <div class="c-head">
+                    <div>
+                      <span class="label">Document</span>
+                      <div class="title">04-data-model.md</div>
+                    </div>
+                    <span class="pill">1 open</span>
+                  </div>
+                  <div class="doc-section">
+                    <header>
+                      <span class="label">Outline</span
+                      ><span class="count">6</span>
+                    </header>
+                    <div class="outline">
+                      <div>Data model <small>:1</small></div>
+                      <div class="active">`FsNode` <small>:3</small></div>
+                      <div>Normalized path policy <small>:35</small></div>
+                      <div>Tree state strategy <small>:43</small></div>
+                    </div>
+                  </div>
+                  <div class="doc-section">
+                    <header>
+                      <span class="label">Feedback</span
+                      ><span class="count">1</span>
+                    </header>
+                    <div class="feedback">
+                      <strong>OPEN · L45</strong>
+                      <p>fuga</p>
+                      <small>2 messages</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="tradeoff">
+            <strong>Tradeoff:</strong> fastest and most extensible, but consumes
+            precious inspector width and icon-only navigation needs excellent
+            tooltips and keyboard support.
+          </div>
+        </article>
+
+        <article class="concept" data-concept>
+          <header class="concept-head">
+            <div>
+              <div>
+                <h2>D. Review journey header</h2>
+                <p class="thesis">
+                  Make progress through the queue the persistent top-level
+                  object. Document context becomes a temporary layer within the
+                  current stop.
+                </p>
+              </div>
+              <div class="letter">D</div>
+            </div>
+            <span class="best">Best for: “keep moving” review sessions</span>
+          </header>
+          <div class="demo">
+            <div class="frame">
+              <div class="d-progress">
+                <div class="d-topline">
+                  <span class="d-kicker">Review journey</span>
+                  <div class="d-actions">
+                    <button class="icon-button" title="Previous">←</button
+                    ><button class="icon-button primary" title="Next">→</button>
+                  </div>
+                </div>
+                <div class="progress-track">
+                  <div class="track"><span></span></div>
+                  <small>1 of 2</small>
+                </div>
+              </div>
+              <div class="view" data-view="queue">
+                <div class="d-context">
+                  <div>
+                    <span class="label">Current stop</span>
+                    <div class="title">04-data-model.md</div>
+                  </div>
+                  <button class="button" data-switch="document">
+                    Document context
+                  </button>
+                </div>
+                <div class="queue-summary">
+                  <div class="metric">
+                    <strong>0</strong><span>Queued</span>
+                  </div>
+                  <div class="metric">
+                    <strong>2</strong><span>In review</span>
+                  </div>
+                  <div class="metric">
+                    <strong>0</strong><span>Reviewed</span>
+                  </div>
+                </div>
+                <div class="section-title">In review</div>
+                <button class="queue-row active">
+                  <span class="dot live"></span
+                  ><span class="file"
+                    ><strong>04-data-model.md</strong
+                    ><small>Current · 1 open thread</small></span
+                  ><span class="pill">1 open</span></button
+                ><button class="queue-row">
+                  <span class="dot"></span
+                  ><span class="file"
+                    ><strong>CommentStatusBadge.module.css</strong
+                    ><small>Next · unread activity</small></span
+                  ><span class="pill">1 open</span>
+                </button>
+                <div class="doc-section">
+                  <button class="button primary" style="width: 100%">
+                    Mark reviewed and open next →
+                  </button>
+                </div>
+              </div>
+              <div class="view" data-view="document" hidden>
+                <div class="d-context">
+                  <button class="back" data-switch="queue">← Queue</button>
+                  <div>
+                    <span class="label">Current document</span>
+                    <div class="title">04-data-model.md</div>
+                  </div>
+                </div>
+                <div class="doc-section">
+                  <header>
+                    <span class="label">In this document</span
+                    ><span class="count">6</span>
+                  </header>
+                  <div class="outline">
+                    <div>Data model <small>:1</small></div>
+                    <div class="active">`FsNode` <small>:3</small></div>
+                    <div>Normalized path policy <small>:35</small></div>
+                    <div>Tree state strategy <small>:43</small></div>
+                  </div>
+                </div>
+                <div class="doc-section">
+                  <header>
+                    <span class="label">Feedback</span
+                    ><span class="count">1</span>
+                  </header>
+                  <div class="feedback">
+                    <strong>OPEN · L45</strong>
+                    <p>fuga</p>
+                    <small>2 messages</small>
+                  </div>
+                </div>
+                <div class="doc-section">
+                  <button
+                    class="button primary"
+                    data-switch="queue"
+                    style="width: 100%"
+                  >
+                    Return and continue review →
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="tradeoff">
+            <strong>Tradeoff:</strong> best expression of the desired core loop,
+            but it implies stronger lifecycle semantics around “current”,
+            “done”, and “next” than the other concepts.
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script>
+      document.querySelectorAll("[data-concept]").forEach((concept) => {
+        concept.querySelectorAll("[data-switch]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const target = button.dataset.switch;
+            concept.querySelectorAll("[data-view]").forEach((view) => {
+              view.hidden = view.dataset.view !== target;
+            });
+            concept.querySelectorAll("[data-switch]").forEach((control) => {
+              control.classList.toggle(
+                "active",
+                control.dataset.switch === target,
+              );
+            });
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

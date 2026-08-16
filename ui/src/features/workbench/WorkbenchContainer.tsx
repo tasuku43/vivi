@@ -576,7 +576,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
           ? items.filter((draft) => !draftIds.includes(draft.id))
           : [],
       );
-      commentInputs.discardAnchors(
+      commentInputs.discardEmptyAnchors(
         publishingDrafts.map((draft) =>
           commentAnchorThreadKey(draft.path, draft.anchor),
         ),
@@ -687,13 +687,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         : [],
     [comments, selectedPath],
   );
-  const resumableCommentInput = [...commentInputs.sessions]
+  const latestCommentInput = [...commentInputs.sessions]
     .reverse()
-    .find(
-      (session) =>
-        session.body.trim() &&
-        (session.status === "collapsed" || session.draft.path !== selectedPath),
-    );
+    .find((session) => session.body.trim());
   const quickOpenRecentFiles = useMemo<RecentFileSearchResult[]>(() => {
     const seen = new Set<string>();
     const candidates: RecentFileSearchResult[] = [];
@@ -2601,11 +2597,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                     ).length
                   }
                   resumableInput={
-                    resumableCommentInput
+                    latestCommentInput
                       ? {
-                          path: resumableCommentInput.draft.path,
+                          path: latestCommentInput.draft.path,
                           location: commentLineLabelForAnchor(
-                            resumableCommentInput.draft.anchor.canonical,
+                            latestCommentInput.draft.anchor.canonical,
                           ),
                         }
                       : null
@@ -2645,9 +2641,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                     )
                   }
                   onResumeInput={
-                    resumableCommentInput
+                    latestCommentInput
                       ? () =>
-                          void resumeCommentInput(resumableCommentInput).catch(
+                          void resumeCommentInput(latestCommentInput).catch(
                             (err) => setError(String(err)),
                           )
                       : undefined
@@ -2678,11 +2674,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                     ).length
                   }
                   resumableInput={
-                    resumableCommentInput
+                    latestCommentInput
                       ? {
-                          path: resumableCommentInput.draft.path,
+                          path: latestCommentInput.draft.path,
                           location: commentLineLabelForAnchor(
-                            resumableCommentInput.draft.anchor.canonical,
+                            latestCommentInput.draft.anchor.canonical,
                           ),
                         }
                       : null
@@ -2703,9 +2699,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                     )
                   }
                   onResumeInput={
-                    resumableCommentInput
+                    latestCommentInput
                       ? () =>
-                          void resumeCommentInput(resumableCommentInput).catch(
+                          void resumeCommentInput(latestCommentInput).catch(
                             (err) => setError(String(err)),
                           )
                       : undefined

@@ -11,6 +11,7 @@ import {
 import type { CommentDraft } from "../../state/comments.js";
 import {
   buildStoredCommentInputSessions,
+  commentInputSessionForDraft,
   commentInputSessionStorageKeyForRoot,
   commentInputSessionId,
   parseStoredCommentInputSessions,
@@ -28,6 +29,7 @@ interface CommentInputSessionContextValue {
   collapse: (id: string) => void;
   discard: (id: string) => void;
   discardAnchors: (anchorKeys: string[]) => void;
+  discardEmptyAnchors: (anchorKeys: string[]) => void;
   markPathVersion: (path: string, fileHash: string) => void;
   reanchor: (id: string, draft: CommentDraft) => void;
 }
@@ -40,6 +42,7 @@ const emptyCommentInputSessionContext: CommentInputSessionContextValue = {
   collapse: () => undefined,
   discard: () => undefined,
   discardAnchors: () => undefined,
+  discardEmptyAnchors: () => undefined,
   markPathVersion: () => undefined,
   reanchor: () => undefined,
 };
@@ -98,6 +101,11 @@ export function CommentInputSessionProvider({
     (anchorKeys: string[]) => dispatch({ type: "discard-anchors", anchorKeys }),
     [],
   );
+  const discardEmptyAnchors = useCallback(
+    (anchorKeys: string[]) =>
+      dispatch({ type: "discard-empty-anchors", anchorKeys }),
+    [],
+  );
   const markPathVersion = useCallback(
     (path: string, fileHash: string) =>
       dispatch({ type: "mark-path-version", path, fileHash }),
@@ -135,6 +143,7 @@ export function CommentInputSessionProvider({
       collapse,
       discard,
       discardAnchors,
+      discardEmptyAnchors,
       markPathVersion,
       reanchor,
     }),
@@ -143,6 +152,7 @@ export function CommentInputSessionProvider({
       collapse,
       discard,
       discardAnchors,
+      discardEmptyAnchors,
       markPathVersion,
       reanchor,
       sessions,
@@ -163,10 +173,11 @@ export function useCommentInputSessions(): CommentInputSessionContextValue {
 
 export function useCommentInputSession(draft: CommentDraft) {
   const context = useCommentInputSessions();
-  const id = commentInputSessionId(draft);
+  const computedId = commentInputSessionId(draft);
+  const session = commentInputSessionForDraft(context.sessions, draft);
   return {
     ...context,
-    id,
-    session: context.sessions.find((candidate) => candidate.id === id),
+    id: session?.id ?? computedId,
+    session,
   };
 }

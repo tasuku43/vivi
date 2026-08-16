@@ -182,6 +182,7 @@ func TestHTMLPreviewRuntimeUsesRenderedThreadContract(t *testing.T) {
 		`vivi-html-comment-open`,
 		`vivi-html-open-path`,
 		`vivi-html-thread-layout`,
+		`renderedCommentStateSignature`,
 		`drafting-rendered-comment`,
 		`rendered-comment-marker`,
 		`--rendered-comment-block-left:0px`,

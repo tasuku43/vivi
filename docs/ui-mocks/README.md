@@ -54,6 +54,8 @@ wired into the application.
 - `38-resumable-comment-composer.html`: three policies for preserving typed comment input across line, file, tab, mode, inspector, outside-click, Escape, and file-change transitions without changing Publish into an agent synchronization gate.
 - `39-document-only-directions.html`: three product-boundary concepts for narrowing Vivi to document review, from a reversible document filter to a document-native semantic review model and a guided review journey.
 - `40-living-document-review-states.html`: the selected document-first direction with normal reading and comment-anywhere as the default, plus optional comment, thread, and change-lens states.
+- `41-review-document-navigation.html`: four alternatives for moving between the queue-first review workflow and contextual document inspector without treating workflow actions as peer navigation.
+- `42-unified-publish-flow.html`: three current-UI concepts for making Typing, Ready, and Published/Open feedback use one recognizable Publish experience across Review Queue and Document.
 
 ## Implementation guidance
 

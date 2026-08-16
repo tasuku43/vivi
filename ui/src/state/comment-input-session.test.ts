@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CommentDraft } from "./comments.js";
 import {
   buildStoredCommentInputSessions,
+  commentInputAnchorKey,
   commentInputSessionStorageKeyForRoot,
   commentInputSessionTtlMs,
   commentInputSessionId,
@@ -170,5 +171,36 @@ describe("comment input sessions", () => {
     });
 
     expect(saved).toEqual([]);
+  });
+
+  it("keeps unsaved follow-up text when a draft thread becomes published", () => {
+    const pendingThreadDraft = {
+      ...draft(),
+      threadId: "draft-thread:pending",
+    };
+    const publishedThreadDraft = {
+      ...draft(),
+      threadId: "thread:published",
+    };
+    const typed = reduceCommentInputSessions([], {
+      type: "change",
+      draft: pendingThreadDraft,
+      body: "Keep this next thought private",
+    });
+    const afterPublishCleanup = reduceCommentInputSessions(typed, {
+      type: "discard-empty-anchors",
+      anchorKeys: [commentInputAnchorKey(pendingThreadDraft)],
+    });
+    const migrated = reduceCommentInputSessions(afterPublishCleanup, {
+      type: "start",
+      draft: publishedThreadDraft,
+    });
+
+    expect(migrated).toHaveLength(1);
+    expect(migrated[0]).toMatchObject({
+      id: commentInputSessionId(publishedThreadDraft),
+      body: "Keep this next thought private",
+      draft: { threadId: "thread:published" },
+    });
   });
 });

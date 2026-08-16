@@ -5,11 +5,17 @@ import type { FilePayload } from "../../domain/fs-node.js";
 import {
   commentLineLabel,
   commentLineLabelForAnchor,
+  commentAnchorThreadKey,
   statusLabel,
   truncateCommentPreview,
 } from "../../state/comments.js";
 import type { DiffStat, ReviewChangeItem } from "../../state/git-review.js";
 import type { OutlineHeading } from "../../state/outline.js";
+import { InspectorSurfaceTabs } from "../../shared/components/InspectorSurfaceTabs.js";
+import {
+  ReadyToPublishPanel,
+  type ReadyToPublishItem,
+} from "../../shared/components/ReadyToPublishPanel.js";
 import sharedUiStyles from "../../shared/styles/SharedUi.module.css";
 import styles from "./DocumentInspector.module.css";
 
@@ -68,40 +74,53 @@ export function DocumentInspector({
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
   const openCount = threads.filter((thread) => thread.status === "open").length;
   const feedbackCount = openCount + documentDrafts.length;
+  const contextFeedbackLabel = openCount
+    ? `${openCount} open`
+    : documentDrafts.length
+      ? `${documentDrafts.length} pending`
+      : null;
+  const documentReadyDraftGroups = groupDocumentDrafts(documentDrafts);
+  const documentReadyItems: ReadyToPublishItem[] = documentReadyDraftGroups.map(
+    ([id, drafts]) => {
+      const first = drafts[0]!;
+      const latest = drafts.at(-1)!;
+      return {
+        id,
+        title: commentLineLabelForAnchor(first.anchor.canonical),
+        detail: truncateCommentPreview(latest.body, 72),
+        count: drafts.length,
+      };
+    },
+  );
 
   return (
     <aside
       className={`${styles.root} ${sharedUiStyles.inspector}`}
       aria-label="Document inspector"
     >
-      <header className={styles.header}>
-        <span>Document</span>
-        <div className={styles.headerActions}>
-          <strong>{file ? formatKind(file.viewerKind) : "No document"}</strong>
-          {onOpenReviewQueue ? (
-            <button
-              className={styles.surfaceSwitch}
-              type="button"
-              aria-label={`Open review queue${reviewQueueCount ? `, ${reviewQueueCount} items` : ""}`}
-              onClick={onOpenReviewQueue}
-            >
-              Review{reviewQueueCount ? ` ${reviewQueueCount}` : ""}
-            </button>
-          ) : null}
+      <InspectorSurfaceTabs
+        activeSurface="document"
+        reviewQueueCount={reviewQueueCount}
+        onSelectReview={onOpenReviewQueue}
+      />
+
+      <header className={styles.contextHeader}>
+        <div>
+          <strong>{file ? basename(file.path) : "No document"}</strong>
+          <span title={file?.path}>
+            {file
+              ? `${directory(file.path)} · ${formatKind(file.viewerKind)}`
+              : "Select a document to inspect"}
+          </span>
         </div>
+        {contextFeedbackLabel ? (
+          <span className={styles.feedbackCount}>{contextFeedbackLabel}</span>
+        ) : null}
       </header>
 
       <div className={styles.body}>
         {file ? (
           <>
-            <section className={styles.identity} aria-label="Current document">
-              <span className={styles.kindDot} data-kind={file.viewerKind} />
-              <div>
-                <strong>{basename(file.path)}</strong>
-                <span title={file.path}>{directory(file.path)}</span>
-              </div>
-            </section>
-
             <InspectorSection
               title="In this document"
               count={outline.length || undefined}
@@ -141,7 +160,7 @@ export function DocumentInspector({
                 text.
               </p>
 
-              {unsavedInputCount ? (
+              {unsavedInputCount && !documentDrafts.length ? (
                 <div className={styles.unsaved} role="status">
                   <span>
                     {unsavedInputCount} unsaved{" "}
@@ -161,42 +180,29 @@ export function DocumentInspector({
               ) : null}
 
               {documentDrafts.length ? (
-                <div
-                  className={styles.feedbackList}
-                  aria-label="Pending feedback"
-                >
-                  {documentDrafts.map((draft) => (
-                    <div className={styles.feedbackRow} key={draft.id}>
-                      <button
-                        type="button"
-                        onClick={() => onOpenDraft?.(draft)}
-                      >
-                        <span className={`${styles.status} ${styles.pending}`}>
-                          Pending
-                        </span>
-                        <strong>
-                          {commentLineLabelForAnchor(draft.anchor.canonical)}
-                        </strong>
-                        <small>{truncateCommentPreview(draft.body, 72)}</small>
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    className={styles.publish}
-                    type="button"
-                    aria-label={`Publish all ${documentDrafts.length} pending`}
-                    onClick={() =>
-                      void onPublishDrafts?.(
-                        documentDrafts.map((draft) => draft.id),
-                      )
-                    }
-                  >
-                    Publish{" "}
-                    {documentDrafts.length === 1
-                      ? "comment"
-                      : `${documentDrafts.length} comments`}
-                  </button>
-                </div>
+                <ReadyToPublishPanel
+                  scope="document"
+                  items={documentReadyItems}
+                  localInput={
+                    resumableInput?.path === file.path ? resumableInput : null
+                  }
+                  excludedInputCount={unsavedInputCount}
+                  onOpenItem={(item) => {
+                    const draft = documentReadyDraftGroups.find(
+                      ([id]) => id === item.id,
+                    )?.[1][0];
+                    if (draft) onOpenDraft?.(draft);
+                  }}
+                  onResumeInput={() => onResumeInput?.()}
+                  onReview={() => {
+                    if (documentDrafts[0]) onOpenDraft?.(documentDrafts[0]);
+                  }}
+                  onPublish={() =>
+                    void onPublishDrafts?.(
+                      documentDrafts.map((draft) => draft.id),
+                    )
+                  }
+                />
               ) : null}
 
               {threads.length ? (
@@ -322,6 +328,17 @@ function InspectorSection({
       {children}
     </section>
   );
+}
+
+function groupDocumentDrafts(
+  drafts: DraftReviewComment[],
+): Array<[string, DraftReviewComment[]]> {
+  const groups = new Map<string, DraftReviewComment[]>();
+  for (const draft of drafts) {
+    const id = draft.threadId ?? commentAnchorThreadKey(draft.path, draft.anchor);
+    groups.set(id, [...(groups.get(id) ?? []), draft]);
+  }
+  return [...groups.entries()];
 }
 
 function basename(path: string): string {

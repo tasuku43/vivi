@@ -33,7 +33,7 @@ it("restores Source input after reload and clears its composer after publish", a
   await page.goto(server.url);
 
   await page.locator('[data-tree-path="README.md"]').click();
-  await page.getByRole("button", { name: "Document" }).click();
+  await page.getByRole("tab", { name: "Document" }).click();
   await page.getByRole("button", { name: "Source", exact: true }).click();
   await page.getByRole("button", { name: "Add comment on line 1" }).click();
   await page
@@ -61,7 +61,7 @@ it("restores Source input after reload and clears its composer after publish", a
   await page
     .getByRole("button", { name: "Save pending draft comment" })
     .click();
-  await page.getByRole("button", { name: "Publish all 1 pending" }).click();
+  await page.getByRole("button", { name: "Publish 1", exact: true }).click();
 
   const lineAction = page.getByRole("button", {
     name: "Open comment thread on line 1 with 1 message",
@@ -88,7 +88,7 @@ it("deletes a saved pending comment before publish", async () => {
   await page.goto(server.url);
 
   await page.locator('[data-tree-path="README.md"]').click();
-  await page.getByRole("button", { name: "Document" }).click();
+  await page.getByRole("tab", { name: "Document" }).click();
   await page.getByRole("button", { name: "Source", exact: true }).click();
   await page.getByRole("button", { name: "Add comment on line 1" }).click();
   await page
@@ -114,12 +114,65 @@ it("deletes a saved pending comment before publish", async () => {
     .toBe(0);
   await expect
     .poll(() =>
-      page.getByRole("button", { name: "Publish all 1 pending" }).count(),
+      page.getByRole("button", { name: "Publish 1", exact: true }).count(),
     )
     .toBe(0);
 }, 40_000);
 
-it("closes a saved HTML composer and reopens its pending thread on demand", async () => {
+it("keeps a saved Markdown thread open and focuses its follow-up", async () => {
+  server = await startViviServer({
+    rootDir: fixture.rootDir,
+    gitReviewTimeoutMs: 1_000,
+  });
+  browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  page.setDefaultTimeout(8_000);
+  await page.goto(server.url);
+
+  await page.locator('[data-tree-path="README.md"]').click();
+  await page.getByRole("tab", { name: "Document" }).click();
+  await page.getByText("Contract workspace changed", { exact: true }).dblclick();
+
+  const firstBody = "First pending Markdown review note.";
+  await page.getByRole("textbox", { name: "New line comment" }).fill(firstBody);
+  await page
+    .getByRole("button", { name: "Save pending draft comment" })
+    .click();
+
+  await expect
+    .poll(() =>
+      page
+        .getByRole("article", { name: "Comment thread for line 5" })
+        .getByText(firstBody, { exact: true })
+        .count(),
+    )
+    .toBe(1);
+  const followUp = page.getByRole("textbox", { name: "Continue thread" });
+  await expect.poll(() => followUp.count()).toBe(1);
+  await expect.poll(() => followUp.inputValue()).toBe("");
+  await expect
+    .poll(() => followUp.evaluate((node) => node === document.activeElement))
+    .toBe(true);
+
+  const secondBody = "Second pending note in the same Markdown thread.";
+  await followUp.fill(secondBody);
+  await followUp.press("Control+Enter");
+  await expect.poll(() => followUp.inputValue()).toBe("");
+  await expect
+    .poll(() =>
+      page
+        .getByRole("article", { name: "Comment thread for line 5" })
+        .getByText(secondBody, { exact: true })
+        .count(),
+    )
+    .toBe(1);
+  await expect.poll(() => followUp.count()).toBe(1);
+  await expect
+    .poll(() => followUp.evaluate((node) => node === document.activeElement))
+    .toBe(true);
+}, 40_000);
+
+it("keeps a saved HTML thread open and focuses its follow-up", async () => {
   server = await startViviServer({
     rootDir: fixture.rootDir,
     gitReviewTimeoutMs: 1_000,
@@ -128,11 +181,24 @@ it("closes a saved HTML composer and reopens its pending thread on demand", asyn
   const page = await browser.newPage();
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
+  let createDraftRequestCount = 0;
+  await page.route("**/graphql", async (route) => {
+    const payload = route.request().postDataJSON() as {
+      operationName?: string;
+    } | null;
+    if (payload?.operationName === "CreateDraftReviewComment") {
+      createDraftRequestCount += 1;
+      if (createDraftRequestCount === 2) {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      }
+    }
+    await route.continue();
+  });
   page.setDefaultTimeout(8_000);
   await page.goto(server.url);
 
   await page.locator('[data-tree-path="index.html"]').click();
-  await page.getByRole("button", { name: "Document" }).click();
+  await page.getByRole("tab", { name: "Document" }).click();
   const previewFrame = page.frameLocator('iframe[title="index.html"]');
   await previewFrame.getByText("HTML Fixture", { exact: true }).dblclick();
 
@@ -143,17 +209,22 @@ it("closes a saved HTML composer and reopens its pending thread on demand", asyn
     .click();
 
   await expect
-    .poll(() => page.getByText(firstBody, { exact: true }).count())
+    .poll(() =>
+      page
+        .getByRole("article", { name: "Comment thread for line 4" })
+        .getByText(firstBody, { exact: true })
+        .count(),
+    )
     .toBe(1);
   await expect
     .poll(() => page.getByRole("textbox", { name: "New line comment" }).count())
     .toBe(0);
-  await page
-    .getByRole("complementary", { name: "Document inspector" })
-    .getByRole("button", { name: new RegExp(firstBody) })
-    .click();
   const followUp = page.getByRole("textbox", { name: "Continue thread" });
   await expect.poll(() => followUp.count()).toBe(1);
+  await expect.poll(() => followUp.inputValue()).toBe("");
+  await expect
+    .poll(() => followUp.evaluate((node) => node === document.activeElement))
+    .toBe(true);
   const threadBounds = await page
     .getByRole("article", { name: "Comment thread for line 4" })
     .boundingBox();
@@ -171,6 +242,12 @@ it("closes a saved HTML composer and reopens its pending thread on demand", asyn
   await followUp.press("Control+Enter");
 
   await expect
+    .poll(() => followUp.inputValue(), { timeout: 250 })
+    .toBe("");
+  const thirdBody = "A third thought typed while the save completes.";
+  await followUp.pressSequentially(thirdBody);
+
+  await expect
     .poll(() =>
       page
         .getByRole("article", { name: "Comment thread for line 4" })
@@ -179,19 +256,38 @@ it("closes a saved HTML composer and reopens its pending thread on demand", asyn
     )
     .toBe(1);
   await expect.poll(() => followUp.count()).toBe(1);
-  await expect.poll(() => followUp.inputValue()).toBe("");
+  await expect.poll(() => followUp.inputValue()).toBe(thirdBody);
   await expect
     .poll(() => followUp.evaluate((node) => node === document.activeElement))
     .toBe(true);
+  await page.getByRole("tab", { name: /Review queue/ }).click();
+  const workspaceReady = page.getByRole("region", {
+    name: "Workspace ready to publish",
+  });
+  await expect.poll(() => workspaceReady.count()).toBe(1);
   await expect
     .poll(() =>
-      page.getByRole("button", { name: "Publish all 2 pending" }).count(),
+      workspaceReady.locator("xpath=ancestor::details[1]").innerText(),
+    )
+    .toContain("In Review");
+  await expect
+    .poll(() => workspaceReady.getByText("2 ready", { exact: true }).count())
+    .toBeGreaterThan(0);
+
+  await page.getByRole("tab", { name: "Document" }).click();
+  const documentReady = page.getByRole("region", {
+    name: "Current document ready to publish",
+  });
+  await expect.poll(() => documentReady.count()).toBe(1);
+  await expect
+    .poll(() =>
+      documentReady.getByText("Excluded from Publish · Resume input").count(),
     )
     .toBe(1);
-  await page.getByRole("button", { name: "Publish all 2 pending" }).click();
+  await documentReady.getByRole("button", { name: "Publish 2" }).click();
   await expect
     .poll(() =>
-      page.getByRole("button", { name: "Publish all 2 pending" }).count(),
+      page.getByRole("button", { name: "Publish 2", exact: true }).count(),
     )
     .toBe(0);
   await expect
@@ -199,6 +295,7 @@ it("closes a saved HTML composer and reopens its pending thread on demand", asyn
       page.getByRole("article", { name: "Comment thread for line 4" }).count(),
     )
     .toBe(1);
+  await expect.poll(() => followUp.inputValue()).toBe(thirdBody);
   await page.getByRole("button", { name: "Close comment thread" }).click();
   await expect
     .poll(() =>

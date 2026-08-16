@@ -83,19 +83,38 @@ it("wires document and review inspector surfaces to the active workspace", async
   await expect.poll(() => reviewInspector.isVisible()).toBe(true);
   await expect
     .poll(() => reviewInspector.getByText("Review", { exact: true }).count())
-    .toBe(1);
+    .toBe(0);
 
-  await reviewInspector.getByRole("button", { name: "Document" }).click();
+  const reviewTab = reviewInspector.getByRole("tab", {
+    name: /Review queue/,
+  });
+  await expect.poll(() => reviewTab.getAttribute("aria-selected")).toBe("true");
+
+  await reviewInspector.getByRole("tab", { name: "Document" }).click();
   const inspector = page!.getByRole("complementary", {
     name: "Document inspector",
   });
   await expect.poll(() => inspector.isVisible()).toBe(true);
+  await expect
+    .poll(() =>
+      inspector
+        .getByRole("tab", { name: "Document" })
+        .getAttribute("aria-selected"),
+    )
+    .toBe("true");
+  await expect
+    .poll(() => inspector.getByRole("tab", { name: /Review queue/ }).count())
+    .toBe(1);
   await expect
     .poll(() => inspector.getByText("README.md", { exact: true }).count())
     .toBeGreaterThan(0);
   await expect
     .poll(() => inspector.getByRole("button", { name: "Vivi Fixture" }).count())
     .toBe(1);
+
+  await inspector.getByRole("tab", { name: /Review queue/ }).click();
+  await expect.poll(() => reviewInspector.isVisible()).toBe(true);
+  await reviewInspector.getByRole("tab", { name: "Document" }).click();
 
   await inspector.getByRole("button", { name: "Show changes" }).click();
   await expect
@@ -115,8 +134,8 @@ it("wires document and review inspector surfaces to the active workspace", async
     .poll(() => inspector.getByText("index.html", { exact: true }).count())
     .toBeGreaterThan(0);
   await expect
-    .poll(() => inspector.getByText("HTML", { exact: true }).count())
-    .toBe(1);
+    .poll(() => inspector.locator('span[title="index.html"]').innerText())
+    .toBe("workspace root · HTML");
 }, 20_000);
 
 it("keeps modal focus inside the overlay and returns it to the opener", async () => {
@@ -231,7 +250,7 @@ it("keeps typed feedback through outside clicks and comment close controls", asy
     .toBe(0);
 }, 20_000);
 
-it("removes a saved Markdown composer before the next block is targeted", async () => {
+it("keeps a saved Markdown follow-up focused while the next block stays targetable", async () => {
   await page!.locator('[data-tree-path="README.md"]').click();
   const heading = page!.getByRole("heading", { name: "Vivi Fixture" });
   await heading.dblclick();
@@ -244,12 +263,20 @@ it("removes a saved Markdown composer before the next block is targeted", async 
     .getByRole("button", { name: "Save pending draft comment" })
     .click();
 
+  const followUp = page!.getByRole("textbox", { name: "Continue thread" });
+  await expect.poll(() => followUp.count()).toBe(1);
+  await expect.poll(() => followUp.inputValue()).toBe("");
   await expect
-    .poll(() => page!.getByRole("textbox", { name: /comment|thread/i }).count())
-    .toBe(0);
+    .poll(() => followUp.evaluate((node) => node === document.activeElement))
+    .toBe(true);
   await expect
-    .poll(() => page!.getByRole("article", { name: /Comment thread/ }).count())
-    .toBe(0);
+    .poll(() =>
+      page!
+        .getByRole("article", { name: "Comment thread for line 1" })
+        .getByText(firstBody, { exact: true })
+        .count(),
+    )
+    .toBe(1);
 
   const paragraph = page!.getByText("Contract workspace changed", {
     exact: true,
@@ -260,6 +287,7 @@ it("removes a saved Markdown composer before the next block is targeted", async 
       page!.getByRole("textbox", { name: "New line comment" }).count(),
     )
     .toBe(1);
+  await expect.poll(() => followUp.count()).toBe(1);
 }, 20_000);
 
 it("resumes a collapsed rendered comment without rediscovering its target", async () => {
@@ -311,9 +339,9 @@ it("resumes a collapsed rendered comment without rediscovering its target", asyn
   await page!.getByRole("button", { name: "Discard" }).click();
 }, 20_000);
 
-it("closes a saved HTML composer so the next preview block stays targetable", async () => {
+it("keeps a saved HTML follow-up focused while the next block stays targetable", async () => {
   await page!.locator('[data-tree-path="index.html"]').click();
-  await page!.getByRole("button", { name: "Document" }).click();
+  await page!.getByRole("tab", { name: "Document" }).click();
   const previewFrame = page!.frameLocator('iframe[title="index.html"]');
   const heading = previewFrame.getByRole("heading", { name: "HTML Fixture" });
 
@@ -333,19 +361,31 @@ it("closes a saved HTML composer so the next preview block stays targetable", as
     .getByRole("button", { name: "Save pending draft comment" })
     .click();
   await expect
-    .poll(() => page!.getByText(body, { exact: true }).count())
+    .poll(() =>
+      page!
+        .getByRole("article", { name: /Comment thread/ })
+        .getByText(body, { exact: true })
+        .count(),
+    )
     .toBe(1);
   await expect
-    .poll(() => page!.getByRole("textbox", { name: /comment|thread/i }).count())
-    .toBe(0);
+    .poll(() => page!.getByRole("textbox", { name: "Continue thread" }).count())
+    .toBe(1);
   await expect
-    .poll(() => page!.getByRole("article", { name: /Comment thread/ }).count())
-    .toBe(0);
+    .poll(() =>
+      page!
+        .getByRole("textbox", { name: "Continue thread" })
+        .evaluate((node) => node === document.activeElement),
+    )
+    .toBe(true);
 
   const paragraph = previewFrame.getByText("Second HTML comment target", {
     exact: true,
   });
-  await paragraph.dblclick();
+  // The fixed follow-up card occupies the preview's right side. Target the
+  // visible text edge, as a reader would, so the open thread is replaced
+  // without requiring an explicit close first.
+  await paragraph.dblclick({ position: { x: 8, y: 8 } });
   await expect
     .poll(() =>
       page!.getByRole("textbox", { name: "New line comment" }).count(),
@@ -476,7 +516,7 @@ it("never opens stale Quick Open results while a new query is loading", async ()
     )
     .toBe(1);
   await query.press("Enter");
-  await page!.getByRole("button", { name: "Document" }).click();
+  await page!.getByRole("tab", { name: "Document" }).click();
   await expect
     .poll(() =>
       page!
