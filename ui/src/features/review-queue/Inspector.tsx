@@ -28,6 +28,7 @@ import {
 } from "../../state/git-review.js";
 import { iconForPath, languageForPath } from "../../state/file-icons.js";
 import {
+  buildReviewQueueDirectoryTree,
   isReviewQueueItemOpenable,
   reviewQueueItemHasAgentReply,
   reviewQueuePosition,
@@ -44,6 +45,7 @@ import type { OutlineHeading } from "../../state/outline.js";
 import { CommentStatusBadge } from "../comments/components/CommentStatusBadge.js";
 import fileIconStyles from "../../shared/components/FileIcon.module.css";
 import { InspectorSurfaceTabs } from "../../shared/components/InspectorSurfaceTabs.js";
+import { TreeSidebar } from "../../shared/components/TreeSidebar.js";
 import {
   ReadyToPublishPanel,
   type ReadyToPublishItem,
@@ -168,10 +170,27 @@ export function Inspector({
   const queuedItems = queueItems.filter(
     (item) => reviewQueueItemState(item) === "queued",
   );
+  const openableQueuedItems = queuedItems.filter(isReviewQueueItemOpenable);
+  const unavailableQueuedItems = queuedItems.filter(
+    (item) => !isReviewQueueItemOpenable(item),
+  );
+  const queuedDirectoryTree = buildReviewQueueDirectoryTree(
+    openableQueuedItems,
+  );
+  const queuedDirectoryPaths = new Set(
+    openableQueuedItems.map((item) => item.path),
+  );
+  const queuedUnreadPaths = new Set(
+    openableQueuedItems.filter((item) => item.unread).map((item) => item.path),
+  );
+  const queuedChangedPaths = new Set(
+    openableQueuedItems
+      .filter((item) => item.change !== null)
+      .map((item) => item.path),
+  );
   const reviewingItems = queueItems.filter(
     (item) => reviewQueueItemState(item) === "reviewing",
   );
-  const displayQueueItems = [...queuedItems, ...reviewingItems];
   const reviewedCount = hiddenReviewWork;
   const pendingDraftCount = reviewingItems.reduce(
     (total, item) => total + (item.pendingDraftCount ?? 0),
@@ -219,7 +238,7 @@ export function Inspector({
       defaultOpen: false,
     },
   ];
-  const keyboardQueueIndexes = displayQueueItems.flatMap((item, index) =>
+  const keyboardQueueIndexes = reviewingItems.flatMap((item, index) =>
     isReviewQueueItemOpenable(item) ? [index] : [],
   );
   const gitReviewGuidance = gitReviewUnavailableGuidance(
@@ -578,63 +597,117 @@ export function Inspector({
                 Use Down Arrow, Up Arrow, Home, and End to move between review
                 files.
               </p>
-              {reviewStateSections.slice(0, 2).map((section) => (
-                <details
-                  className={`review-state-section ${reviewFileStateTone(section.state)}`}
-                  key={section.state}
-                  open={section.defaultOpen}
-                >
-                  <summary>
-                    <span>{reviewFileStateLabel(section.state)}</span>
-                    <small>
-                      {section.count} {section.count === 1 ? "file" : "files"}{" "}
-                      {section.detail}
-                    </small>
-                  </summary>
-                  {section.state === "reviewing" && pendingDraftCount ? (
-                    <ReadyToPublishPanel
-                      scope="workspace"
-                      items={workspaceReadyItems}
-                      localInput={resumableInput}
-                      excludedInputCount={unsavedInputCount}
-                      onOpenItem={(item) =>
-                        onOpenDraft?.(
-                          workspaceReadyDraftGroups.find(
-                            ([path]) => path === item.id,
-                          )?.[1][0]!,
-                        )
-                      }
-                      onResumeInput={() => onResumeInput?.()}
-                      onReview={() =>
-                        workspaceReadyDrafts[0]
-                          ? onOpenDraft?.(workspaceReadyDrafts[0])
-                          : undefined
-                      }
-                      onPublish={() =>
-                        void onPublishDrafts?.(
-                          workspaceReadyDrafts.map((draft) => draft.id),
-                        )
-                      }
-                    />
-                  ) : null}
-                  {section.items.length ? (
-                    <div className="review-state-section-list">
-                      {section.items.map((item) =>
-                        renderReviewQueueItem(
-                          item,
-                          displayQueueItems.indexOf(item),
-                        ),
-                      )}
+              <section className="review-state-section queued review-queue-directory-section">
+                <header className="review-state-section-header">
+                  <span>Queued</span>
+                  <small>
+                    {queuedDirectoryTree.length}{" "}
+                    {queuedDirectoryTree.length === 1 ? "branch" : "branches"}
+                    {" · "}
+                    {queuedItems.length}{" "}
+                    {queuedItems.length === 1 ? "file" : "files"}
+                  </small>
+                </header>
+                {queuedDirectoryTree.length ? (
+                  <>
+                    <div className="review-queue-tree-legend">
+                      <span>
+                        Same interactions as <strong>Explorer</strong>
+                      </span>
+                      <span>Attention branches only</span>
                     </div>
-                  ) : (
-                    <ReviewStateEmptyRow
-                      state={
-                        section.state === "queued" ? "queued" : "reviewing"
-                      }
-                    />
-                  )}
-                </details>
-              ))}
+                    <div className="review-queue-directory-tree">
+                      <TreeSidebar
+                        nodes={queuedDirectoryTree}
+                        ariaLabel={`Queued documents by directory, ${openableQueuedItems.length} ${openableQueuedItems.length === 1 ? "file" : "files"}`}
+                        selectedPath={
+                          queuePosition.activePath &&
+                          queuedDirectoryPaths.has(queuePosition.activePath)
+                            ? queuePosition.activePath
+                            : null
+                        }
+                        changedPaths={queuedChangedPaths}
+                        unreadReviewPaths={queuedUnreadPaths}
+                        activePaths={
+                          activePath ? new Set([activePath]) : new Set()
+                        }
+                        currentStopPath={
+                          queuePosition.activePath &&
+                          queuedDirectoryPaths.has(queuePosition.activePath)
+                            ? queuePosition.activePath
+                            : null
+                        }
+                        renderFileEnd={(node) => (
+                          <DiffStatBadge
+                            loading={Boolean(loadingReviewDiffs[node.path])}
+                            stat={reviewDiffStats[node.path] ?? null}
+                          />
+                        )}
+                        showBadges={false}
+                        onSelect={onOpenEventPath}
+                        onOpen={onConfirmEventPath}
+                      />
+                    </div>
+                  </>
+                ) : null}
+                {unavailableQueuedItems.length ? (
+                  <div className="review-state-section-list unavailable-review-items">
+                    {unavailableQueuedItems.map((item, index) =>
+                      renderReviewQueueItem(item, index),
+                    )}
+                  </div>
+                ) : null}
+                {!queuedItems.length ? (
+                  <ReviewStateEmptyRow state="queued" />
+                ) : null}
+              </section>
+              <details className="review-state-section reviewing" open>
+                <summary>
+                  <span>In Review</span>
+                  <small>
+                    {reviewingItems.length}{" "}
+                    {reviewingItems.length === 1 ? "file" : "files"}{" "}
+                    {pendingDraftCount
+                      ? `· ${pendingDraftCount} pending`
+                      : "in review"}
+                  </small>
+                </summary>
+                {pendingDraftCount ? (
+                  <ReadyToPublishPanel
+                    scope="workspace"
+                    items={workspaceReadyItems}
+                    localInput={resumableInput}
+                    excludedInputCount={unsavedInputCount}
+                    onOpenItem={(item) =>
+                      onOpenDraft?.(
+                        workspaceReadyDraftGroups.find(
+                          ([path]) => path === item.id,
+                        )?.[1][0]!,
+                      )
+                    }
+                    onResumeInput={() => onResumeInput?.()}
+                    onReview={() =>
+                      workspaceReadyDrafts[0]
+                        ? onOpenDraft?.(workspaceReadyDrafts[0])
+                        : undefined
+                    }
+                    onPublish={() =>
+                      void onPublishDrafts?.(
+                        workspaceReadyDrafts.map((draft) => draft.id),
+                      )
+                    }
+                  />
+                ) : null}
+                {reviewingItems.length ? (
+                  <div className="review-state-section-list">
+                    {reviewingItems.map((item, index) =>
+                      renderReviewQueueItem(item, index),
+                    )}
+                  </div>
+                ) : (
+                  <ReviewStateEmptyRow state="reviewing" />
+                )}
+              </details>
               <details className="review-state-section reviewed">
                 <summary>
                   <span>Reviewed</span>

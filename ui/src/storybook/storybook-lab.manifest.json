@@ -32,6 +32,7 @@
     "ui/src/features/file-context/viewers/HtmlViewer.stories.tsx",
     "ui/src/features/file-context/viewers/MarkdownViewer.stories.tsx",
     "ui/src/features/review-queue/PublishFlowFacade.stories.tsx",
+    "ui/src/features/review-queue/ReviewQueueDirectoryFacade.stories.tsx",
     "ui/src/features/workbench/DocumentReaderFacade.stories.tsx",
     "ui/src/shared/components/Navigation.stories.tsx"
   ],
@@ -39,7 +40,7 @@
     {
       "id": "design-review-flow",
       "label": "Design review flow",
-      "stage": "storybook-facade",
+      "stage": "wired-feature",
       "intent": "Make Vivi's HTML Concept Mock -> Storybook Facade -> Wired Feature workflow visible inside Storybook itself.",
       "reviewFocus": [
         "reviewers can see why a facade story may be static",
@@ -136,6 +137,27 @@
         "Review/Publish Flow/CurrentDocumentScope"
       ],
       "interactionStories": ["Review/Publish Flow/UnifiedPublishInteraction"]
+    },
+    {
+      "id": "review-queue-directory-tree",
+      "label": "Review Queue directory tree",
+      "stage": "storybook-facade",
+      "intent": "Organize queued documents by their real directory ancestry while preserving queue priority and the Explorer interaction language.",
+      "reviewFocus": [
+        "only queue-bearing branches appear instead of a second full repository tree",
+        "folder rows reuse Explorer collapse, indentation, icon, hover, selection, and keyboard behavior",
+        "the queue tree has expansion state independent from the left Explorer",
+        "Next queued, lifecycle totals, and Ready to publish remain visible around the directory projection"
+      ],
+      "requiredStories": [
+        "Review/Queue Directory Tree/MixedDirectories",
+        "Review/Queue Directory Tree/EmptyQueue",
+        "Review/Queue Directory Tree/WiredInspector"
+      ],
+      "interactionStories": [
+        "Review/Queue Directory Tree/DirectoryCollapseInteraction",
+        "Review/Queue Directory Tree/WiredInspectorDirectoryInteraction"
+      ]
     },
     {
       "id": "viewer-coverage",

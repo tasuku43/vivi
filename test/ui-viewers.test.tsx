@@ -1788,7 +1788,9 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
   expect(html).toContain("In Review");
   expect(html).toContain("Reviewed");
   expect(html).toContain('class="review-state-summary"');
-  expect(html).toContain('class="review-state-section queued"');
+  expect(html).toContain(
+    'class="review-state-section queued review-queue-directory-section"',
+  );
   expect(html).toContain('class="review-state-section reviewing"');
   expect(html).toContain('class="review-state-section reviewed"');
   expect(html).toContain('class="review-queue" role="group"');
@@ -1802,24 +1804,20 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
   expect(html).toContain(
     "Use Down Arrow, Up Arrow, Home, and End to move between review",
   );
-  expect(html).toContain('class="review-queue-item"');
-  expect(html).toContain('class="change-open active"');
-  expect(html).toContain('aria-current="true"');
-  expect(html).toContain('aria-keyshortcuts="ArrowDown ArrowUp Home End"');
-  expect(html).toContain('id="review-queue-interaction-help"');
+  expect(html).toContain('role="tree"');
   expect(html).toContain(
-    'aria-describedby="review-queue-interaction-help review-queue-keyboard-help review-queue-item-1-description"',
+    'aria-label="Queued documents by directory, 3 files"',
   );
-  expect(html).toContain('id="review-queue-item-1-description"');
-  expect(html).toContain("unread review activity, from HEAD diff");
+  expect(html).toContain('data-tree-path="docs"');
+  expect(html).toContain('data-tree-path="src"');
+  expect(html).toContain('data-tree-path="src/app.ts"');
+  expect(html).toContain(
+    'aria-label="app.ts, file, selected, changed, unread review activity, open in tab, current review stop"',
+  );
+  expect(html).toContain("Same interactions as <strong>Explorer</strong>");
+  expect(html).toContain("Attention branches only");
   expect(html).toContain("Click or press Enter to preview a review file.");
   expect(html).toContain("Double-click to keep it open as a tab.");
-  expect(html).toContain('data-review-index="0"');
-  expect(html).toContain('data-review-path="src/app.ts"');
-  expect(html).toContain('data-testid="review-queue-item"');
-  expect(html).toContain(
-    'aria-label="Review queue item, modified src/app.ts, current review file"',
-  );
   expect(html).not.toContain("src/app.ts:2");
   expect(html).toContain("+100");
   expect(html).toContain("-32");
@@ -1828,14 +1826,7 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
   expect(html).not.toContain("-0");
   expect(html).toContain("app.ts");
   expect(html).toContain("mode-only.md");
-  expect(html).toContain("docs/old.md -&gt; docs/new.md");
-  expect(html).toContain("HEAD diff");
-  expect(html).toContain("local change");
-  expect(html).toContain('class="change-path-line"');
-  expect(html).toContain('class="change-path-text"');
-  expect(html).toContain('title="src/app.ts"');
-  expect(html).toContain("modified");
-  expect(html).toContain("renamed");
+  expect(html).toContain('data-tree-path="docs/new.md"');
   expect(html).not.toContain("File details");
   expect(html).not.toContain("Open all changed files as tabs");
   expect(html).not.toContain("In this file");
@@ -2102,7 +2093,10 @@ it("keeps the review queue usable when no review file is selected", () => {
 
   const html = renderToStaticMarkup(inspector);
 
-  expect(html).toContain("Review queue item, modified src/app.ts");
+  expect(html).toContain(
+    'aria-label="Queued documents by directory, 1 file"',
+  );
+  expect(html).toContain('data-tree-path="src/app.ts"');
   expect(html).not.toContain('data-testid="review-open-comments-panel"');
   expect(html).not.toContain("Open in Comments panel");
 });
@@ -2411,7 +2405,6 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
     />,
   );
 
-  expect(html).toContain("Tasuku marked resolved");
   expect(html).toContain("agent-handoff.md");
   expect(html).toContain(
     'aria-label="Review queue, 1 queued, 1 in review, 0 reviewed"',
@@ -2421,14 +2414,13 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
   expect(html).toContain("Reviewed");
   expect(html).toContain("has-open-threads active");
   const queueHtml = html.slice(html.indexOf('class="review-queue"'));
-  expect(queueHtml.indexOf('data-review-path="src/app.ts"')).toBeLessThan(
+  expect(queueHtml.indexOf('data-tree-path="src/app.ts"')).toBeLessThan(
     queueHtml.indexOf('data-review-path="docs/agent-handoff.md"'),
   );
   expect(html).toContain("2 open");
   expect(html).toContain("3 total messages");
   expect(html).not.toContain('class="review-stop-summary"');
   expect(html).toContain("Queue stop");
-  expect(html).toContain("Next queue stop");
   expect(html).toContain("diff · L7");
   expect(html).toContain(
     "Agent reply needs a human decision before this file is clear.",
@@ -2437,7 +2429,7 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
     'aria-label="Review queue item, comment docs/agent-handoff.md, current review file"',
   );
   expect(html).toContain(
-    'aria-describedby="review-queue-interaction-help review-queue-keyboard-help review-queue-item-2-description"',
+    'aria-describedby="review-queue-interaction-help review-queue-keyboard-help review-queue-item-1-description"',
   );
   expect(html).toContain(
     "unread review activity, 2 open, 3 total messages, Queue stop diff · L7: Agent reply needs a human decision before this file is clear.",
@@ -2569,7 +2561,6 @@ it("keeps resolved-only Review Queue files out of next-stop guidance", () => {
     />,
   );
 
-  expect(html).toContain("No open · 1 total message");
   expect(html).toContain("Resolved after the DSCP paths were checked.");
   expect(html).not.toContain('class="review-stop-summary"');
   expect(html).not.toContain("Queue stop");
@@ -2577,7 +2568,10 @@ it("keeps resolved-only Review Queue files out of next-stop guidance", () => {
   expect(html).toContain(
     'aria-label="Review queue, 1 queued, 0 in review, 1 reviewed"',
   );
-  expect(html).toContain("read, 1 total message, from HEAD diff");
+  expect(html).toContain('data-tree-path="src/app.ts"');
+  expect(html).toContain(
+    'aria-label="app.ts, file, selected, changed, open in tab, current review stop"',
+  );
   expect(html).toContain("<span>Reviewed</span><small>1 reviewed</small>");
 });
 
@@ -2599,39 +2593,19 @@ it("opens Review Queue rows as preview while reserving thread badges for expansi
     onRevealInTree: () => undefined,
   });
 
-  const button = findElement(inspector, (element) => {
-    const props = element.props as { className?: string; children?: ReactNode };
-    return (
-      props.className?.split(" ").includes("change-open") &&
-      flattenText(props.children).includes("app.ts")
-    );
+  const tree = findElement(inspector, (element) => {
+    return element.type === TreeSidebar;
   });
-  const props = button.props as {
-    onClick: () => void;
-    onDoubleClick: () => void;
-    title: string;
-    "aria-describedby": string;
-    "aria-keyshortcuts": string;
-    "aria-label": string;
-    "data-review-path": string;
-    "data-testid": string;
+  const props = tree.props as {
+    ariaLabel: string;
+    onSelect: (path: string) => void;
+    onOpen: (path: string) => void;
   };
 
-  props.onClick();
-  props.onDoubleClick();
+  props.onSelect("src/app.ts");
+  props.onOpen("src/app.ts");
 
-  expect(props.title).toBe(
-    "Click to preview; double-click to keep open as a tab",
-  );
-  expect(props["aria-describedby"]).toBe(
-    "review-queue-interaction-help review-queue-keyboard-help review-queue-item-1-description",
-  );
-  expect(props["aria-keyshortcuts"]).toBe("ArrowDown ArrowUp Home End");
-  expect(props["aria-label"]).toBe(
-    "Review queue item, modified src/app.ts, current review file",
-  );
-  expect(props["data-review-path"]).toBe("src/app.ts");
-  expect(props["data-testid"]).toBe("review-queue-item");
+  expect(props.ariaLabel).toBe("Queued documents by directory, 1 file");
   expect(calls).toEqual(["preview:src/app.ts", "normal:src/app.ts"]);
 });
 
@@ -4391,8 +4365,11 @@ it("surfaces review work, comments, unread state, and open tabs in the tree", ()
   expect(html).toContain(
     'aria-label="Live workspace map, 1 root entry, 3 loaded files, 2 review files, 2 unread review files, 2 open files, 2 open threads, 3 comments"',
   );
-  expect(html).toContain('id="workspace-tree-interaction-help"');
-  expect(html).toContain('aria-describedby="workspace-tree-interaction-help"');
+  const interactionHelpId = html.match(
+    /role="tree"[^>]*aria-describedby="([^"]+)"/u,
+  )?.[1];
+  expect(interactionHelpId).toBeTruthy();
+  expect(html).toContain(`id="${interactionHelpId}"`);
   expect(html).toContain("Click a file to preview it.");
   expect(html).toContain(
     "Double-click or press Enter to keep it open as a tab.",
@@ -4430,6 +4407,45 @@ it("surfaces review work, comments, unread state, and open tabs in the tree", ()
   expect(html).toContain("2 open threads");
   expect(html).toContain("changed");
   expect(html).toContain(">mod</span>");
+});
+
+it("gives simultaneous Explorer and Review Queue trees distinct accessible help", () => {
+  const nodes = [
+    {
+      id: "README.md",
+      path: "README.md",
+      name: "README.md",
+      kind: "file" as const,
+      parentPath: null,
+      viewerKind: "markdown" as const,
+    },
+  ];
+  const html = renderToStaticMarkup(
+    <>
+      <TreeSidebar
+        nodes={nodes}
+        ariaLabel="Documents"
+        selectedPath={null}
+        onSelect={() => undefined}
+        onOpen={() => undefined}
+      />
+      <TreeSidebar
+        nodes={nodes}
+        ariaLabel="Queued documents by directory"
+        selectedPath={null}
+        onSelect={() => undefined}
+        onOpen={() => undefined}
+      />
+    </>,
+  );
+
+  const helpIds = [
+    ...html.matchAll(/role="tree"[^>]*aria-describedby="([^"]+)"/gu),
+  ].map((match) => match[1]);
+  expect(helpIds).toHaveLength(2);
+  expect(new Set(helpIds).size).toBe(2);
+  expect(html).toContain('aria-label="Documents"');
+  expect(html).toContain('aria-label="Queued documents by directory"');
 });
 
 it("labels tree size as root entries and loaded files", () => {

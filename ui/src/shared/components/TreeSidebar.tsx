@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import type { KeyboardEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import type { FsNode } from "../../domain/fs-node.js";
 import { iconForPath } from "../../state/file-icons.js";
 import {
@@ -21,6 +21,7 @@ import styles from "./TreeSidebar.module.css";
 
 interface Props {
   nodes: FsNode[];
+  ariaLabel?: string;
   selectedPath: string | null;
   revealPath?: string | null;
   revealRevision?: number;
@@ -35,12 +36,15 @@ interface Props {
   removedPaths?: Set<string>;
   loadingDirectoryPaths?: Set<string>;
   onLoadDirectory?: (path: string) => Promise<void>;
+  renderFileEnd?: (node: FsNode) => ReactNode;
+  showBadges?: boolean;
   onSelect: (path: string) => void;
   onOpen: (path: string) => void;
 }
 
 export function TreeSidebar({
   nodes,
+  ariaLabel,
   selectedPath,
   revealPath = null,
   revealRevision = 0,
@@ -55,9 +59,13 @@ export function TreeSidebar({
   removedPaths = new Set(),
   loadingDirectoryPaths = new Set(),
   onLoadDirectory,
+  renderFileEnd,
+  showBadges = true,
   onSelect,
   onOpen,
 }: Props) {
+  const interactionHelpId = useId();
+  const treeRef = useRef<HTMLDivElement>(null);
   const forceVisiblePaths = useMemo(
     () => (revealPath ? [revealPath] : []),
     [revealPath],
@@ -79,7 +87,10 @@ export function TreeSidebar({
   useEffect(() => {
     if (!revealPath) return;
     window.requestAnimationFrame(() => {
-      Array.from(document.querySelectorAll<HTMLElement>("[data-tree-path]"))
+      Array.from(
+        treeRef.current?.querySelectorAll<HTMLElement>("[data-tree-path]") ??
+          [],
+      )
         .find((element) => element.dataset.treePath === revealPath)
         ?.scrollIntoView({ block: "center", behavior: "smooth" });
     });
@@ -171,7 +182,10 @@ export function TreeSidebar({
   function focusTreePath(path: string) {
     setActiveTreePath(path);
     window.requestAnimationFrame(() => {
-      Array.from(document.querySelectorAll<HTMLElement>("[data-tree-path]"))
+      Array.from(
+        treeRef.current?.querySelectorAll<HTMLElement>("[data-tree-path]") ??
+          [],
+      )
         .find((element) => element.dataset.treePath === path)
         ?.focus();
     });
@@ -220,15 +234,16 @@ export function TreeSidebar({
         </div>
       ) : null}
       <div
+        ref={treeRef}
         className={styles.tree}
         role="tree"
-        aria-label={workspaceTreeAriaLabel(treeSummary)}
-        aria-describedby="workspace-tree-interaction-help"
+        aria-label={ariaLabel ?? workspaceTreeAriaLabel(treeSummary)}
+        aria-describedby={interactionHelpId}
         onKeyDown={handleTreeKeyDown}
       >
         <p
           className={`${sharedUiStyles.srOnly} sr-only`}
-          id="workspace-tree-interaction-help"
+          id={interactionHelpId}
         >
           Click a file to preview it. Double-click or press Enter to keep it
           open as a tab.
@@ -253,6 +268,9 @@ export function TreeSidebar({
             openThreadCountsByPath={openThreadCountsByPath}
             removedPaths={removedPaths}
             loadingDirectoryPaths={loadingDirectoryPaths}
+            interactionHelpId={interactionHelpId}
+            renderFileEnd={renderFileEnd}
+            showBadges={showBadges}
             onFocusPath={setActiveTreePath}
             onToggleDirectory={toggleDirectory}
             onSelect={onSelect}
@@ -282,6 +300,9 @@ function TreeRow({
   openThreadCountsByPath,
   removedPaths,
   loadingDirectoryPaths,
+  interactionHelpId,
+  renderFileEnd,
+  showBadges,
   onFocusPath,
   onToggleDirectory,
   onSelect,
@@ -304,6 +325,9 @@ function TreeRow({
   openThreadCountsByPath: Record<string, number>;
   removedPaths: Set<string>;
   loadingDirectoryPaths: Set<string>;
+  interactionHelpId: string;
+  renderFileEnd?: (node: FsNode) => ReactNode;
+  showBadges: boolean;
   onFocusPath: (path: string) => void;
   onToggleDirectory: (path: string) => void;
   onSelect: (path: string) => void;
@@ -372,13 +396,15 @@ function TreeRow({
             </span>
           ) : null}
         </span>
-        <TreeBadges
-          loading={loadingDirectoryPaths.has(node.path)}
-          open={summary.openFiles > 0}
-          openFiles={summary.openFiles}
-          reviewFiles={summary.reviewFiles}
-          unreadFiles={summary.unreadFiles}
-        />
+        {showBadges ? (
+          <TreeBadges
+            loading={loadingDirectoryPaths.has(node.path)}
+            open={summary.openFiles > 0}
+            openFiles={summary.openFiles}
+            reviewFiles={summary.reviewFiles}
+            unreadFiles={summary.unreadFiles}
+          />
+        ) : null}
       </button>
     );
   }
@@ -393,6 +419,7 @@ function TreeRow({
     null;
   const open = activePaths.has(node.path);
   const removed = removedPaths.has(node.path);
+  const fileEnd = renderFileEnd?.(node) ?? null;
   const reviewReason = fileTreeReviewReason({
     changed,
     comments: commentCount,
@@ -421,7 +448,7 @@ function TreeRow({
         openThreads: openThreadCount,
         comments: commentCount,
       })}
-      aria-describedby="workspace-tree-interaction-help"
+      aria-describedby={interactionHelpId}
       title="Click to preview; double-click to keep open as a tab"
       aria-level={depth + 1}
       aria-selected={selected}
@@ -471,14 +498,17 @@ function TreeRow({
           </span>
         ) : null}
       </span>
-      <TreeBadges
-        changed={changed}
-        currentStop={currentStop}
-        open={open}
-        reviewFiles={0}
-        showChangedBadge={!reviewState}
-        unreadFiles={unread ? 1 : 0}
-      />
+      {showBadges ? (
+        <TreeBadges
+          changed={changed}
+          currentStop={currentStop}
+          open={open}
+          reviewFiles={0}
+          showChangedBadge={!reviewState && !fileEnd}
+          unreadFiles={unread ? 1 : 0}
+        />
+      ) : null}
+      {fileEnd}
     </button>
   );
 }

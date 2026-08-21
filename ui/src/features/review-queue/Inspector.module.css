@@ -1200,6 +1200,47 @@
   cursor: pointer;
   list-style: none;
 }
+:global(.review-state-section-header) {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px 8px;
+}
+:global(.review-state-section-header span) {
+  color: var(--vivi-color-content-primary);
+  font-size: 12px;
+  font-weight: 820;
+}
+:global(.review-state-section-header small) {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--vivi-color-content-muted);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:global(.review-queue-tree-legend) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 12px;
+  border-top: 1px solid var(--vivi-color-border-soft);
+  border-bottom: 1px solid var(--vivi-color-border-soft);
+  color: var(--vivi-color-content-subtle);
+  font-size: 9.5px;
+}
+:global(.review-queue-tree-legend strong) {
+  color: var(--vivi-color-content-muted);
+}
+:global(.review-queue-directory-tree) {
+  padding: 2px 0 4px;
+}
+:global(.unavailable-review-items) {
+  border-top: 1px solid var(--vivi-color-border-soft);
+}
 :global(.review-state-section summary::marker) {
   content: "";
   font-size: 0;

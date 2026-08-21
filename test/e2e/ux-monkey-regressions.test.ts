@@ -11,6 +11,10 @@ let server: StartedServer | null = null;
 let browser: Browser | null = null;
 let page: Page | null = null;
 
+function explorerTree() {
+  return page!.getByRole("tree", { name: /Live workspace map/ });
+}
+
 beforeEach(async () => {
   fixture = await createContractFixture();
   server = await startViviServer({
@@ -33,7 +37,7 @@ afterEach(async () => {
 });
 
 it("closes individual tab controls immediately across file types", async () => {
-  await page!.locator('[data-tree-path="README.md"]').click();
+  await explorerTree().locator('[data-tree-path="README.md"]').click();
   await expect
     .poll(
       () => page!.getByRole("button", { name: "Close README.md" }).count(),
@@ -48,7 +52,7 @@ it("closes individual tab controls immediately across file types", async () => {
     )
     .toBe(0);
 
-  await page!.locator('[data-tree-path="index.html"]').click();
+  await explorerTree().locator('[data-tree-path="index.html"]').click();
   await expect
     .poll(
       () => page!.getByRole("button", { name: "Close index.html" }).count(),
@@ -75,7 +79,7 @@ it("closes individual tab controls immediately across file types", async () => {
 });
 
 it("wires document and review inspector surfaces to the active workspace", async () => {
-  await page!.locator('[data-tree-path="README.md"]').click();
+  await explorerTree().locator('[data-tree-path="README.md"]').click();
 
   const reviewInspector = page!.getByRole("complementary", {
     name: "Review inspector",
@@ -129,7 +133,7 @@ it("wires document and review inspector surfaces to the active workspace", async
     .toBe("true");
 
   await inspector.getByRole("button", { name: "Back to document" }).click();
-  await page!.locator('[data-tree-path="index.html"]').click();
+  await explorerTree().locator('[data-tree-path="index.html"]').click();
   await expect
     .poll(() => inspector.getByText("index.html", { exact: true }).count())
     .toBeGreaterThan(0);
@@ -195,7 +199,7 @@ it("dismisses the compact inspector when file navigation needs the reader", asyn
     )
     .toBe(true);
 
-  await page!.locator('[data-tree-path="README.md"]').click();
+  await explorerTree().locator('[data-tree-path="README.md"]').click();
   await expect
     .poll(() =>
       page!.getByRole("complementary", { name: "Review inspector" }).count(),
@@ -209,7 +213,7 @@ it("dismisses the compact inspector when file navigation needs the reader", asyn
 });
 
 it("keeps typed feedback through outside clicks and comment close controls", async () => {
-  await page!.locator('[data-tree-path="README.md"]').click();
+  await explorerTree().locator('[data-tree-path="README.md"]').click();
   await page!.getByRole("button", { name: "Source", exact: true }).click();
   await page!.getByRole("button", { name: "Add comment on line 1" }).click();
 
@@ -220,7 +224,7 @@ it("keeps typed feedback through outside clicks and comment close controls", asy
     .poll(() => input.inputValue())
     .toBe("Keep this thought while I inspect the workspace");
 
-  await page!.locator('[data-tree-path="index.html"]').click();
+  await explorerTree().locator('[data-tree-path="index.html"]').click();
   await expect.poll(() => input.count()).toBe(0);
   await page!
     .getByRole("button", { name: /Resume input in README\.md/ })
@@ -251,7 +255,7 @@ it("keeps typed feedback through outside clicks and comment close controls", asy
 }, 20_000);
 
 it("keeps a saved Markdown follow-up focused while the next block stays targetable", async () => {
-  await page!.locator('[data-tree-path="README.md"]').click();
+  await explorerTree().locator('[data-tree-path="README.md"]').click();
   const heading = page!.getByRole("heading", { name: "Vivi Fixture" });
   await heading.dblclick();
 
@@ -291,7 +295,7 @@ it("keeps a saved Markdown follow-up focused while the next block stays targetab
 }, 20_000);
 
 it("resumes a collapsed rendered comment without rediscovering its target", async () => {
-  await page!.locator('[data-tree-path="README.md"]').click();
+  await explorerTree().locator('[data-tree-path="README.md"]').click();
   const heading = page!.getByRole("heading", { name: "Vivi Fixture" });
   await heading.click();
   await expect
@@ -340,7 +344,7 @@ it("resumes a collapsed rendered comment without rediscovering its target", asyn
 }, 20_000);
 
 it("keeps a saved HTML follow-up focused while the next block stays targetable", async () => {
-  await page!.locator('[data-tree-path="index.html"]').click();
+  await explorerTree().locator('[data-tree-path="index.html"]').click();
   await page!.getByRole("tab", { name: "Document" }).click();
   const previewFrame = page!.frameLocator('iframe[title="index.html"]');
   const heading = previewFrame.getByRole("heading", { name: "HTML Fixture" });
@@ -426,24 +430,28 @@ it("keeps a saved HTML follow-up focused while the next block stays targetable",
 }, 30_000);
 
 it("survives rapid viewer, tree, palette, and layout transitions", async () => {
-  const docs = page!.locator('[data-tree-path="docs"]');
+  const docs = explorerTree().locator('[data-tree-path="docs"]');
   await docs.click();
   await expect
-    .poll(() => page!.locator('[data-tree-path="docs/guide.md"]').count())
+    .poll(() =>
+      explorerTree().locator('[data-tree-path="docs/guide.md"]').count(),
+    )
     .toBe(1);
   await docs.click();
   await expect
-    .poll(() => page!.locator('[data-tree-path="docs/guide.md"]').count())
+    .poll(() =>
+      explorerTree().locator('[data-tree-path="docs/guide.md"]').count(),
+    )
     .toBe(0);
 
-  await page!.locator('[data-tree-path="README.md"]').click();
+  await explorerTree().locator('[data-tree-path="README.md"]').click();
   await page!.getByRole("button", { name: "Source", exact: true }).click();
   await page!.getByRole("button", { name: "Rendered", exact: true }).click();
   await expect
     .poll(() => page!.getByRole("heading", { name: "Vivi Fixture" }).count())
     .toBe(1);
 
-  await page!.locator('[data-tree-path="index.html"]').click();
+  await explorerTree().locator('[data-tree-path="index.html"]').click();
   await expect
     .poll(() =>
       page!
@@ -485,7 +493,7 @@ it("survives rapid viewer, tree, palette, and layout transitions", async () => {
 }, 20_000);
 
 it("never opens stale Quick Open results while a new query is loading", async () => {
-  await page!.locator('[data-tree-path="README.md"]').click();
+  await explorerTree().locator('[data-tree-path="README.md"]').click();
   await page!.getByRole("button", { name: "Open command palette" }).click();
   const query = page!.getByLabel("Quick open query");
 

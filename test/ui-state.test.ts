@@ -132,6 +132,7 @@ import { keyboardShortcutAction } from "../ui/src/state/shortcuts.js";
 import {
   activityNeedsHumanAttention,
   buildReviewQueueItems,
+  buildReviewQueueDirectoryTree,
   latestUnreadReviewItemPath,
   nextReviewQueueItemPathAfterCompletion,
   nextReviewQueueItemPath,
@@ -1766,6 +1767,104 @@ it("builds an agent-aware queue from changes and authoritative open threads", ()
   });
 });
 
+it("keeps legacy non-document feedback out of the document review queue", () => {
+  const comments = [
+    {
+      ...makeReviewComment("open-doc", "docs/review.html", "open"),
+      threadId: "thread-doc",
+    },
+    {
+      ...makeReviewComment("open-css", "ui/styles/review.css", "open"),
+      threadId: "thread-css",
+    },
+  ];
+
+  const items = buildReviewQueueItems([], comments, {}, new Set(), {
+    draftComments: [
+      {
+        id: "draft-legacy-code",
+        path: "ui/src/review.ts",
+        viewerKind: "text",
+        anchor: {
+          surface: "source",
+          canonical: { path: "ui/src/review.ts", lineStart: 1, lineEnd: 1 },
+        },
+        body: "Legacy source draft",
+        createdAt: "2026-06-20T00:01:00.000Z",
+        updatedAt: "2026-06-20T00:01:00.000Z",
+      },
+    ],
+  });
+
+  expect(items.map((item) => item.path)).toEqual(["docs/review.html"]);
+});
+
+it("projects queue paths into their real directory hierarchy", () => {
+  const tree = buildReviewQueueDirectoryTree([
+    { path: "docs/product/brief.md" },
+    { path: "docs/guides/review.html" },
+    { path: "README.md" },
+    { path: "docs/product/brief.md" },
+  ]);
+
+  expect(tree).toEqual([
+    {
+      id: "review-file:README.md",
+      path: "README.md",
+      name: "README.md",
+      kind: "file",
+      parentPath: null,
+      viewerKind: "markdown",
+    },
+    {
+      id: "review-directory:docs",
+      path: "docs",
+      name: "docs",
+      kind: "directory",
+      parentPath: null,
+      childrenLoaded: true,
+      children: [
+        {
+          id: "review-directory:docs/guides",
+          path: "docs/guides",
+          name: "guides",
+          kind: "directory",
+          parentPath: "docs",
+          childrenLoaded: true,
+          children: [
+            {
+              id: "review-file:docs/guides/review.html",
+              path: "docs/guides/review.html",
+              name: "review.html",
+              kind: "file",
+              parentPath: "docs/guides",
+              viewerKind: "html",
+            },
+          ],
+        },
+        {
+          id: "review-directory:docs/product",
+          path: "docs/product",
+          name: "product",
+          kind: "directory",
+          parentPath: "docs",
+          childrenLoaded: true,
+          children: [
+            {
+              id: "review-file:docs/product/brief.md",
+              path: "docs/product/brief.md",
+              name: "brief.md",
+              kind: "file",
+              parentPath: "docs/product",
+              viewerKind: "markdown",
+            },
+          ],
+        },
+      ],
+    },
+  ]);
+});
+
 it("treats draft review comments as pending in-review work", () => {
   const items = buildReviewQueueItems(
     [{ path: "src/app.ts", status: "modified", source: "git" }],
@@ -1973,22 +2072,22 @@ it("summarizes review lifecycle without inventing accept state", () => {
 
 it("keeps accepted change-only files out of the review queue until a thread opens", () => {
   const changes: ReviewChangeItem[] = [
-    { path: "src/accepted.ts", status: "modified", source: "git" },
-    { path: "src/reviewing.ts", status: "modified", source: "git" },
+    { path: "docs/accepted.md", status: "modified", source: "git" },
+    { path: "docs/reviewing.md", status: "modified", source: "git" },
   ];
-  const acceptedPaths = new Set(["src/accepted.ts"]);
+  const acceptedPaths = new Set(["docs/accepted.md"]);
 
   expect(
     buildReviewQueueItems(changes, [], {}, new Set(), {
       acceptedPaths,
     }).map((item) => item.path),
-  ).toEqual(["src/reviewing.ts"]);
+  ).toEqual(["docs/reviewing.md"]);
 
   const itemsWithOpenThread = buildReviewQueueItems(
     changes,
     [
       {
-        ...makeReviewComment("accepted-open", "src/accepted.ts", "open"),
+        ...makeReviewComment("accepted-open", "docs/accepted.md", "open"),
         threadId: "thread-accepted-open",
       },
     ],
@@ -1998,8 +2097,8 @@ it("keeps accepted change-only files out of the review queue until a thread open
   );
 
   expect(itemsWithOpenThread.map((item) => item.path)).toEqual([
-    "src/accepted.ts",
-    "src/reviewing.ts",
+    "docs/accepted.md",
+    "docs/reviewing.md",
   ]);
   expect(itemsWithOpenThread[0]).toMatchObject({
     change: changes[0],
@@ -2016,11 +2115,15 @@ it("keeps accepted change-only files out of the review queue until a thread open
       draftComments: [
         {
           id: "accepted-pending",
-          path: "src/accepted.ts",
-          viewerKind: "text",
+          path: "docs/accepted.md",
+          viewerKind: "markdown",
           anchor: {
             surface: "source",
-            canonical: { path: "src/accepted.ts", lineStart: 4, lineEnd: 4 },
+            canonical: {
+              path: "docs/accepted.md",
+              lineStart: 4,
+              lineEnd: 4,
+            },
           },
           body: "This saved draft still needs an explicit Publish.",
           createdAt: "2026-07-01T00:00:00.000Z",
@@ -2031,7 +2134,7 @@ it("keeps accepted change-only files out of the review queue until a thread open
   );
 
   expect(itemsWithPendingDraft[0]).toMatchObject({
-    path: "src/accepted.ts",
+    path: "docs/accepted.md",
     pendingDraftCount: 1,
     pendingDraftIds: ["accepted-pending"],
   });
@@ -2166,22 +2269,22 @@ it("hides reviewed receipts when active review attention returns", () => {
 
 it("keeps completed thread paths out of the active review queue until reopened", () => {
   const changes: ReviewChangeItem[] = [
-    { path: "src/resolved.ts", status: "modified", source: "git" },
-    { path: "src/candidate.ts", status: "modified", source: "git" },
+    { path: "docs/resolved.md", status: "modified", source: "git" },
+    { path: "docs/candidate.md", status: "modified", source: "git" },
   ];
-  const completedThreadPaths = new Set(["src/resolved.ts"]);
+  const completedThreadPaths = new Set(["docs/resolved.md"]);
 
   expect(
     buildReviewQueueItems(changes, [], {}, new Set(), {
       completedThreadPaths,
     }).map((item) => item.path),
-  ).toEqual(["src/candidate.ts"]);
+  ).toEqual(["docs/candidate.md"]);
 
   const itemsWithReopenedThread = buildReviewQueueItems(
     changes,
     [
       {
-        ...makeReviewComment("reopened-1", "src/resolved.ts", "open"),
+        ...makeReviewComment("reopened-1", "docs/resolved.md", "open"),
         threadId: "thread-reopened",
       },
     ],
@@ -2191,8 +2294,8 @@ it("keeps completed thread paths out of the active review queue until reopened",
   );
 
   expect(itemsWithReopenedThread.map((item) => item.path)).toEqual([
-    "src/resolved.ts",
-    "src/candidate.ts",
+    "docs/resolved.md",
+    "docs/candidate.md",
   ]);
   expect(itemsWithReopenedThread[0]).toMatchObject({
     change: changes[0],

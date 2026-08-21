@@ -1,0 +1,1424 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vivi · Queue directory organization</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --canvas: #071016;
+        --surface: #0c171e;
+        --surface-2: #101d25;
+        --surface-3: #14242d;
+        --line: #253842;
+        --line-strong: #34505c;
+        --text: #edf4f5;
+        --muted: #9eb0b7;
+        --quiet: #70838b;
+        --cyan: #6dd8e4;
+        --cyan-soft: rgba(109, 216, 228, 0.12);
+        --mint: #8ce3c6;
+        --mint-soft: rgba(140, 227, 198, 0.12);
+        --amber: #e4bc59;
+        --amber-soft: rgba(228, 188, 89, 0.12);
+        --red: #ef7478;
+        --radius: 10px;
+        --shadow: 0 22px 70px rgba(0, 0, 0, 0.28);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        min-width: 1100px;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 16% 0%, rgba(42, 93, 110, 0.2), transparent 32%),
+          var(--canvas);
+      }
+
+      button,
+      a {
+        font: inherit;
+      }
+
+      button {
+        color: inherit;
+      }
+
+      .page {
+        width: min(1460px, calc(100vw - 48px));
+        margin: 0 auto;
+        padding: 44px 0 96px;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(340px, 0.6fr);
+        gap: 28px;
+        align-items: end;
+        padding: 0 4px 30px;
+      }
+
+      .eyebrow,
+      .example-label,
+      .section-label,
+      .group-kicker {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        max-width: 820px;
+        margin: 12px 0 14px;
+        font-size: clamp(34px, 4vw, 58px);
+        line-height: 0.98;
+        letter-spacing: -0.045em;
+      }
+
+      .hero p,
+      .concept-copy p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.65;
+      }
+
+      .hero-note {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: rgba(12, 23, 30, 0.82);
+        padding: 18px 20px;
+      }
+
+      .hero-note strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+      }
+
+      .hero-note p {
+        font-size: 13px;
+      }
+
+      .principles {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        overflow: hidden;
+        margin-bottom: 22px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+
+      .principle {
+        min-height: 106px;
+        padding: 20px;
+        border-right: 1px solid var(--line);
+      }
+
+      .principle:last-child {
+        border-right: 0;
+      }
+
+      .principle strong {
+        display: block;
+        margin-bottom: 7px;
+        font-size: 13px;
+      }
+
+      .principle span {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .concept-nav {
+        position: sticky;
+        top: 12px;
+        z-index: 20;
+        display: flex;
+        justify-content: center;
+        gap: 7px;
+        width: fit-content;
+        margin: 0 auto 28px;
+        padding: 6px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(7, 16, 22, 0.92);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(16px);
+      }
+
+      .concept-nav a {
+        border-radius: 999px;
+        color: var(--muted);
+        padding: 8px 13px;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 750;
+      }
+
+      .concept-nav a:hover {
+        color: var(--text);
+        background: var(--surface-3);
+      }
+
+      .concept {
+        scroll-margin-top: 84px;
+        margin-bottom: 30px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 15px;
+        background: rgba(12, 23, 30, 0.84);
+        box-shadow: var(--shadow);
+      }
+
+      .concept.selected {
+        border-color: rgba(109, 216, 228, 0.48);
+        box-shadow:
+          0 0 0 1px rgba(109, 216, 228, 0.08),
+          var(--shadow);
+      }
+
+      .concept-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 28px;
+        align-items: center;
+        padding: 26px 28px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .concept-copy h2 {
+        margin: 4px 0 7px;
+        font-size: 24px;
+        letter-spacing: -0.025em;
+      }
+
+      .concept-score {
+        display: grid;
+        grid-template-columns: repeat(3, auto);
+        gap: 18px;
+      }
+
+      .score {
+        min-width: 86px;
+      }
+
+      .score span {
+        display: block;
+        color: var(--quiet);
+        font-size: 10px;
+        font-weight: 750;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .score strong {
+        display: block;
+        margin-top: 5px;
+        font-size: 13px;
+      }
+
+      .dots {
+        color: var(--cyan);
+        letter-spacing: 1px;
+      }
+
+      .concept-body {
+        display: grid;
+        grid-template-columns: minmax(690px, 1.55fr) minmax(310px, 0.45fr);
+        gap: 24px;
+        padding: 24px;
+      }
+
+      .workspace-preview {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 488px;
+        min-height: 760px;
+        overflow: hidden;
+        border: 1px solid var(--line-strong);
+        border-radius: 9px;
+        background: #091319;
+      }
+
+      .document-ghost {
+        position: relative;
+        overflow: hidden;
+        border-right: 1px solid var(--line);
+        background:
+          linear-gradient(90deg, transparent 0 94%, rgba(255,255,255,0.015) 94%),
+          #081219;
+      }
+
+      .ghost-tabs {
+        height: 42px;
+        border-bottom: 1px solid var(--line);
+        background: var(--surface);
+      }
+
+      .ghost-tab {
+        width: 238px;
+        height: 100%;
+        padding: 12px 18px;
+        border-right: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .ghost-doc {
+        width: min(620px, calc(100% - 72px));
+        margin: 50px auto;
+        padding: 40px 42px 70px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: var(--surface);
+      }
+
+      .ghost-doc h3 {
+        margin: 0 0 30px;
+        font-size: 28px;
+      }
+
+      .ghost-line {
+        height: 9px;
+        margin: 13px 0;
+        border-radius: 4px;
+        background: #24343c;
+      }
+
+      .ghost-line.short { width: 61%; }
+      .ghost-line.mid { width: 82%; }
+
+      .inspector {
+        min-width: 0;
+        background: var(--surface);
+      }
+
+      .inspector-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        height: 48px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .inspector-tab {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 750;
+      }
+
+      .inspector-tab.active {
+        color: var(--text);
+        background: rgba(109, 216, 228, 0.04);
+      }
+
+      .inspector-tab.active::after {
+        position: absolute;
+        right: 16px;
+        bottom: -1px;
+        left: 16px;
+        height: 2px;
+        border-radius: 2px 2px 0 0;
+        background: var(--cyan);
+        content: "";
+      }
+
+      .count,
+      .badge,
+      .state-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+
+      .count {
+        min-width: 18px;
+        height: 18px;
+        padding: 0 6px;
+        color: var(--cyan);
+        background: var(--cyan-soft);
+        font-size: 10px;
+      }
+
+      .queue-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 64px;
+        padding: 12px 15px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .queue-head strong {
+        display: block;
+        font-size: 15px;
+      }
+
+      .queue-head small,
+      .file-copy small,
+      .tree-file small,
+      .set-file small {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 10px;
+      }
+
+      .button {
+        min-height: 30px;
+        border: 1px solid var(--line-strong);
+        border-radius: 7px;
+        background: var(--surface-2);
+        padding: 0 11px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .button:hover {
+        color: var(--text);
+        border-color: #4c6a76;
+      }
+
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .summary-cell {
+        padding: 12px 14px;
+        border-right: 1px solid var(--line);
+      }
+
+      .summary-cell:last-child { border-right: 0; }
+
+      .summary-cell strong {
+        display: block;
+        font-size: 19px;
+      }
+
+      .summary-cell span {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+      }
+
+      .section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 39px;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--line);
+        color: var(--text);
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .section-head span:last-child {
+        color: var(--quiet);
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: none;
+      }
+
+      .dir-group {
+        border-bottom: 1px solid var(--line);
+      }
+
+      .dir-group.nested {
+        border-bottom: 0;
+        border-left: 1px solid var(--line);
+        margin-left: 18px;
+      }
+
+      .dir-header {
+        display: grid;
+        grid-template-columns: 18px minmax(0, 1fr) auto;
+        align-items: center;
+        width: 100%;
+        min-height: 42px;
+        border: 0;
+        background: var(--surface-2);
+        padding: 0 13px;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .dir-header:hover { background: var(--surface-3); }
+
+      .dir-root > .dir-header {
+        min-height: 39px;
+        background: #0b151b;
+      }
+
+      .dir-root > .dir-header:hover {
+        background: var(--surface-2);
+      }
+
+      .dir-group.nested > .dir-header {
+        min-height: 37px;
+        background: var(--surface-2);
+      }
+
+      .dir-group.nested > .dir-children > .file-row {
+        padding-left: 18px;
+      }
+
+      .chevron {
+        color: var(--quiet);
+        font-size: 10px;
+        transition: transform 120ms ease;
+      }
+
+      .dir-group.collapsed > .dir-header .chevron,
+      .tree-branch.collapsed > .tree-folder .chevron {
+        transform: rotate(-90deg);
+      }
+
+      .dir-path {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--muted);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 10px;
+      }
+
+      .dir-path strong {
+        color: var(--text);
+        font-family: inherit;
+      }
+
+      .dir-parent-path {
+        color: var(--quiet);
+      }
+
+      .dir-count {
+        color: var(--muted);
+        font-size: 10px;
+      }
+
+      .dir-group.collapsed > .dir-children,
+      .tree-branch.collapsed > .tree-children {
+        display: none;
+      }
+
+      .file-row,
+      .tree-file,
+      .set-file {
+        display: grid;
+        grid-template-columns: 10px minmax(0, 1fr) auto;
+        align-items: center;
+        min-height: 56px;
+        gap: 9px;
+        padding: 8px 13px;
+        border-top: 1px solid rgba(37, 56, 66, 0.72);
+        cursor: default;
+      }
+
+      .file-row:hover,
+      .tree-file:hover,
+      .set-file:hover {
+        background: rgba(109, 216, 228, 0.045);
+      }
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--cyan);
+        box-shadow: 0 0 0 3px var(--cyan-soft);
+      }
+
+      .status-dot.soft {
+        background: #687d85;
+        box-shadow: none;
+      }
+
+      .status-dot.amber {
+        background: var(--amber);
+        box-shadow: 0 0 0 3px var(--amber-soft);
+      }
+
+      .file-copy,
+      .tree-copy,
+      .set-copy {
+        min-width: 0;
+      }
+
+      .file-copy strong,
+      .tree-file strong,
+      .set-file strong {
+        display: block;
+        overflow: hidden;
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .meta-stack {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .diff {
+        color: var(--mint);
+        font-size: 10px;
+        font-weight: 800;
+      }
+
+      .diff em {
+        color: var(--red);
+        font-style: normal;
+      }
+
+      .badge,
+      .state-badge {
+        min-height: 20px;
+        border: 1px solid var(--line-strong);
+        padding: 0 7px;
+        color: var(--muted);
+        font-size: 9px;
+        font-weight: 800;
+      }
+
+      .badge.ready {
+        color: var(--amber);
+        border-color: rgba(228, 188, 89, 0.45);
+        background: var(--amber-soft);
+      }
+
+      .badge.open {
+        color: var(--mint);
+        border-color: rgba(140, 227, 198, 0.34);
+        background: var(--mint-soft);
+      }
+
+      .tree-area {
+        padding: 8px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .tree-folder {
+        display: grid;
+        grid-template-columns: 12px 24px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 7px;
+        min-height: 38px;
+        width: 100%;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--muted);
+        padding: 5px 8px;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .tree-folder:hover {
+        color: var(--text);
+        background: var(--cyan-soft);
+      }
+
+      .folder-icon {
+        display: inline-flex;
+        min-width: 24px;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+      }
+
+      .tree-folder-main {
+        display: inline-grid;
+        min-width: 0;
+        gap: 1px;
+      }
+
+      .tree-folder-main strong,
+      .tree-folder-main small {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .tree-folder-main strong {
+        color: var(--text);
+        font-size: 11px;
+      }
+
+      .tree-folder-main small {
+        color: var(--quiet);
+        font-size: 9.5px;
+        line-height: 1.1;
+      }
+
+      .tree-folder .rollup {
+        color: var(--cyan);
+        font-size: 9px;
+        font-weight: 800;
+      }
+
+      .tree-children {
+        position: relative;
+        margin-left: 14px;
+      }
+
+      .tree-children .tree-children { margin-left: 14px; }
+
+      .tree-file {
+        grid-template-columns: 12px 24px minmax(0, 1fr) auto;
+        min-height: 44px;
+        gap: 7px;
+        margin-left: 0;
+        border-radius: 8px;
+        padding: 5px 8px;
+        border-top: 0;
+        color: var(--muted);
+      }
+
+      .tree-file.selected {
+        background: var(--cyan-soft);
+        box-shadow: inset 2px 0 var(--cyan);
+        color: var(--text);
+      }
+
+      .tree-spacer {
+        width: 12px;
+      }
+
+      .tree-file-icon {
+        display: inline-flex;
+        min-width: 24px;
+        align-items: center;
+        justify-content: center;
+        color: var(--text);
+        font-size: 11px;
+      }
+
+      .tree-legend {
+        display: flex;
+        gap: 14px;
+        padding: 11px 14px 6px;
+        color: var(--quiet);
+        font-size: 9px;
+      }
+
+      .tree-legend strong { color: var(--muted); }
+
+      .set-switcher {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 7px;
+        padding: 12px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .set-chip {
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: transparent;
+        padding: 8px;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .set-chip.active {
+        border-color: rgba(109, 216, 228, 0.42);
+        background: var(--cyan-soft);
+      }
+
+      .set-chip strong,
+      .set-chip span {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .set-chip strong { font-size: 10px; }
+      .set-chip span {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 9px;
+      }
+
+      .set-head {
+        padding: 14px;
+        border-bottom: 1px solid var(--line);
+        background: var(--surface-2);
+      }
+
+      .set-head-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .set-head strong { font-size: 12px; }
+      .set-head p {
+        margin: 5px 0 10px;
+        color: var(--muted);
+        font-size: 10px;
+      }
+
+      .progress-track {
+        height: 3px;
+        overflow: hidden;
+        border-radius: 3px;
+        background: #263942;
+      }
+
+      .progress-value {
+        width: 33%;
+        height: 100%;
+        background: var(--cyan);
+      }
+
+      .path-prefix {
+        color: var(--quiet);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 9px;
+      }
+
+      .concept-notes {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .note-card {
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: var(--surface-2);
+        padding: 16px;
+      }
+
+      .note-card strong {
+        display: block;
+        margin-bottom: 7px;
+        font-size: 12px;
+      }
+
+      .note-card p,
+      .note-card li {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .note-card p { margin: 0; }
+      .note-card ul {
+        margin: 0;
+        padding-left: 17px;
+      }
+
+      .note-card.recommend {
+        border-color: rgba(109, 216, 228, 0.34);
+        background: var(--cyan-soft);
+      }
+
+      .matrix {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface);
+      }
+
+      .matrix h2 {
+        margin: 0;
+        padding: 22px 24px;
+        border-bottom: 1px solid var(--line);
+        font-size: 20px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+
+      th,
+      td {
+        padding: 14px 17px;
+        border-right: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th:last-child,
+      td:last-child { border-right: 0; }
+      tr:last-child td { border-bottom: 0; }
+      th {
+        color: var(--muted);
+        background: var(--surface-2);
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      td:first-child {
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      @media (max-width: 1180px) {
+        .page { width: calc(100vw - 30px); }
+        .concept-body { grid-template-columns: 1fr; }
+        .concept-notes { display: grid; grid-template-columns: repeat(3, 1fr); }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <div>
+          <div class="eyebrow">Vivi · Review queue exploration</div>
+          <h1>Keep the queue fast. Restore where each file lives.</h1>
+          <p>
+            The queue currently optimizes each row for the file itself. That
+            works inside one directory, but a mixed workspace makes the user
+            repeatedly reconstruct path context. These concepts use the same
+            queue data and vary only how directory identity organizes it.
+          </p>
+        </div>
+        <aside class="hero-note">
+          <strong>The product job</strong>
+          <p>
+            Move through attention items quickly, while knowing which authored
+            area is being reviewed before opening the document. “Next queued”
+            remains global in every concept.
+          </p>
+        </aside>
+      </header>
+
+      <section class="principles" aria-label="Shared design principles">
+        <div class="principle">
+          <strong>Directory is context, not status</strong>
+          <span>Queued, In Review, and Reviewed remain the lifecycle. Paths only organize items inside those states.</span>
+        </div>
+        <div class="principle">
+          <strong>Show only useful branches</strong>
+          <span>Roll up directories that contain attention items. Never reproduce the entire repository tree inside the inspector.</span>
+        </div>
+        <div class="principle">
+          <strong>Global queue stays authoritative</strong>
+          <span>Grouping cannot strand urgent feedback. Open threads and unseen work still determine the next item.</span>
+        </div>
+      </section>
+
+      <nav class="concept-nav" aria-label="Concept navigation">
+        <a href="#concept-a">A · Path groups</a>
+        <a href="#concept-b">B · Selected sidebar tree</a>
+        <a href="#concept-c">C · Working sets</a>
+        <a href="#comparison">Compare</a>
+      </nav>
+
+      <section class="concept" id="concept-a">
+        <header class="concept-header">
+          <div class="concept-copy">
+            <div class="eyebrow">Comparison · grouped linear queue</div>
+            <h2>Collapsible path groups</h2>
+            <p>
+              Keep the linear priority queue, but group queue-bearing branches
+              under collapsible parent directories. A parent and its useful
+              child directories can each fold independently.
+            </p>
+          </div>
+          <div class="concept-score" aria-label="Concept scores">
+            <div class="score"><span>Queue speed</span><strong class="dots">●●●</strong></div>
+            <div class="score"><span>Path clarity</span><strong class="dots">●●●</strong></div>
+            <div class="score"><span>New model</span><strong>Low</strong></div>
+          </div>
+        </header>
+        <div class="concept-body">
+          <div>
+            <div class="example-label">Comparison workbench · collapsible attention paths</div>
+            <div class="workspace-preview">
+              <div class="document-ghost" aria-hidden="true">
+                <div class="ghost-tabs"><div class="ghost-tab">18-ux-acceptance-criteria.md</div></div>
+                <div class="ghost-doc">
+                  <h3>UX acceptance criteria</h3>
+                  <div class="ghost-line mid"></div><div class="ghost-line"></div>
+                  <div class="ghost-line"></div><div class="ghost-line short"></div>
+                  <div class="ghost-line"></div><div class="ghost-line mid"></div>
+                </div>
+              </div>
+              <aside class="inspector">
+                <div class="inspector-tabs">
+                  <div class="inspector-tab active">Review queue <span class="count">9</span></div>
+                  <div class="inspector-tab">Document</div>
+                </div>
+                <div class="queue-head">
+                  <div><strong>7 attention items</strong><small>Across 4 document areas</small></div>
+                  <button class="button">Next queued</button>
+                </div>
+                <div class="summary">
+                  <div class="summary-cell"><strong>7</strong><span>Queued</span></div>
+                  <div class="summary-cell"><strong>2</strong><span>In Review</span></div>
+                  <div class="summary-cell"><strong>3</strong><span>Seen</span></div>
+                </div>
+                <div class="section-head"><span>Queued</span><span>4 areas · 7 files</span></div>
+
+                <div class="dir-group dir-root">
+                  <button class="dir-header" data-collapse="group" aria-label="Collapse docs directory">
+                    <span class="chevron">▾</span>
+                    <span class="dir-path"><strong>docs</strong></span>
+                    <span class="dir-count">4 files · 2 dirs</span>
+                  </button>
+                  <div class="dir-children">
+                    <div class="dir-group nested">
+                      <button class="dir-header" data-collapse="group" aria-label="Collapse docs product directory">
+                        <span class="chevron">▾</span>
+                        <span class="dir-path"><span class="dir-parent-path">docs / </span><strong>product</strong></span>
+                        <span class="dir-count">2 files</span>
+                      </button>
+                      <div class="dir-children">
+                        <div class="file-row">
+                          <span class="status-dot"></span>
+                          <div class="file-copy"><strong>18-ux-acceptance-criteria.md</strong><small>4 ready · unread activity</small></div>
+                          <span class="badge ready">4 ready</span>
+                        </div>
+                        <div class="file-row">
+                          <span class="status-dot"></span>
+                          <div class="file-copy"><strong>01-product-brief.md</strong><small>unread HEAD diff</small></div>
+                          <span class="diff">+26 <em>-4</em></span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="dir-group nested collapsed">
+                      <button class="dir-header" data-collapse="group" aria-label="Expand docs ui-mocks directory">
+                        <span class="chevron">▾</span>
+                        <span class="dir-path"><span class="dir-parent-path">docs / </span><strong>ui-mocks</strong></span>
+                        <span class="dir-count">2 files · collapsed</span>
+                      </button>
+                      <div class="dir-children">
+                        <div class="file-row">
+                          <span class="status-dot"></span>
+                          <div class="file-copy"><strong>43-review-queue-directory-organization.html</strong><small>unread HEAD diff</small></div>
+                          <span class="diff">+844</span>
+                        </div>
+                        <div class="file-row">
+                          <span class="status-dot soft"></span>
+                          <div class="file-copy"><strong>index.html</strong><small>read HEAD diff</small></div>
+                          <span class="diff">+8</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="dir-group dir-root">
+                  <button class="dir-header" data-collapse="group" aria-label="Collapse examples directory">
+                    <span class="chevron">▾</span>
+                    <span class="dir-path"><strong>examples</strong></span>
+                    <span class="dir-count">2 files · 1 dir</span>
+                  </button>
+                  <div class="dir-children">
+                    <div class="dir-group nested">
+                      <button class="dir-header" data-collapse="group" aria-label="Collapse examples onboarding directory">
+                        <span class="chevron">▾</span>
+                        <span class="dir-path"><span class="dir-parent-path">examples / </span><strong>onboarding</strong></span>
+                        <span class="dir-count">2 files</span>
+                      </button>
+                      <div class="dir-children">
+                        <div class="file-row">
+                          <span class="status-dot amber"></span>
+                          <div class="file-copy"><strong>index.html</strong><small>2 open · agent replied</small></div>
+                          <span class="badge open">2 open</span>
+                        </div>
+                        <div class="file-row">
+                          <span class="status-dot"></span>
+                          <div class="file-copy"><strong>README.md</strong><small>unread HEAD diff</small></div>
+                          <span class="diff">+86 <em>-2</em></span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="dir-group dir-root collapsed">
+                  <button class="dir-header" data-collapse="group" aria-label="Expand packages directory">
+                    <span class="chevron">▾</span>
+                    <span class="dir-path"><strong>packages</strong></span>
+                    <span class="dir-count">1 file · collapsed</span>
+                  </button>
+                  <div class="dir-children">
+                    <div class="dir-group nested">
+                      <button class="dir-header" data-collapse="group" aria-label="Collapse packages agent-guide docs directory">
+                        <span class="chevron">▾</span>
+                        <span class="dir-path"><span class="dir-parent-path">packages / </span><strong>agent-guide / docs</strong></span>
+                        <span class="dir-count">1 file</span>
+                      </button>
+                      <div class="dir-children">
+                        <div class="file-row">
+                          <span class="status-dot"></span>
+                          <div class="file-copy"><strong>getting-started.md</strong><small>unread HEAD diff</small></div>
+                          <span class="diff">+42</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="section-head"><span>In Review</span><span>2 files</span></div>
+                <div class="file-row">
+                  <span class="status-dot amber"></span>
+                  <div class="file-copy"><strong>docs/research/29-living-document-review-direction.md</strong><small>1 open · unread agent reply</small></div>
+                  <span class="badge open">1 open</span>
+                </div>
+              </aside>
+            </div>
+          </div>
+          <aside class="concept-notes">
+            <div class="note-card">
+              <strong>Comparison behavior</strong>
+              <p>Every visible directory row folds independently. Parent collapse hides its descendant directories and files without changing the global queue order.</p>
+            </div>
+            <div class="note-card">
+              <strong>What becomes visible</strong>
+              <ul><li>Useful parent/child relationships</li><li>Roll-up file counts</li><li>Collapsed low-priority branches</li></ul>
+            </div>
+            <div class="note-card">
+              <strong>Deliberate boundary</strong>
+              <p>Only queue-bearing branches appear. Single-child directory chains may compress into one row, so this never becomes a second full repository tree.</p>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="concept selected" id="concept-b">
+        <header class="concept-header">
+          <div class="concept-copy">
+            <div class="eyebrow">Selected direction · Explorer visual parity</div>
+            <h2>Queue-bearing sidebar tree</h2>
+            <p>
+              Reuse the left Explorer's row, icon, indentation, hover, selection,
+              and collapse language. The right tree differs only by showing
+              queue-bearing branches and review roll-up counts.
+            </p>
+          </div>
+          <div class="concept-score" aria-label="Concept scores">
+            <div class="score"><span>Queue speed</span><strong class="dots">●●●</strong></div>
+            <div class="score"><span>Path clarity</span><strong class="dots">●●●</strong></div>
+            <div class="score"><span>New model</span><strong>Low</strong></div>
+          </div>
+        </header>
+        <div class="concept-body">
+          <div>
+            <div class="example-label">Selected workbench · same tree language as Explorer</div>
+            <div class="workspace-preview">
+              <div class="document-ghost" aria-hidden="true">
+                <div class="ghost-tabs"><div class="ghost-tab">18-ux-acceptance-criteria.md</div></div>
+                <div class="ghost-doc">
+                  <h3>UX acceptance criteria</h3>
+                  <div class="ghost-line mid"></div><div class="ghost-line"></div>
+                  <div class="ghost-line"></div><div class="ghost-line short"></div>
+                  <div class="ghost-line"></div><div class="ghost-line mid"></div>
+                </div>
+              </div>
+              <aside class="inspector">
+                <div class="inspector-tabs">
+                  <div class="inspector-tab active">Review queue <span class="count">9</span></div>
+                  <div class="inspector-tab">Document</div>
+                </div>
+                <div class="queue-head">
+                  <div><strong>7 attention items</strong><small>Tree shows attention branches only</small></div>
+                  <button class="button">Next queued</button>
+                </div>
+                <div class="summary">
+                  <div class="summary-cell"><strong>7</strong><span>Queued</span></div>
+                  <div class="summary-cell"><strong>2</strong><span>In Review</span></div>
+                  <div class="summary-cell"><strong>3</strong><span>Seen</span></div>
+                </div>
+                <div class="section-head"><span>Queued</span><span>4 branches · 7 files</span></div>
+                <div class="tree-legend"><span>Same interactions as <strong>Explorer</strong></span><span>Attention branches only</span></div>
+                <div class="tree-area">
+                  <div class="tree-branch">
+                    <button class="tree-folder" data-collapse="branch">
+                      <span class="chevron">▾</span><span class="folder-icon">📁</span><span class="tree-folder-main"><strong>docs</strong><small>4 queued · 1 in review</small></span><span class="rollup">4</span>
+                    </button>
+                    <div class="tree-children">
+                      <div class="tree-branch">
+                        <button class="tree-folder" data-collapse="branch">
+                          <span class="chevron">▾</span><span class="folder-icon">📁</span><span class="tree-folder-main"><strong>product</strong><small>2 queued · 4 ready</small></span><span class="rollup">2</span>
+                        </button>
+                        <div class="tree-children">
+                          <div class="tree-file selected">
+                            <span class="tree-spacer"></span><span class="tree-file-icon">📘</span><div class="tree-copy"><strong>18-ux-acceptance-criteria.md</strong><small>current stop · 4 ready</small></div><span class="badge ready">4 ready</span>
+                          </div>
+                          <div class="tree-file">
+                            <span class="tree-spacer"></span><span class="tree-file-icon">📘</span><div class="tree-copy"><strong>01-product-brief.md</strong><small>unread HEAD diff</small></div><span class="diff">+26 <em>-4</em></span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="tree-branch">
+                        <button class="tree-folder" data-collapse="branch">
+                          <span class="chevron">▾</span><span class="folder-icon">📁</span><span class="tree-folder-main"><strong>ui-mocks</strong><small>2 queued</small></span><span class="rollup">2</span>
+                        </button>
+                        <div class="tree-children">
+                          <div class="tree-file">
+                            <span class="tree-spacer"></span><span class="tree-file-icon">🌐</span><div class="tree-copy"><strong>43-review-queue-directory-organization.html</strong><small>unread HEAD diff</small></div><span class="diff">+844</span>
+                          </div>
+                          <div class="tree-file">
+                            <span class="tree-spacer"></span><span class="tree-file-icon">🌐</span><div class="tree-copy"><strong>index.html</strong><small>read HEAD diff</small></div><span class="diff">+8</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tree-branch">
+                    <button class="tree-folder" data-collapse="branch">
+                      <span class="chevron">▾</span><span class="folder-icon">📁</span><span class="tree-folder-main"><strong>examples</strong><small>2 queued · 2 open</small></span><span class="rollup">2</span>
+                    </button>
+                    <div class="tree-children">
+                      <div class="tree-branch">
+                        <button class="tree-folder" data-collapse="branch">
+                          <span class="chevron">▾</span><span class="folder-icon">📁</span><span class="tree-folder-main"><strong>onboarding</strong><small>2 queued · agent replied</small></span><span class="rollup">2</span>
+                        </button>
+                        <div class="tree-children">
+                          <div class="tree-file">
+                            <span class="tree-spacer"></span><span class="tree-file-icon">🌐</span><div class="tree-copy"><strong>index.html</strong><small>2 open · agent replied</small></div><span class="badge open">2 open</span>
+                          </div>
+                          <div class="tree-file">
+                            <span class="tree-spacer"></span><span class="tree-file-icon">📘</span><div class="tree-copy"><strong>README.md</strong><small>unread HEAD diff</small></div><span class="diff">+86 <em>-2</em></span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tree-branch collapsed">
+                    <button class="tree-folder" data-collapse="branch">
+                      <span class="chevron">▾</span><span class="folder-icon">📁</span><span class="tree-folder-main"><strong>packages / agent-guide / docs</strong><small>1 queued · collapsed chain</small></span><span class="rollup">1</span>
+                    </button>
+                    <div class="tree-children">
+                      <div class="tree-file"><span class="tree-spacer"></span><span class="tree-file-icon">📘</span><div class="tree-copy"><strong>getting-started.md</strong><small>unread HEAD diff</small></div><span class="diff">+42</span></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="section-head"><span>In Review</span><span>2 files</span></div>
+                <div class="file-row"><span class="status-dot amber"></span><div class="file-copy"><strong>docs/research/29-living-document-review-direction.md</strong><small>1 open · unread agent reply</small></div><span class="badge open">1 open</span></div>
+              </aside>
+            </div>
+          </div>
+          <aside class="concept-notes">
+            <div class="note-card recommend">
+              <strong>Selected behavior</strong>
+              <p>Every directory row folds. Explorer and Review Queue use the same pointer, keyboard, indentation, and selected-row language.</p>
+            </div>
+            <div class="note-card">
+              <strong>What becomes visible</strong>
+              <ul><li>True ancestor relationships</li><li>Review roll-ups on familiar rows</li><li>Current queue stop inside its branch</li></ul>
+            </div>
+            <div class="note-card">
+              <strong>Deliberate boundary</strong>
+              <p>The queue tree is a filtered projection, not shared expansion state. Opening or folding it never changes the left Explorer.</p>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="concept" id="concept-c">
+        <header class="concept-header">
+          <div class="concept-copy">
+            <div class="eyebrow">Concept C · Session-level organization</div>
+            <h2>Directory working sets</h2>
+            <p>
+              Promote directory clusters into temporary review sets. Choose an
+              area, see its local progress, then process its files while global
+              urgent work can still interrupt through “Next queued.”
+            </p>
+          </div>
+          <div class="concept-score" aria-label="Concept scores">
+            <div class="score"><span>Queue speed</span><strong class="dots">●●●</strong></div>
+            <div class="score"><span>Path clarity</span><strong class="dots">●●●</strong></div>
+            <div class="score"><span>New model</span><strong>High</strong></div>
+          </div>
+        </header>
+        <div class="concept-body">
+          <div>
+            <div class="example-label">Same workbench · scoped working set</div>
+            <div class="workspace-preview">
+              <div class="document-ghost" aria-hidden="true">
+                <div class="ghost-tabs"><div class="ghost-tab">18-ux-acceptance-criteria.md</div></div>
+                <div class="ghost-doc">
+                  <h3>UX acceptance criteria</h3>
+                  <div class="ghost-line mid"></div><div class="ghost-line"></div>
+                  <div class="ghost-line"></div><div class="ghost-line short"></div>
+                  <div class="ghost-line"></div><div class="ghost-line mid"></div>
+                </div>
+              </div>
+              <aside class="inspector">
+                <div class="inspector-tabs">
+                  <div class="inspector-tab active">Review queue <span class="count">9</span></div>
+                  <div class="inspector-tab">Document</div>
+                </div>
+                <div class="queue-head">
+                  <div><strong>7 attention items</strong><small>Current set: docs</small></div>
+                  <button class="button">Next queued</button>
+                </div>
+                <div class="summary">
+                  <div class="summary-cell"><strong>7</strong><span>Queued</span></div>
+                  <div class="summary-cell"><strong>2</strong><span>In Review</span></div>
+                  <div class="summary-cell"><strong>3</strong><span>Seen</span></div>
+                </div>
+                <div class="section-head"><span>Working sets</span><span>4 areas</span></div>
+                <div class="set-switcher">
+                  <button class="set-chip active" data-set="docs"><strong>docs</strong><span>4 queued · 1 review</span></button>
+                  <button class="set-chip" data-set="examples"><strong>examples</strong><span>2 queued</span></button>
+                  <button class="set-chip" data-set="packages"><strong>packages</strong><span>1 queued</span></button>
+                </div>
+
+                <div class="set-panel" data-set-panel="docs">
+                  <div class="set-head">
+                    <div class="set-head-top"><strong>docs</strong><span class="badge">1 of 4 seen</span></div>
+                    <p>product · ui-mocks · research</p>
+                    <div class="progress-track"><div class="progress-value"></div></div>
+                  </div>
+                  <div class="set-file">
+                    <span class="status-dot"></span>
+                    <div class="set-copy"><span class="path-prefix">product / </span><strong>18-ux-acceptance-criteria.md</strong><small>4 ready · unread activity</small></div>
+                    <span class="badge ready">4 ready</span>
+                  </div>
+                  <div class="set-file">
+                    <span class="status-dot"></span>
+                    <div class="set-copy"><span class="path-prefix">product / </span><strong>01-product-brief.md</strong><small>unread HEAD diff</small></div>
+                    <span class="diff">+26 <em>-4</em></span>
+                  </div>
+                  <div class="set-file">
+                    <span class="status-dot"></span>
+                    <div class="set-copy"><span class="path-prefix">ui-mocks / </span><strong>43-review-queue-directory-organization.html</strong><small>unread HEAD diff</small></div>
+                    <span class="diff">+844</span>
+                  </div>
+                  <div class="set-file">
+                    <span class="status-dot soft"></span>
+                    <div class="set-copy"><span class="path-prefix">ui-mocks / </span><strong>index.html</strong><small>read HEAD diff</small></div>
+                    <span class="diff">+8</span>
+                  </div>
+                  <div class="section-head"><span>In Review in this set</span><span>1 file</span></div>
+                  <div class="set-file">
+                    <span class="status-dot amber"></span>
+                    <div class="set-copy"><span class="path-prefix">research / </span><strong>29-living-document-review-direction.md</strong><small>1 open · unread agent reply</small></div>
+                    <span class="badge open">1 open</span>
+                  </div>
+                </div>
+
+                <div class="set-panel" data-set-panel="examples" hidden>
+                  <div class="set-head">
+                    <div class="set-head-top"><strong>examples / onboarding</strong><span class="badge">0 of 2 seen</span></div>
+                    <p>Focused document example</p>
+                    <div class="progress-track"><div class="progress-value" style="width: 0"></div></div>
+                  </div>
+                  <div class="set-file"><span class="status-dot amber"></span><div class="set-copy"><span class="path-prefix">onboarding / </span><strong>index.html</strong><small>2 open · agent replied</small></div><span class="badge open">2 open</span></div>
+                  <div class="set-file"><span class="status-dot"></span><div class="set-copy"><span class="path-prefix">onboarding / </span><strong>README.md</strong><small>unread HEAD diff</small></div><span class="diff">+86 <em>-2</em></span></div>
+                </div>
+
+                <div class="set-panel" data-set-panel="packages" hidden>
+                  <div class="set-head">
+                    <div class="set-head-top"><strong>packages / agent-guide</strong><span class="badge">0 of 1 seen</span></div>
+                    <p>Nested package documentation</p>
+                    <div class="progress-track"><div class="progress-value" style="width: 0"></div></div>
+                  </div>
+                  <div class="set-file"><span class="status-dot"></span><div class="set-copy"><span class="path-prefix">docs / </span><strong>getting-started.md</strong><small>unread HEAD diff</small></div><span class="diff">+42</span></div>
+                </div>
+              </aside>
+            </div>
+          </div>
+          <aside class="concept-notes">
+            <div class="note-card">
+              <strong>What this optimizes</strong>
+              <p>Long sessions can be completed area by area, reducing context switching when several generated document sets change together.</p>
+            </div>
+            <div class="note-card">
+              <strong>What becomes visible</strong>
+              <ul><li>Current review scope</li><li>Local progress per area</li><li>Short path prefixes inside the set</li></ul>
+            </div>
+            <div class="note-card">
+              <strong>Tradeoff</strong>
+              <p>“Working set” becomes a new concept with selection state. It may over-formalize a queue that should otherwise feel immediate.</p>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="matrix" id="comparison">
+        <h2>Decision frame</h2>
+        <table>
+          <thead>
+            <tr><th>Question</th><th>A · Path groups</th><th>B · Selected sidebar tree</th><th>C · Working sets</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Primary mental model</td><td>One queue with landmarks</td><td>Repository geography</td><td>Area-by-area review session</td></tr>
+            <tr><td>Best at</td><td>Fast scanning with low disruption</td><td>Understanding deep structure and duplicate names</td><td>Finishing coherent batches across many files</td></tr>
+            <tr><td>Global priority</td><td>Always visually obvious</td><td>Preserved by Next queued, less obvious in layout</td><td>Preserved by Next queued, scoped list is local</td></tr>
+            <tr><td>Cost</td><td>Small projection change</td><td>Recursive attention tree and expansion state</td><td>Grouping heuristic plus active-set state</td></tr>
+            <tr><td>Risk</td><td>Requires a clear rule for compressing single-child paths</td><td>Indentation and clicks consume inspector space</td><td>New concept may feel too managerial</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+
+    <script>
+      document.querySelectorAll("[data-collapse]").forEach((button) => {
+        const getTarget = () =>
+          button.dataset.collapse === "branch"
+            ? button.closest(".tree-branch")
+            : button.closest(".dir-group");
+        const syncExpandedState = () => {
+          const target = getTarget();
+          button.setAttribute(
+            "aria-expanded",
+            String(!target?.classList.contains("collapsed")),
+          );
+        };
+
+        syncExpandedState();
+        button.addEventListener("click", () => {
+          const target = getTarget();
+          target?.classList.toggle("collapsed");
+          syncExpandedState();
+        });
+      });
+
+      document.querySelectorAll("[data-set]").forEach((button) => {
+        button.addEventListener("click", () => {
+          document.querySelectorAll("[data-set]").forEach((item) => item.classList.remove("active"));
+          document.querySelectorAll("[data-set-panel]").forEach((panel) => {
+            panel.hidden = panel.dataset.setPanel !== button.dataset.set;
+          });
+          button.classList.add("active");
+        });
+      });
+    </script>
+  </body>
+</html>
