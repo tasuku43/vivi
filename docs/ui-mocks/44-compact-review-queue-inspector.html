@@ -1,0 +1,979 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vivi · Compact review queue inspector</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --canvas: #071016;
+        --surface: #0c171e;
+        --surface-raised: #101d25;
+        --surface-selected: #142933;
+        --line: #253842;
+        --line-soft: #192a33;
+        --text: #edf4f5;
+        --muted: #9eb0b7;
+        --quiet: #70838b;
+        --cyan: #6dd8e4;
+        --cyan-soft: rgba(109, 216, 228, 0.12);
+        --mint: #8ce3c6;
+        --amber: #e4bc59;
+        --amber-soft: rgba(228, 188, 89, 0.11);
+        --red: #ef7478;
+        --shadow: 0 22px 70px rgba(0, 0, 0, 0.3);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        min-width: 1120px;
+        color: var(--text);
+        background:
+          radial-gradient(
+            circle at 14% -10%,
+            rgba(44, 103, 122, 0.22),
+            transparent 34%
+          ),
+          var(--canvas);
+      }
+      button {
+        color: inherit;
+        font: inherit;
+      }
+      .page {
+        width: min(1460px, calc(100vw - 48px));
+        margin: 0 auto;
+        padding: 40px 0 88px;
+      }
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 390px;
+        gap: 32px;
+        align-items: end;
+      }
+      .eyebrow,
+      .kicker,
+      .section-label {
+        color: var(--cyan);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      h1 {
+        max-width: 780px;
+        margin: 10px 0 12px;
+        font-size: 42px;
+        line-height: 1.02;
+        letter-spacing: -0.04em;
+      }
+      .hero p,
+      .note p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.62;
+      }
+      .diagnosis {
+        display: grid;
+        gap: 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: rgba(12, 23, 30, 0.86);
+        padding: 16px 18px;
+      }
+      .diagnosis strong {
+        font-size: 13px;
+      }
+      .diagnosis span {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .principles {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        margin: 26px 0 20px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--surface);
+      }
+      .principle {
+        min-height: 94px;
+        padding: 16px 18px;
+        border-right: 1px solid var(--line);
+      }
+      .principle:last-child {
+        border-right: 0;
+      }
+      .principle strong {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+      }
+      .principle span {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .nav {
+        position: sticky;
+        top: 10px;
+        z-index: 20;
+        display: flex;
+        width: fit-content;
+        margin: 0 auto 20px;
+        padding: 5px;
+        gap: 5px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(7, 16, 22, 0.9);
+        backdrop-filter: blur(16px);
+        box-shadow: var(--shadow);
+      }
+      .nav a {
+        border-radius: 999px;
+        color: var(--muted);
+        padding: 7px 11px;
+        font-size: 11px;
+        font-weight: 750;
+        text-decoration: none;
+      }
+      .nav a:hover {
+        color: var(--text);
+        background: var(--surface-raised);
+      }
+      .concepts {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+        align-items: start;
+      }
+      .concept {
+        scroll-margin-top: 74px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(12, 23, 30, 0.88);
+        box-shadow: var(--shadow);
+      }
+      .concept.recommended {
+        border-color: rgba(109, 216, 228, 0.48);
+      }
+      .note {
+        min-height: 220px;
+        padding: 18px;
+        border-bottom: 1px solid var(--line);
+      }
+      .note-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: start;
+      }
+      .note h2 {
+        margin: 5px 0 8px;
+        font-size: 21px;
+        letter-spacing: -0.02em;
+      }
+      .tag {
+        flex: none;
+        border: 1px solid rgba(109, 216, 228, 0.3);
+        border-radius: 999px;
+        color: var(--cyan);
+        background: var(--cyan-soft);
+        padding: 4px 7px;
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .tradeoff {
+        display: grid;
+        grid-template-columns: 62px 1fr;
+        gap: 8px;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line-soft);
+        font-size: 11px;
+        line-height: 1.45;
+      }
+      .tradeoff strong {
+        color: var(--quiet);
+      }
+      .tradeoff span {
+        color: var(--muted);
+      }
+      .preview {
+        display: grid;
+        place-items: start center;
+        min-height: 720px;
+        padding: 14px;
+        background: #091319;
+      }
+      .inspector {
+        width: min(100%, 352px);
+        min-height: 668px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+      }
+      .tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        height: 40px;
+        border-bottom: 1px solid var(--line);
+      }
+      .tab {
+        display: grid;
+        place-items: center;
+        position: relative;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 760;
+      }
+      .tab.active {
+        color: var(--text);
+      }
+      .tab.active::after {
+        position: absolute;
+        right: 12px;
+        bottom: -1px;
+        left: 12px;
+        height: 2px;
+        border-radius: 2px;
+        background: var(--cyan);
+        content: "";
+      }
+      .count {
+        display: inline-grid;
+        min-width: 17px;
+        height: 17px;
+        margin-left: 5px;
+        place-items: center;
+        border-radius: 999px;
+        background: var(--cyan-soft);
+        color: var(--cyan);
+        font-size: 9px;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        min-height: 48px;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--line);
+      }
+      .toolbar strong {
+        display: block;
+        font-size: 13px;
+      }
+      .toolbar small {
+        display: block;
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 10px;
+      }
+      .button {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted);
+        padding: 6px 8px;
+        font-size: 10px;
+        font-weight: 730;
+      }
+      .button.primary {
+        border-color: rgba(109, 216, 228, 0.32);
+        color: var(--text);
+        background: var(--cyan-soft);
+      }
+      .body {
+        min-height: 0;
+      }
+      .summary-line {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 34px;
+        padding: 7px 10px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .summary-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        color: var(--muted);
+        font-size: 9px;
+        white-space: nowrap;
+      }
+      .summary-chip b {
+        color: var(--text);
+        font-size: 11px;
+      }
+      .summary-chip + .summary-chip::before {
+        margin-right: 2px;
+        color: var(--quiet);
+        content: "·";
+      }
+      .section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 30px;
+        padding: 0 10px;
+        border-bottom: 1px solid var(--line-soft);
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 760;
+        text-transform: uppercase;
+      }
+      .section-head small {
+        color: var(--quiet);
+        font-size: 9px;
+        font-weight: 650;
+        text-transform: none;
+      }
+      .row {
+        position: relative;
+        display: grid;
+        grid-template-columns: 22px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 7px;
+        min-height: 51px;
+        padding: 7px 10px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .row.selected {
+        background: var(--surface-selected);
+        box-shadow: inset 2px 0 var(--cyan);
+      }
+      .row:hover {
+        background: rgba(255, 255, 255, 0.025);
+      }
+      .icon {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .main {
+        min-width: 0;
+      }
+      .main strong,
+      .main span {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .main strong {
+        font-size: 11px;
+        line-height: 1.3;
+      }
+      .main span {
+        margin-top: 2px;
+        color: var(--quiet);
+        font-size: 9px;
+      }
+      .main span em {
+        color: var(--cyan);
+        font-style: normal;
+      }
+      .stat {
+        display: flex;
+        gap: 4px;
+        font-size: 9px;
+        font-weight: 780;
+      }
+      .plus {
+        color: var(--mint);
+      }
+      .minus {
+        color: var(--red);
+      }
+      .dot {
+        display: inline-block;
+        width: 5px;
+        height: 5px;
+        margin-right: 4px;
+        border-radius: 50%;
+        background: var(--cyan);
+        vertical-align: 1px;
+      }
+      .draft {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+        margin: 8px;
+        padding: 9px 10px;
+        border: 1px solid rgba(228, 188, 89, 0.26);
+        border-radius: 7px;
+        background: var(--amber-soft);
+      }
+      .draft strong {
+        display: block;
+        font-size: 10px;
+      }
+      .draft span {
+        display: block;
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 9px;
+      }
+      .draft button {
+        border: 1px solid rgba(228, 188, 89, 0.35);
+        border-radius: 6px;
+        background: transparent;
+        color: var(--amber);
+        padding: 5px 7px;
+        font-size: 9px;
+        font-weight: 750;
+      }
+      .collapsed {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        height: 34px;
+        padding: 0 10px;
+        border-top: 1px solid var(--line-soft);
+        color: var(--muted);
+        font-size: 10px;
+      }
+      .next-card {
+        display: grid;
+        gap: 9px;
+        margin: 10px;
+        padding: 12px;
+        border: 1px solid rgba(109, 216, 228, 0.3);
+        border-radius: 8px;
+        background:
+          linear-gradient(145deg, rgba(109, 216, 228, 0.13), transparent 68%),
+          var(--surface-raised);
+      }
+      .next-meta {
+        display: flex;
+        justify-content: space-between;
+        color: var(--cyan);
+        font-size: 9px;
+        font-weight: 780;
+        text-transform: uppercase;
+      }
+      .next-card h3 {
+        margin: 0;
+        font-size: 15px;
+      }
+      .next-card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 10px;
+        line-height: 1.45;
+      }
+      .next-actions {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 6px;
+      }
+      .mini-list {
+        margin: 0 10px 10px;
+        border: 1px solid var(--line-soft);
+        border-radius: 7px;
+        overflow: hidden;
+      }
+      .mini-row {
+        display: grid;
+        grid-template-columns: 18px minmax(0, 1fr) auto;
+        gap: 7px;
+        align-items: center;
+        min-height: 43px;
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .mini-row:last-child {
+        border-bottom: 0;
+      }
+      .mini-row strong {
+        display: block;
+        overflow: hidden;
+        font-size: 10px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .mini-row span {
+        display: block;
+        margin-top: 1px;
+        color: var(--quiet);
+        font-size: 8.5px;
+      }
+      .position {
+        color: var(--quiet);
+        font-size: 9px;
+      }
+      .more {
+        width: 100%;
+        border: 0;
+        border-top: 1px solid var(--line-soft);
+        background: transparent;
+        color: var(--muted);
+        padding: 8px;
+        font-size: 9px;
+      }
+      .filters {
+        display: flex;
+        gap: 5px;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--line-soft);
+        overflow: hidden;
+      }
+      .filter {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--muted);
+        padding: 4px 7px;
+        font-size: 8.5px;
+        white-space: nowrap;
+      }
+      .filter.active {
+        border-color: rgba(109, 216, 228, 0.3);
+        color: var(--cyan);
+        background: var(--cyan-soft);
+      }
+      .signal {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        border-radius: 999px;
+        padding: 3px 5px;
+        font-size: 8px;
+        font-weight: 760;
+        white-space: nowrap;
+      }
+      .signal.attention {
+        color: var(--cyan);
+        background: var(--cyan-soft);
+      }
+      .signal.draft-signal {
+        color: var(--amber);
+        background: var(--amber-soft);
+      }
+      .ledger-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+        min-height: 57px;
+      }
+      .ledger-meta {
+        display: flex !important;
+        gap: 5px;
+        align-items: center;
+        margin-top: 3px !important;
+      }
+      .path {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        color: var(--quiet);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .footer-note {
+        margin-top: 18px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--surface);
+        padding: 16px 18px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.6;
+      }
+      .footer-note strong {
+        color: var(--text);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <div>
+          <span class="eyebrow">Right inspector · concept review</span>
+          <h1>One queue, zero duplicate trees.</h1>
+          <p>
+            The left Explorer keeps spatial memory. The right inspector becomes
+            a compact decision surface: what needs attention, what is next, and
+            what is ready to publish.
+          </p>
+        </div>
+        <aside class="diagnosis">
+          <strong>Current friction</strong>
+          <span
+            >Four queued files create seven extra folder rows. The queue spends
+            more space explaining ancestry than showing review work.</span
+          >
+          <span
+            >Directory context still matters, but it can live as a secondary
+            path on the file row.</span
+          >
+        </aside>
+      </header>
+
+      <section class="principles" aria-label="Design principles">
+        <div class="principle">
+          <strong>Explorer owns location</strong
+          ><span
+            >No collapse state, folder rows, or second navigation hierarchy in
+            the inspector.</span
+          >
+        </div>
+        <div class="principle">
+          <strong>Queue owns priority</strong
+          ><span
+            >Queued, in review, and ready-to-publish state stay visible without
+            restating the whole tree.</span
+          >
+        </div>
+        <div class="principle">
+          <strong>Path becomes metadata</strong
+          ><span
+            >Each file keeps enough ancestry to disambiguate duplicate filenames
+            and reveal workspace context.</span
+          >
+        </div>
+      </section>
+
+      <nav class="nav" aria-label="Concept navigation">
+        <a href="#flat">A · Flat queue</a>
+        <a href="#focus">B · Next focus</a>
+        <a href="#ledger">C · Signal ledger</a>
+      </nav>
+
+      <section class="concepts">
+        <article class="concept" id="flat">
+          <header class="note">
+            <div class="note-head">
+              <div>
+                <span class="kicker">Concept A</span>
+                <h2>Flat action queue</h2>
+              </div>
+            </div>
+            <p>
+              Keep all queued files visible, but flatten them into one
+              prioritized list. Parent paths replace folder rows.
+            </p>
+            <div class="tradeoff">
+              <strong>Wins when</strong
+              ><span
+                >People scan the whole queue, jump non-linearly, and still need
+                counts and diff evidence.</span
+              ><strong>Tradeoff</strong
+              ><span
+                >Large queues need sorting or a later filter; directory shape is
+                intentionally de-emphasized.</span
+              >
+            </div>
+          </header>
+          <div class="preview">
+            <aside class="inspector" aria-label="Flat action queue concept">
+              <div class="tabs">
+                <span class="tab active"
+                  >Review queue <i class="count">5</i></span
+                ><span class="tab">Document</span>
+              </div>
+              <div class="toolbar">
+                <span
+                  ><strong>5 need attention</strong
+                  ><small>Changes and open feedback</small></span
+                ><button class="button primary">Next queued</button>
+              </div>
+              <div class="summary-line">
+                <span class="summary-chip"><b>4</b> queued</span
+                ><span class="summary-chip"><b>1</b> in review</span
+                ><span class="summary-chip"><b>0</b> reviewed</span>
+              </div>
+              <div class="body">
+                <div class="section-head">
+                  <span>Queued</span><small>priority order</small>
+                </div>
+                <div class="row selected">
+                  <span class="icon">▣</span
+                  ><span class="main"
+                    ><strong>01-product-brief.md</strong
+                    ><span
+                      ><i class="dot"></i>docs/product · current stop</span
+                    ></span
+                  ><span class="stat"
+                    ><b class="plus">+18</b><b class="minus">-4</b></span
+                  >
+                </div>
+                <div class="row">
+                  <span class="icon">◇</span
+                  ><span class="main"
+                    ><strong>43-review-queue-directory-organization.html</strong
+                    ><span><i class="dot"></i>docs/ui-mocks</span></span
+                  ><span class="stat"
+                    ><b class="plus">+244</b><b class="minus">-31</b></span
+                  >
+                </div>
+                <div class="row">
+                  <span class="icon">▣</span
+                  ><span class="main"
+                    ><strong>README.md</strong
+                    ><span><i class="dot"></i>examples/onboarding</span></span
+                  ><span class="stat"
+                    ><b class="plus">+32</b><b class="minus">-0</b></span
+                  >
+                </div>
+                <div class="row">
+                  <span class="icon">▣</span
+                  ><span class="main"
+                    ><strong>getting-started.md</strong
+                    ><span
+                      ><i class="dot"></i>packages/agent-guide/docs</span
+                    ></span
+                  ><span class="stat"
+                    ><b class="plus">+7</b><b class="minus">-2</b></span
+                  >
+                </div>
+                <div class="section-head">
+                  <span>In review</span><small>1 file · 1 pending</small>
+                </div>
+                <div class="draft">
+                  <span
+                    ><strong>1 private comment ready</strong
+                    ><span>product-review.md · docs</span></span
+                  ><button>Publish</button>
+                </div>
+                <div class="collapsed">
+                  <span>Reviewed</span><span>0 · quiet</span>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </article>
+
+        <article class="concept" id="focus">
+          <header class="note">
+            <div class="note-head">
+              <div>
+                <span class="kicker">Concept B</span>
+                <h2>Next-focus queue</h2>
+              </div>
+            </div>
+            <p>
+              Turn the inspector into a guided review rail. One current stop
+              gets visual weight; the remaining queue recedes.
+            </p>
+            <div class="tradeoff">
+              <strong>Wins when</strong
+              ><span
+                >Review is mostly sequential and “what should I read next?” is
+                the dominant question.</span
+              ><strong>Tradeoff</strong
+              ><span
+                >Weakest for comparing distant items or cherry-picking work out
+                of order.</span
+              >
+            </div>
+          </header>
+          <div class="preview">
+            <aside class="inspector" aria-label="Next focus queue concept">
+              <div class="tabs">
+                <span class="tab active"
+                  >Review queue <i class="count">5</i></span
+                ><span class="tab">Document</span>
+              </div>
+              <div class="toolbar">
+                <span
+                  ><strong>Review progress</strong
+                  ><small>1 of 4 queued files</small></span
+                ><span class="position">25%</span>
+              </div>
+              <div class="body">
+                <div class="next-card">
+                  <div class="next-meta">
+                    <span>Current stop</span><span>1 / 4</span>
+                  </div>
+                  <h3>01-product-brief.md</h3>
+                  <p>
+                    docs/product · changed · unread attention<br /><span
+                      class="plus"
+                      >+18</span
+                    >
+                    <span class="minus">-4</span>
+                  </p>
+                  <div class="next-actions">
+                    <button class="button primary">Open document</button
+                    ><button class="button">Skip</button>
+                  </div>
+                </div>
+                <div class="section-head">
+                  <span>Up next</span><small>3 remaining</small>
+                </div>
+                <div class="mini-list">
+                  <div class="mini-row">
+                    <span class="icon">◇</span
+                    ><span
+                      ><strong
+                        >43-review-queue-directory-organization.html</strong
+                      ><span>docs/ui-mocks</span></span
+                    ><small class="position">2</small>
+                  </div>
+                  <div class="mini-row">
+                    <span class="icon">▣</span
+                    ><span
+                      ><strong>README.md</strong
+                      ><span>examples/onboarding</span></span
+                    ><small class="position">3</small>
+                  </div>
+                  <button class="more">Show 1 more queued file</button>
+                </div>
+                <div class="section-head">
+                  <span>Ready to publish</span><small>1 private comment</small>
+                </div>
+                <div class="draft">
+                  <span
+                    ><strong>product-review.md</strong
+                    ><span>docs · agent cannot see it yet</span></span
+                  ><button>Publish</button>
+                </div>
+                <div class="collapsed">
+                  <span>Reviewed history</span><span>0</span>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </article>
+
+        <article class="concept recommended" id="ledger">
+          <header class="note">
+            <div class="note-head">
+              <div>
+                <span class="kicker">Concept C</span>
+                <h2>Signal ledger</h2>
+              </div>
+              <span class="tag">Selected</span>
+            </div>
+            <p>
+              Use a single dense list sorted by attention signal, with state
+              filters instead of stacked queue sections.
+            </p>
+            <div class="tradeoff">
+              <strong>Wins when</strong
+              ><span
+                >Queues become larger and users need fast slicing across unread,
+                drafts, and changed files.</span
+              ><strong>Tradeoff</strong
+              ><span
+                >Filters add a control model, and lifecycle sections become less
+                spatially obvious.</span
+              >
+            </div>
+          </header>
+          <div class="preview">
+            <aside class="inspector" aria-label="Signal ledger concept">
+              <div class="tabs">
+                <span class="tab active"
+                  >Review queue <i class="count">5</i></span
+                ><span class="tab">Document</span>
+              </div>
+              <div class="toolbar">
+                <span
+                  ><strong>5 active files</strong
+                  ><small>Sorted by attention</small></span
+                ><button class="button primary">Open top</button>
+              </div>
+              <div class="filters">
+                <button class="filter active">All 5</button
+                ><button class="filter">Unread 4</button
+                ><button class="filter">Drafts 1</button
+                ><button class="filter">Changed 4</button>
+              </div>
+              <div class="body">
+                <div class="row ledger-row selected">
+                  <span class="main"
+                    ><strong>01-product-brief.md</strong
+                    ><span class="ledger-meta"
+                      ><i class="signal attention">Unread</i
+                      ><i class="path">docs/product</i></span
+                    ></span
+                  ><span class="stat"
+                    ><b class="plus">+18</b><b class="minus">-4</b></span
+                  >
+                </div>
+                <div class="row ledger-row">
+                  <span class="main"
+                    ><strong>43-review-queue-directory-organization.html</strong
+                    ><span class="ledger-meta"
+                      ><i class="signal attention">Unread</i
+                      ><i class="path">docs/ui-mocks</i></span
+                    ></span
+                  ><span class="stat"
+                    ><b class="plus">+244</b><b class="minus">-31</b></span
+                  >
+                </div>
+                <div class="row ledger-row">
+                  <span class="main"
+                    ><strong>product-review.md</strong
+                    ><span class="ledger-meta"
+                      ><i class="signal draft-signal">1 draft</i
+                      ><i class="path">docs</i></span
+                    ></span
+                  ><button class="button">Publish</button>
+                </div>
+                <div class="row ledger-row">
+                  <span class="main"
+                    ><strong>README.md</strong
+                    ><span class="ledger-meta"
+                      ><i class="signal attention">Unread</i
+                      ><i class="path">examples/onboarding</i></span
+                    ></span
+                  ><span class="stat"
+                    ><b class="plus">+32</b><b class="minus">-0</b></span
+                  >
+                </div>
+                <div class="row ledger-row">
+                  <span class="main"
+                    ><strong>getting-started.md</strong
+                    ><span class="ledger-meta"
+                      ><i class="signal attention">Unread</i
+                      ><i class="path">packages/agent-guide/docs</i></span
+                    ></span
+                  ><span class="stat"
+                    ><b class="plus">+7</b><b class="minus">-2</b></span
+                  >
+                </div>
+                <div class="collapsed">
+                  <span>Reviewed history</span><span>0 · hidden</span>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </article>
+      </section>
+
+      <footer class="footer-note">
+        <strong>Selected direction:</strong> Concept C. The inspector becomes a
+        signal ledger: a single compact list ordered by attention, with Unread,
+        Drafts, and Changed filters replacing directory expansion. Paths remain
+        visible as per-file metadata, while lifecycle state and Publish stay on
+        the actionable row.
+      </footer>
+    </main>
+  </body>
+</html>

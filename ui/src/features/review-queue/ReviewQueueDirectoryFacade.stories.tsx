@@ -3,63 +3,70 @@ import { expect, fn, userEvent, within } from "storybook/test";
 import type { ReviewChangeItem } from "../../state/git-review.js";
 import type { ReviewQueueItem } from "../../state/review-queue.js";
 import {
-  reviewQueueDirectoryChangedPaths,
-  reviewQueueDirectoryOpenThreadCounts,
-  reviewQueueDirectoryPaths,
-  reviewQueueDirectoryTree,
-  reviewQueueDirectoryUnreadPaths,
   sampleDraftComments,
   sampleMarkdownFile,
 } from "../../storybook/fixtures/review-lab.js";
 import {
-  ReviewQueueDirectoryFacade,
-  reviewQueueDirectoryFrameStyle,
+  ReviewQueueSignalLedgerFacade,
+  reviewQueueSignalLedgerFrameStyle,
+  type ReviewQueueSignalLedgerItem,
 } from "../../storybook/ReviewQueueDirectoryFacade.js";
 import { Inspector } from "./Inspector.js";
 
-const readyItems = [
-  {
-    id: "workspace-document-drafts",
-    ["title"]: "18-ux-acceptance-criteria.md",
-    detail: "docs/product · 4 private comments",
-    count: 4,
-  },
-];
-
-const wiredReviewChanges: ReviewChangeItem[] = [
+const signalItems: ReviewQueueSignalLedgerItem[] = [
   {
     path: "docs/product/01-product-brief.md",
-    status: "modified",
-    source: "git",
+    unread: true,
+    changed: true,
+    draftCount: 0,
+    additions: 18,
+    deletions: 4,
   },
   {
-    path: "docs/ui-mocks/43-review-queue-directory-organization.html",
-    status: "modified",
-    source: "git",
+    path: "docs/ui-mocks/44-compact-review-queue-inspector.html",
+    unread: true,
+    changed: true,
+    draftCount: 0,
+    additions: 244,
+    deletions: 31,
+  },
+  {
+    path: "docs/product-review.md",
+    unread: false,
+    changed: false,
+    draftCount: 1,
   },
   {
     path: "examples/onboarding/README.md",
-    status: "added",
-    source: "git",
+    unread: true,
+    changed: true,
+    draftCount: 0,
+    additions: 32,
+    deletions: 0,
   },
   {
     path: "packages/agent-guide/docs/getting-started.md",
-    status: "modified",
-    source: "git",
+    unread: true,
+    changed: true,
+    draftCount: 0,
+    additions: 7,
+    deletions: 2,
   },
 ];
 
+const wiredReviewChanges: ReviewChangeItem[] = signalItems
+  .filter((item) => item.changed)
+  .map((item) => ({ path: item.path, status: "modified", source: "git" }));
+
 const wiredDraft = sampleDraftComments[1]!;
 const wiredReviewItems: ReviewQueueItem[] = [
-  ...wiredReviewChanges.map(
-    (change): ReviewQueueItem => ({
-      path: change.path,
-      change,
-      threadCounts: { open: 0, resolved: 0, archived: 0 },
-      commentCount: 0,
-      unread: true,
-    }),
-  ),
+  ...wiredReviewChanges.map((change): ReviewQueueItem => ({
+    path: change.path,
+    change,
+    threadCounts: { open: 0, resolved: 0, archived: 0 },
+    commentCount: 0,
+    unread: true,
+  })),
   {
     path: wiredDraft.path,
     change: null,
@@ -72,103 +79,73 @@ const wiredReviewItems: ReviewQueueItem[] = [
 ];
 
 const meta = {
-  title: "Review/Queue Directory Tree",
-  component: ReviewQueueDirectoryFacade,
+  title: "Review/Queue Signal Ledger",
+  component: ReviewQueueSignalLedgerFacade,
   decorators: [
     (Story) => (
-      <div style={reviewQueueDirectoryFrameStyle}>
+      <div style={reviewQueueSignalLedgerFrameStyle}>
         <Story />
       </div>
     ),
   ],
   args: {
-    nodes: reviewQueueDirectoryTree,
+    items: signalItems,
     selectedPath: "docs/product/01-product-brief.md",
-    queuedPaths: reviewQueueDirectoryPaths,
-    unreadPaths: reviewQueueDirectoryUnreadPaths,
-    changedPaths: reviewQueueDirectoryChangedPaths,
-    activePaths: ["docs/ui-mocks/index.html"],
-    currentStopPath: "docs/product/01-product-brief.md",
-    openThreadCountsByPath: reviewQueueDirectoryOpenThreadCounts,
-    queuedCount: 7,
-    inReviewCount: 2,
-    seenCount: 3,
-    branchCount: 4,
-    readyItems,
+    reviewedCount: 0,
     onNextQueued: fn(),
     onSelectDocument: fn(),
     onSelectPath: fn(),
     onOpenPath: fn(),
-    onOpenReadyItem: fn(),
-    onReviewReady: fn(),
-    onPublishReady: fn(),
+    onPublishPath: fn(),
+    onFilterChange: fn(),
   },
   parameters: {
     layout: "centered",
     a11y: { test: "error" },
   },
-} satisfies Meta<typeof ReviewQueueDirectoryFacade>;
+} satisfies Meta<typeof ReviewQueueSignalLedgerFacade>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const MixedDirectories: Story = {};
+export const MixedSignals: Story = {};
 
-export const EmptyQueue: Story = {
+export const EmptyLedger: Story = {
   args: {
-    nodes: [],
+    items: [],
     selectedPath: null,
-    queuedPaths: [],
-    unreadPaths: [],
-    changedPaths: [],
-    activePaths: [],
-    currentStopPath: null,
-    openThreadCountsByPath: {},
-    queuedCount: 0,
-    inReviewCount: 0,
-    seenCount: 7,
-    branchCount: 0,
-    readyItems: [],
+    reviewedCount: 7,
   },
 };
 
-export const DirectoryCollapseInteraction: Story = {
+export const SignalFilterInteraction: Story = {
   tags: ["interaction"],
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    const docs = canvasElement.querySelector<HTMLElement>(
-      '[data-tree-path="docs"]',
-    );
-    const queuedFileSelector =
-      '[data-tree-path="docs/product/01-product-brief.md"]';
+    const draftPath = "docs/product-review.md";
+    const changedPath = "docs/product/01-product-brief.md";
 
-    await expect(docs).not.toBeNull();
-    await expect(docs).toHaveAttribute("aria-expanded", "true");
+    await userEvent.click(canvas.getByRole("radio", { name: "Drafts 1" }));
+    await expect(args.onFilterChange).toHaveBeenLastCalledWith("drafts");
     await expect(
-      canvasElement.querySelector(queuedFileSelector),
-    ).toBeInTheDocument();
-
-    await userEvent.click(docs!);
-    await expect(docs).toHaveAttribute("aria-expanded", "false");
+      canvasElement.querySelector(`[data-review-path="${draftPath}"]`),
+    ).toBeVisible();
     await expect(
-      canvasElement.querySelector(queuedFileSelector),
+      canvasElement.querySelector(`[data-review-path="${changedPath}"]`),
     ).not.toBeInTheDocument();
 
-    docs!.focus();
-    await userEvent.keyboard("{ArrowRight}");
-    await expect(docs).toHaveAttribute("aria-expanded", "true");
-
-    const queuedFile = canvasElement.querySelector<HTMLElement>(
-      queuedFileSelector,
+    await userEvent.click(
+      canvas.getByRole("button", { name: `Publish 1 draft for ${draftPath}` }),
     );
-    await expect(queuedFile).toBeVisible();
-    await userEvent.click(queuedFile!);
-    await expect(args.onSelectPath).toHaveBeenCalledWith(
-      "docs/product/01-product-brief.md",
-    );
+    await expect(args.onPublishPath).toHaveBeenCalledWith(draftPath);
 
-    await userEvent.click(canvas.getByRole("button", { name: "Next queued" }));
-    await expect(args.onNextQueued).toHaveBeenCalledOnce();
+    await userEvent.click(canvas.getByRole("radio", { name: "Changed 4" }));
+    const changedRow = canvasElement.querySelector<HTMLElement>(
+      `[data-review-path="${changedPath}"]`,
+    );
+    await expect(changedRow).toBeVisible();
+    await userEvent.dblClick(changedRow!.querySelector("button")!);
+    await expect(args.onOpenPath).toHaveBeenCalledWith(changedPath);
   },
 };
 
@@ -180,7 +157,7 @@ export const WiredInspector: Story = {
       reviewItems={wiredReviewItems}
       reviewDiffStats={{
         "docs/product/01-product-brief.md": { additions: 18, deletions: 4 },
-        "docs/ui-mocks/43-review-queue-directory-organization.html": {
+        "docs/ui-mocks/44-compact-review-queue-inspector.html": {
           additions: 244,
           deletions: 31,
         },
@@ -191,7 +168,11 @@ export const WiredInspector: Story = {
         },
       }}
       loadingReviewDiffs={{}}
-      unreadReviewPaths={new Set(reviewQueueDirectoryUnreadPaths)}
+      unreadReviewPaths={
+        new Set(
+          signalItems.filter((item) => item.unread).map((item) => item.path),
+        )
+      }
       draftComments={[wiredDraft]}
       selectedCodeRange={null}
       activePath="docs/product/01-product-brief.md"
@@ -202,53 +183,44 @@ export const WiredInspector: Story = {
       onOpenPreviousChanged={() => undefined}
       onOpenAllChanged={() => undefined}
       onRevealInTree={() => undefined}
-      onOpenDraft={() => args.onReviewReady()}
-      onPublishDrafts={() => args.onPublishReady()}
+      onOpenDraft={() => undefined}
+      onPublishDrafts={() => args.onPublishPath(wiredDraft.path)}
       onOpenDocument={args.onSelectDocument}
     />
   ),
 };
 
-export const WiredInspectorDirectoryInteraction: Story = {
+export const WiredInspectorFilterInteraction: Story = {
   ...WiredInspector,
   tags: ["interaction"],
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    const docs = canvasElement.querySelector<HTMLElement>(
-      '[data-tree-path="docs"]',
-    );
-    const htmlPath =
-      "docs/ui-mocks/43-review-queue-directory-organization.html";
-    const markdownPath = "docs/product/01-product-brief.md";
+    const draftPath = wiredDraft.path;
+    const changedPath = "docs/product/01-product-brief.md";
+    const draftsFilter = canvas.getByRole("radio", { name: "Drafts 1" });
 
-    await expect(docs).not.toBeNull();
-    await expect(docs).toHaveAttribute("aria-expanded", "true");
+    await userEvent.click(draftsFilter);
+    await expect(draftsFilter).toBeChecked();
     await expect(
-      canvas.getByRole("button", { name: "Publish 1" }),
+      canvasElement.querySelector(`[data-review-path="${draftPath}"]`),
     ).toBeVisible();
-
-    await userEvent.click(docs!);
-    await expect(docs).toHaveAttribute("aria-expanded", "false");
     await expect(
-      canvasElement.querySelector(`[data-tree-path="${htmlPath}"]`),
-    ).not.toBeInTheDocument();
+      canvasElement.querySelector(`[data-review-path="${changedPath}"]`),
+    ).not.toBeVisible();
 
-    await userEvent.click(docs!);
-    const htmlFile = canvasElement.querySelector<HTMLElement>(
-      `[data-tree-path="${htmlPath}"]`,
+    await userEvent.click(
+      canvas.getByRole("button", {
+        name: `Publish 1 draft for ${draftPath}`,
+      }),
     );
-    const markdownFile = canvasElement.querySelector<HTMLElement>(
-      `[data-tree-path="${markdownPath}"]`,
-    );
-    await expect(htmlFile).toBeVisible();
-    await expect(markdownFile).toBeVisible();
+    await expect(args.onPublishPath).toHaveBeenCalledWith(draftPath);
 
-    await userEvent.click(htmlFile!);
-    await expect(args.onSelectPath).toHaveBeenCalledWith(htmlPath);
-    await userEvent.dblClick(markdownFile!);
-    await expect(args.onOpenPath).toHaveBeenCalledWith(markdownPath);
-
-    await userEvent.click(canvas.getByRole("button", { name: "Publish 1" }));
-    await expect(args.onPublishReady).toHaveBeenCalledOnce();
+    await userEvent.click(canvas.getByRole("radio", { name: "Changed 4" }));
+    const changedRow = canvas.getByRole("button", {
+      name: /Review queue item, modified docs\/product\/01-product-brief\.md/u,
+    });
+    await expect(changedRow).toBeVisible();
+    await userEvent.click(changedRow);
+    await expect(args.onSelectPath).toHaveBeenCalledWith(changedPath);
   },
 };

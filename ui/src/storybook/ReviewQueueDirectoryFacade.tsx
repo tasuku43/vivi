@@ -1,159 +1,194 @@
-import type { CSSProperties } from "react";
-import type { FsNode } from "../domain/fs-node.js";
+import { useMemo, useState, type CSSProperties } from "react";
 import { InspectorSurfaceTabs } from "../shared/components/InspectorSurfaceTabs.js";
-import {
-  ReadyToPublishPanel,
-  type ReadyToPublishItem,
-} from "../shared/components/ReadyToPublishPanel.js";
-import { TreeSidebar } from "../shared/components/TreeSidebar.js";
 import styles from "./ReviewQueueDirectoryFacade.module.css";
 
-export interface ReviewQueueDirectoryFacadeProps {
-  nodes: FsNode[];
+export type ReviewQueueSignalFilter = "all" | "unread" | "drafts" | "changed";
+
+export interface ReviewQueueSignalLedgerItem {
+  path: string;
+  unread: boolean;
+  changed: boolean;
+  draftCount: number;
+  additions?: number;
+  deletions?: number;
+}
+
+export interface ReviewQueueSignalLedgerFacadeProps {
+  items: ReviewQueueSignalLedgerItem[];
   selectedPath: string | null;
-  queuedPaths: string[];
-  unreadPaths: string[];
-  changedPaths: string[];
-  activePaths?: string[];
-  currentStopPath?: string | null;
-  openThreadCountsByPath?: Record<string, number>;
-  queuedCount: number;
-  inReviewCount: number;
-  seenCount: number;
-  branchCount: number;
-  readyItems: ReadyToPublishItem[];
+  reviewedCount: number;
   onNextQueued: () => void;
   onSelectDocument: () => void;
   onSelectPath: (path: string) => void;
   onOpenPath: (path: string) => void;
-  onOpenReadyItem: (item: ReadyToPublishItem) => void;
-  onReviewReady: () => void;
-  onPublishReady: () => void;
+  onPublishPath: (path: string) => void;
+  onFilterChange?: (filter: ReviewQueueSignalFilter) => void;
 }
 
-export function ReviewQueueDirectoryFacade({
-  nodes,
+const filters: Array<{ id: ReviewQueueSignalFilter; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "unread", label: "Unread" },
+  { id: "drafts", label: "Drafts" },
+  { id: "changed", label: "Changed" },
+];
+
+export function ReviewQueueSignalLedgerFacade({
+  items,
   selectedPath,
-  queuedPaths,
-  unreadPaths,
-  changedPaths,
-  activePaths = [],
-  currentStopPath = null,
-  openThreadCountsByPath = {},
-  queuedCount,
-  inReviewCount,
-  seenCount,
-  branchCount,
-  readyItems,
+  reviewedCount,
   onNextQueued,
   onSelectDocument,
   onSelectPath,
   onOpenPath,
-  onOpenReadyItem,
-  onReviewReady,
-  onPublishReady,
-}: ReviewQueueDirectoryFacadeProps) {
-  const hasQueue = nodes.length > 0;
+  onPublishPath,
+  onFilterChange,
+}: ReviewQueueSignalLedgerFacadeProps) {
+  const [filter, setFilter] = useState<ReviewQueueSignalFilter>("all");
+  const counts = useMemo(
+    () => ({
+      all: items.length,
+      unread: items.filter((item) => item.unread).length,
+      drafts: items.filter((item) => item.draftCount > 0).length,
+      changed: items.filter((item) => item.changed).length,
+    }),
+    [items],
+  );
+  const visibleItems = items.filter((item) => matchesFilter(item, filter));
 
   return (
-    <aside className={styles.inspector} aria-label="Review queue directory facade">
+    <aside
+      className={styles.inspector}
+      aria-label="Review queue signal ledger facade"
+    >
       <InspectorSurfaceTabs
         activeSurface="review"
-        reviewQueueCount={queuedCount + inReviewCount}
+        reviewQueueCount={items.length}
         onSelectDocument={onSelectDocument}
       />
 
       <header className={styles.contextHeader}>
         <span>
-          <strong>{queuedCount + inReviewCount} attention items</strong>
-          <small>Across {branchCount} document areas</small>
+          <strong>{items.length} active files</strong>
+          <small>Sorted by attention</small>
         </span>
-        <button type="button" disabled={!queuedCount} onClick={onNextQueued}>
-          Next queued
+        <button type="button" disabled={!items.length} onClick={onNextQueued}>
+          Open top
         </button>
       </header>
 
-      <section className={styles.metrics} aria-label="Review queue totals">
-        {[
-          [queuedCount, "Queued"],
-          [inReviewCount, "In Review"],
-          [seenCount, "Seen"],
-        ].map(([count, label]) => (
-          <span key={label}>
-            <strong>{count}</strong>
-            <small>{label}</small>
-          </span>
+      <div
+        className={styles.filters}
+        role="radiogroup"
+        aria-label="Filter review queue by signal"
+      >
+        {filters.map((option) => (
+          <button
+            aria-checked={filter === option.id}
+            disabled={option.id !== "all" && counts[option.id] === 0}
+            key={option.id}
+            role="radio"
+            type="button"
+            onClick={() => {
+              setFilter(option.id);
+              onFilterChange?.(option.id);
+            }}
+          >
+            {option.label} <span>{counts[option.id]}</span>
+          </button>
         ))}
-      </section>
+      </div>
 
       <div className={styles.scrollBody}>
-        <section className={styles.queueSection} aria-label="Queued by directory">
-          <header>
-            <strong>Queued</strong>
-            <span>
-              {branchCount} {branchCount === 1 ? "branch" : "branches"} ·{" "}
-              {queuedCount} {queuedCount === 1 ? "file" : "files"}
-            </span>
-          </header>
-
-          {hasQueue ? (
-            <>
-              <div className={styles.treeLegend}>
-                <span>
-                  Same interactions as <strong>Explorer</strong>
-                </span>
-                <span>Attention branches only</span>
-              </div>
-              <div className={styles.queueTree}>
-                <TreeSidebar
-                  nodes={nodes}
-                  ariaLabel={`Queued documents by directory, ${queuedCount} ${queuedCount === 1 ? "file" : "files"}`}
-                  selectedPath={selectedPath}
-                  changedPaths={new Set(changedPaths)}
-                  reviewPaths={new Set(queuedPaths)}
-                  unreadReviewPaths={new Set(unreadPaths)}
-                  activePaths={new Set(activePaths)}
-                  currentStopPath={currentStopPath}
-                  openThreadCountsByPath={openThreadCountsByPath}
-                  onSelect={onSelectPath}
-                  onOpen={onOpenPath}
-                />
-              </div>
-            </>
-          ) : (
-            <div className={styles.emptyQueue}>
-              <span aria-hidden="true">✓</span>
-              <strong>No queued documents</strong>
-              <small>New document changes and open feedback will appear here.</small>
-            </div>
-          )}
-        </section>
-
-        <section className={styles.inReviewSection} aria-label="In Review">
-          <header>
-            <strong>In Review</strong>
-            <span>{inReviewCount} files</span>
-          </header>
-          {readyItems.length ? (
-            <div className={styles.panelInset}>
-              <ReadyToPublishPanel
-                scope="workspace"
-                items={readyItems}
-                onOpenItem={onOpenReadyItem}
-                onReview={onReviewReady}
-                onPublish={onPublishReady}
-              />
-            </div>
-          ) : (
-            <p className={styles.noReviewWork}>Nothing is currently in review.</p>
-          )}
-        </section>
+        {items.length ? (
+          <section
+            className={styles.ledger}
+            aria-label="Active review files sorted by attention"
+          >
+            {visibleItems.map((item) => (
+              <article
+                className={
+                  item.path === selectedPath ? styles.selected : undefined
+                }
+                data-review-path={item.path}
+                key={item.path}
+              >
+                <button
+                  className={styles.rowMain}
+                  type="button"
+                  onClick={() => onSelectPath(item.path)}
+                  onDoubleClick={() => onOpenPath(item.path)}
+                >
+                  <span className={styles.filename}>{basename(item.path)}</span>
+                  <span className={styles.meta}>
+                    {item.unread ? (
+                      <i className={styles.unread}>Unread</i>
+                    ) : null}
+                    {item.draftCount ? (
+                      <i className={styles.draft}>{item.draftCount} draft</i>
+                    ) : null}
+                    <span>{directory(item.path)}</span>
+                  </span>
+                  {item.changed ? (
+                    <span
+                      className={styles.diff}
+                      aria-label="Diff line changes"
+                    >
+                      <b>+{item.additions ?? 0}</b>
+                      <b>-{item.deletions ?? 0}</b>
+                    </span>
+                  ) : null}
+                </button>
+                {item.draftCount ? (
+                  <button
+                    className={styles.publish}
+                    type="button"
+                    aria-label={`Publish ${item.draftCount} draft for ${item.path}`}
+                    onClick={() => onPublishPath(item.path)}
+                  >
+                    Publish
+                  </button>
+                ) : null}
+              </article>
+            ))}
+          </section>
+        ) : (
+          <div className={styles.emptyQueue}>
+            <span aria-hidden="true">✓</span>
+            <strong>Active queue clear</strong>
+            <small>
+              New document changes and open feedback will appear here.
+            </small>
+          </div>
+        )}
+        <div className={styles.reviewed}>
+          <span>Reviewed history</span>
+          <span>{reviewedCount} · hidden</span>
+        </div>
       </div>
     </aside>
   );
 }
 
-export const reviewQueueDirectoryFrameStyle: CSSProperties = {
-  width: 520,
-  height: 860,
+function matchesFilter(
+  item: ReviewQueueSignalLedgerItem,
+  filter: ReviewQueueSignalFilter,
+): boolean {
+  if (filter === "unread") return item.unread;
+  if (filter === "drafts") return item.draftCount > 0;
+  if (filter === "changed") return item.changed;
+  return true;
+}
+
+function basename(path: string): string {
+  return path.split("/").filter(Boolean).at(-1) ?? path;
+}
+
+function directory(path: string): string {
+  const parts = path.split("/").filter(Boolean);
+  return parts.length > 1 ? parts.slice(0, -1).join("/") : ".";
+}
+
+export const reviewQueueSignalLedgerFrameStyle: CSSProperties = {
+  width: 392,
+  height: 720,
 };

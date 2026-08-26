@@ -139,24 +139,24 @@
       "interactionStories": ["Review/Publish Flow/UnifiedPublishInteraction"]
     },
     {
-      "id": "review-queue-directory-tree",
-      "label": "Review Queue directory tree",
-      "stage": "storybook-facade",
-      "intent": "Organize queued documents by their real directory ancestry while preserving queue priority and the Explorer interaction language.",
+      "id": "review-queue-signal-ledger",
+      "label": "Review Queue signal ledger",
+      "stage": "wired-feature",
+      "intent": "Keep the right inspector compact by presenting one attention-ordered file ledger with signal filters instead of duplicating the Explorer directory tree.",
       "reviewFocus": [
-        "only queue-bearing branches appear instead of a second full repository tree",
-        "folder rows reuse Explorer collapse, indentation, icon, hover, selection, and keyboard behavior",
-        "the queue tree has expansion state independent from the left Explorer",
-        "Next queued, lifecycle totals, and Ready to publish remain visible around the directory projection"
+        "the left Explorer remains the only directory hierarchy",
+        "All, Unread, Drafts, and Changed filters expose their counts and preserve attention ordering",
+        "each row keeps the parent path as secondary metadata for disambiguation",
+        "draft publication stays available on the actionable file row while reviewed history recedes"
       ],
       "requiredStories": [
-        "Review/Queue Directory Tree/MixedDirectories",
-        "Review/Queue Directory Tree/EmptyQueue",
-        "Review/Queue Directory Tree/WiredInspector"
+        "Review/Queue Signal Ledger/MixedSignals",
+        "Review/Queue Signal Ledger/EmptyLedger",
+        "Review/Queue Signal Ledger/WiredInspector"
       ],
       "interactionStories": [
-        "Review/Queue Directory Tree/DirectoryCollapseInteraction",
-        "Review/Queue Directory Tree/WiredInspectorDirectoryInteraction"
+        "Review/Queue Signal Ledger/SignalFilterInteraction",
+        "Review/Queue Signal Ledger/WiredInspectorFilterInteraction"
       ]
     },
     {

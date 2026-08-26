@@ -57,6 +57,7 @@ wired into the application.
 - `41-review-document-navigation.html`: four alternatives for moving between the queue-first review workflow and contextual document inspector without treating workflow actions as peer navigation.
 - `42-unified-publish-flow.html`: three current-UI concepts for making Typing, Ready, and Published/Open feedback use one recognizable Publish experience across Review Queue and Document.
 - `43-review-queue-directory-organization.html`: three queue-first concepts for restoring directory context across mixed workspaces. The selected direction is an independently collapsible, attention-only tree that reuses the left Explorer's row, icon, indentation, hover, and selection language.
+- `44-compact-review-queue-inspector.html`: three compact right-inspector alternatives that remove the duplicate queue directory tree and keep paths as per-file metadata. Concept C, the signal ledger with attention filters, is the selected direction.
 
 ## Implementation guidance
 

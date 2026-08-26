@@ -132,13 +132,13 @@ import { keyboardShortcutAction } from "../ui/src/state/shortcuts.js";
 import {
   activityNeedsHumanAttention,
   buildReviewQueueItems,
-  buildReviewQueueDirectoryTree,
   latestUnreadReviewItemPath,
   nextReviewQueueItemPathAfterCompletion,
   nextReviewQueueItemPath,
   pinActiveReviewQueueItem,
   reviewQueueItemHasAgentReply,
   reviewQueuePosition,
+  reviewQueueSignalCounts,
   summarizeReviewQueue,
   syncUnreadReviewPaths,
 } from "../ui/src/state/review-queue.js";
@@ -1799,70 +1799,30 @@ it("keeps legacy non-document feedback out of the document review queue", () => 
   expect(items.map((item) => item.path)).toEqual(["docs/review.html"]);
 });
 
-it("projects queue paths into their real directory hierarchy", () => {
-  const tree = buildReviewQueueDirectoryTree([
-    { path: "docs/product/brief.md" },
-    { path: "docs/guides/review.html" },
-    { path: "README.md" },
-    { path: "docs/product/brief.md" },
+it("counts review queue files by signal without duplicating directory state", () => {
+  const counts = reviewQueueSignalCounts([
+    {
+      path: "docs/product/brief.md",
+      change: {
+        path: "docs/product/brief.md",
+        status: "modified",
+        source: "git",
+      },
+      threadCounts: { open: 0, resolved: 0, archived: 0 },
+      commentCount: 0,
+      unread: true,
+    },
+    {
+      path: "docs/review.html",
+      change: null,
+      threadCounts: { open: 1, resolved: 0, archived: 0 },
+      commentCount: 1,
+      pendingDraftCount: 2,
+      unread: false,
+    },
   ]);
 
-  expect(tree).toEqual([
-    {
-      id: "review-file:README.md",
-      path: "README.md",
-      name: "README.md",
-      kind: "file",
-      parentPath: null,
-      viewerKind: "markdown",
-    },
-    {
-      id: "review-directory:docs",
-      path: "docs",
-      name: "docs",
-      kind: "directory",
-      parentPath: null,
-      childrenLoaded: true,
-      children: [
-        {
-          id: "review-directory:docs/guides",
-          path: "docs/guides",
-          name: "guides",
-          kind: "directory",
-          parentPath: "docs",
-          childrenLoaded: true,
-          children: [
-            {
-              id: "review-file:docs/guides/review.html",
-              path: "docs/guides/review.html",
-              name: "review.html",
-              kind: "file",
-              parentPath: "docs/guides",
-              viewerKind: "html",
-            },
-          ],
-        },
-        {
-          id: "review-directory:docs/product",
-          path: "docs/product",
-          name: "product",
-          kind: "directory",
-          parentPath: "docs",
-          childrenLoaded: true,
-          children: [
-            {
-              id: "review-file:docs/product/brief.md",
-              path: "docs/product/brief.md",
-              name: "brief.md",
-              kind: "file",
-              parentPath: "docs/product",
-              viewerKind: "markdown",
-            },
-          ],
-        },
-      ],
-    },
-  ]);
+  expect(counts).toEqual({ all: 2, unread: 1, drafts: 1, changed: 1 });
 });
 
 it("treats draft review comments as pending in-review work", () => {

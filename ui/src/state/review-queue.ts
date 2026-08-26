@@ -5,7 +5,6 @@ import type {
   ViviComment,
 } from "../domain/comments.js";
 import type { CommentActivitySummary } from "./comment-activity.js";
-import type { FsNode } from "../domain/fs-node.js";
 import { isReviewChangeOpenable, type ReviewChangeItem } from "./git-review.js";
 
 export interface ReviewQueueItem {
@@ -25,6 +24,13 @@ export interface ReviewQueueProgress {
   unread: number;
   openThreads: number;
   filesWithOpenThreads: number;
+}
+
+export interface ReviewQueueSignalCounts {
+  all: number;
+  unread: number;
+  drafts: number;
+  changed: number;
 }
 
 export interface ReviewQueuePosition {
@@ -142,55 +148,15 @@ export function summarizeReviewQueue(
   };
 }
 
-/**
- * Projects the active queue into its real path hierarchy. The projection is
- * intentionally built from queue paths rather than the lazily loaded Explorer
- * snapshot, so deep and deleted review targets remain visible immediately.
- */
-export function buildReviewQueueDirectoryTree(
-  items: readonly Pick<ReviewQueueItem, "path">[],
-): FsNode[] {
-  const roots: FsNode[] = [];
-  const paths = [...new Set(items.map((item) => item.path))].sort();
-
-  for (const path of paths) {
-    const segments = path.split("/").filter(Boolean);
-    if (!segments.length) continue;
-    let children = roots;
-
-    for (let index = 0; index < segments.length - 1; index += 1) {
-      const directoryPath = segments.slice(0, index + 1).join("/");
-      let directory = children.find(
-        (node) => node.kind === "directory" && node.path === directoryPath,
-      );
-      if (!directory) {
-        directory = {
-          id: `review-directory:${directoryPath}`,
-          path: directoryPath,
-          name: segments[index]!,
-          kind: "directory",
-          parentPath:
-            index > 0 ? segments.slice(0, index).join("/") : null,
-          children: [],
-          childrenLoaded: true,
-        };
-        children.push(directory);
-      }
-      children = directory.children ?? (directory.children = []);
-    }
-
-    children.push({
-      id: `review-file:${path}`,
-      path,
-      name: segments.at(-1)!,
-      kind: "file",
-      parentPath:
-        segments.length > 1 ? segments.slice(0, -1).join("/") : null,
-      viewerKind: reviewQueueViewerKindForPath(path),
-    });
-  }
-
-  return roots;
+export function reviewQueueSignalCounts(
+  items: readonly ReviewQueueItem[],
+): ReviewQueueSignalCounts {
+  return {
+    all: items.length,
+    unread: items.filter((item) => item.unread).length,
+    drafts: items.filter((item) => (item.pendingDraftCount ?? 0) > 0).length,
+    changed: items.filter((item) => item.change !== null).length,
+  };
 }
 
 export function isReviewQueueItemOpenable(item: ReviewQueueItem): boolean {
@@ -400,12 +366,6 @@ function compareReviewQueueItems(
       (changeOrder.get(b.path) ?? Number.MAX_SAFE_INTEGER) ||
     a.path.localeCompare(b.path)
   );
-}
-
-function reviewQueueViewerKindForPath(path: string): FsNode["viewerKind"] {
-  if (/\.(?:md|markdown|mdown)$/iu.test(path)) return "markdown";
-  if (/\.html?$/iu.test(path)) return "html";
-  return undefined;
 }
 
 export function isDocumentReviewPath(path: string): boolean {

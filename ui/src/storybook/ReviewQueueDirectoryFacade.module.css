@@ -11,43 +11,42 @@
 
 .contextHeader {
   display: flex;
-  min-height: 60px;
+  min-height: 52px;
   flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 10px 14px;
+  padding: 8px 11px;
   border-bottom: 1px solid var(--vivi-color-border-soft);
 }
 
 .contextHeader > span {
   display: grid;
   min-width: 0;
-  gap: 3px;
+  gap: 2px;
 }
 
 .contextHeader strong {
-  font-size: 14px;
+  font-size: 13px;
 }
-
 .contextHeader small,
-.metrics small,
-.emptyQueue small,
-.noReviewWork {
+.emptyQueue small {
   color: var(--vivi-color-content-muted);
   font-size: 10px;
 }
 
-.contextHeader button {
+.contextHeader button,
+.publish {
   flex: 0 0 auto;
-  padding: 6px 9px;
   border: 1px solid var(--vivi-color-border-default);
-  border-radius: 7px;
+  border-radius: 6px;
   background: var(--vivi-color-surface-panel-raised);
   color: var(--vivi-color-content-primary);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 10px;
+  font-weight: 760;
+  padding: 5px 8px;
 }
 
 .contextHeader button:hover:not(:disabled),
@@ -61,26 +60,44 @@
   opacity: 0.45;
 }
 
-.metrics {
-  display: grid;
+.filters {
+  display: flex;
   flex: 0 0 auto;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  overflow-x: auto;
   border-bottom: 1px solid var(--vivi-color-border-default);
+  padding: 8px 10px;
 }
 
-.metrics > span {
-  display: grid;
-  gap: 2px;
-  padding: 10px 14px;
-  border-right: 1px solid var(--vivi-color-border-soft);
+.filters button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  border: 1px solid var(--vivi-color-border-soft);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--vivi-color-content-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 9.5px;
+  font-weight: 760;
+  padding: 4px 7px;
 }
 
-.metrics > span:last-child {
-  border-right: 0;
+.filters button span {
+  color: var(--vivi-color-content-subtle);
+  font-size: 9px;
 }
-
-.metrics strong {
-  font-size: 17px;
+.filters button[aria-checked="true"] {
+  border-color: var(--vivi-color-accent-border);
+  background: var(--vivi-color-accent-surface-subtle);
+  color: var(--vivi-color-accent);
+}
+.filters button:disabled {
+  cursor: default;
+  opacity: 0.42;
 }
 
 .scrollBody {
@@ -88,61 +105,136 @@
   flex: 1 1 auto;
   overflow: auto;
 }
-
-.queueSection > header,
-.inReviewSection > header {
+.ledger {
+  display: grid;
+}
+.ledger article {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  border-bottom: 1px solid var(--vivi-color-border-soft);
+}
+.ledger article.selected {
+  background: var(--vivi-color-accent-surface-subtle);
+  box-shadow: inset 2px 0 var(--vivi-color-accent);
+}
+.rowMain {
+  display: grid;
+  min-width: 0;
+  min-height: 57px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 8px;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 8px 11px;
+  text-align: left;
+}
+.rowMain:hover {
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-accent-surface) 48%,
+    transparent
+  );
+}
+.ledger article:has(.publish) .rowMain {
+  padding-right: 76px;
+}
+.filename {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 790;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  color: var(--vivi-color-content-subtle);
+  font-size: 9px;
+}
+.meta > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.meta i {
+  flex: 0 0 auto;
+  border: 1px solid var(--vivi-color-border-soft);
+  border-radius: 999px;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 780;
+  padding: 2px 4px;
+}
+.meta .unread {
+  border-color: var(--vivi-color-accent-border);
+  background: var(--vivi-color-accent-surface-subtle);
+  color: var(--vivi-color-accent);
+}
+.meta .draft {
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-warning) 48%,
+    var(--vivi-color-border-soft)
+  );
+  background: color-mix(in srgb, var(--vivi-color-warning) 12%, transparent);
+  color: var(--vivi-color-warning);
+}
+.diff {
+  display: inline-flex;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  gap: 4px;
+  font-size: 9px;
+}
+.diff b:first-child {
+  color: var(--vivi-color-diff-add);
+}
+.diff b:last-child {
+  color: var(--vivi-color-diff-remove);
+}
+.publish {
+  position: absolute;
+  top: 17px;
+  right: 10px;
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-warning) 54%,
+    var(--vivi-color-border-soft)
+  );
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-warning) 16%,
+    var(--vivi-color-surface-panel)
+  );
+  font-size: 9px;
+}
+.reviewed {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--vivi-color-border-soft);
-  color: var(--vivi-color-content-primary);
-  font-size: 11px;
-}
-
-.queueSection > header span,
-.inReviewSection > header span {
+  min-height: 36px;
+  padding: 0 11px;
   color: var(--vivi-color-content-muted);
   font-size: 10px;
-  font-weight: 500;
 }
-
-.treeLegend {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 7px 12px;
-  border-bottom: 1px solid var(--vivi-color-border-soft);
-  color: var(--vivi-color-content-subtle);
-  font-size: 9.5px;
-}
-
-.treeLegend strong {
-  color: var(--vivi-color-content-muted);
-}
-
-.queueTree {
-  padding: 2px 0 4px;
-}
-
-.inReviewSection {
-  border-top: 1px solid var(--vivi-color-border-default);
-}
-
-.panelInset {
-  padding: 10px 12px 12px;
-}
-
 .emptyQueue {
   display: grid;
   justify-items: center;
   gap: 4px;
-  padding: 34px 18px 38px;
+  padding: 36px 18px 40px;
   color: var(--vivi-color-content-muted);
   text-align: center;
 }
-
 .emptyQueue > span {
   display: grid;
   width: 26px;
@@ -153,13 +245,7 @@
   border-radius: 999px;
   color: var(--vivi-color-success);
 }
-
 .emptyQueue strong {
   color: var(--vivi-color-content-primary);
   font-size: 12px;
-}
-
-.noReviewWork {
-  margin: 0;
-  padding: 14px 12px 18px;
 }

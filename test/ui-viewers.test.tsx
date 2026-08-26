@@ -1784,18 +1784,11 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
   );
 
   expect(html).toContain("Review");
-  expect(html).toContain("Queued");
-  expect(html).toContain("In Review");
   expect(html).toContain("Reviewed");
-  expect(html).toContain('class="review-state-summary"');
-  expect(html).toContain(
-    'class="review-state-section queued review-queue-directory-section"',
-  );
-  expect(html).toContain('class="review-state-section reviewing"');
   expect(html).toContain('class="review-state-section reviewed"');
   expect(html).toContain('class="review-queue" role="group"');
   expect(html).toContain(
-    'aria-label="Review queue, 3 queued, 0 in review, 0 reviewed"',
+    'aria-label="Review queue signal ledger, 3 active files, 1 unread, 0 with drafts, 3 changed, 0 reviewed"',
   );
   expect(html).toContain(
     'aria-describedby="review-queue-interaction-help review-queue-keyboard-help"',
@@ -1804,18 +1797,20 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
   expect(html).toContain(
     "Use Down Arrow, Up Arrow, Home, and End to move between review",
   );
-  expect(html).toContain('role="tree"');
+  expect(html).toContain('aria-label="Filter review queue by signal"');
+  expect(html).toContain('for="review-signal-filter-all">All <span>3</span>');
   expect(html).toContain(
-    'aria-label="Queued documents by directory, 3 files"',
+    'for="review-signal-filter-unread">Unread <span>1</span>',
   );
-  expect(html).toContain('data-tree-path="docs"');
-  expect(html).toContain('data-tree-path="src"');
-  expect(html).toContain('data-tree-path="src/app.ts"');
   expect(html).toContain(
-    'aria-label="app.ts, file, selected, changed, unread review activity, open in tab, current review stop"',
+    'for="review-signal-filter-changed">Changed <span>3</span>',
   );
-  expect(html).toContain("Same interactions as <strong>Explorer</strong>");
-  expect(html).toContain("Attention branches only");
+  expect(html).toContain('data-review-path="src/app.ts"');
+  expect(html).toContain(
+    'aria-label="Review queue item, modified src/app.ts, current review file"',
+  );
+  expect(html).toContain('<span class="change-path-text">src</span>');
+  expect(html).not.toContain('role="tree"');
   expect(html).toContain("Click or press Enter to preview a review file.");
   expect(html).toContain("Double-click to keep it open as a tab.");
   expect(html).not.toContain("src/app.ts:2");
@@ -1826,7 +1821,7 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
   expect(html).not.toContain("-0");
   expect(html).toContain("app.ts");
   expect(html).toContain("mode-only.md");
-  expect(html).toContain('data-tree-path="docs/new.md"');
+  expect(html).toContain('data-review-path="docs/new.md"');
   expect(html).not.toContain("File details");
   expect(html).not.toContain("Open all changed files as tabs");
   expect(html).not.toContain("In this file");
@@ -2094,9 +2089,9 @@ it("keeps the review queue usable when no review file is selected", () => {
   const html = renderToStaticMarkup(inspector);
 
   expect(html).toContain(
-    'aria-label="Queued documents by directory, 1 file"',
+    'aria-label="Review queue signal ledger, 1 active file, 1 unread, 0 with drafts, 1 changed, 0 reviewed"',
   );
-  expect(html).toContain('data-tree-path="src/app.ts"');
+  expect(html).toContain('data-review-path="src/app.ts"');
   expect(html).not.toContain('data-testid="review-open-comments-panel"');
   expect(html).not.toContain("Open in Comments panel");
 });
@@ -2407,14 +2402,16 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
 
   expect(html).toContain("agent-handoff.md");
   expect(html).toContain(
-    'aria-label="Review queue, 1 queued, 1 in review, 0 reviewed"',
+    'aria-label="Review queue signal ledger, 2 active files, 1 unread, 0 with drafts, 1 changed, 0 reviewed"',
   );
-  expect(html).toContain("Queued");
-  expect(html).toContain("In Review");
   expect(html).toContain("Reviewed");
+  expect(html).toContain('for="review-signal-filter-all">All <span>2</span>');
+  expect(html).toContain(
+    'for="review-signal-filter-unread">Unread <span>1</span>',
+  );
   expect(html).toContain("has-open-threads active");
   const queueHtml = html.slice(html.indexOf('class="review-queue"'));
-  expect(queueHtml.indexOf('data-tree-path="src/app.ts"')).toBeLessThan(
+  expect(queueHtml.indexOf('data-review-path="src/app.ts"')).toBeLessThan(
     queueHtml.indexOf('data-review-path="docs/agent-handoff.md"'),
   );
   expect(html).toContain("2 open");
@@ -2429,13 +2426,13 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
     'aria-label="Review queue item, comment docs/agent-handoff.md, current review file"',
   );
   expect(html).toContain(
-    'aria-describedby="review-queue-interaction-help review-queue-keyboard-help review-queue-item-1-description"',
+    'aria-describedby="review-queue-interaction-help review-queue-keyboard-help review-queue-item-2-description"',
   );
   expect(html).toContain(
     "unread review activity, 2 open, 3 total messages, Queue stop diff · L7: Agent reply needs a human decision before this file is clear.",
   );
-  expect(html).toContain('class="review-state-card queued"');
-  expect(html).toContain('class="review-state-card reviewing"');
+  expect(html).not.toContain('class="review-state-card queued"');
+  expect(html).not.toContain('class="review-state-card reviewing"');
   expect(html).toContain("2 open");
   expect(html).not.toContain('class="active-comment-thread"');
 });
@@ -2566,11 +2563,11 @@ it("keeps resolved-only Review Queue files out of next-stop guidance", () => {
   expect(html).not.toContain("Queue stop");
   expect(html).not.toContain("Next queue stop");
   expect(html).toContain(
-    'aria-label="Review queue, 1 queued, 0 in review, 1 reviewed"',
+    'aria-label="Review queue signal ledger, 1 active file, 0 unread, 0 with drafts, 1 changed, 1 reviewed"',
   );
-  expect(html).toContain('data-tree-path="src/app.ts"');
+  expect(html).toContain('data-review-path="src/app.ts"');
   expect(html).toContain(
-    'aria-label="app.ts, file, selected, changed, open in tab, current review stop"',
+    'aria-label="Review queue item, modified src/app.ts, current review file"',
   );
   expect(html).toContain("<span>Reviewed</span><small>1 reviewed</small>");
 });
@@ -2593,19 +2590,24 @@ it("opens Review Queue rows as preview while reserving thread badges for expansi
     onRevealInTree: () => undefined,
   });
 
-  const tree = findElement(inspector, (element) => {
-    return element.type === TreeSidebar;
+  const row = findElement(inspector, (element) => {
+    const props = element.props as {
+      className?: string;
+      "data-review-path"?: string;
+    };
+    return (
+      props.className?.split(" ").includes("change-open") &&
+      props["data-review-path"] === "src/app.ts"
+    );
   });
-  const props = tree.props as {
-    ariaLabel: string;
-    onSelect: (path: string) => void;
-    onOpen: (path: string) => void;
+  const props = row.props as {
+    onClick: () => void;
+    onDoubleClick: () => void;
   };
 
-  props.onSelect("src/app.ts");
-  props.onOpen("src/app.ts");
+  props.onClick();
+  props.onDoubleClick();
 
-  expect(props.ariaLabel).toBe("Queued documents by directory, 1 file");
   expect(calls).toEqual(["preview:src/app.ts", "normal:src/app.ts"]);
 });
 
@@ -2790,14 +2792,16 @@ it("groups pending draft replies under their existing Review Queue thread", () =
       props["aria-label"]?.includes("2 pending")
     );
   });
-  const readyPanel = findElement(inspector, (element) => {
+  const publishButton = findElement(inspector, (element) => {
     const props = element.props as {
-      scope?: string;
-      onPublish?: () => void;
+      className?: string;
+      onClick?: () => void;
     };
-    return props.scope === "workspace" && Boolean(props.onPublish);
+    return (
+      props.className === "review-signal-publish" && Boolean(props.onClick)
+    );
   });
-  (readyPanel.props as { onPublish: () => void }).onPublish();
+  (publishButton.props as { onClick: () => void }).onClick();
   const html = renderToStaticMarkup(inspector);
 
   expect(threadBadge).toBeTruthy();
@@ -2807,9 +2811,8 @@ it("groups pending draft replies under their existing Review Queue thread", () =
     "Second pending follow-up.",
   );
   expect(html).not.toContain("Open pending item, src/app.ts");
-  expect(html).toContain('aria-label="Workspace ready to publish"');
-  expect(html).toContain("Ready to publish");
-  expect(html).toContain("Publish 2");
+  expect(html).toContain('aria-label="Publish 2 drafts for src/app.ts"');
+  expect(html).toContain(">Publish</button>");
   expect(publishedDraftIds).toEqual([["draft-reply-one", "draft-reply-two"]]);
 });
 
@@ -2898,14 +2901,16 @@ it("groups pending draft-only thread messages as one Review Queue row", () => {
       props["aria-label"]?.includes("3 pending")
     );
   });
-  const readyPanel = findElement(inspector, (element) => {
+  const publishButton = findElement(inspector, (element) => {
     const props = element.props as {
-      scope?: string;
-      onPublish?: () => void;
+      className?: string;
+      onClick?: () => void;
     };
-    return props.scope === "workspace" && Boolean(props.onPublish);
+    return (
+      props.className === "review-signal-publish" && Boolean(props.onClick)
+    );
   });
-  (readyPanel.props as { onPublish: () => void }).onPublish();
+  (publishButton.props as { onClick: () => void }).onClick();
   const html = renderToStaticMarkup(inspector);
 
   expect(threadBadge).toBeTruthy();
@@ -2915,8 +2920,8 @@ it("groups pending draft-only thread messages as one Review Queue row", () => {
     "Third private note.",
   );
   expect(html.match(/review-thread-hairline-row/g)?.length).toBe(1);
-  expect(html).toContain('aria-label="Workspace ready to publish"');
-  expect(html).toContain("Publish 3");
+  expect(html).toContain('aria-label="Publish 3 drafts for src/app.ts"');
+  expect(html).toContain(">Publish</button>");
   expect(publishedDraftIds).toEqual([
     ["draft-only-one", "draft-only-two", "draft-only-three"],
   ]);
@@ -3008,15 +3013,15 @@ it("groups separate draft-only threads on the same file without splitting their 
     onOpenPreviousChanged: () => undefined,
     onOpenAllChanged: () => undefined,
     onRevealInTree: () => undefined,
+    onPublishDrafts: () => undefined,
   });
   const html = renderToStaticMarkup(inspector);
 
   expect(html.match(/review-thread-hairline-row/g)?.length).toBe(2);
   expect(html).not.toContain("Latest reply in first draft thread.");
   expect(html).not.toContain("Latest reply in second draft thread.");
-  expect(html).toContain('aria-label="Workspace ready to publish"');
-  expect(html).toContain("4 ready");
-  expect(html).toContain("Publish 4");
+  expect(html).toContain('aria-label="Publish 4 drafts for src/app.ts"');
+  expect(html).toContain(">Publish</button>");
 });
 
 it("omits explicit inspector reveal when Review Queue already navigates files", () => {
@@ -3264,9 +3269,9 @@ it("does not mark comment-only Review Queue results complete while Git review is
   );
 
   expect(html).toContain(
-    'aria-label="Review queue, 0 queued, 1 in review, 0 reviewed"',
+    'aria-label="Review queue signal ledger, 1 active file, 0 unread, 0 with drafts, 0 changed, 0 reviewed"',
   );
-  expect(html).toContain("In Review");
+  expect(html).toContain('for="review-signal-filter-all">All <span>1</span>');
   expect(html).toContain("Loading Git review");
   expect(html).toContain(
     "open comment threads may appear before changed files",

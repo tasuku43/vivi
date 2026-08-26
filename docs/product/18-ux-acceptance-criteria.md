@@ -24,7 +24,7 @@ A build is acceptable when a user can:
 16. Keep browser-local comment input across outside clicks, document/tab navigation, rendered/source changes, and reload. Explicit Discard removes it. In rendered Markdown and HTML preview, saving the first comment promotes it to a durable pending thread, clears the same composer into an empty follow-up, and keeps that input focused. Saving later follow-ups likewise clears the submitted body and preserves focus for consecutive replies. Publishing saved drafts must not discard a next unsaved thought at the same anchor.
 17. Reject paths outside the selected root and keep watcher, search, tree, read, and Git-change boundaries aligned to supported document extensions.
 18. Move between the repository Review Queue and current Document through two persistent inspector tabs whose labels and positions stay fixed; keep Review selected by default and keep “Next queued” within the Review workflow rather than treating it as navigation.
-19. Scan queued Markdown and HTML documents in a real-path directory projection, collapse every queue-bearing directory independently from the left Explorer, and retain exact per-file diff totals. Keep `In Review` and `Ready to publish` directly below that projection while global “Next queued” order remains unchanged.
+19. Scan active Markdown and HTML review files in one compact signal ledger, filter them by All, Unread, Drafts, or Changed, and retain each parent path plus exact per-file diff totals. Keep draft publication on the actionable file row while global “Next queued” order remains unchanged.
 
 ## Evaluation function
 
@@ -52,9 +52,9 @@ Add or update tests for:
 - rendered Markdown and HTML single-click/drag/double-click comment gesture separation,
 - document-focused feedback and outline rendering,
 - Document/Review inspector switching and review-queue navigation,
-- Review Queue real-path projection, independent directory collapse, Markdown/HTML rows, diff totals, and global next-item ordering,
+- Review Queue signal filtering, compact Markdown/HTML rows, parent-path metadata, inline draft publication, diff totals, and global next-item ordering,
 - watcher-event filtering and SSE tree refresh for Markdown and HTML additions/removals,
 - optional diff-from-`HEAD` rendering inside the open document surface,
 - resumable comment input transitions: outside click, Escape/collapse, navigation and reload restoration, rendered-to-source return, explicit discard, successful save, individual pending-draft deletion, publish cleanup, and stale-anchor re-anchoring.
 
-Add an E2E test that starts the server against a mixed fixture directory and verifies the UI exposes only the pruned Markdown and HTML directory tree, organizes queued documents by their real collapsible ancestry, opens each document kind, preserves drag selection, starts feedback only on double-click, and receives at least one document-relevant filesystem event.
+Add an E2E test that starts the server against a mixed fixture directory and verifies the UI exposes only the pruned Markdown and HTML Explorer tree, filters Review Queue files by signal without changing their global order, opens each document kind, preserves drag selection, starts feedback only on double-click, and receives at least one document-relevant filesystem event.

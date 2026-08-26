@@ -61,7 +61,11 @@ it("restores Source input after reload and clears its composer after publish", a
   await page
     .getByRole("button", { name: "Save pending draft comment" })
     .click();
-  await page.getByRole("button", { name: "Publish 1", exact: true }).click();
+  await page.getByRole("tab", { name: /Review queue/ }).click();
+  await page
+    .getByRole("button", { name: "Publish 1 draft for README.md" })
+    .click();
+  await page.getByRole("tab", { name: "Document" }).click();
 
   const lineAction = page.getByRole("button", {
     name: "Open comment thread on line 1 with 1 message",
@@ -112,9 +116,12 @@ it("deletes a saved pending comment before publish", async () => {
   await expect
     .poll(() => page.getByRole("article", { name: /Comment thread/ }).count())
     .toBe(0);
+  await page.getByRole("tab", { name: /Review queue/ }).click();
   await expect
     .poll(() =>
-      page.getByRole("button", { name: "Publish 1", exact: true }).count(),
+      page
+        .getByRole("button", { name: "Publish 1 draft for README.md" })
+        .count(),
     )
     .toBe(0);
 }, 40_000);
@@ -261,17 +268,21 @@ it("keeps a saved HTML thread open and focuses its follow-up", async () => {
     .poll(() => followUp.evaluate((node) => node === document.activeElement))
     .toBe(true);
   await page.getByRole("tab", { name: /Review queue/ }).click();
-  const workspaceReady = page.getByRole("region", {
-    name: "Workspace ready to publish",
+  const reviewQueueLedger = page.getByRole("group", {
+    name: /Review queue signal ledger/,
   });
-  await expect.poll(() => workspaceReady.count()).toBe(1);
+  await expect.poll(() => reviewQueueLedger.count()).toBe(1);
   await expect
     .poll(() =>
-      workspaceReady.locator("xpath=ancestor::details[1]").innerText(),
+      reviewQueueLedger
+        .getByRole("button", { name: "Publish 2 drafts for index.html" })
+        .count(),
     )
-    .toContain("In Review");
+    .toBe(1);
   await expect
-    .poll(() => workspaceReady.getByText("2 ready", { exact: true }).count())
+    .poll(() =>
+      reviewQueueLedger.getByText("2 drafts", { exact: true }).count(),
+    )
     .toBeGreaterThan(0);
 
   await page.getByRole("tab", { name: "Document" }).click();

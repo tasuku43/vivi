@@ -28,28 +28,18 @@ import {
 } from "../../state/git-review.js";
 import { iconForPath, languageForPath } from "../../state/file-icons.js";
 import {
-  buildReviewQueueDirectoryTree,
   isReviewQueueItemOpenable,
   reviewQueueItemHasAgentReply,
   reviewQueuePosition,
+  reviewQueueSignalCounts,
   type ReviewQueueItem,
 } from "../../state/review-queue.js";
-import {
-  reviewFileStateLabel,
-  reviewFileStateTone,
-  reviewQueueItemState,
-  type ReviewReceiptEntry,
-} from "../../state/review-state.js";
+import type { ReviewReceiptEntry } from "../../state/review-state.js";
 import { gitReviewUnavailableGuidance } from "../../state/git-review-refresh.js";
 import type { OutlineHeading } from "../../state/outline.js";
 import { CommentStatusBadge } from "../comments/components/CommentStatusBadge.js";
 import fileIconStyles from "../../shared/components/FileIcon.module.css";
 import { InspectorSurfaceTabs } from "../../shared/components/InspectorSurfaceTabs.js";
-import { TreeSidebar } from "../../shared/components/TreeSidebar.js";
-import {
-  ReadyToPublishPanel,
-  type ReadyToPublishItem,
-} from "../../shared/components/ReadyToPublishPanel.js";
 import sharedUiStyles from "../../shared/styles/SharedUi.module.css";
 
 interface Props {
@@ -150,12 +140,6 @@ export function Inspector({
       commentCount: 0,
       unread: unreadReviewPaths.has(change.path),
     }));
-  const needActionCount = queueItems.filter(
-    (item) =>
-      item.unread ||
-      item.threadCounts.open > 0 ||
-      (item.pendingDraftCount ?? 0) > 0,
-  ).length;
   const reviewQueueCount = queueItems.filter(isReviewQueueItemOpenable).length;
   const queuePosition = reviewQueuePosition(queueItems, activePath);
   const hiddenReviewWork = usesReceiptHistory
@@ -167,87 +151,14 @@ export function Inspector({
     : Math.min(acceptedReviewChanges.length, 4) +
       Math.min(hiddenReviewThreads.length, 4);
   const hiddenReviewMoreCount = hiddenReviewWork - hiddenReviewPreviewCount;
-  const queuedItems = queueItems.filter(
-    (item) => reviewQueueItemState(item) === "queued",
-  );
-  const openableQueuedItems = queuedItems.filter(isReviewQueueItemOpenable);
-  const unavailableQueuedItems = queuedItems.filter(
-    (item) => !isReviewQueueItemOpenable(item),
-  );
-  const queuedDirectoryTree = buildReviewQueueDirectoryTree(
-    openableQueuedItems,
-  );
-  const queuedDirectoryPaths = new Set(
-    openableQueuedItems.map((item) => item.path),
-  );
-  const queuedUnreadPaths = new Set(
-    openableQueuedItems.filter((item) => item.unread).map((item) => item.path),
-  );
-  const queuedChangedPaths = new Set(
-    openableQueuedItems
-      .filter((item) => item.change !== null)
-      .map((item) => item.path),
-  );
-  const reviewingItems = queueItems.filter(
-    (item) => reviewQueueItemState(item) === "reviewing",
-  );
   const reviewedCount = hiddenReviewWork;
-  const pendingDraftCount = reviewingItems.reduce(
-    (total, item) => total + (item.pendingDraftCount ?? 0),
-    0,
-  );
-  const reviewingDraftIds = new Set(
-    reviewingItems.flatMap((item) => item.pendingDraftIds ?? []),
-  );
-  const workspaceReadyDraftGroups = groupDraftsByPath(
-    draftComments.filter((draft) => reviewingDraftIds.has(draft.id)),
-  );
-  const workspaceReadyItems: ReadyToPublishItem[] = workspaceReadyDraftGroups.map(
-    ([path, drafts]) => ({
-      id: path,
-      title: basenameForPath(path),
-      detail: `${pendingDraftCountLabel(drafts.length)} · ${directoryForPath(path)}`,
-      count: drafts.length,
-    }),
-  );
-  const workspaceReadyDrafts = workspaceReadyDraftGroups.flatMap(
-    ([, drafts]) => drafts,
-  );
-  const reviewStateSections = [
-    {
-      state: "queued" as const,
-      count: queuedItems.length,
-      items: queuedItems,
-      detail: "waiting for review",
-      defaultOpen: true,
-    },
-    {
-      state: "reviewing" as const,
-      count: reviewingItems.length,
-      items: reviewingItems,
-      detail: pendingDraftCount
-        ? `· ${pendingDraftCount} pending`
-        : "in review",
-      defaultOpen: true,
-    },
-    {
-      state: "reviewed" as const,
-      count: reviewedCount,
-      items: [],
-      detail: "quiet until new changes",
-      defaultOpen: false,
-    },
-  ];
-  const keyboardQueueIndexes = reviewingItems.flatMap((item, index) =>
-    isReviewQueueItemOpenable(item) ? [index] : [],
-  );
+  const signalCounts = reviewQueueSignalCounts(queueItems);
   const gitReviewGuidance = gitReviewUnavailableGuidance(
     reviewUnavailableReason,
   );
   function renderReviewQueueItem(item: ReviewQueueItem, index: number) {
     const { change } = item;
     const active = item.path === queuePosition.activePath;
-    const keyboardIndex = keyboardQueueIndexes.indexOf(index);
     const reviewStop = reviewQueueStopForPath(item.path, reviewComments);
     const reviewQueueItemDescriptionId = `review-queue-item-${index + 1}-description`;
     const threadListId = `review-queue-item-${index + 1}-threads`;
@@ -264,6 +175,9 @@ export function Inspector({
     const standaloneDraftGroups =
       reviewQueueStandaloneDraftGroups(standaloneDrafts);
     const itemPendingCount = item.pendingDraftCount ?? itemDrafts.length;
+    const itemDraftIds = item.pendingDraftIds?.length
+      ? item.pendingDraftIds
+      : itemDrafts.map((draft) => draft.id);
     const itemOpenCount = item.threadCounts.open;
     const itemReviewCount = itemThreads.length + standaloneDraftGroups.length;
     const itemStatusLabel = change
@@ -275,7 +189,15 @@ export function Inspector({
     const kindLabel = reviewQueueFileKindLabel(item.path);
     return (
       <div
-        className={`review-queue-item${itemReviewCount ? " review-thread-expand-file" : ""}`}
+        className={[
+          "review-queue-item",
+          itemReviewCount ? "review-thread-expand-file" : "",
+          item.unread ? "is-unread" : "",
+          itemDraftIds.length ? "has-drafts has-publish-action" : "",
+          item.change ? "is-changed" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
         key={`${change?.source ?? "thread"}:${item.path}`}
       >
         <button
@@ -298,14 +220,9 @@ export function Inspector({
             if (isReviewQueueItemOpenable(item)) onConfirmEventPath(item.path);
           }}
           onKeyDown={(event) => {
-            const nextKeyboardIndex = reviewQueueKeyboardTarget(
-              event.key,
-              keyboardIndex,
-              keyboardQueueIndexes.length,
-            );
-            if (nextKeyboardIndex === null) return;
+            if (!isReviewQueueNavigationKey(event.key)) return;
             event.preventDefault();
-            focusReviewQueueTarget(keyboardQueueIndexes[nextKeyboardIndex]!);
+            focusVisibleReviewQueueTarget(event.key, event.currentTarget);
           }}
           title="Click to preview; double-click to keep open as a tab"
           type="button"
@@ -333,6 +250,16 @@ export function Inspector({
               title={change ? reviewPathLabel(change) : item.path}
             >
               <span className="change-path-text">{directoryLabel}</span>
+              <span className="review-signal-badges" aria-hidden="true">
+                {item.unread ? <span className="unread">Unread</span> : null}
+                {itemDraftIds.length ? (
+                  <span className="draft">
+                    {itemDraftIds.length}{" "}
+                    {itemDraftIds.length === 1 ? "draft" : "drafts"}
+                  </span>
+                ) : null}
+                {change ? <span>Changed</span> : null}
+              </span>
               {change ? (
                 <span className="change-source">
                   {reviewQueueSourceLabel(change.source)}
@@ -345,9 +272,7 @@ export function Inspector({
               </small>
             ) : null}
           </span>
-          {itemReviewCount ? (
-            <span className="review-thread-count-space" aria-hidden="true" />
-          ) : change ? (
+          {change ? (
             <DiffStatBadge
               loading={Boolean(loadingReviewDiffs[item.path])}
               stat={reviewDiffStats[item.path] ?? null}
@@ -358,6 +283,16 @@ export function Inspector({
             </span>
           )}
         </button>
+        {itemDraftIds.length && onPublishDrafts ? (
+          <button
+            className="review-signal-publish"
+            type="button"
+            aria-label={`Publish ${itemDraftIds.length} ${itemDraftIds.length === 1 ? "draft" : "drafts"} for ${item.path}`}
+            onClick={() => void onPublishDrafts(itemDraftIds)}
+          >
+            Publish
+          </button>
+        ) : null}
         {itemReviewCount ? (
           <>
             <input
@@ -525,13 +460,13 @@ export function Inspector({
       >
         <span className="review-panel-heading">
           <strong>
-            {needActionCount
-              ? `${needActionCount} attention ${needActionCount === 1 ? "item" : "items"}`
+            {reviewQueueCount
+              ? `${reviewQueueCount} active ${reviewQueueCount === 1 ? "file" : "files"}`
               : reviewLoading
                 ? "loading"
                 : "clear"}
           </strong>
-          <span>Changes and open feedback</span>
+          <span>Sorted by attention</span>
         </span>
         {queueItems.length ? (
           <button
@@ -546,7 +481,7 @@ export function Inspector({
       </div>
       <div className="inspect-body">
         <div className="inspector-review-mode">
-          {unsavedInputCount && !pendingDraftCount ? (
+          {unsavedInputCount ? (
             <div className="review-unsaved-input-summary" role="status">
               <p>
                 <strong>{unsavedInputCount}</strong>{" "}
@@ -565,22 +500,11 @@ export function Inspector({
               ) : null}
             </div>
           ) : null}
-          <section className="review-state-summary" aria-label="Review states">
-            {reviewStateSections.map((section) => (
-              <span
-                className={`review-state-card ${reviewFileStateTone(section.state)}`}
-                key={section.state}
-              >
-                <strong>{section.count}</strong>
-                <span>{reviewFileStateLabel(section.state)}</span>
-              </span>
-            ))}
-          </section>
           {queueItems.length || hiddenReviewWork ? (
             <div
               className="review-queue"
               role="group"
-              aria-label={`Review queue, ${queuedItems.length} queued, ${reviewingItems.length} in review, ${reviewedCount} reviewed`}
+              aria-label={`Review queue signal ledger, ${reviewQueueCount} active ${reviewQueueCount === 1 ? "file" : "files"}, ${signalCounts.unread} unread, ${signalCounts.drafts} with drafts, ${signalCounts.changed} changed, ${reviewedCount} reviewed`}
               aria-describedby="review-queue-interaction-help review-queue-keyboard-help"
             >
               <p
@@ -597,117 +521,47 @@ export function Inspector({
                 Use Down Arrow, Up Arrow, Home, and End to move between review
                 files.
               </p>
-              <section className="review-state-section queued review-queue-directory-section">
-                <header className="review-state-section-header">
-                  <span>Queued</span>
-                  <small>
-                    {queuedDirectoryTree.length}{" "}
-                    {queuedDirectoryTree.length === 1 ? "branch" : "branches"}
-                    {" · "}
-                    {queuedItems.length}{" "}
-                    {queuedItems.length === 1 ? "file" : "files"}
-                  </small>
-                </header>
-                {queuedDirectoryTree.length ? (
-                  <>
-                    <div className="review-queue-tree-legend">
-                      <span>
-                        Same interactions as <strong>Explorer</strong>
-                      </span>
-                      <span>Attention branches only</span>
-                    </div>
-                    <div className="review-queue-directory-tree">
-                      <TreeSidebar
-                        nodes={queuedDirectoryTree}
-                        ariaLabel={`Queued documents by directory, ${openableQueuedItems.length} ${openableQueuedItems.length === 1 ? "file" : "files"}`}
-                        selectedPath={
-                          queuePosition.activePath &&
-                          queuedDirectoryPaths.has(queuePosition.activePath)
-                            ? queuePosition.activePath
-                            : null
-                        }
-                        changedPaths={queuedChangedPaths}
-                        unreadReviewPaths={queuedUnreadPaths}
-                        activePaths={
-                          activePath ? new Set([activePath]) : new Set()
-                        }
-                        currentStopPath={
-                          queuePosition.activePath &&
-                          queuedDirectoryPaths.has(queuePosition.activePath)
-                            ? queuePosition.activePath
-                            : null
-                        }
-                        renderFileEnd={(node) => (
-                          <DiffStatBadge
-                            loading={Boolean(loadingReviewDiffs[node.path])}
-                            stat={reviewDiffStats[node.path] ?? null}
-                          />
-                        )}
-                        showBadges={false}
-                        onSelect={onOpenEventPath}
-                        onOpen={onConfirmEventPath}
-                      />
-                    </div>
-                  </>
-                ) : null}
-                {unavailableQueuedItems.length ? (
-                  <div className="review-state-section-list unavailable-review-items">
-                    {unavailableQueuedItems.map((item, index) =>
-                      renderReviewQueueItem(item, index),
-                    )}
-                  </div>
-                ) : null}
-                {!queuedItems.length ? (
-                  <ReviewStateEmptyRow state="queued" />
-                ) : null}
-              </section>
-              <details className="review-state-section reviewing" open>
-                <summary>
-                  <span>In Review</span>
-                  <small>
-                    {reviewingItems.length}{" "}
-                    {reviewingItems.length === 1 ? "file" : "files"}{" "}
-                    {pendingDraftCount
-                      ? `· ${pendingDraftCount} pending`
-                      : "in review"}
-                  </small>
-                </summary>
-                {pendingDraftCount ? (
-                  <ReadyToPublishPanel
-                    scope="workspace"
-                    items={workspaceReadyItems}
-                    localInput={resumableInput}
-                    excludedInputCount={unsavedInputCount}
-                    onOpenItem={(item) =>
-                      onOpenDraft?.(
-                        workspaceReadyDraftGroups.find(
-                          ([path]) => path === item.id,
-                        )?.[1][0]!,
-                      )
-                    }
-                    onResumeInput={() => onResumeInput?.()}
-                    onReview={() =>
-                      workspaceReadyDrafts[0]
-                        ? onOpenDraft?.(workspaceReadyDrafts[0])
-                        : undefined
-                    }
-                    onPublish={() =>
-                      void onPublishDrafts?.(
-                        workspaceReadyDrafts.map((draft) => draft.id),
-                      )
-                    }
+              <div className="review-signal-filter-shell">
+                {reviewSignalFilters(signalCounts).map((filter) => (
+                  <input
+                    className={`${sharedUiStyles.srOnly} sr-only review-signal-filter-input review-signal-filter-${filter.id}`}
+                    defaultChecked={filter.id === "all"}
+                    disabled={filter.count === 0 && filter.id !== "all"}
+                    id={`review-signal-filter-${filter.id}`}
+                    key={filter.id}
+                    name="review-signal-filter"
+                    type="radio"
+                    value={filter.id}
                   />
-                ) : null}
-                {reviewingItems.length ? (
-                  <div className="review-state-section-list">
-                    {reviewingItems.map((item, index) =>
-                      renderReviewQueueItem(item, index),
-                    )}
-                  </div>
-                ) : (
-                  <ReviewStateEmptyRow state="reviewing" />
-                )}
-              </details>
+                ))}
+                <div
+                  className="review-signal-filter-controls"
+                  role="radiogroup"
+                  aria-label="Filter review queue by signal"
+                >
+                  {reviewSignalFilters(signalCounts).map((filter) => (
+                    <label
+                      className={
+                        filter.count === 0 && filter.id !== "all"
+                          ? "disabled"
+                          : ""
+                      }
+                      htmlFor={`review-signal-filter-${filter.id}`}
+                      key={filter.id}
+                    >
+                      {filter.label} <span>{filter.count}</span>
+                    </label>
+                  ))}
+                </div>
+                <section
+                  className="review-signal-ledger-list"
+                  aria-label="Active review files sorted by attention"
+                >
+                  {queueItems.map((item, index) =>
+                    renderReviewQueueItem(item, index),
+                  )}
+                </section>
+              </div>
               <details className="review-state-section reviewed">
                 <summary>
                   <span>Reviewed</span>
@@ -842,6 +696,17 @@ function hiddenReviewHistorySummary(count: number): string {
   return `${count} reviewed`;
 }
 
+function reviewSignalFilters(
+  counts: ReturnType<typeof reviewQueueSignalCounts>,
+) {
+  return [
+    { id: "all", label: "All", count: counts.all },
+    { id: "unread", label: "Unread", count: counts.unread },
+    { id: "drafts", label: "Drafts", count: counts.drafts },
+    { id: "changed", label: "Changed", count: counts.changed },
+  ] as const;
+}
+
 function reviewReceiptReasonLabel(receipt: ReviewReceiptEntry): string {
   if (receipt.reason === "accepted_change") return "marked reviewed";
   if (receipt.reason === "threads_resolved") return "feedback resolved";
@@ -901,29 +766,8 @@ function reviewQueueItemDotClass(item: ReviewQueueItem): string {
   if (item.threadCounts.open > 0 || (item.pendingDraftCount ?? 0) > 0) {
     return "unread-dot muted";
   }
-  if (reviewQueueItemState(item) === "queued") return "unread-dot muted";
+  if (item.change) return "unread-dot muted";
   return "unread-dot read";
-}
-
-function ReviewStateEmptyRow({ state }: { state: "queued" | "reviewing" }) {
-  const title =
-    state === "queued" ? "No queued files" : "No active review work";
-  const detail =
-    state === "queued"
-      ? "New HEAD evidence will appear here."
-      : "Agent replies and open threads will rise here.";
-  return (
-    <div className={`review-state-empty-row ${state}`} role="note">
-      <span
-        className={`${sharedUiStyles.muted} unread-dot muted`}
-        aria-hidden="true"
-      />
-      <span className="review-state-empty-copy">
-        <strong>{title}</strong>
-        <span>{detail}</span>
-      </span>
-    </div>
-  );
 }
 
 function reviewQueueVisibleSummary(item: ReviewQueueItem): string | null {
@@ -947,8 +791,6 @@ function reviewQueueVisibleSummary(item: ReviewQueueItem): string | null {
   if (item.commentCount > 0) {
     return `No open · ${totalMessageCountLabel(item.commentCount)}`;
   }
-  if (item.unread) return "unread HEAD diff";
-  if (item.change) return `read ${reviewQueueSourceLabel(item.change.source)}`;
   return null;
 }
 
@@ -1096,12 +938,26 @@ export function reviewQueueKeyboardTarget(
   return null;
 }
 
-function focusReviewQueueTarget(index: number) {
-  document
-    .querySelector<HTMLElement>(
-      `.review-queue .change-open[data-review-index="${index}"]`,
-    )
-    ?.focus();
+function isReviewQueueNavigationKey(key: string): boolean {
+  return ["ArrowDown", "ArrowUp", "Home", "End"].includes(key);
+}
+
+function focusVisibleReviewQueueTarget(
+  key: string,
+  currentTarget: HTMLButtonElement,
+) {
+  const list = currentTarget.closest(".review-signal-ledger-list");
+  if (!list) return;
+  const visibleRows = [
+    ...list.querySelectorAll<HTMLButtonElement>(".change-open:not(:disabled)"),
+  ].filter((row) => row.getClientRects().length > 0);
+  const currentIndex = visibleRows.indexOf(currentTarget);
+  const nextIndex = reviewQueueKeyboardTarget(
+    key,
+    currentIndex,
+    visibleRows.length,
+  );
+  if (nextIndex !== null) visibleRows[nextIndex]?.focus();
 }
 
 function totalMessageCountLabel(count: number): string {
@@ -1182,16 +1038,6 @@ function DiffStatBadge({
 
 function basenameForPath(path: string): string {
   return path.split("/").filter(Boolean).at(-1) ?? path;
-}
-
-function groupDraftsByPath(
-  drafts: DraftReviewComment[],
-): Array<[string, DraftReviewComment[]]> {
-  const groups = new Map<string, DraftReviewComment[]>();
-  for (const draft of drafts) {
-    groups.set(draft.path, [...(groups.get(draft.path) ?? []), draft]);
-  }
-  return [...groups.entries()];
 }
 
 function reviewPathLabel(change: ReviewChangeItem): string {
