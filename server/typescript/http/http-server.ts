@@ -975,6 +975,10 @@ async function serveSpa(
     res.writeHead(200, { "content-type": contentTypeFor(filePath) });
     res.end(content);
   } catch {
+    if (requested === "/assets" || requested.startsWith("/assets/")) {
+      sendJson(res, 404, { error: "static asset not found" });
+      return;
+    }
     const content = await readFile(path.join(base, "index.html"));
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     res.end(content);

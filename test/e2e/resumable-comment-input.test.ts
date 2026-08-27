@@ -22,6 +22,119 @@ afterEach(async () => {
   await fixture.cleanup();
 });
 
+it("converges after restoring duplicate empty stale Markdown inputs for one block", async () => {
+  server = await startViviServer({
+    rootDir: fixture.rootDir,
+    gitReviewTimeoutMs: 1_000,
+  });
+  browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.setDefaultTimeout(8_000);
+
+  const root = fixture.rootDir;
+  const path = "README.md";
+  const baseAnchor = {
+    surface: "rendered",
+    canonical: {
+      path,
+      lineStart: 3,
+      lineEnd: 3,
+      quote: "## Overview",
+      fileHash: "sha256:stale",
+    },
+    rendered: {
+      kind: "markdown",
+      blockId: "vivi-block-2",
+      textQuote: "Overview",
+      sourceLineStart: 3,
+      sourceLineEnd: 3,
+    },
+  };
+  const sessions = [
+    {
+      threadId: "restored-thread",
+      selector: "div:nth-of-type(1)>article>h2:nth-of-type(1)",
+    },
+    {
+      threadId: null,
+      selector: "div>article>h2:nth-of-type(1)",
+    },
+  ].map(({ threadId, selector }) => {
+    const draft = {
+      path,
+      viewerKind: "markdown",
+      ...(threadId ? { threadId } : {}),
+      anchor: {
+        ...baseAnchor,
+        rendered: { ...baseAnchor.rendered, selector },
+      },
+    };
+    return {
+      id: JSON.stringify([
+        threadId,
+        JSON.stringify([
+          path,
+          "rendered",
+          3,
+          3,
+          "vivi-block-2",
+          selector,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+        ]),
+      ]),
+      draft,
+      body: "",
+      status: "stale",
+    };
+  });
+
+  await page.addInitScript(
+    ({ storageKey, stored }) => {
+      window.localStorage.setItem(storageKey, JSON.stringify(stored));
+    },
+    {
+      storageKey: `vivi.commentInputSessions.v1:${encodeURIComponent(root)}`,
+      stored: {
+        version: 1,
+        root,
+        updatedAt: Date.now(),
+        sessions,
+      },
+    },
+  );
+
+  await page.goto(server.url);
+  await page.locator('[data-tree-path="README.md"]').click();
+  await page.getByRole("tab", { name: "Document" }).click();
+
+  await expect
+    .poll(() => page.getByRole("heading", { name: "Vivi Fixture" }).count())
+    .toBe(1);
+  await expect
+    .poll(() =>
+      page.locator("#root").evaluate((rootNode) => rootNode.childElementCount),
+    )
+    .toBeGreaterThan(0);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        (storageKey) => localStorage.getItem(storageKey),
+        `vivi.commentInputSessions.v1:${encodeURIComponent(root)}`,
+      ),
+    )
+    .toBeNull();
+  expect(pageErrors).toEqual([]);
+}, 40_000);
+
 it("restores Source input after reload and clears its composer after publish", async () => {
   server = await startViviServer({
     rootDir: fixture.rootDir,

@@ -575,6 +575,20 @@ it("rejects encoded static paths that escape the bundled app root", async () => 
   });
 }, 10000);
 
+it("returns 404 for missing hashed assets instead of the SPA shell", async () => {
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const response = await fetch(`${server.url}/assets/index-OLDHASH.js`);
+  expect(response.status).toBe(404);
+  expect(response.headers.get("content-type")).toContain("application/json");
+  await expect(response.json()).resolves.toEqual({
+    error: "static asset not found",
+  });
+}, 10000);
+
 it("normalizes filesystem errors from API routes", async () => {
   const fileSystem: FileSystemPort = {
     async readTree() {

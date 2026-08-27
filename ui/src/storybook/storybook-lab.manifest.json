@@ -172,6 +172,7 @@
       "requiredStories": [
         "Files/Viewer Coverage States/MarkdownKnownViewer",
         "Files/Viewer Coverage States/HtmlKnownViewer",
+        "Files/Viewer Coverage States/ViewerFailureContained",
         "Files/Markdown Review States/RenderedMarkdownSyntaxGallery",
         "Files/Markdown Review States/RenderedMarkdownMultipleLineThreads",
         "Files/Markdown Review States/RenderedShowsSourceInputReturn",
@@ -193,6 +194,7 @@
         "Files/HTML Preview States/PreviewDraftOnlyThreadFollowUpKeepsThreadId",
         "Files/HTML Preview States/SourceHtmlComment",
         "Files/Open File Surface States/HtmlSource",
+        "Files/Viewer Coverage States/ViewerFailureContained",
         "Files/Viewer Coverage States/ViewerToolbarStickyByExtension"
       ]
     },

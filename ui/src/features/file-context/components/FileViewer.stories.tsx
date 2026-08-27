@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useState } from "react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import type { FilePayload } from "../../../domain/fs-node.js";
 import {
@@ -9,7 +10,7 @@ import {
   extractHtmlOutline,
   extractMarkdownOutline,
 } from "../../../state/outline.js";
-import { FileViewer } from "./FileViewer.js";
+import { FileViewer, ViewerErrorBoundary } from "./FileViewer.js";
 import styles from "./FileViewer.module.css";
 
 const meta = {
@@ -50,6 +51,32 @@ type Story = StoryObj<typeof meta>;
 
 export const UnknownTextFallback: Story = {};
 
+export const ViewerFailureContained: Story = {
+  name: "Viewer failure keeps the workspace available",
+  tags: ["interaction"],
+  render: () => <ViewerFailureHarness />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      await canvas.findByRole("alert", {
+        name: "Preview error for docs/broken.md",
+      }),
+    ).toBeVisible();
+    await expect(canvas.getByText("Preview unavailable")).toBeVisible();
+    await userEvent.click(canvas.getByText("Technical details"));
+    await expect(canvas.getByText("Synthetic viewer failure")).toBeVisible();
+
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Try preview again" }),
+    );
+    await expect(
+      await canvas.findByText(
+        "Preview recovered without leaving the workspace.",
+      ),
+    ).toBeVisible();
+  },
+};
+
 export const MarkdownKnownViewer: Story = {
   args: {
     file: sampleFiles.markdown,
@@ -57,6 +84,24 @@ export const MarkdownKnownViewer: Story = {
     comments: commentsForPath(sampleFiles.markdown.path),
   },
 };
+
+function ViewerFailureHarness() {
+  const [failed, setFailed] = useState(true);
+  return (
+    <ViewerErrorBoundary
+      path="docs/broken.md"
+      resetKey="docs/broken.md:sha256:storybook"
+      onRetry={() => setFailed(false)}
+    >
+      <SyntheticViewer failed={failed} />
+    </ViewerErrorBoundary>
+  );
+}
+
+function SyntheticViewer({ failed }: { failed: boolean }) {
+  if (failed) throw new Error("Synthetic viewer failure");
+  return <p>Preview recovered without leaving the workspace.</p>;
+}
 
 export const MarkdownWithLocalOutline: Story = {
   args: {

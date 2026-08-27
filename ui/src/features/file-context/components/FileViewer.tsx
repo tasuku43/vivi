@@ -1,5 +1,13 @@
-import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import {
+  Component,
+  lazy,
+  Suspense,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
+import type { ErrorInfo, ReactNode } from "react";
 import type { TextDiff } from "../../../domain/change-review.js";
 import type { ViviComment } from "../../../domain/comments.js";
 import type { FilePayload } from "../../../domain/fs-node.js";
@@ -503,10 +511,81 @@ function FileViewerFrame({
           onRevealInTree,
         }}
       >
-        {children}
+        <ViewerErrorBoundary
+          path={file.path}
+          resetKey={`${file.path}:${file.etag}`}
+        >
+          {children}
+        </ViewerErrorBoundary>
       </ViewerHeaderProvider>
     </div>
   );
+}
+
+interface ViewerErrorBoundaryProps {
+  children: ReactNode;
+  path: string;
+  resetKey: string;
+  onRetry?: () => void;
+}
+
+interface ViewerErrorBoundaryState {
+  error: Error | null;
+}
+
+export class ViewerErrorBoundary extends Component<
+  ViewerErrorBoundaryProps,
+  ViewerErrorBoundaryState
+> {
+  state: ViewerErrorBoundaryState = { error: null };
+
+  static getDerivedStateFromError(error: Error): ViewerErrorBoundaryState {
+    return { error };
+  }
+
+  componentDidUpdate(previous: ViewerErrorBoundaryProps): void {
+    if (this.state.error && previous.resetKey !== this.props.resetKey) {
+      this.setState({ error: null });
+    }
+  }
+
+  componentDidCatch(_error: Error, _info: ErrorInfo): void {
+    // React reports the component stack; this boundary keeps sibling UI alive.
+  }
+
+  render(): ReactNode {
+    const { error } = this.state;
+    if (!error) return this.props.children;
+    return (
+      <section
+        aria-label={`Preview error for ${this.props.path}`}
+        className={`${styles.viewerError} viewer-error-boundary`}
+        role="alert"
+      >
+        <p className={`${styles.viewerErrorEyebrow} viewer-error-eyebrow`}>
+          Preview unavailable
+        </p>
+        <h2>This file could not be displayed.</h2>
+        <p>
+          Vivi kept the rest of the workspace open. You can retry this preview
+          or continue with another file.
+        </p>
+        <details>
+          <summary>Technical details</summary>
+          <code>{error.message || error.name}</code>
+        </details>
+        <button
+          type="button"
+          onClick={() => {
+            this.props.onRetry?.();
+            this.setState({ error: null });
+          }}
+        >
+          Try preview again
+        </button>
+      </section>
+    );
+  }
 }
 
 type ActiveFileReviewStop = ViewerHeaderReviewStop;

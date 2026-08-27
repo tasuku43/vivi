@@ -326,6 +326,16 @@ export function MarkdownViewer({
       if (!blocks.length) continue;
       const target = targetForRenderedCommentBlocks(blocks, rendered.textQuote);
       if (!target) continue;
+      if (
+        renderedThreadTargets.some((mounted) =>
+          renderedThreadTargetsShareResolvedBlock(
+            mounted.blockIds,
+            target.blockIds,
+          ),
+        )
+      ) {
+        continue;
+      }
       openRenderedDraft(target, blocks, undefined, session.draft, false);
     }
   }, [
@@ -778,4 +788,13 @@ function renderedThreadTargetKey(
   return target.draft.threadId
     ? JSON.stringify(["thread", target.draft.threadId])
     : JSON.stringify([path, lineStart, lineEnd]);
+}
+
+export function renderedThreadTargetsShareResolvedBlock(
+  mountedBlockIds: readonly string[],
+  resolvedBlockIds: readonly string[],
+): boolean {
+  if (!mountedBlockIds.length || !resolvedBlockIds.length) return false;
+  const mounted = new Set(mountedBlockIds);
+  return resolvedBlockIds.some((blockId) => mounted.has(blockId));
 }

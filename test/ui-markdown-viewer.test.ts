@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   injectMermaidPreviewBlocks,
   renderMarkdownDocumentHtml,
+  renderedThreadTargetsShareResolvedBlock,
 } from "../ui/src/features/file-context/viewers/MarkdownViewer.js";
 import { isSafeSvgReference } from "../ui/src/features/file-context/rendering/mermaid-rendering.js";
 
@@ -205,5 +206,22 @@ Alice->>Bob: <script>alert(1)</script>
     expect(isSafeSvgReference("javascript:alert(1)")).toBe(false);
     expect(isSafeSvgReference("data:text/html,<script>x</script>")).toBe(false);
     expect(isSafeSvgReference("vbscript:msgbox(1)")).toBe(false);
+  });
+});
+
+describe("restored rendered Markdown input targets", () => {
+  it("treats selector variants resolved to the same block as one mounted target", () => {
+    expect(
+      renderedThreadTargetsShareResolvedBlock(
+        ["vivi-block-9"],
+        ["vivi-block-9"],
+      ),
+    ).toBe(true);
+    expect(
+      renderedThreadTargetsShareResolvedBlock(
+        ["vivi-block-9"],
+        ["vivi-block-17"],
+      ),
+    ).toBe(false);
   });
 });

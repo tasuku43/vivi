@@ -277,3 +277,67 @@
   cursor: pointer;
   padding: 7px 10px;
 }
+
+.viewerError {
+  display: grid;
+  max-width: 680px;
+  gap: 10px;
+  margin: 64px auto;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--vivi-color-danger) 34%,
+      var(--vivi-color-border-default)
+    );
+  border-radius: 8px;
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-content-muted);
+  padding: 22px;
+}
+
+.viewerError h2,
+.viewerError p {
+  margin: 0;
+}
+
+.viewerError h2 {
+  color: var(--vivi-color-content-primary);
+  font-size: 18px;
+}
+
+.viewerErrorEyebrow {
+  color: var(--vivi-color-danger);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.viewerError details {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.viewerError code {
+  display: block;
+  margin-top: 8px;
+  color: var(--vivi-color-content-subtle);
+  white-space: pre-wrap;
+}
+
+.viewerError button {
+  justify-self: start;
+  border: 1px solid var(--vivi-color-border-default);
+  border-radius: 7px;
+  background: var(--vivi-color-surface-panel-raised);
+  color: var(--vivi-color-content-primary);
+  cursor: pointer;
+  padding: 7px 10px;
+}
+
+.viewerError button:hover,
+.viewerError button:focus-visible {
+  border-color: var(--vivi-color-accent-border);
+  outline: none;
+  color: var(--vivi-color-accent);
+}

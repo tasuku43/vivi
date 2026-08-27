@@ -177,7 +177,27 @@ export function restoreStoredCommentInputSessions(
 ): CommentInputSession[] {
   if (!stored || stored.root !== root) return [];
   if (now - stored.updatedAt > commentInputSessionTtlMs) return [];
-  return stored.sessions.slice(-maxStoredCommentInputSessions);
+  return normalizeRestoredCommentInputSessions(
+    stored.sessions.slice(-maxStoredCommentInputSessions),
+  );
+}
+
+export function normalizeRestoredCommentInputSessions(
+  sessions: readonly CommentInputSession[],
+): CommentInputSession[] {
+  const normalized = new Map<string, CommentInputSession>();
+  for (const session of sessions) {
+    if (session.status === "stale" && !session.body.trim()) continue;
+    const key = restoredCommentInputAnchorKey(session.draft);
+    const existing = normalized.get(key);
+    normalized.set(
+      key,
+      existing && preferRestoredCommentInputSession(existing, session)
+        ? existing
+        : session,
+    );
+  }
+  return [...normalized.values()];
 }
 
 export function unsavedCommentInputCount(
@@ -195,6 +215,35 @@ export function unsavedCommentInputCount(
 
 export function commentInputAnchorKey(draft: CommentDraft): string {
   return commentAnchorThreadKey(draft.path, draft.anchor);
+}
+
+function restoredCommentInputAnchorKey(draft: CommentDraft): string {
+  const rendered = draft.anchor.rendered;
+  if (draft.anchor.surface === "rendered" && rendered?.blockId) {
+    return JSON.stringify([
+      draft.path,
+      draft.anchor.surface,
+      rendered.kind,
+      rendered.blockId,
+    ]);
+  }
+  return commentInputAnchorKey(draft);
+}
+
+function preferRestoredCommentInputSession(
+  current: CommentInputSession,
+  candidate: CommentInputSession,
+): boolean {
+  const currentBody = Boolean(current.body.trim());
+  const candidateBody = Boolean(candidate.body.trim());
+  if (currentBody !== candidateBody) return currentBody;
+  const currentFresh = current.status !== "stale";
+  const candidateFresh = candidate.status !== "stale";
+  if (currentFresh !== candidateFresh) return currentFresh;
+  const currentThreaded = Boolean(current.draft.threadId);
+  const candidateThreaded = Boolean(candidate.draft.threadId);
+  if (currentThreaded !== candidateThreaded) return currentThreaded;
+  return false;
 }
 
 function isStoredCommentInputSessions(

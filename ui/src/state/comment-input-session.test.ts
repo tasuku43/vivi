@@ -29,6 +29,36 @@ function draft(fileHash = "sha256:v1"): CommentDraft {
   };
 }
 
+function renderedDraft(input: {
+  selector: string;
+  blockId?: string;
+  threadId?: string;
+}): CommentDraft {
+  return {
+    path: "README.md",
+    viewerKind: "markdown",
+    threadId: input.threadId,
+    anchor: {
+      surface: "rendered",
+      canonical: {
+        path: "README.md",
+        lineStart: 17,
+        lineEnd: 17,
+        quote: "Same heading",
+        fileHash: "sha256:v1",
+      },
+      rendered: {
+        kind: "markdown",
+        blockId: input.blockId ?? "vivi-block-9",
+        selector: input.selector,
+        textQuote: "Same heading",
+        sourceLineStart: 17,
+        sourceLineEnd: 17,
+      },
+    },
+  };
+}
+
 describe("comment input sessions", () => {
   it("collapses without discarding and resumes with its body", () => {
     const input = draft();
@@ -120,6 +150,63 @@ describe("comment input sessions", () => {
     expect(
       restoreStoredCommentInputSessions(parsed, "/workspace/other", 2_000),
     ).toEqual([]);
+  });
+
+  it("drops empty stale input and folds selector variants for the same rendered block", () => {
+    const root = "/workspace/vivi";
+    const withThread = renderedDraft({
+      selector: "div:nth-of-type(1)>article>h3:nth-of-type(2)",
+      threadId: "thread-1",
+    });
+    const withoutThread = renderedDraft({
+      selector: "div>article>h3:nth-of-type(2)",
+    });
+    const otherBlock = renderedDraft({
+      selector: "div>article>p:nth-of-type(4)",
+      blockId: "vivi-block-17",
+    });
+    const staleStored = buildStoredCommentInputSessions(
+      root,
+      [withThread, withoutThread, otherBlock].map((input) => ({
+        id: commentInputSessionId(input),
+        draft: input,
+        body: "",
+        status: "stale" as const,
+      })),
+      1_000,
+    );
+
+    expect(restoreStoredCommentInputSessions(staleStored, root, 2_000)).toEqual(
+      [],
+    );
+
+    const duplicateStored = buildStoredCommentInputSessions(
+      root,
+      [
+        {
+          id: commentInputSessionId(withThread),
+          draft: withThread,
+          body: "Keep the threaded thought",
+          status: "open" as const,
+        },
+        {
+          id: commentInputSessionId(withoutThread),
+          draft: withoutThread,
+          body: "",
+          status: "open" as const,
+        },
+      ],
+      1_000,
+    );
+
+    expect(
+      restoreStoredCommentInputSessions(duplicateStored, root, 2_000),
+    ).toEqual([
+      expect.objectContaining({
+        body: "Keep the threaded thought",
+        draft: expect.objectContaining({ threadId: "thread-1" }),
+      }),
+    ]);
   });
 
   it("expires abandoned input and ignores malformed storage", () => {
