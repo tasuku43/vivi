@@ -82,13 +82,16 @@ export function mergeReviewChanges(
 export function filterRecentReviewChanges(
   changes: readonly ReviewChangeItem[],
   watcherState: FileReviewState,
+  retainedPaths: ReadonlySet<string> = new Set(),
 ): ReviewChangeItem[] {
   const recentPaths = new Set([
     ...watcherState.changedPaths,
     ...watcherState.removedPaths,
     ...watcherState.renamePairs.map((pair) => pair.toPath),
   ]);
-  return changes.filter((change) => recentPaths.has(change.path));
+  return changes.filter(
+    (change) => recentPaths.has(change.path) || retainedPaths.has(change.path),
+  );
 }
 
 export function reviewQueueSourceLabel(source: ReviewChangeItem["source"]) {

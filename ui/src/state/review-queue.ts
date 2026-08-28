@@ -49,8 +49,9 @@ export interface ReviewQueueBuildOptions {
 
 /**
  * Builds a file-level work queue without inventing lifecycle state from
- * activity. Comment status is the authoritative projection; activity only
- * supplies attribution and recency.
+ * activity. Comment status is the authoritative projection; non-archived
+ * threads retain review intent while activity only supplies attribution and
+ * recency.
  */
 export function buildReviewQueueItems(
   changes: ReviewChangeItem[],
@@ -71,7 +72,7 @@ export function buildReviewQueueItems(
   );
   for (const thread of threads.values()) {
     if (
-      thread.status === "open" &&
+      thread.status !== "archived" &&
       isDocumentReviewPath(thread.path) &&
       !options.knownMissingPaths?.has(thread.path)
     ) {

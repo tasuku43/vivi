@@ -147,7 +147,8 @@
         "the left Explorer remains the only directory hierarchy",
         "All, Unread, Drafts, and Changed filters expose their counts and preserve attention ordering",
         "each row keeps the parent path as secondary metadata for disambiguation",
-        "draft publication stays available on the actionable file row while reviewed history recedes"
+        "draft publication stays available on the actionable file row while reviewed history recedes",
+        "resolved feedback retains its file in the queue until every thread is archived"
       ],
       "requiredStories": [
         "Review/Queue Signal Ledger/MixedSignals",

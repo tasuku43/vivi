@@ -129,8 +129,10 @@ import {
   supportsSourceToggle,
 } from "../ui/src/state/viewer-mode.js";
 import {
-  nextReviewEventExpiryDelay,
+  nextReviewActivityExpiryDelay,
+  recentReviewActivityPaths,
   recentReviewEvents,
+  reviewActivityWindowMs,
   summarizeReviewEvents,
 } from "../ui/src/state/review-events.js";
 import { keyboardShortcutAction } from "../ui/src/state/shortcuts.js";
@@ -1376,7 +1378,7 @@ it("maps command palette mode tabs with keyboard navigation", () => {
   );
 });
 
-it("uses Git evidence only for recently observed Review Queue changes", () => {
+it("uses Git evidence for recently observed or previously opened Review Queue changes", () => {
   const reviewEvents = [
     {
       id: "1",
@@ -1425,11 +1427,16 @@ it("uses Git evidence only for recently observed Review Queue changes", () => {
       { path: "docs/guide.md", status: "modified" },
     ],
   });
-  const merged = filterRecentReviewChanges(allChanges, watcherState);
+  const merged = filterRecentReviewChanges(
+    allChanges,
+    watcherState,
+    new Set(["docs/guide.md"]),
+  );
 
   expect(allChanges).toHaveLength(5);
 
   expect(merged).toEqual([
+    { path: "docs/guide.md", status: "modified", source: "git" },
     { path: "docs/new.md", status: "added", source: "git" },
     { path: "README.md", status: "modified", source: "git" },
   ]);
@@ -1463,8 +1470,44 @@ it("expires old Review Queue activity on schedule", () => {
   expect(recentReviewEvents(events, 500, 300).map((item) => item.id)).toEqual([
     "recent",
   ]);
-  expect(nextReviewEventExpiryDelay(events, 500, 300)).toBe(151);
-  expect(nextReviewEventExpiryDelay(events, 651, 300)).toBeNull();
+  const observedAtTimes = events.map((event) => event.receivedAt);
+  expect(nextReviewActivityExpiryDelay(observedAtTimes, 500, 300)).toBe(151);
+  expect(nextReviewActivityExpiryDelay(observedAtTimes, 651, 300)).toBeNull();
+});
+
+it("keeps file changes and user opens in one thirty-minute activity window", () => {
+  const event = {
+    id: "observed",
+    event: { type: "change" as const, path: "docs/observed.md", version: 1 },
+    receivedAt: 1_000,
+  };
+  const opened = {
+    path: "docs/opened.md",
+    observedAt: 2_000,
+  };
+
+  expect(reviewActivityWindowMs).toBe(30 * 60 * 1000);
+  expect(
+    recentReviewEvents([event], event.receivedAt + reviewActivityWindowMs),
+  ).toEqual([event]);
+  expect(
+    recentReviewEvents(
+      [event],
+      event.receivedAt + reviewActivityWindowMs + 1,
+    ),
+  ).toEqual([]);
+  expect(
+    recentReviewActivityPaths(
+      [opened],
+      opened.observedAt + reviewActivityWindowMs,
+    ),
+  ).toEqual(new Set([opened.path]));
+  expect(
+    recentReviewActivityPaths(
+      [opened],
+      opened.observedAt + reviewActivityWindowMs + 1,
+    ),
+  ).toEqual(new Set());
 });
 
 it("keeps feedback in the queue after its file change is no longer recent", () => {
@@ -1776,7 +1819,7 @@ it("selects the latest unread review file while skipping deletions", () => {
   expect(latestUnreadReviewPath(changes, ["b.md"])).toBeNull();
 });
 
-it("builds an agent-aware queue from changes and authoritative open threads", () => {
+it("keeps files with non-archived review threads in the queue", () => {
   const comments = [
     {
       ...makeReviewComment("open-1", "docs/agent.md", "open"),
@@ -1819,6 +1862,7 @@ it("builds an agent-aware queue from changes and authoritative open threads", ()
   expect(items.map((item) => item.path)).toEqual([
     "docs/agent.md",
     "src/app.ts",
+    "docs/history.md",
   ]);
   expect(items[0]).toMatchObject({
     change: null,
@@ -1827,9 +1871,16 @@ it("builds an agent-aware queue from changes and authoritative open threads", ()
     unread: false,
   });
   expect(items[0]?.latestActivity?.type).toBe("comment_added");
+  expect(items[2]).toMatchObject({
+    path: "docs/history.md",
+    change: null,
+    threadCounts: { open: 0, resolved: 1, archived: 0 },
+    commentCount: 1,
+  });
+  expect(reviewQueueItemState(items[2]!)).toBe("reviewing");
   expect(summarizeReviewQueue(items)).toEqual({
-    total: 2,
-    seen: 1,
+    total: 3,
+    seen: 2,
     unread: 1,
     openThreads: 1,
     filesWithOpenThreads: 1,

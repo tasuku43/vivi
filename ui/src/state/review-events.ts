@@ -19,25 +19,42 @@ export interface RenameReviewPair {
   receivedAt: number;
 }
 
-export const recentReviewEventWindowMs = 5 * 60 * 1000;
+export interface ReviewPathObservation {
+  path: string;
+  observedAt: number;
+}
+
+export const reviewActivityWindowMs = 30 * 60 * 1000;
 
 export function recentReviewEvents(
   events: readonly ReviewEvent[],
   now = Date.now(),
-  windowMs = recentReviewEventWindowMs,
+  windowMs = reviewActivityWindowMs,
 ): ReviewEvent[] {
   return events.filter(
     (item) => now - item.receivedAt <= windowMs,
   );
 }
 
-export function nextReviewEventExpiryDelay(
-  events: readonly ReviewEvent[],
+export function recentReviewActivityPaths(
+  observations: readonly ReviewPathObservation[],
   now = Date.now(),
-  windowMs = recentReviewEventWindowMs,
+  windowMs = reviewActivityWindowMs,
+): Set<string> {
+  return new Set(
+    observations
+      .filter((observation) => now - observation.observedAt <= windowMs)
+      .map((observation) => observation.path),
+  );
+}
+
+export function nextReviewActivityExpiryDelay(
+  observedAtTimes: readonly number[],
+  now = Date.now(),
+  windowMs = reviewActivityWindowMs,
 ): number | null {
-  const nextExpiry = events.reduce<number | null>((earliest, item) => {
-    const expiresAt = item.receivedAt + windowMs + 1;
+  const nextExpiry = observedAtTimes.reduce<number | null>((earliest, observedAt) => {
+    const expiresAt = observedAt + windowMs + 1;
     if (expiresAt <= now) return earliest;
     return earliest === null ? expiresAt : Math.min(earliest, expiresAt);
   }, null);

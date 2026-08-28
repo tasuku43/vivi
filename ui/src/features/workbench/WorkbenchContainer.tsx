@@ -45,7 +45,8 @@ import type {
   TextSearchResult,
 } from "../../domain/search.js";
 import {
-  nextReviewEventExpiryDelay,
+  nextReviewActivityExpiryDelay,
+  recentReviewActivityPaths,
   recentReviewEvents,
   recordReviewEvent,
   summarizeReviewEvents,
@@ -788,9 +789,25 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     () => mergeReviewChanges(reviewState, gitReview),
     [gitReview, reviewState],
   );
+  const openedReviewPathSet = useMemo(
+    () =>
+      recentReviewActivityPaths(
+        recentFiles.map((recentFile) => ({
+          path: recentFile.path,
+          observedAt: recentFile.lastOpenedAt,
+        })),
+        reviewActivityNow,
+      ),
+    [recentFiles, reviewActivityNow],
+  );
   const reviewChanges = useMemo(
-    () => filterRecentReviewChanges(allReviewChanges, reviewState),
-    [allReviewChanges, reviewState],
+    () =>
+      filterRecentReviewChanges(
+        allReviewChanges,
+        reviewState,
+        openedReviewPathSet,
+      ),
+    [allReviewChanges, openedReviewPathSet, reviewState],
   );
   const reviewDiffStats = useMemo(
     () =>
@@ -1129,6 +1146,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       setFiles((items) => ({ ...items, [payload.path]: payload }));
       setOpenTabs((tabs) => upsertOpenTab(tabs, payload, paneId, mode));
       setRecentFiles((items) => recordRecentFile(items, payload));
+      setReviewActivityNow(Date.now());
       markReviewPathRead(payload.path);
       void loadComments(payload.path).catch((err) => setError(String(err)));
       if (diffEnabled && supportsDiffMode(payload)) {
@@ -2138,14 +2156,20 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }, [paletteMode, paletteOpen, paletteQuery]);
 
   useEffect(() => {
-    const delay = nextReviewEventExpiryDelay(recentEvents);
+    const delay = nextReviewActivityExpiryDelay(
+      [
+        ...recentEvents.map((event) => event.receivedAt),
+        ...recentFiles.map((recentFile) => recentFile.lastOpenedAt),
+      ],
+      reviewActivityNow,
+    );
     if (delay === null) return;
     const timeout = window.setTimeout(
       () => setReviewActivityNow(Date.now()),
       delay,
     );
     return () => window.clearTimeout(timeout);
-  }, [recentEvents, reviewActivityNow]);
+  }, [recentEvents, recentFiles, reviewActivityNow]);
 
   useEffect(() => {
     setReviewDecisions((entries) => {

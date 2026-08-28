@@ -3,6 +3,7 @@ import { expect, fn, userEvent, within } from "storybook/test";
 import type { ReviewChangeItem } from "../../state/git-review.js";
 import type { ReviewQueueItem } from "../../state/review-queue.js";
 import {
+  sampleComments,
   sampleDraftComments,
   sampleMarkdownFile,
 } from "../../storybook/fixtures/review-lab.js";
@@ -59,6 +60,9 @@ const wiredReviewChanges: ReviewChangeItem[] = signalItems
   .map((item) => ({ path: item.path, status: "modified", source: "git" }));
 
 const wiredDraft = sampleDraftComments[1]!;
+const wiredResolvedComment = sampleComments.find(
+  (comment) => comment.id === "comment-resolved",
+)!;
 const wiredReviewItems: ReviewQueueItem[] = [
   ...wiredReviewChanges.map((change): ReviewQueueItem => ({
     path: change.path,
@@ -67,6 +71,13 @@ const wiredReviewItems: ReviewQueueItem[] = [
     commentCount: 0,
     unread: true,
   })),
+  {
+    path: wiredResolvedComment.path,
+    change: null,
+    threadCounts: { open: 0, resolved: 1, archived: 0 },
+    commentCount: 1,
+    unread: false,
+  },
   {
     path: wiredDraft.path,
     change: null,
@@ -173,6 +184,7 @@ export const WiredInspector: Story = {
           signalItems.filter((item) => item.unread).map((item) => item.path),
         )
       }
+      reviewComments={[wiredResolvedComment]}
       draftComments={[wiredDraft]}
       selectedCodeRange={null}
       activePath="docs/product/01-product-brief.md"
