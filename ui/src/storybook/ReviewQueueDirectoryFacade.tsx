@@ -156,7 +156,7 @@ export function ReviewQueueSignalLedgerFacade({
             <span aria-hidden="true">✓</span>
             <strong>Active queue clear</strong>
             <small>
-              New document changes and open feedback will appear here.
+              Recent document edits and open feedback will appear here.
             </small>
           </div>
         )}

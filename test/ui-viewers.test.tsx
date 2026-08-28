@@ -3203,7 +3203,7 @@ it("explains an empty Review Queue as active review work being clear", () => {
   expect(html).toContain('aria-label="Review queue empty"');
   expect(html).toContain("Active queue clear");
   expect(html).toContain(
-    "No Git changes or open comment threads need review right now.",
+    "No recent document edits, open comment threads, or pending drafts need review right now.",
   );
   expect(html).toContain(
     "Resolved threads stay in Comments history; archived threads are hidden from the browser UI.",

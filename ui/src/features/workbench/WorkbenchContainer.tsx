@@ -45,6 +45,8 @@ import type {
   TextSearchResult,
 } from "../../domain/search.js";
 import {
+  nextReviewEventExpiryDelay,
+  recentReviewEvents,
   recordReviewEvent,
   summarizeReviewEvents,
   type ReviewEvent,
@@ -86,6 +88,7 @@ import {
 } from "../../state/live-refresh.js";
 import {
   buildDiffStat,
+  filterRecentReviewChanges,
   isReviewChangeOpenable,
   mergeReviewChanges,
   type GitChangeReviewState,
@@ -238,6 +241,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const [openTabs, setOpenTabs] = useState<OpenTab[]>([]);
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [recentEvents, setRecentEvents] = useState<ReviewEvent[]>([]);
+  const [reviewActivityNow, setReviewActivityNow] = useState(() => Date.now());
   const [unreadReviewPaths, setUnreadReviewPaths] = useState<string[]>([]);
   const [reviewDecisions, setReviewDecisions] = useState<ReviewDecisionEntry[]>(
     [],
@@ -773,19 +777,20 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     .join(" ");
   const resolvedTheme = resolveThemePreference(themePreference, systemTheme);
   const recentActivityEvents = useMemo(
-    () =>
-      recentEvents.filter(
-        (item) => Date.now() - item.receivedAt <= recentEventWindowMs,
-      ),
-    [recentEvents],
+    () => recentReviewEvents(recentEvents, reviewActivityNow),
+    [recentEvents, reviewActivityNow],
   );
   const reviewState = useMemo(
     () => summarizeReviewEvents(recentActivityEvents),
     [recentActivityEvents],
   );
-  const reviewChanges = useMemo(
+  const allReviewChanges = useMemo(
     () => mergeReviewChanges(reviewState, gitReview),
     [gitReview, reviewState],
+  );
+  const reviewChanges = useMemo(
+    () => filterRecentReviewChanges(allReviewChanges, reviewState),
+    [allReviewChanges, reviewState],
   );
   const reviewDiffStats = useMemo(
     () =>
@@ -969,8 +974,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     [comments, selectedPath],
   );
   const changedPathSet = useMemo(
-    () => new Set(reviewChanges.map((change) => change.path)),
-    [reviewChanges],
+    () => new Set(allReviewChanges.map((change) => change.path)),
+    [allReviewChanges],
   );
   const openTabPathSet = useMemo(
     () => new Set(openTabs.map((tab) => tab.path)),
@@ -2133,6 +2138,16 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }, [paletteMode, paletteOpen, paletteQuery]);
 
   useEffect(() => {
+    const delay = nextReviewEventExpiryDelay(recentEvents);
+    if (delay === null) return;
+    const timeout = window.setTimeout(
+      () => setReviewActivityNow(Date.now()),
+      delay,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [recentEvents, reviewActivityNow]);
+
+  useEffect(() => {
     setReviewDecisions((entries) => {
       const compacted = compactReviewDecisions(
         entries,
@@ -2373,6 +2388,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
           fsEventsReceived: metrics.fsEventsReceived + 1,
         }));
         setRecentEvents((items) => recordReviewEvent(items, event));
+        setReviewActivityNow(Date.now());
         markReviewPathUnread(event.path);
 
         if (
@@ -2612,7 +2628,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                   }
                   change={
                     selectedPath
-                      ? (reviewChanges.find(
+                      ? (allReviewChanges.find(
                           (change) => change.path === selectedPath,
                         ) ?? null)
                       : null
@@ -3415,5 +3431,3 @@ interface DOMRectLike {
   width: number;
   height: number;
 }
-
-const recentEventWindowMs = 5 * 60 * 1000;

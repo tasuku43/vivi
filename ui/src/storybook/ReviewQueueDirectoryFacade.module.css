@@ -170,10 +170,12 @@
   flex: 0 0 auto;
   border: 1px solid var(--vivi-color-border-soft);
   border-radius: 999px;
-  font-size: 8px;
+  font-size: 9px;
   font-style: normal;
   font-weight: 780;
-  padding: 2px 4px;
+  line-height: 12px;
+  padding: 2px 5px;
+  white-space: nowrap;
 }
 .meta .unread {
   border-color: var(--vivi-color-accent-border);

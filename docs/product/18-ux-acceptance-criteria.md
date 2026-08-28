@@ -24,7 +24,7 @@ A build is acceptable when a user can:
 16. Keep browser-local comment input across outside clicks, document/tab navigation, rendered/source changes, and reload. Explicit Discard removes it. In rendered Markdown and HTML preview, saving the first comment promotes it to a durable pending thread, clears the same composer into an empty follow-up, and keeps that input focused. Saving later follow-ups likewise clears the submitted body and preserves focus for consecutive replies. Publishing saved drafts must not discard a next unsaved thought at the same anchor.
 17. Reject paths outside the selected root and keep watcher, search, tree, read, and Git-change boundaries aligned to supported document extensions.
 18. Move between the repository Review Queue and current Document through two persistent inspector tabs whose labels and positions stay fixed; keep Review selected by default and keep “Next queued” within the Review workflow rather than treating it as navigation.
-19. Scan active Markdown and HTML review files in one compact signal ledger, filter them by All, Unread, Drafts, or Changed, and retain each parent path plus exact per-file diff totals. Keep draft publication on the actionable file row while global “Next queued” order remains unchanged.
+19. Scan active Markdown and HTML review files in one compact signal ledger, filter them by All, Unread, Drafts, or Changed, and retain each parent path plus exact per-file diff totals. Change-only files recede after five minutes without a new workspace event, while open feedback and pending drafts remain. Keep draft publication on the actionable file row while global “Next queued” order remains unchanged.
 
 ## Evaluation function
 

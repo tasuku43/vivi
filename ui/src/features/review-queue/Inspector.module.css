@@ -1965,10 +1965,11 @@
   border: 1px solid var(--vivi-color-border-soft);
   border-radius: 999px;
   color: var(--vivi-color-content-muted);
-  font-size: 8.5px;
+  font-size: 9px;
   font-weight: 780;
-  line-height: 1;
-  padding: 3px 5px;
+  line-height: 12px;
+  padding: 2px 5px;
+  white-space: nowrap;
 }
 
 :global(.review-signal-badges > .unread) {

@@ -19,6 +19,31 @@ export interface RenameReviewPair {
   receivedAt: number;
 }
 
+export const recentReviewEventWindowMs = 5 * 60 * 1000;
+
+export function recentReviewEvents(
+  events: readonly ReviewEvent[],
+  now = Date.now(),
+  windowMs = recentReviewEventWindowMs,
+): ReviewEvent[] {
+  return events.filter(
+    (item) => now - item.receivedAt <= windowMs,
+  );
+}
+
+export function nextReviewEventExpiryDelay(
+  events: readonly ReviewEvent[],
+  now = Date.now(),
+  windowMs = recentReviewEventWindowMs,
+): number | null {
+  const nextExpiry = events.reduce<number | null>((earliest, item) => {
+    const expiresAt = item.receivedAt + windowMs + 1;
+    if (expiresAt <= now) return earliest;
+    return earliest === null ? expiresAt : Math.min(earliest, expiresAt);
+  }, null);
+  return nextExpiry === null ? null : Math.max(1, nextExpiry - now);
+}
+
 export function recordReviewEvent(
   events: ReviewEvent[],
   event: FsEvent,

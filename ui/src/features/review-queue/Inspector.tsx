@@ -680,9 +680,9 @@ export function Inspector({
             <div className="review-empty-state" aria-label="Review queue empty">
               <strong>Active queue clear</strong>
               <span>
-                No Git changes or open comment threads need review right now.
-                Resolved threads stay in Comments history; archived threads are
-                hidden from the browser UI.
+                No recent document edits, open comment threads, or pending
+                drafts need review right now. Resolved threads stay in Comments
+                history; archived threads are hidden from the browser UI.
               </span>
             </div>
           ) : null}

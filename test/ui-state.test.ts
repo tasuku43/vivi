@@ -22,6 +22,7 @@ import {
   buildSideBySideDiffRows,
   changeStatusLabel,
   diffStatusLabel,
+  filterRecentReviewChanges,
   latestUnreadReviewPath,
   mergeReviewChanges,
   nextReviewQueuePath,
@@ -127,7 +128,11 @@ import {
   supportsDiffMode,
   supportsSourceToggle,
 } from "../ui/src/state/viewer-mode.js";
-import { summarizeReviewEvents } from "../ui/src/state/review-events.js";
+import {
+  nextReviewEventExpiryDelay,
+  recentReviewEvents,
+  summarizeReviewEvents,
+} from "../ui/src/state/review-events.js";
 import { keyboardShortcutAction } from "../ui/src/state/shortcuts.js";
 import {
   activityNeedsHumanAttention,
@@ -1371,7 +1376,7 @@ it("maps command palette mode tabs with keyboard navigation", () => {
   );
 });
 
-it("uses HEAD changes as the Review Queue when Git is available", () => {
+it("uses Git evidence only for recently observed Review Queue changes", () => {
   const reviewEvents = [
     {
       id: "1",
@@ -1409,21 +1414,24 @@ it("uses HEAD changes as the Review Queue when Git is available", () => {
       receivedAt: 700,
     },
   ];
-  const merged = mergeReviewChanges(summarizeReviewEvents(reviewEvents), {
+  const watcherState = summarizeReviewEvents(reviewEvents);
+  const allChanges = mergeReviewChanges(watcherState, {
     available: true,
     changes: [
       { path: "reports/new.csv", status: "added" },
       { path: "src/app.ts", status: "modified" },
       { path: "README.md", status: "modified" },
+      { path: "docs/new.md", status: "added" },
       { path: "docs/guide.md", status: "modified" },
     ],
   });
+  const merged = filterRecentReviewChanges(allChanges, watcherState);
+
+  expect(allChanges).toHaveLength(5);
 
   expect(merged).toEqual([
-    { path: "reports/new.csv", status: "added", source: "git" },
-    { path: "docs/guide.md", status: "modified", source: "git" },
+    { path: "docs/new.md", status: "added", source: "git" },
     { path: "README.md", status: "modified", source: "git" },
-    { path: "src/app.ts", status: "modified", source: "git" },
   ]);
   expect(changeStatusLabel("renamed")).toBe("renamed");
   expect(reviewQueueSourceLabel("git")).toBe("HEAD diff");
@@ -1436,6 +1444,67 @@ it("uses HEAD changes as the Review Queue when Git is available", () => {
       content: "diff",
     }),
   ).toBe("HEAD -> working tree");
+});
+
+it("expires old Review Queue activity on schedule", () => {
+  const events = [
+    {
+      id: "old",
+      event: { type: "change" as const, path: "docs/old.md", version: 1 },
+      receivedAt: 100,
+    },
+    {
+      id: "recent",
+      event: { type: "change" as const, path: "docs/recent.md", version: 2 },
+      receivedAt: 350,
+    },
+  ];
+
+  expect(recentReviewEvents(events, 500, 300).map((item) => item.id)).toEqual([
+    "recent",
+  ]);
+  expect(nextReviewEventExpiryDelay(events, 500, 300)).toBe(151);
+  expect(nextReviewEventExpiryDelay(events, 651, 300)).toBeNull();
+});
+
+it("keeps feedback in the queue after its file change is no longer recent", () => {
+  const watcherState = summarizeReviewEvents([
+    {
+      id: "recent",
+      event: { type: "change", path: "docs/recent.md", version: 2 },
+      receivedAt: 500,
+    },
+  ]);
+  const changes = filterRecentReviewChanges(
+    mergeReviewChanges(watcherState, {
+      available: true,
+      changes: [
+        { path: "docs/recent.md", status: "modified" },
+        { path: "docs/old-feedback.md", status: "modified" },
+      ],
+    }),
+    watcherState,
+  );
+  const items = buildReviewQueueItems(
+    changes,
+    [
+      {
+        ...makeReviewComment("open-old", "docs/old-feedback.md", "open"),
+        threadId: "thread-open-old",
+      },
+    ],
+    {},
+    new Set(),
+  );
+
+  expect(items.map((item) => item.path)).toEqual([
+    "docs/old-feedback.md",
+    "docs/recent.md",
+  ]);
+  expect(items[0]).toMatchObject({
+    change: null,
+    threadCounts: { open: 1, resolved: 0, archived: 0 },
+  });
 });
 
 it("falls back to deduplicated watcher paths when Git review is unavailable", () => {

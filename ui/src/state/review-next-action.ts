@@ -38,7 +38,7 @@ export function buildReviewNextAction({
     return {
       description: reviewLoading
         ? "Open comment threads will appear here while changed files finish loading."
-        : "No Git changes or open comment threads need attention right now.",
+        : "No recent document edits, open comment threads, or pending drafts need attention right now.",
       emphasis: "clear",
       kind: "clear",
       primaryLabel: reviewLoading ? "Loading review files" : "Queue clear",

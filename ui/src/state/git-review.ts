@@ -79,6 +79,18 @@ export function mergeReviewChanges(
   return [...byPath.values()].sort(compareReviewChanges);
 }
 
+export function filterRecentReviewChanges(
+  changes: readonly ReviewChangeItem[],
+  watcherState: FileReviewState,
+): ReviewChangeItem[] {
+  const recentPaths = new Set([
+    ...watcherState.changedPaths,
+    ...watcherState.removedPaths,
+    ...watcherState.renamePairs.map((pair) => pair.toPath),
+  ]);
+  return changes.filter((change) => recentPaths.has(change.path));
+}
+
 export function reviewQueueSourceLabel(source: ReviewChangeItem["source"]) {
   return source === "git" ? "HEAD diff" : "local change";
 }

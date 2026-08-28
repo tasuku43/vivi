@@ -198,6 +198,16 @@ export const WiredInspectorFilterInteraction: Story = {
     const draftPath = wiredDraft.path;
     const changedPath = "docs/product/01-product-brief.md";
     const draftsFilter = canvas.getByRole("radio", { name: "Drafts 1" });
+    const draftBadge = canvasElement.querySelector<HTMLElement>(
+      ".review-signal-badges > .draft",
+    );
+
+    await expect(draftBadge).toBeVisible();
+    await expect(window.getComputedStyle(draftBadge!).fontSize).toBe("9px");
+    await expect(window.getComputedStyle(draftBadge!).lineHeight).toBe("12px");
+    await expect(Math.round(draftBadge!.getBoundingClientRect().height)).toBe(
+      18,
+    );
 
     await userEvent.click(draftsFilter);
     await expect(draftsFilter).toBeChecked();
