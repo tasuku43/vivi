@@ -6,20 +6,6 @@
   font-weight: 720;
 }
 
-.open {
-  border-color: var(--vivi-color-comment-border);
-  background: var(--vivi-color-comment-surface);
-  color: var(--vivi-color-comment-text);
-}
-
-.resolved {
-  color: var(--vivi-color-warning);
-}
-
-.archived {
-  color: var(--vivi-color-content-muted);
-}
-
 .draft {
   border-color: color-mix(
     in srgb,
@@ -36,15 +22,4 @@
 
 .published {
   color: var(--vivi-color-content-muted);
-}
-
-.accepted,
-.reviewed {
-  border-color: color-mix(
-    in srgb,
-    var(--vivi-color-success) 52%,
-    var(--vivi-color-border-soft)
-  );
-  background: color-mix(in srgb, var(--vivi-color-success) 10%, transparent);
-  color: var(--vivi-color-success);
 }

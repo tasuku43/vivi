@@ -42,7 +42,6 @@ const meta = {
     onCreateComment: () => undefined,
     onOpenComment: () => undefined,
     onCloseComment: () => undefined,
-    onCommentStatusChange: () => undefined,
   },
 } satisfies Meta<typeof FileViewer>;
 
@@ -131,20 +130,13 @@ export const CodeWithLocalOutline: Story = {
     theme: "dark",
     selectedCodeRange: { start: 4, end: 4 },
     comments: commentsForPath(sampleFiles.code.path),
-    reviewState: "queued",
-    onMarkReviewed: () => undefined,
   },
   play: async ({ canvasElement }) => {
     await waitFor(() => {
-      const reviewState = canvasElement.querySelector(
-        ".file-location-segment .review-state-label",
-      );
-      expect(reviewState).toBeInTheDocument();
-      expect(reviewState).toHaveTextContent("Queued");
-      expect(reviewState).toHaveAttribute("aria-label", "Review state: Queued");
       expect(
-        canvasElement.querySelector(".mark-reviewed-button"),
-      ).toHaveTextContent("Mark as reviewed");
+        canvasElement.querySelector(".file-location-crumbs"),
+      ).toBeInTheDocument();
+      expect(canvasElement.querySelector(".mark-reviewed-button")).toBeNull();
     });
   },
 };

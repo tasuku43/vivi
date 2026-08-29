@@ -270,12 +270,11 @@ export const ShortcutHelpOverlay: Story = {
     await waitFor(() => expect(close).toHaveFocus());
     await userEvent.tab();
     await expect(close).toHaveFocus();
-    await expect(canvas.getByText("Open next in-review reply")).toBeVisible();
+    await expect(canvas.getByText("Open next unseen item")).toBeVisible();
     await expect(canvas.getByText("Return to current thread")).toBeVisible();
-    await expect(
-      canvas.getByText("Resolve / reopen current thread"),
-    ).toBeVisible();
-    await expect(canvas.getByText("Archive current thread")).toBeVisible();
+    await expect(canvas.queryByText(/in-review reply/i)).toBeNull();
+    await expect(canvas.queryByText(/resolve \/ reopen/i)).toBeNull();
+    await expect(canvas.queryByText(/archive current thread/i)).toBeNull();
     await userEvent.click(close);
     await waitFor(() => expect(trigger).toHaveFocus());
     await userEvent.click(trigger);

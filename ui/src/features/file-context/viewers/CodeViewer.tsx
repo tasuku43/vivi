@@ -13,10 +13,7 @@ import {
   splitCodeLines,
   type LineRange,
 } from "../../../state/code-viewer.js";
-import {
-  type CommentCreateHandler,
-  type CommentStatusChangeHandler,
-} from "../../../state/comments.js";
+import type { CommentCreateHandler } from "../../../state/comments.js";
 import { languageForPath } from "../../../state/file-icons.js";
 import { extractHighlightedLines } from "../../../state/highlighted-lines.js";
 import type { ResolvedTheme } from "../../../state/theme.js";
@@ -50,7 +47,6 @@ export function CodeViewer({
   currentActorId,
   onOpenComment,
   onCloseComment,
-  onCommentStatusChange,
   threadActivities = {},
 }: {
   file: FilePayload;
@@ -72,7 +68,6 @@ export function CodeViewer({
   currentActorId?: string;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onCloseComment?: () => void;
-  onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities?: Record<string, CommentActivitySummary>;
 }) {
   const [highlightedHtml, setHighlightedHtml] = useState<{
@@ -243,7 +238,6 @@ export function CodeViewer({
           onCreateComment={onCreateComment}
           onOpenComment={onOpenComment}
           onCloseComment={onCloseComment}
-          onCommentStatusChange={onCommentStatusChange}
           threadActivities={threadActivities}
         />
       )}

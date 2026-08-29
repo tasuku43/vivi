@@ -96,9 +96,9 @@ export function PublishFlowFacade({
                 onPublish={onPublish}
               />
               <div className={styles.openFeedback}>
-                <span>Open</span>
+                <span>Unseen</span>
                 <strong>L18</strong>
-                <small>Agent-visible threads stay separate.</small>
+                <small>Waiting for an agent read receipt.</small>
               </div>
             </section>
           </div>
@@ -113,9 +113,9 @@ function ReviewQueueContext({ readyPanel }: { readyPanel: ReactNode }) {
     <div aria-label="Review queue context">
       <section className={styles.metrics}>
         {[
-          ["4", "Queued"],
-          ["2", "In Review"],
-          ["0", "Reviewed"],
+          ["4", "Active"],
+          ["2", "Unseen"],
+          ["1", "Drafts"],
         ].map(([count, label]) => (
           <span key={label}>
             <strong>{count}</strong>
@@ -130,7 +130,7 @@ function ReviewQueueContext({ readyPanel }: { readyPanel: ReactNode }) {
         </header>
         <QueueRow
           title="41-review-document-navigation.html"
-          detail="unread HEAD diff"
+          detail="unseen HEAD diff"
           badge="+1192"
         />
         <QueueRow title="index.html" detail="read HEAD diff" badge="typing" />
@@ -143,7 +143,7 @@ function ReviewQueueContext({ readyPanel }: { readyPanel: ReactNode }) {
         <div className={styles.panelInset}>{readyPanel}</div>
         <QueueRow
           title="CommentStatusBadge.module.css"
-          detail="1 open · unread activity"
+          detail="unseen feedback"
           badge="1 open"
         />
       </section>

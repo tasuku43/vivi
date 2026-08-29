@@ -1,17 +1,19 @@
 import type {
-  CommentStatus,
   CommentThreadActivityEvent,
   DraftReviewComment,
   ViviComment,
 } from "../domain/comments.js";
-import type { CommentActivitySummary } from "./comment-activity.js";
+import {
+  isHumanFeedback,
+  type CommentActivitySummary,
+} from "./comment-activity.js";
 import { isReviewChangeOpenable, type ReviewChangeItem } from "./git-review.js";
 
 export interface ReviewQueueItem {
   path: string;
   change: ReviewChangeItem | null;
-  threadCounts: Record<CommentStatus, number>;
   commentCount: number;
+  lastActivityAt?: number;
   pendingDraftCount?: number;
   pendingDraftIds?: string[];
   latestActivity?: CommentThreadActivityEvent;
@@ -22,8 +24,6 @@ export interface ReviewQueueProgress {
   total: number;
   seen: number;
   unread: number;
-  openThreads: number;
-  filesWithOpenThreads: number;
 }
 
 export interface ReviewQueueSignalCounts {
@@ -41,17 +41,16 @@ export interface ReviewQueuePosition {
 }
 
 export interface ReviewQueueBuildOptions {
-  acceptedPaths?: ReadonlySet<string>;
-  completedThreadPaths?: ReadonlySet<string>;
   draftComments?: readonly DraftReviewComment[];
   knownMissingPaths?: ReadonlySet<string>;
+  unseenFeedbackPaths?: ReadonlySet<string>;
+  recentActivityByPath?: Readonly<Record<string, number>>;
 }
 
 /**
- * Builds a file-level work queue without inventing lifecycle state from
- * activity. Comment status is the authoritative projection; non-archived
- * threads retain review intent while activity only supplies attribution and
- * recency.
+ * Builds a file-level attention queue from recent activity plus explicit pins.
+ * Pending drafts and published feedback that no agent has seen are pins;
+ * terminal thread status is not a browser attention state.
  */
 export function buildReviewQueueItems(
   changes: ReviewChangeItem[],
@@ -60,28 +59,19 @@ export function buildReviewQueueItems(
   unreadPaths: ReadonlySet<string>,
   options: ReviewQueueBuildOptions = {},
 ): ReviewQueueItem[] {
-  const threads = collectThreads(comments);
-  const paths = new Set(
-    changes
-      .filter(
-        (change) =>
-          !options.acceptedPaths?.has(change.path) &&
-          !options.completedThreadPaths?.has(change.path),
-      )
-      .map((change) => change.path),
-  );
-  for (const thread of threads.values()) {
-    if (
-      thread.status !== "archived" &&
-      isDocumentReviewPath(thread.path) &&
-      !options.knownMissingPaths?.has(thread.path)
-    ) {
-      paths.add(thread.path);
+  const threads = collectThreads(comments.filter(isHumanFeedback));
+  const paths = new Set(changes.map((change) => change.path));
+  for (const path of Object.keys(options.recentActivityByPath ?? {})) {
+    if (!options.knownMissingPaths?.has(path)) paths.add(path);
+  }
+  for (const path of options.unseenFeedbackPaths ?? []) {
+    if (!options.knownMissingPaths?.has(path)) {
+      paths.add(path);
     }
   }
   const draftsByPath = collectDraftsByPath(options.draftComments ?? []);
   for (const path of draftsByPath.keys()) {
-    if (isDocumentReviewPath(path)) paths.add(path);
+    if (!options.knownMissingPaths?.has(path)) paths.add(path);
   }
 
   const changeByPath = new Map(changes.map((change) => [change.path, change]));
@@ -94,19 +84,16 @@ export function buildReviewQueueItems(
       const pathThreads = [...threads.values()].filter(
         (thread) => thread.path === path,
       );
-      const threadCounts: Record<CommentStatus, number> = {
-        open: 0,
-        resolved: 0,
-        archived: 0,
-      };
       let commentCount = 0;
       let latestActivity: CommentThreadActivityEvent | undefined;
       const pathDrafts = draftsByPath.get(path) ?? [];
 
       for (const thread of pathThreads) {
-        threadCounts[thread.status] += 1;
         commentCount += thread.comments.length;
-        const candidate = activities[thread.id]?.timeline[0];
+        const candidate = activities[thread.id]?.timeline.find(
+          (event) =>
+            event.type === "thread_read" && event.actor.kind !== "human",
+        );
         if (
           candidate &&
           (!latestActivity || candidate.createdAt > latestActivity.createdAt)
@@ -118,8 +105,8 @@ export function buildReviewQueueItems(
       const item: ReviewQueueItem = {
         path,
         change: changeByPath.get(path) ?? null,
-        threadCounts,
         commentCount,
+        lastActivityAt: options.recentActivityByPath?.[path],
         latestActivity,
         unread: unreadPaths.has(path),
       };
@@ -140,12 +127,6 @@ export function summarizeReviewQueue(
     total: items.length,
     seen: items.length - unread,
     unread,
-    openThreads: items.reduce(
-      (total, item) => total + item.threadCounts.open,
-      0,
-    ),
-    filesWithOpenThreads: items.filter((item) => item.threadCounts.open > 0)
-      .length,
   };
 }
 
@@ -285,32 +266,12 @@ export function pinActiveReviewQueueItem(
   ];
 }
 
-export function activityNeedsHumanAttention(
-  event: CommentThreadActivityEvent,
-): boolean {
-  return (
-    event.type === "thread_created" ||
-    event.type === "comment_added" ||
-    event.type === "thread_status_changed"
-  );
-}
-
-export function reviewQueueItemHasAgentReply(item: ReviewQueueItem): boolean {
-  return (
-    item.threadCounts.open > 0 &&
-    item.latestActivity?.type === "comment_added" &&
-    item.latestActivity.actor.kind !== "human"
-  );
-}
-
 function collectThreads(comments: ViviComment[]) {
   const threads = new Map<
     string,
     {
       id: string;
       path: string;
-      status: CommentStatus;
-      updatedAt: string;
       comments: ViviComment[];
     }
   >();
@@ -319,16 +280,10 @@ function collectThreads(comments: ViviComment[]) {
     const current = threads.get(id);
     if (current) {
       current.comments.push(comment);
-      if (comment.updatedAt > current.updatedAt) {
-        current.status = comment.status;
-        current.updatedAt = comment.updatedAt;
-      }
     } else {
       threads.set(id, {
         id,
         path: comment.path,
-        status: comment.status,
-        updatedAt: comment.updatedAt,
         comments: [comment],
       });
     }
@@ -349,26 +304,21 @@ function compareReviewQueueItems(
   b: ReviewQueueItem,
   changeOrder: Map<string, number>,
 ) {
-  const openCompare =
-    Number(b.threadCounts.open > 0) - Number(a.threadCounts.open > 0);
-  if (openCompare) return openCompare;
+  const unseenCompare = Number(b.unread) - Number(a.unread);
+  if (unseenCompare) return unseenCompare;
   const pendingCompare =
     Number((b.pendingDraftCount ?? 0) > 0) -
     Number((a.pendingDraftCount ?? 0) > 0);
   if (pendingCompare) return pendingCompare;
-  const unreadCompare = Number(b.unread) - Number(a.unread);
-  if (unreadCompare) return unreadCompare;
   const activityCompare = (b.latestActivity?.createdAt ?? "").localeCompare(
     a.latestActivity?.createdAt ?? "",
   );
+  const clockCompare = (b.lastActivityAt ?? 0) - (a.lastActivityAt ?? 0);
+  if (clockCompare) return clockCompare;
   if (activityCompare) return activityCompare;
   return (
     (changeOrder.get(a.path) ?? Number.MAX_SAFE_INTEGER) -
       (changeOrder.get(b.path) ?? Number.MAX_SAFE_INTEGER) ||
     a.path.localeCompare(b.path)
   );
-}
-
-export function isDocumentReviewPath(path: string): boolean {
-  return /\.(?:md|markdown|mdown|html|htm)$/iu.test(path);
 }

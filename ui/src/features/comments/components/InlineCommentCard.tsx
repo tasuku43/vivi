@@ -1,9 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import type { CommentStatus, ViviComment } from "../../../domain/comments.js";
+import type { ViviComment } from "../../../domain/comments.js";
 import {
   commentLineLabel,
-  statusLabel,
   truncateCommentPreview,
 } from "../../../state/comments.js";
 import { CommentStatusBadge } from "./CommentStatusBadge.js";
@@ -13,12 +12,10 @@ export function InlineCommentCard({
   comment,
   rect,
   onClose,
-  onStatusChange,
 }: {
   comment: ViviComment | null;
   rect: DOMRectLike | null;
   onClose: () => void;
-  onStatusChange?: (id: string, status: CommentStatus) => void;
 }) {
   const cardRef = useRef<HTMLElement | null>(null);
   const [position, setPosition] = useState<InlineCommentCardPosition | null>(
@@ -96,38 +93,13 @@ export function InlineCommentCard({
           ×
         </button>
       </div>
-      <CommentStatusBadge status={comment.status}>
-        {statusLabel(comment.status)}
-      </CommentStatusBadge>
+      <CommentStatusBadge status="published">Published</CommentStatusBadge>
       <p className={styles.body}>{comment.body}</p>
       {comment.anchor.canonical.quote ? (
         <blockquote className={styles.quote}>
           {truncateCommentPreview(comment.anchor.canonical.quote, 180)}
         </blockquote>
       ) : null}
-      <div className={`${styles.actions} inline-comment-actions`}>
-        <button
-          disabled={comment.status === "open"}
-          type="button"
-          onClick={() => onStatusChange?.(comment.id, "open")}
-        >
-          Open
-        </button>
-        <button
-          disabled={comment.status === "resolved"}
-          type="button"
-          onClick={() => onStatusChange?.(comment.id, "resolved")}
-        >
-          Resolve
-        </button>
-        <button
-          disabled={comment.status === "archived"}
-          type="button"
-          onClick={() => onStatusChange?.(comment.id, "archived")}
-        >
-          Archive
-        </button>
-      </div>
     </article>
   );
 }

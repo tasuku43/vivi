@@ -4,10 +4,7 @@ import type { ViviComment } from "../../../domain/comments.js";
 import type { FilePayload } from "../../../domain/fs-node.js";
 import type { CommentActivitySummary } from "../../../state/comment-activity.js";
 import type { LineRange } from "../../../state/code-viewer.js";
-import type {
-  CommentCreateHandler,
-  CommentStatusChangeHandler,
-} from "../../../state/comments.js";
+import type { CommentCreateHandler } from "../../../state/comments.js";
 import type { ResolvedTheme } from "../../../state/theme.js";
 import { SourceCommentSurface } from "../../comments/components/SourceCommentSurface.js";
 import {
@@ -34,7 +31,6 @@ export function JsonViewer({
   currentActorId,
   onOpenComment,
   onCloseComment,
-  onCommentStatusChange,
   threadActivities = {},
 }: {
   file: FilePayload;
@@ -51,7 +47,6 @@ export function JsonViewer({
   currentActorId?: string;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onCloseComment?: () => void;
-  onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities?: Record<string, CommentActivitySummary>;
 }) {
   const [mode, setMode] = useState<"tree" | "source">(initialMode ?? "tree");
@@ -108,7 +103,6 @@ export function JsonViewer({
           expandActiveCommentThread={expandActiveCommentThread}
           currentActorId={currentActorId}
           onOpenComment={onOpenComment}
-          onCommentStatusChange={onCommentStatusChange}
           threadActivities={threadActivities}
         />
       ) : mode === "tree" && parsed.ok ? (
@@ -128,7 +122,6 @@ export function JsonViewer({
           onCreateComment={onCreateComment}
           onOpenComment={onOpenComment}
           onCloseComment={onCloseComment}
-          onCommentStatusChange={onCommentStatusChange}
           threadActivities={threadActivities}
         />
       )}

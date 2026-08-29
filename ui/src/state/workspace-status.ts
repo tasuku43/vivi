@@ -26,7 +26,7 @@ export interface WorkspaceStatusInput {
   openTabCount: number;
   reviewFileCount: number;
   reviewLoading?: boolean;
-  openThreadCount: number;
+  feedbackCount: number;
   draftCount: number;
   connectionStatus: WorkspaceConnectionStatus;
   activeFile?: ActiveFileStatusInput | null;
@@ -45,7 +45,7 @@ export interface WorkspaceStatusSummary {
 export function summarizeWorkspaceStatus({
   tree,
   openTabCount,
-  openThreadCount,
+  feedbackCount,
   draftCount,
   connectionStatus,
   activeFile,
@@ -61,11 +61,13 @@ export function summarizeWorkspaceStatus({
   ].join(" · ");
   const review =
     [
-      `${openThreadCount} ${openThreadCount === 1 ? "thread" : "threads"} open`,
+      feedbackCount
+        ? `${feedbackCount} feedback ${feedbackCount === 1 ? "item" : "items"}`
+        : null,
       draftCount ? `${draftCount} draft${draftCount === 1 ? "" : "s"}` : null,
     ]
       .filter(Boolean)
-      .join(" · ") || "No open feedback";
+      .join(" · ") || "No feedback";
   const activeFileLabel = activeFileStatusLabel(activeFile ?? null);
   const pending = [
     metrics.pendingGitRefresh ? "review" : null,

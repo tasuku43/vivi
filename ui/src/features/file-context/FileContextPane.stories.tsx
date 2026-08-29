@@ -30,7 +30,6 @@ const meta = {
     onCreateComment: () => undefined,
     onOpenComment: () => undefined,
     onCloseComment: () => undefined,
-    onCommentStatusChange: () => undefined,
   },
 } satisfies Meta<typeof FileViewer>;
 

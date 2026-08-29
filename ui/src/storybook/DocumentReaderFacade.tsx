@@ -219,23 +219,16 @@ export function DocumentReaderFacade({
                     {isActiveBlock && state === "thread" ? (
                       <article
                         className={styles.thread}
-                        aria-label="Open feedback thread"
+                        aria-label="Published feedback"
                       >
                         <header>
-                          <strong>Open thread</strong>
-                          <span>2 messages</span>
+                          <strong>Published</strong>
+                          <span>Seen</span>
                         </header>
                         <div className={styles.message}>
                           <span className={styles.humanAvatar}>T</span>
                           <p>{savedComment}</p>
                         </div>
-                        <div className={styles.message}>
-                          <span className={styles.agentAvatar}>C</span>
-                          <p>{fixture.thread.agent}</p>
-                        </div>
-                        <button type="button" className={styles.replyButton}>
-                          Reply in this thread
-                        </button>
                       </article>
                     ) : null}
                   </section>
@@ -281,7 +274,7 @@ export function DocumentReaderFacade({
         <section className={styles.inspectorSection}>
           <div className={styles.inspectorTitle}>
             <h2>Feedback</h2>
-            <span>1 open</span>
+            <span>1 feedback</span>
           </div>
           <button
             type="button"
@@ -293,7 +286,7 @@ export function DocumentReaderFacade({
             }}
           >
             <strong>Commenting is the core action</strong>
-            <span>Agent replied · just now</span>
+            <span>Seen by agent · just now</span>
           </button>
         </section>
         <details className={styles.details}>
@@ -315,7 +308,7 @@ export function DocumentReaderFacade({
           {state === "writing"
             ? "1 comment in progress"
             : state === "thread"
-              ? "1 open thread"
+              ? "1 feedback item"
               : changesVisible
                 ? "Changes lens on"
                 : "Ready to comment anywhere"}

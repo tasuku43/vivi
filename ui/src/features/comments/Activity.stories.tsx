@@ -31,9 +31,11 @@ export const ActivityIndicatorList: Story = {
       </div>
       <div className="comment-activity-timeline inspector-timeline">
         <ol>
-          {sampleActivityEvents.map((event) => (
-            <li key={event.id}>{activityLabel(event, storyNow)}</li>
-          ))}
+          {sampleActivityEvents
+            .filter((event) => event.type === "thread_read")
+            .map((event) => (
+              <li key={event.id}>{activityLabel(event, storyNow)}</li>
+            ))}
         </ol>
       </div>
     </section>

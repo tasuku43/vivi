@@ -100,7 +100,7 @@ export const CommentAnywhereInteraction: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Save comment" }));
 
     await expect(
-      canvas.getByRole("article", { name: "Open feedback thread" }),
+      canvas.getByRole("article", { name: "Published feedback" }),
     ).toHaveTextContent("Keep commenting independent from Git changes.");
 
     const changesButton = canvas.getByRole("button", { name: "Changes 2" });

@@ -136,15 +136,6 @@
   box-shadow: inset 3px 0 0 var(--vivi-color-accent);
 }
 
-:global(.code-thread-comment.resolved),
-:global(.code-thread-comment.archived) {
-  background: color-mix(
-    in srgb,
-    var(--vivi-color-surface-panel-raised) 62%,
-    transparent
-  );
-}
-
 :global(.code-thread-comment.draft) {
   border-left: 3px solid var(--vivi-color-comment-border);
   background: color-mix(
@@ -253,7 +244,7 @@
   white-space: pre-wrap;
 }
 
-:global(.code-comment-thread-reply) {
+:global(.code-comment-thread-composer) {
   padding: 9px;
 }
 
@@ -310,47 +301,7 @@
   box-shadow: 0 0 0 2px var(--vivi-color-accent-surface-subtle);
 }
 
-:global(.code-comment-intent-toggle) {
-  display: inline-flex;
-  gap: 2px;
-  margin: 0 0 7px;
-  border: 1px solid var(--vivi-color-border-soft);
-  border-radius: 7px;
-  background: var(--vivi-color-surface-panel);
-  padding: 2px;
-}
-
-:global(.code-comment-intent-toggle button) {
-  border: 0;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--vivi-color-content-muted);
-  cursor: pointer;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 680;
-  padding: 4px 8px;
-}
-
-:global(.code-comment-intent-toggle button.active) {
-  background: var(--vivi-color-comment-surface);
-  color: var(--vivi-color-comment-text);
-}
-
-:global(.code-comment-intent-toggle button:hover),
-:global(.code-comment-intent-toggle button:focus-visible) {
-  outline: none;
-  background: var(--vivi-color-border-soft);
-  color: var(--vivi-color-content-primary);
-}
-
-:global(.code-comment-intent-toggle button.active:hover),
-:global(.code-comment-intent-toggle button.active:focus-visible) {
-  background: var(--vivi-color-comment-surface-active);
-  color: var(--vivi-color-comment-text);
-}
-
-:global(.code-comment-thread-reply textarea) {
+:global(.code-comment-thread-composer textarea) {
   display: block;
   width: 100%;
   min-height: 58px;
@@ -366,7 +317,7 @@
   padding: 8px 9px;
 }
 
-:global(.code-comment-thread-reply textarea:focus) {
+:global(.code-comment-thread-composer textarea:focus) {
   border-color: var(--vivi-color-accent-border);
   box-shadow: 0 0 0 2px var(--vivi-color-accent-surface-subtle);
 }

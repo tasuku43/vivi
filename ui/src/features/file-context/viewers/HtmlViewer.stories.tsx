@@ -42,7 +42,6 @@ const meta = {
     onCreateComment: fn(),
     onOpenComment: fn(),
     onCloseComment: fn(),
-    onCommentStatusChange: fn(),
     onOpenPath: fn(),
   },
 } satisfies Meta<typeof HtmlViewer>;
@@ -206,8 +205,8 @@ export const PreviewRenderedHtmlThread: Story = {
   },
 };
 
-export const PreviewKeepsThreadReplyFocused: Story = {
-  name: "HTML preview keeps thread replies focused",
+export const PreviewPublishedFeedbackHasNoResponseComposer: Story = {
+  name: "HTML preview published feedback has no response composer",
   tags: ["interaction"],
   args: {
     mode: "preview",
@@ -233,18 +232,48 @@ export const PreviewKeepsThreadReplyFocused: Story = {
       within(thread).queryByRole("button", { name: "Start separate thread" }),
     ).not.toBeInTheDocument();
     await expect(canvas.queryByLabelText("New line comment")).toBeNull();
-    await expect(canvas.getByLabelText("Continue thread")).toBeVisible();
-    await expect(
-      canvas.getByRole("button", { name: "Add follow-up" }),
-    ).toBeDisabled();
+    await expect(canvas.queryByRole("textbox")).not.toBeInTheDocument();
     await expect(
       within(thread).getByText(/HTML rendered comments should be visible/),
     ).toBeVisible();
   },
 };
 
-export const PreviewDraftOnlyThreadFollowUpKeepsThreadId: Story = {
-  name: "HTML preview continues a just-saved draft thread",
+export const PreviewIgnoresLegacyArchivedStatus: Story = {
+  name: "HTML preview ignores legacy archived status",
+  tags: ["interaction"],
+  args: {
+    mode: "preview",
+    activeCommentId: "comment-html-rendered",
+    comments: commentsForPath(sampleFiles.html.path).map((comment) =>
+      comment.id === "comment-html-rendered"
+        ? {
+            ...comment,
+            status: "archived" as const,
+            archivedAt: "2026-06-25T09:15:00.000Z",
+          }
+        : comment,
+    ),
+    previewSrcDoc: htmlCommentPreviewStoryDocument(sampleFiles.html.path),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.findByTitle(sampleFiles.html.path),
+    ).resolves.toBeInTheDocument();
+    const frame = canvas.getByTitle(sampleFiles.html.path) as HTMLIFrameElement;
+    await waitForHtmlDraftPreviewReady(frame);
+    const thread = await canvas.findByRole("article", {
+      name: "Comment thread for lines 6-7",
+    });
+    await expect(
+      within(thread).getByText(/HTML rendered comments should be visible/),
+    ).toBeVisible();
+  },
+};
+
+export const PreviewSavedDraftKeepsPendingComposer: Story = {
+  name: "HTML preview keeps the pending-note composer after save",
   tags: ["interaction"],
   args: {
     mode: "preview",
@@ -259,22 +288,16 @@ export const PreviewDraftOnlyThreadFollowUpKeepsThreadId: Story = {
       rect?: { left: number; top: number; width: number; height: number },
     ) => {
       await args.onCreateComment?.(draft, body, rect);
-      const id = draft.threadId ? "html-draft-follow-up" : "html-draft-root";
       const next = draftReviewCommentAsViviComment({
-        id,
-        threadId: draft.threadId,
+        id: "html-draft-root",
         path: draft.path,
         viewerKind: draft.viewerKind,
         anchor: draft.anchor,
         body,
         source: "human",
         createdBy: humanTasuku,
-        createdAt: draft.threadId
-          ? "2026-06-25T09:01:00.000Z"
-          : "2026-06-25T09:00:00.000Z",
-        updatedAt: draft.threadId
-          ? "2026-06-25T09:01:00.000Z"
-          : "2026-06-25T09:00:00.000Z",
+        createdAt: "2026-06-25T09:00:00.000Z",
+        updatedAt: "2026-06-25T09:00:00.000Z",
       });
       setComments((current) => [...current, next]);
     };
@@ -300,11 +323,11 @@ export const PreviewDraftOnlyThreadFollowUpKeepsThreadId: Story = {
       canvas.getByRole("button", { name: "Save pending draft comment" }),
     );
 
-    const followUpInput = await canvas.findByLabelText("Continue thread");
-    await expect(followUpInput).toBeVisible();
-    await expect(followUpInput).toHaveValue("");
-    await waitFor(() => expect(followUpInput).toHaveFocus());
-    await expect(canvas.getByText(firstBody)).toBeVisible();
+    await waitFor(() => expect(args.onCreateComment).toHaveBeenCalledTimes(1));
+    await expect(canvas.findByText(firstBody)).resolves.toBeVisible();
+    await expect(
+      canvas.findByLabelText("Add another pending note"),
+    ).resolves.toBeVisible();
     const viewer = canvasElement.querySelector<HTMLElement>(".html-viewer");
     const threadHost = canvasElement.querySelector<HTMLElement>(
       ".html-rendered-comment-thread-host",
@@ -315,29 +338,13 @@ export const PreviewDraftOnlyThreadFollowUpKeepsThreadId: Story = {
       viewer!.getBoundingClientRect().right + 1,
     );
 
-    const followUpBody = "Second pending note in the same HTML thread.";
-    await userEvent.type(followUpInput, followUpBody);
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Add follow-up" }),
-    );
-    await waitFor(() =>
-      expect(canvas.getByLabelText("Continue thread")).toHaveValue(""),
-    );
-    await waitFor(() =>
-      expect(canvas.getByLabelText("Continue thread")).toHaveFocus(),
-    );
-
     const calls = (
       args.onCreateComment as unknown as {
         mock: { calls: Array<[CommentDraft, string]> };
       }
     ).mock.calls;
-    await expect(calls).toHaveLength(2);
+    await expect(calls).toHaveLength(1);
     await expect(calls[0]?.[0].threadId).toBeUndefined();
-    await expect(calls[1]?.[0].threadId).toMatch(
-      /^draft-thread:html-draft-root:/,
-    );
-    await expect(calls[1]?.[1]).toBe(followUpBody);
 
     doubleClickHtmlStoryBlockId(frame, "html-preview-p-2");
     await expect(
@@ -860,7 +867,6 @@ function htmlMultiTargetPreviewStoryDocument(path: string): string {
             if (drafting.has(block.dataset.viviCommentBlockId)) block.classList.add("drafting-rendered-comment");
           });
           comments.forEach((comment) => {
-            if (comment.status === "archived") return;
             const block = blockById(comment.blockId);
             if (!block) return;
             block.classList.add("has-rendered-comment");

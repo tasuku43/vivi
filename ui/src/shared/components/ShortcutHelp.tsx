@@ -27,15 +27,11 @@ const shortcutGroups: readonly {
     title: "Review",
     items: [
       ["Open next unseen item", "Cmd/Ctrl Shift U"],
-      ["Open next in-review reply", "Cmd/Ctrl Shift I"],
       ["Next review item", "Cmd/Ctrl Shift J"],
       ["Previous review item", "Cmd/Ctrl Shift K"],
-      ["Mark current file reviewed", "Cmd/Ctrl Shift M"],
       ["Return to current thread", "Cmd/Ctrl I"],
-      ["Resolve / reopen current thread", "Cmd/Ctrl Shift Enter"],
-      ["Archive current thread", "Cmd/Ctrl Shift Backspace"],
-      ["Next open thread", "Cmd/Ctrl ]"],
-      ["Previous open thread", "Cmd/Ctrl ["],
+      ["Next feedback", "Cmd/Ctrl ]"],
+      ["Previous feedback", "Cmd/Ctrl ["],
     ],
   },
   {

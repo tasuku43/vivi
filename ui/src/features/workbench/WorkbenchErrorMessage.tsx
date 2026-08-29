@@ -13,10 +13,7 @@ export function WorkbenchErrorMessage({
 }: WorkbenchErrorMessageProps) {
   const content = workbenchErrorContent(error, { path, sourceMissing });
   return (
-    <div
-      className={`${viewerMessageStyles.error} viewer-error`}
-      role="alert"
-    >
+    <div className={`${viewerMessageStyles.error} viewer-error`} role="alert">
       <strong>{content.title}</strong>
       <span>{content.detail}</span>
     </div>
@@ -35,7 +32,7 @@ export function workbenchErrorContent(
     const label = options.path ? basenameForPath(options.path) : "This file";
     return {
       title: "Source missing",
-      detail: `${label} is not present in this workspace. The comment is still available so you can resolve, archive, or re-anchor it.`,
+      detail: `${label} is not present in this workspace. The comment remains available so you can inspect it or re-anchor it.`,
     };
   }
   if (isFetchFailure(message)) {

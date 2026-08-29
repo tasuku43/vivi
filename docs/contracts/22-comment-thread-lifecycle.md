@@ -1,5 +1,10 @@
 # CommentThread lifecycle
 
+> Compatibility note: the current browser product derives attention from
+> pending drafts, agent read receipts, and a shared inactivity window. Reply,
+> resolved, and archived operations remain documented here for existing CLI/API
+> clients, but they are not required browser workflow states.
+
 ## Responsibilities
 
 `CommentThread` is the review work item and conversation boundary. It owns the

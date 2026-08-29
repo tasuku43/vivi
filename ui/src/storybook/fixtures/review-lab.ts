@@ -153,7 +153,7 @@ export const sampleMarkdownFile = filePayload(
     "",
     "## Agent loop",
     "",
-    "Agents read open threads, reply with context, and mark threads when resolved.",
+    "Agents observe published feedback while the browser records when it was seen.",
   ].join("\n"),
 );
 
@@ -279,9 +279,9 @@ export const documentReaderFixture: DocumentReaderFixture = {
     {
       id: "reader-actions",
       kind: "list",
-      text: "Read naturally|Comment in place|Return when the agent replies",
+      text: "Read naturally|Comment in place|See when the agent observes it",
       source:
-        "- Read naturally\n- Comment in place\n- Return when the agent replies",
+        "- Read naturally\n- Comment in place\n- See when the agent observes it",
     },
     {
       id: "changes-heading",
@@ -342,11 +342,11 @@ export const sampleQueueFile = filePayload(
   [
     "# Review Queue",
     "",
-    "Files with open threads rise to the top of the queue.",
+    "Files with unseen feedback stay pinned in the queue.",
     "",
     "## Latest activity",
     "",
-    "Unread agent replies should be visible without opening every file.",
+    "Recent activity and unseen feedback should be visible without opening every file.",
   ].join("\n"),
 );
 
@@ -597,34 +597,6 @@ export const sampleComments: ViviComment[] = [
     body: "HTML rendered comments should be visible as source-mapped review metadata.",
     reviewBatchId: "review-batch-story-001",
   }),
-  sourceComment({
-    id: "comment-resolved",
-    threadId: "thread-resolved",
-    path: "docs/agent-handoff.md",
-    viewerKind: "markdown",
-    lineStart: 4,
-    lineEnd: 5,
-    quote: "handoff",
-    body: "Resolved after the agent added the comments watch example.",
-    status: "resolved",
-    source: "human",
-    createdBy: humanTasuku,
-    resolvedAt: "2026-06-20T09:05:00.000Z",
-  }),
-  sourceComment({
-    id: "comment-archived",
-    threadId: "thread-archived",
-    path: "server/comments/comments.go",
-    viewerKind: "text",
-    lineStart: 28,
-    lineEnd: 30,
-    quote: "appendThreadEvent",
-    body: "Archived legacy implementation note.",
-    status: "archived",
-    source: "human",
-    createdBy: humanTasuku,
-    archivedAt: "2026-06-20T08:50:00.000Z",
-  }),
 ];
 
 export const sampleDraftComments: DraftReviewComment[] = [
@@ -791,7 +763,7 @@ export const sampleActivityEvents: CommentThreadActivityEvent[] = [
     "2026-06-20T09:11:00.000Z",
   ),
   activity(
-    "activity-reply-workbench",
+    "activity-agent-message-workbench",
     "thread-workbench-open",
     "comment_added",
     codexAgent,
@@ -813,17 +785,6 @@ export const sampleActivityEvents: CommentThreadActivityEvent[] = [
     "thread_read",
     claudeAgent,
     "2026-06-20T09:15:00.000Z",
-  ),
-  activity(
-    "activity-resolved",
-    "thread-resolved",
-    "thread_status_changed",
-    codexAgent,
-    "2026-06-20T09:05:00.000Z",
-    {
-      previousStatus: "open",
-      status: "resolved",
-    },
   ),
 ];
 

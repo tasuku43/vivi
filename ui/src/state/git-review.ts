@@ -52,6 +52,8 @@ export function mergeReviewChanges(
   const byPath = new Map<string, ReviewChangeItem>();
 
   for (const pair of watcherState.renamePairs) {
+    if (pair.fromPath === pair.toPath) continue;
+    if (watcherState.removedPaths.has(pair.toPath)) continue;
     if (byPath.has(pair.toPath)) continue;
     byPath.set(pair.toPath, {
       path: pair.toPath,

@@ -123,7 +123,7 @@ it("turns missing source failures into a comment-preserving viewer error", () =>
 
   expect(html).toContain("Source missing");
   expect(html).toContain("README.md is not present in this workspace");
-  expect(html).toContain("resolve, archive, or re-anchor");
+  expect(html).toContain("inspect it or re-anchor it");
   expect(html).not.toContain("/Users/tasuku");
   expect(html).not.toContain("stat ");
 });

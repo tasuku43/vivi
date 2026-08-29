@@ -9,7 +9,6 @@ import { buildCommentThreads } from "../domain/comments.js";
 
 export interface CommentActivityState {
   byThreadId: Record<string, CommentThreadActivityEvent[]>;
-  latestObservedByActor: Record<string, string>;
   seenEventIds: string[];
 }
 
@@ -21,14 +20,9 @@ export interface CommentActivitySummary {
 export interface CommentActivityRefreshTarget {
   shouldRefresh: boolean;
   path: string | null;
-  shouldMarkUnread: boolean;
 }
 
-export type CommentThreadReviewReceiptState =
-  | "not-read"
-  | "agent-read"
-  | "reply-unread"
-  | "reply-read";
+export type CommentThreadReviewReceiptState = "not-read" | "agent-read";
 
 export interface CommentThreadReviewReceipt {
   state: CommentThreadReviewReceiptState;
@@ -39,7 +33,6 @@ export interface CommentThreadReviewReceipt {
 
 export const emptyCommentActivityState: CommentActivityState = {
   byThreadId: {},
-  latestObservedByActor: {},
   seenEventIds: [],
 };
 
@@ -60,17 +53,12 @@ export function addCommentActivity(
   event: CommentThreadActivityEvent,
 ): CommentActivityState {
   if (state.seenEventIds.includes(event.id)) return state;
-  const threadEvents = [...(state.byThreadId[event.threadId] ?? []), event]
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, maxEventsPerThread);
-  const latestObservedByActor = { ...state.latestObservedByActor };
-  latestObservedByActor[actorKey(event.actor)] = maxIso(
-    latestObservedByActor[actorKey(event.actor)],
-    event.createdAt,
-  );
+  const threadEvents = retainThreadActivities([
+    ...(state.byThreadId[event.threadId] ?? []),
+    event,
+  ]);
   return {
     byThreadId: { ...state.byThreadId, [event.threadId]: threadEvents },
-    latestObservedByActor,
     seenEventIds: [event.id, ...state.seenEventIds].slice(0, maxSeenEventIds),
   };
 }
@@ -79,11 +67,11 @@ export function summarizeThreadActivity(
   events: CommentThreadActivityEvent[] | undefined,
   now = Date.now(),
 ): CommentActivitySummary {
-  const timeline = [...(events ?? [])].sort((a, b) =>
-    b.createdAt.localeCompare(a.createdAt),
-  );
+  const timeline = [...(events ?? [])]
+    .filter(isAgentThreadRead)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return {
-    inline: timeline.slice(0, 2).map((event) => activityLabel(event, now)),
+    inline: timeline.slice(0, 1).map((event) => activityLabel(event, now)),
     timeline,
   };
 }
@@ -103,7 +91,6 @@ export function commentActivityRefreshTarget(
   return {
     shouldRefresh: commentActivityNeedsAuthoritativeRefresh(event),
     path,
-    shouldMarkUnread: commentActivityShouldMarkUnread(event),
   };
 }
 
@@ -123,13 +110,6 @@ export function commentActivityNeedsAuthoritativeRefresh(
   return event.type !== "thread_read";
 }
 
-export function commentActivityShouldMarkUnread(
-  event: CommentThreadActivityEvent,
-): boolean {
-  if (event.actor.kind === "human") return false;
-  return event.type !== "thread_read";
-}
-
 export function commentThreadReviewReceipt(
   thread: CommentThread,
   events: CommentThreadActivityEvent[] | undefined,
@@ -137,52 +117,60 @@ export function commentThreadReviewReceipt(
   const timeline = [...(events ?? [])].sort((a, b) =>
     b.createdAt.localeCompare(a.createdAt),
   );
-  const latestAgentReply = latestEvent(timeline, (event) =>
-    isAgentCommentAdded(event),
-  );
-  const latestHumanRead = latestEvent(timeline, (event) =>
-    isHumanThreadRead(event),
-  );
-  if (
-    latestAgentReply &&
-    (!latestHumanRead || latestAgentReply.createdAt > latestHumanRead.createdAt)
-  ) {
-    return {
-      state: "reply-unread",
-      label: "Unread reply",
-      meta: `${actorLabel(latestAgentReply.actor)} replied · unread by you`,
-      ariaLabel: "unread agent reply",
-    };
-  }
-  if (latestAgentReply && latestHumanRead) {
-    return {
-      state: "reply-read",
-      label: "Reply read",
-      meta: `${actorLabel(latestAgentReply.actor)} reply read by you`,
-      ariaLabel: "agent reply read by you",
-    };
-  }
-
   const latestAgentRead = latestEvent(timeline, (event) =>
     isAgentThreadRead(event),
   );
-  if (latestAgentRead) {
+  if (
+    latestAgentRead &&
+    latestAgentRead.createdAt >= latestHumanFeedbackAt(thread)
+  ) {
     return {
       state: "agent-read",
-      label: "Agent read",
-      meta: `${actorLabel(latestAgentRead.actor)} read · waiting on reply`,
+      label: "Seen",
+      meta: `Seen by ${actorLabel(latestAgentRead.actor)}`,
       ariaLabel: "read by agent",
     };
   }
 
   return {
     state: "not-read",
-    label: "Not read",
-    meta: thread.comments.some((comment) => comment.reviewBatchId)
-      ? "published · not read by agent"
-      : "not read by agent · still open",
+    label: "Unseen",
+    meta: "Not yet seen by an agent",
     ariaLabel: "not read by agent",
   };
+}
+
+export function unseenFeedbackPathSet(
+  comments: readonly ViviComment[],
+  activitiesByThreadId: Readonly<
+    Record<string, readonly CommentThreadActivityEvent[]>
+  >,
+): Set<string> {
+  return new Set(
+    buildCommentThreads([...comments])
+      .filter((thread) => thread.comments.some(isHumanFeedback))
+      .filter(
+        (thread) =>
+          commentThreadReviewReceipt(
+            thread,
+            activitiesByThreadId[thread.id]
+              ? [...activitiesByThreadId[thread.id]!]
+              : undefined,
+          ).state === "not-read",
+      )
+      .map((thread) => thread.path),
+  );
+}
+
+export function agentReadReviewObservation(
+  event: CommentThreadActivityEvent,
+  comments: readonly ViviComment[],
+): { path: string; observedAt: number } | null {
+  if (!isAgentThreadRead(event)) return null;
+  const path = commentActivityThreadPath(event, [...comments]);
+  const observedAt = Date.parse(event.createdAt);
+  if (!path || !Number.isFinite(observedAt)) return null;
+  return { path, observedAt };
 }
 
 export function actorLabel(actor: CommentActor): string {
@@ -230,15 +218,6 @@ export function relativeTime(value: string, now = Date.now()): string {
   return `${days}d ago`;
 }
 
-function actorKey(actor: CommentActor): string {
-  return actor.id.trim() || `${actor.kind}:unknown`;
-}
-
-function maxIso(a: string | undefined, b: string): string {
-  if (!a) return b;
-  return a.localeCompare(b) >= 0 ? a : b;
-}
-
 function latestEvent(
   timeline: CommentThreadActivityEvent[],
   predicate: (event: CommentThreadActivityEvent) => boolean,
@@ -246,14 +225,41 @@ function latestEvent(
   return timeline.find(predicate);
 }
 
-function isAgentCommentAdded(event: CommentThreadActivityEvent): boolean {
-  return event.type === "comment_added" && event.actor.kind !== "human";
+function retainThreadActivities(
+  events: CommentThreadActivityEvent[],
+): CommentThreadActivityEvent[] {
+  const sorted = [...events].sort((a, b) =>
+    b.createdAt.localeCompare(a.createdAt),
+  );
+  const recent = sorted.slice(0, maxEventsPerThread);
+  const latestAgentRead = sorted.find(isAgentThreadRead);
+  if (
+    !latestAgentRead ||
+    recent.some((event) => event.id === latestAgentRead.id)
+  ) {
+    return recent;
+  }
+  return [...recent.slice(0, maxEventsPerThread - 1), latestAgentRead].sort(
+    (a, b) => b.createdAt.localeCompare(a.createdAt),
+  );
 }
 
 function isAgentThreadRead(event: CommentThreadActivityEvent): boolean {
   return event.type === "thread_read" && event.actor.kind !== "human";
 }
 
-function isHumanThreadRead(event: CommentThreadActivityEvent): boolean {
-  return event.type === "thread_read" && event.actor.kind === "human";
+function latestHumanFeedbackAt(thread: CommentThread): string {
+  return thread.comments
+    .filter(isHumanFeedback)
+    .reduce(
+      (latest, comment) =>
+        comment.updatedAt > latest ? comment.updatedAt : latest,
+      thread.createdAt,
+    );
+}
+
+export function isHumanFeedback(comment: ViviComment): boolean {
+  if (comment.createdBy) return comment.createdBy.kind === "human";
+  if (comment.source) return comment.source === "human";
+  return true;
 }

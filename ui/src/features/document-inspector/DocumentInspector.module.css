@@ -197,19 +197,6 @@
   text-transform: uppercase;
 }
 
-.open {
-  color: var(--vivi-color-review-text);
-  background: var(--vivi-color-review-surface-active);
-}
-.resolved {
-  color: var(--vivi-color-success-text);
-  background: var(--vivi-color-success-surface);
-}
-.pending {
-  color: var(--vivi-color-comment-text);
-  background: var(--vivi-color-comment-surface-active);
-}
-
 .messageCount {
   grid-column: 1 / -1;
   color: var(--vivi-color-content-subtle);

@@ -9,6 +9,10 @@ import {
   within,
 } from "storybook/test";
 import type { ViviComment } from "../../../domain/comments.js";
+import {
+  draftReviewCommentAsViviComment,
+  type CommentDraft,
+} from "../../../state/comments.js";
 import type { ViewerMode } from "../../../state/viewer-mode.js";
 import {
   commentsForPath,
@@ -36,7 +40,6 @@ const meta = {
     onCreateComment: fn(),
     onOpenComment: fn(),
     onCloseComment: fn(),
-    onCommentStatusChange: fn(),
     onOpenPath: fn(),
   },
 } satisfies Meta<typeof MarkdownViewer>;
@@ -138,8 +141,8 @@ export const RenderedBlockClickDraft: Story = {
   },
 };
 
-export const RenderedCommentModifierClickStartsDraftComposer: Story = {
-  name: "Rendered Markdown double-click continues an existing thread",
+export const RenderedCommentMarkerOpensFeedback: Story = {
+  name: "Rendered Markdown marker opens existing feedback",
   tags: ["interaction"],
   args: {
     mode: "rendered",
@@ -153,23 +156,20 @@ export const RenderedCommentModifierClickStartsDraftComposer: Story = {
     const commentedBlock = commentedText.closest(
       ".vivi-rendered-comment-block",
     )!;
-    await expect(
-      within(commentedBlock as HTMLElement).getByRole("button", {
-        name: /Open comment thread/,
-      }),
-    ).toBeInTheDocument();
+    const marker = within(commentedBlock as HTMLElement).getByRole("button", {
+      name: /Open comment thread/,
+    });
+    await userEvent.click(marker);
 
-    await doubleClickRenderedBlock(commentedText);
-
-    await expect(canvas.getByLabelText("Continue thread")).toBeInTheDocument();
+    await expect(canvas.queryByRole("textbox")).not.toBeInTheDocument();
     await expect(
       canvas.getByText(/This sentence captures the feedback layer/),
     ).toBeVisible();
   },
 };
 
-export const RenderedKeepsThreadReplyFocused: Story = {
-  name: "Rendered Markdown keeps thread replies focused",
+export const RenderedPublishedFeedbackHasNoResponseComposer: Story = {
+  name: "Rendered Markdown published feedback has no response composer",
   tags: ["interaction"],
   args: {
     mode: "rendered",
@@ -200,12 +200,12 @@ export const RenderedKeepsThreadReplyFocused: Story = {
       }),
     ).not.toBeInTheDocument();
     await expect(canvas.queryByLabelText("New line comment")).toBeNull();
-    await expect(canvas.getByLabelText("Continue thread")).toBeInTheDocument();
+    await expect(canvas.queryByRole("textbox")).not.toBeInTheDocument();
   },
 };
 
-export const RenderedSameAnchorFollowUpKeepsThreadId: Story = {
-  name: "Rendered Markdown same-anchor follow-up keeps thread id",
+export const RenderedSameAnchorStartsNewFeedback: Story = {
+  name: "Rendered Markdown same-anchor selection starts new feedback",
   tags: ["interaction"],
   args: {
     mode: "rendered",
@@ -245,6 +245,27 @@ export const RenderedSameAnchorFollowUpKeepsThreadId: Story = {
           },
         },
       },
+      draftReviewCommentAsViviComment({
+        id: "source-draft-agents-l1",
+        threadId: "draft-thread:source-agents-l1",
+        path: "AGENTS.md",
+        viewerKind: "markdown",
+        body: "A pending Source note on the same line.",
+        source: "human",
+        createdBy: humanTasuku,
+        createdAt: "2026-07-02T01:05:00.000Z",
+        updatedAt: "2026-07-02T01:05:00.000Z",
+        anchor: {
+          surface: "source",
+          canonical: {
+            path: "AGENTS.md",
+            lineStart: 1,
+            lineEnd: 1,
+            quote: "# Agent instructions",
+            fileHash: sampleFiles.markdown.etag,
+          },
+        },
+      }),
     ],
     onCreateComment: fn(),
   },
@@ -255,26 +276,20 @@ export const RenderedSameAnchorFollowUpKeepsThreadId: Story = {
     });
     await doubleClickRenderedBlock(heading);
 
-    const followUp = "Keep this pending reply on the L1 thread.";
-    await userEvent.type(canvas.getByLabelText("Continue thread"), followUp);
+    const composer = canvas.getByLabelText("New line comment");
+    await userEvent.type(composer, "A separate note on the same heading.");
     await userEvent.click(
-      canvas.getByRole("button", { name: "Add follow-up" }),
+      canvas.getByRole("button", { name: "Save pending draft comment" }),
     );
 
+    await expect(args.onCreateComment).toHaveBeenCalledTimes(1);
     const calls = (
       args.onCreateComment as unknown as {
-        mock: { calls: unknown[][] };
+        mock: { calls: Array<[CommentDraft, string]> };
       }
     ).mock.calls;
-    await expect(args.onCreateComment).toHaveBeenCalled();
-    await expect(calls.at(-1)?.[0]).toMatchObject({
-      threadId: "thread-agents-l1",
-    });
-    await expect(calls.at(-1)?.[1]).toBe(followUp);
-    await expect(canvas.getByLabelText("Continue thread")).toHaveValue("");
-    await waitFor(() =>
-      expect(canvas.getByLabelText("Continue thread")).toHaveFocus(),
-    );
+    await expect(calls[0]?.[0].threadId).toBeUndefined();
+    await expect(calls[0]?.[1]).toBe("A separate note on the same heading.");
   },
 };
 
@@ -282,8 +297,8 @@ const renderedMarkdownComment = commentsForPath(sampleFiles.markdown.path).find(
   (comment) => comment.id === "comment-md-rendered",
 )!;
 
-export const RenderedResolvedCommentOpensFromBlock: Story = {
-  name: "Rendered Markdown opens a resolved thread from its block",
+export const RenderedLegacyResolvedFeedback: Story = {
+  name: "Rendered Markdown ignores legacy resolved status",
   tags: ["interaction"],
   args: {
     mode: "rendered",
@@ -313,13 +328,16 @@ export const RenderedResolvedCommentOpensFromBlock: Story = {
       name: "Comment thread for line 7",
     });
     await expect(thread).toBeVisible();
-    await expect(within(thread).getAllByText("Resolved")[0]).toBeVisible();
-    await expect(canvas.getByLabelText("Continue thread")).toBeVisible();
+    await expect(within(thread).getAllByText("Published")[0]).toBeVisible();
+    await expect(
+      within(thread).queryByText("Resolved"),
+    ).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("textbox")).not.toBeInTheDocument();
   },
 };
 
-export const RenderedArchivedCommentHidden: Story = {
-  name: "Archived Markdown thread stays hidden from the browser UI",
+export const RenderedLegacyArchivedFeedback: Story = {
+  name: "Rendered Markdown ignores legacy archived status",
   tags: ["interaction"],
   args: {
     mode: "rendered",
@@ -341,19 +359,20 @@ export const RenderedArchivedCommentHidden: Story = {
       ".vivi-rendered-comment-block",
     ) as HTMLElement;
 
-    await expect(commentedBlock).not.toHaveClass("has-rendered-comment");
+    await expect(commentedBlock).toHaveClass("has-rendered-comment");
     await expect(
-      within(commentedBlock).queryByRole("button", {
+      within(commentedBlock).getByRole("button", {
         name: /Open comment thread/,
       }),
-    ).toBeNull();
+    ).toBeVisible();
 
     await clickRenderedBlock(commentedText);
     await expect(
-      canvas.queryByRole("article", {
+      canvas.getByRole("article", {
         name: "Comment thread for line 7",
       }),
-    ).toBeNull();
+    ).toBeVisible();
+    await expect(canvas.queryByText("Archived")).not.toBeInTheDocument();
   },
 };
 
@@ -682,7 +701,7 @@ export const RenderedMarkerPlacement: Story = {
     ).toBe("calc(0.85em + 1px)");
 
     await userEvent.click(listMarker);
-    await expect(canvas.getByLabelText("Continue thread")).toBeInTheDocument();
+    await expect(canvas.queryByRole("textbox")).not.toBeInTheDocument();
     await waitFor(() =>
       expect(
         Math.abs(
@@ -991,7 +1010,6 @@ function SourceInputReturnHarness() {
       onDiffToggle={fn()}
       onCloseComment={fn()}
       onOpenComment={fn()}
-      onCommentStatusChange={fn()}
       onOpenPath={fn()}
     />
   );

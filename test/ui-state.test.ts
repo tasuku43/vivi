@@ -43,10 +43,7 @@ import {
   buildTextSearchItems,
   textSearchPreviewSegments,
 } from "../ui/src/state/search-palette.js";
-import {
-  currentThreadLifecycleShortcutStatus,
-  reviewCommandActions,
-} from "../ui/src/state/review-command-actions.js";
+import { reviewCommandActions } from "../ui/src/state/review-command-actions.js";
 import {
   fileLocationSegments,
   fileLocationSummary,
@@ -129,48 +126,40 @@ import {
   supportsSourceToggle,
 } from "../ui/src/state/viewer-mode.js";
 import {
-  nextReviewActivityExpiryDelay,
-  recentReviewActivityPaths,
+  fileReviewAttentionForQueue,
+  isFileReviewActivityEvent,
   recentReviewEvents,
-  reviewActivityWindowMs,
+  recordReviewEvent,
   summarizeReviewEvents,
 } from "../ui/src/state/review-events.js";
+import {
+  compactReviewAttention,
+  nextReviewAttentionExpiryDelay,
+  recentReviewAttentionPaths,
+  reviewActivityWindowMs,
+  touchReviewAttention,
+} from "../ui/src/state/review-attention.js";
 import { keyboardShortcutAction } from "../ui/src/state/shortcuts.js";
 import {
-  activityNeedsHumanAttention,
   buildReviewQueueItems,
   latestUnreadReviewItemPath,
   nextReviewQueueItemPathAfterCompletion,
   nextReviewQueueItemPath,
   pinActiveReviewQueueItem,
-  reviewQueueItemHasAgentReply,
   reviewQueuePosition,
   reviewQueueSignalCounts,
   summarizeReviewQueue,
   syncUnreadReviewPaths,
 } from "../ui/src/state/review-queue.js";
-import { summarizeReviewLifecycle } from "../ui/src/state/review-lifecycle.js";
-import { buildReviewNextAction } from "../ui/src/state/review-next-action.js";
 import {
-  compactReviewDecisions,
-  compactReviewReceipts,
-  createReviewReceipt,
-  reviewChangeFingerprint,
-  reviewDecisionPathSet,
-  reviewQueueItemState,
-  visibleReviewReceipts,
-} from "../ui/src/state/review-state.js";
-import {
-  agentReplyNavigationTargets,
   commentActivityThreadTargets,
   commentNavigationTarget,
   countAttentionCommentThreads,
   draftCommentNavigationTargets,
   firstRelevantThreadForReviewItem,
   inlineThreadFocusCommentId,
-  latestUnreadActivityTarget,
   moveReviewNavigationTarget,
-  openThreadNavigationTargets,
+  feedbackNavigationTargets,
   reviewQueueOpenTransition,
 } from "../ui/src/state/review-navigation.js";
 import { activeCommentRendersInViewerThread } from "../ui/src/state/comments.js";
@@ -708,7 +697,7 @@ it("summarizes workspace status as a human-facing bottom bar", () => {
     },
     openTabCount: 3,
     reviewFileCount: 4,
-    openThreadCount: 2,
+    feedbackCount: 2,
     draftCount: 1,
     connectionStatus: "connected",
     activeFile: {
@@ -729,7 +718,7 @@ it("summarizes workspace status as a human-facing bottom bar", () => {
 
   expect(summary.workspace).toBe("Watching 42 files · 3 tabs open");
   expect(summary.activeFile).toBe("brief.md · preview · rendered");
-  expect(summary.review).toBe("2 threads open · 1 draft");
+  expect(summary.review).toBe("2 feedback items · 1 draft");
   expect(summary.server).toBe("Live · waiting for file changes");
   expect(summary.serverTone).toBe("live");
   expect(summary.detail).toBe("1 review refresh · last review 18ms");
@@ -751,7 +740,7 @@ it("keeps feedback independent while change evidence is loading", () => {
     openTabCount: 1,
     reviewFileCount: 0,
     reviewLoading: true,
-    openThreadCount: 2,
+    feedbackCount: 2,
     draftCount: 0,
     connectionStatus: "connected",
     activeFile: null,
@@ -766,7 +755,7 @@ it("keeps feedback independent while change evidence is loading", () => {
     },
   });
 
-  expect(summary.review).toBe("2 threads open");
+  expect(summary.review).toBe("2 feedback items");
   expect(summary.review).not.toContain("review");
   expect(summary.server).toBe("Live · waiting for file changes");
   expect(summary.serverTone).toBe("live");
@@ -799,7 +788,7 @@ it("summarizes pending server work without exposing raw refresh logs", () => {
     },
     openTabCount: 1,
     reviewFileCount: 1,
-    openThreadCount: 0,
+    feedbackCount: 0,
     draftCount: 0,
     connectionStatus: "connected",
     activeFile: {
@@ -825,7 +814,7 @@ it("summarizes pending server work without exposing raw refresh logs", () => {
   expect(summary.activeFile).toBe(
     "app.ts · kept · source · HEAD diff · changed · removed",
   );
-  expect(summary.review).toBe("0 threads open");
+  expect(summary.review).toBe("No feedback");
   expect(summary.server).toBe("Updating review + 2 diffs");
   expect(summary.serverTone).toBe("pending");
   expect(summary.detail).toBe(
@@ -838,7 +827,7 @@ it("summarizes missing comment sources without reporting them as kept tabs", () 
     tree: null,
     openTabCount: 1,
     reviewFileCount: 0,
-    openThreadCount: 2,
+    feedbackCount: 2,
     draftCount: 0,
     connectionStatus: "connected",
     activeFile: {
@@ -866,7 +855,7 @@ it("summarizes connecting and disconnected workspace event streams", () => {
     tree: null,
     openTabCount: 0,
     reviewFileCount: 0,
-    openThreadCount: 0,
+    feedbackCount: 0,
     draftCount: 0,
     metrics: {
       fsEventsReceived: 0,
@@ -964,18 +953,18 @@ it("maps workspace keyboard shortcuts to app actions", () => {
   );
   expect(
     keyboardShortcutAction({ ...command, key: "Enter", shiftKey: true }),
-  ).toBe("toggle-current-thread-status");
+  ).toBeNull();
   expect(
     keyboardShortcutAction({ ...command, key: "Backspace", shiftKey: true }),
-  ).toBe("archive-current-thread");
+  ).toBeNull();
   expect(
     keyboardShortcutAction({ ...command, key: "C", shiftKey: true }),
   ).toBeNull();
-  expect(keyboardShortcutAction({ ...command, key: "M", shiftKey: true })).toBe(
-    "mark-current-reviewed",
-  );
+  expect(
+    keyboardShortcutAction({ ...command, key: "M", shiftKey: true }),
+  ).toBeNull();
   expect(keyboardShortcutAction({ ...command, key: "U", shiftKey: true })).toBe(
-    "open-latest-unread",
+    "open-latest-unseen",
   );
   expect(keyboardShortcutAction({ ...command, key: "J", shiftKey: true })).toBe(
     "open-next-review",
@@ -1470,44 +1459,71 @@ it("expires old Review Queue activity on schedule", () => {
   expect(recentReviewEvents(events, 500, 300).map((item) => item.id)).toEqual([
     "recent",
   ]);
-  const observedAtTimes = events.map((event) => event.receivedAt);
-  expect(nextReviewActivityExpiryDelay(observedAtTimes, 500, 300)).toBe(151);
-  expect(nextReviewActivityExpiryDelay(observedAtTimes, 651, 300)).toBeNull();
+  const clock = events.reduce(
+    (state, event) =>
+      touchReviewAttention(state, event.event.path, event.receivedAt),
+    {},
+  );
+  expect(nextReviewAttentionExpiryDelay(clock, 500, 300)).toBe(151);
+  expect(nextReviewAttentionExpiryDelay(clock, 651, 300)).toBeNull();
 });
 
-it("keeps file changes and user opens in one thirty-minute activity window", () => {
+it("keeps every producer in one path-based thirty-minute activity clock", () => {
   const event = {
     id: "observed",
     event: { type: "change" as const, path: "docs/observed.md", version: 1 },
     receivedAt: 1_000,
   };
-  const opened = {
-    path: "docs/opened.md",
-    observedAt: 2_000,
-  };
+  const clock = touchReviewAttention(
+    touchReviewAttention({}, event.event.path, event.receivedAt),
+    "docs/opened.md",
+    2_000,
+  );
 
   expect(reviewActivityWindowMs).toBe(30 * 60 * 1000);
   expect(
     recentReviewEvents([event], event.receivedAt + reviewActivityWindowMs),
   ).toEqual([event]);
   expect(
-    recentReviewEvents(
-      [event],
-      event.receivedAt + reviewActivityWindowMs + 1,
-    ),
+    recentReviewEvents([event], event.receivedAt + reviewActivityWindowMs + 1),
   ).toEqual([]);
   expect(
-    recentReviewActivityPaths(
-      [opened],
-      opened.observedAt + reviewActivityWindowMs,
-    ),
-  ).toEqual(new Set([opened.path]));
+    recentReviewAttentionPaths(clock, 2_000 + reviewActivityWindowMs),
+  ).toEqual(new Set(["docs/opened.md"]));
   expect(
-    recentReviewActivityPaths(
-      [opened],
-      opened.observedAt + reviewActivityWindowMs + 1,
-    ),
+    recentReviewAttentionPaths(clock, 2_000 + reviewActivityWindowMs + 1),
   ).toEqual(new Set());
+  expect(touchReviewAttention(clock, "docs/opened.md", 1_500)).toBe(clock);
+  expect(compactReviewAttention(clock, 2_301, 300)).toEqual({});
+});
+
+it("rejects future attention timestamps and keeps browser timers bounded", () => {
+  const now = 10_000;
+  const farFuture = now + 365 * 24 * 60 * 60 * 1000;
+
+  expect(touchReviewAttention({}, "docs/skewed.md", farFuture, now)).toEqual({
+    "docs/skewed.md": now,
+  });
+  expect(
+    touchReviewAttention(
+      { "docs/skewed.md": farFuture },
+      "docs/skewed.md",
+      now - 10,
+      now,
+    ),
+  ).toEqual({ "docs/skewed.md": now - 10 });
+  expect(
+    recentReviewAttentionPaths({ "docs/skewed.md": farFuture }, now),
+  ).toEqual(new Set());
+  expect(compactReviewAttention({ "docs/skewed.md": farFuture }, now)).toEqual(
+    {},
+  );
+  expect(
+    nextReviewAttentionExpiryDelay({ "docs/skewed.md": farFuture }, now),
+  ).toBeNull();
+  expect(
+    nextReviewAttentionExpiryDelay({ "docs/current.md": now }, now, farFuture),
+  ).toBe(2_147_483_647);
 });
 
 it("keeps feedback in the queue after its file change is no longer recent", () => {
@@ -1537,7 +1553,8 @@ it("keeps feedback in the queue after its file change is no longer recent", () =
       },
     ],
     {},
-    new Set(),
+    new Set(["docs/old-feedback.md"]),
+    { unseenFeedbackPaths: new Set(["docs/old-feedback.md"]) },
   );
 
   expect(items.map((item) => item.path)).toEqual([
@@ -1546,7 +1563,6 @@ it("keeps feedback in the queue after its file change is no longer recent", () =
   ]);
   expect(items[0]).toMatchObject({
     change: null,
-    threadCounts: { open: 1, resolved: 0, archived: 0 },
   });
 });
 
@@ -1819,8 +1835,18 @@ it("selects the latest unread review file while skipping deletions", () => {
   expect(latestUnreadReviewPath(changes, ["b.md"])).toBeNull();
 });
 
-it("keeps files with non-archived review threads in the queue", () => {
+it("pins unseen feedback without reviving legacy terminal threads", () => {
   const comments = [
+    {
+      ...makeReviewComment("agent-only", "docs/a.md", "open"),
+      threadId: "thread-agent-only",
+      source: "codex" as const,
+      createdBy: { id: "codex:run-1", kind: "codex" as const },
+      anchor: {
+        surface: "source" as const,
+        canonical: { path: "docs/a.md", lineStart: 1 },
+      },
+    },
     {
       ...makeReviewComment("open-1", "docs/agent.md", "open"),
       threadId: "thread-open",
@@ -1856,38 +1882,28 @@ it("keeps files with non-archived review threads in the queue", () => {
         ],
       },
     },
-    new Set(["src/app.ts"]),
+    new Set(["docs/agent.md"]),
+    { unseenFeedbackPaths: new Set(["docs/agent.md"]) },
   );
 
   expect(items.map((item) => item.path)).toEqual([
     "docs/agent.md",
     "src/app.ts",
-    "docs/history.md",
   ]);
   expect(items[0]).toMatchObject({
     change: null,
-    threadCounts: { open: 1, resolved: 0, archived: 0 },
     commentCount: 2,
-    unread: false,
+    unread: true,
   });
-  expect(items[0]?.latestActivity?.type).toBe("comment_added");
-  expect(items[2]).toMatchObject({
-    path: "docs/history.md",
-    change: null,
-    threadCounts: { open: 0, resolved: 1, archived: 0 },
-    commentCount: 1,
-  });
-  expect(reviewQueueItemState(items[2]!)).toBe("reviewing");
+  expect(items[0]?.latestActivity).toBeUndefined();
   expect(summarizeReviewQueue(items)).toEqual({
-    total: 3,
-    seen: 2,
+    total: 2,
+    seen: 1,
     unread: 1,
-    openThreads: 1,
-    filesWithOpenThreads: 1,
   });
 });
 
-it("keeps legacy non-document feedback out of the document review queue", () => {
+it("keeps feedback and drafts for every browser-commentable file kind", () => {
   const comments = [
     {
       ...makeReviewComment("open-doc", "docs/review.html", "open"),
@@ -1899,24 +1915,423 @@ it("keeps legacy non-document feedback out of the document review queue", () => 
     },
   ];
 
-  const items = buildReviewQueueItems([], comments, {}, new Set(), {
-    draftComments: [
-      {
-        id: "draft-legacy-code",
-        path: "ui/src/review.ts",
-        viewerKind: "text",
-        anchor: {
-          surface: "source",
-          canonical: { path: "ui/src/review.ts", lineStart: 1, lineEnd: 1 },
+  const items = buildReviewQueueItems(
+    [],
+    comments,
+    {},
+    new Set(["docs/review.html"]),
+    {
+      unseenFeedbackPaths: new Set([
+        "docs/review.html",
+        "ui/styles/review.css",
+      ]),
+      draftComments: [
+        {
+          id: "draft-legacy-code",
+          path: "ui/src/review.ts",
+          viewerKind: "text",
+          anchor: {
+            surface: "source",
+            canonical: { path: "ui/src/review.ts", lineStart: 1, lineEnd: 1 },
+          },
+          body: "Legacy source draft",
+          createdAt: "2026-06-20T00:01:00.000Z",
+          updatedAt: "2026-06-20T00:01:00.000Z",
         },
-        body: "Legacy source draft",
-        createdAt: "2026-06-20T00:01:00.000Z",
-        updatedAt: "2026-06-20T00:01:00.000Z",
-      },
-    ],
+      ],
+    },
+  );
+
+  expect(items.map((item) => item.path)).toEqual([
+    "docs/review.html",
+    "ui/src/review.ts",
+    "ui/styles/review.css",
+  ]);
+});
+
+it("builds the queue from recent activity independently of git changes", () => {
+  const now = Date.parse("2026-06-20T00:30:00.000Z");
+  const recentActivityByPath = {
+    "notes/older.txt": now - 2_000,
+    "src/newer.ts": now - 1_000,
+  };
+  const recent = buildReviewQueueItems([], [], {}, new Set(), {
+    recentActivityByPath,
   });
 
-  expect(items.map((item) => item.path)).toEqual(["docs/review.html"]);
+  expect(recent.map((item) => item.path)).toEqual([
+    "src/newer.ts",
+    "notes/older.txt",
+  ]);
+  expect(recent[0]).toMatchObject({
+    change: null,
+    lastActivityAt: now - 1_000,
+  });
+
+  const feedback = {
+    ...makeReviewComment("feedback-1", "docs/feedback.md", "resolved"),
+    threadId: "thread-feedback",
+    createdBy: { id: "human:tasuku", kind: "human" as const },
+  };
+  expect(
+    buildReviewQueueItems([], [feedback], {}, new Set(), {
+      recentActivityByPath: { "docs/feedback.md": now },
+    }).map((item) => item.path),
+  ).toEqual(["docs/feedback.md"]);
+  expect(buildReviewQueueItems([], [feedback], {}, new Set())).toEqual([]);
+});
+
+it("retains every watcher path observed inside the shared activity window", () => {
+  const now = 100_000;
+  const events = Array.from({ length: 41 }, (_, index) => ({
+    type: "change" as const,
+    path: `docs/file-${index}.md`,
+    kind: "file" as const,
+    version: index + 1,
+  })).reduce(
+    (items, event, index) => recordReviewEvent(items, event, now + index),
+    [] as ReturnType<typeof recordReviewEvent>,
+  );
+
+  expect(events).toHaveLength(41);
+  expect(summarizeReviewEvents(events).changedPaths.size).toBe(41);
+});
+
+it("compacts watcher churn and excludes directories and rename ghosts", () => {
+  const directoryAdd = {
+    type: "add" as const,
+    path: "docs/new-directory",
+    kind: "directory" as const,
+    version: 1,
+  };
+  expect(isFileReviewActivityEvent(directoryAdd)).toBe(false);
+  expect(
+    isFileReviewActivityEvent({
+      type: "change",
+      path: "docs/file.md",
+      version: 2,
+    }),
+  ).toBe(true);
+
+  const churn = Array.from({ length: 10_000 }, (_, index) => ({
+    type: "change" as const,
+    path: "docs/file.md",
+    version: index + 1,
+  })).reduce(
+    (items, event, index) => recordReviewEvent(items, event, 100_000 + index),
+    [] as ReturnType<typeof recordReviewEvent>,
+  );
+  expect(churn).toHaveLength(1);
+
+  const renameEvents = [
+    {
+      type: "unlink" as const,
+      path: "docs/old.md",
+      kind: "file" as const,
+      version: 1,
+    },
+    {
+      type: "add" as const,
+      path: "docs/new.md",
+      kind: "file" as const,
+      version: 2,
+    },
+    {
+      type: "change" as const,
+      path: "docs/new.md",
+      version: 3,
+    },
+  ].reduce(
+    (items, event, index) => recordReviewEvent(items, event, 200_000 + index),
+    [] as ReturnType<typeof recordReviewEvent>,
+  );
+  const renameState = summarizeReviewEvents(renameEvents);
+  expect(
+    fileReviewAttentionForQueue(
+      { "docs/old.md": 200_000, "docs/new.md": 200_001 },
+      renameState,
+    ),
+  ).toEqual({ "docs/new.md": 200_001 });
+
+  const renameAfterLaterEditEvents = [
+    {
+      type: "unlink" as const,
+      path: "docs/before.md",
+      kind: "file" as const,
+      version: 20,
+    },
+    {
+      type: "add" as const,
+      path: "docs/after.md",
+      kind: "file" as const,
+      version: 21,
+    },
+  ].reduce(
+    (items, event, index) => recordReviewEvent(items, event, 250_000 + index),
+    [] as ReturnType<typeof recordReviewEvent>,
+  );
+  const renameAfterLaterEditState = summarizeReviewEvents(
+    recordReviewEvent(
+      renameAfterLaterEditEvents,
+      { type: "change", path: "docs/after.md", version: 22 },
+      253_001,
+    ),
+  );
+  expect(mergeReviewChanges(renameAfterLaterEditState, null)).toEqual([
+    {
+      path: "docs/after.md",
+      originalPath: "docs/before.md",
+      status: "renamed",
+      source: "watcher",
+    },
+  ]);
+  const renameAfterAtomicReplaceEvents = [...renameAfterLaterEditEvents];
+  const afterAtomicUnlink = recordReviewEvent(
+    renameAfterAtomicReplaceEvents,
+    {
+      type: "unlink",
+      path: "docs/after.md",
+      kind: "file",
+      version: 26,
+    },
+    260_000,
+  );
+  expect(
+    mergeReviewChanges(
+      summarizeReviewEvents(
+        recordReviewEvent(
+          afterAtomicUnlink,
+          {
+            type: "add",
+            path: "docs/after.md",
+            kind: "file",
+            version: 27,
+          },
+          260_001,
+        ),
+      ),
+      null,
+    ),
+  ).toEqual([
+    {
+      path: "docs/after.md",
+      originalPath: "docs/before.md",
+      status: "renamed",
+      source: "watcher",
+    },
+  ]);
+  expect(
+    mergeReviewChanges(
+      summarizeReviewEvents(
+        recordReviewEvent(
+          renameAfterLaterEditEvents,
+          {
+            type: "unlink",
+            path: "docs/after.md",
+            kind: "file",
+            version: 24,
+          },
+          270_000,
+        ),
+      ),
+      null,
+    ),
+  ).toEqual([
+    {
+      path: "docs/after.md",
+      status: "deleted",
+      source: "watcher",
+    },
+  ]);
+
+  const renameBackEvents = [
+    {
+      type: "unlink" as const,
+      path: "docs/original.md",
+      kind: "file" as const,
+      version: 28,
+    },
+    {
+      type: "add" as const,
+      path: "docs/transient.md",
+      kind: "file" as const,
+      version: 29,
+    },
+    {
+      type: "unlink" as const,
+      path: "docs/transient.md",
+      kind: "file" as const,
+      version: 30,
+    },
+    {
+      type: "add" as const,
+      path: "docs/original.md",
+      kind: "file" as const,
+      version: 31,
+    },
+  ].reduce(
+    (items, event, index) => recordReviewEvent(items, event, 450_000 + index),
+    [] as ReturnType<typeof recordReviewEvent>,
+  );
+  const renameBackState = summarizeReviewEvents(renameBackEvents);
+  expect(
+    fileReviewAttentionForQueue(
+      {
+        "docs/original.md": 450_003,
+        "docs/transient.md": 450_002,
+      },
+      renameBackState,
+    ),
+  ).toEqual({ "docs/original.md": 450_003 });
+  expect(mergeReviewChanges(renameBackState, null)).toEqual([
+    {
+      path: "docs/original.md",
+      status: "added",
+      source: "watcher",
+    },
+  ]);
+
+  const directoryUnlinkEvents = recordReviewEvent(
+    [],
+    {
+      type: "unlink",
+      path: "docs/removed-directory",
+      kind: "directory",
+      version: 4,
+    },
+    300_000,
+  );
+  expect(directoryUnlinkEvents).toEqual([]);
+  expect(
+    summarizeReviewEvents([
+      {
+        id: "legacy-directory-event",
+        event: {
+          type: "unlink",
+          path: "docs/removed-directory",
+          kind: "directory",
+          version: 4,
+        },
+        receivedAt: 300_000,
+      },
+    ]).removedPaths,
+  ).toEqual(new Set());
+
+  const renameChainEvents = [
+    {
+      type: "unlink" as const,
+      path: "docs/a.md",
+      kind: "file" as const,
+      version: 5,
+    },
+    {
+      type: "add" as const,
+      path: "docs/b.md",
+      kind: "file" as const,
+      version: 6,
+    },
+    {
+      type: "unlink" as const,
+      path: "docs/b.md",
+      kind: "file" as const,
+      version: 7,
+    },
+    {
+      type: "add" as const,
+      path: "docs/c.md",
+      kind: "file" as const,
+      version: 8,
+    },
+  ].reduce(
+    (items, event, index) => recordReviewEvent(items, event, 400_000 + index),
+    [] as ReturnType<typeof recordReviewEvent>,
+  );
+  const renameChainState = summarizeReviewEvents(renameChainEvents);
+  expect(renameChainState.renamePairs).toEqual([
+    {
+      fromPath: "docs/a.md",
+      toPath: "docs/c.md",
+      receivedAt: 400_003,
+      intermediatePaths: ["docs/b.md"],
+    },
+  ]);
+  expect(mergeReviewChanges(renameChainState, null)).toEqual([
+    {
+      path: "docs/c.md",
+      originalPath: "docs/a.md",
+      status: "renamed",
+      source: "watcher",
+    },
+  ]);
+  expect(
+    mergeReviewChanges(
+      summarizeReviewEvents(
+        recordReviewEvent(
+          renameChainEvents,
+          { type: "change", path: "docs/c.md", version: 23 },
+          403_003,
+        ),
+      ),
+      null,
+    ),
+  ).toEqual([
+    {
+      path: "docs/c.md",
+      originalPath: "docs/a.md",
+      status: "renamed",
+      source: "watcher",
+    },
+  ]);
+  expect(
+    mergeReviewChanges(
+      summarizeReviewEvents(
+        recordReviewEvent(
+          renameChainEvents,
+          {
+            type: "unlink",
+            path: "docs/c.md",
+            kind: "file",
+            version: 25,
+          },
+          420_000,
+        ),
+      ),
+      null,
+    ),
+  ).toEqual([
+    {
+      path: "docs/c.md",
+      status: "deleted",
+      source: "watcher",
+    },
+  ]);
+
+  const replaceInPlaceEvents = [
+    {
+      type: "unlink" as const,
+      path: "docs/saved.md",
+      kind: "file" as const,
+      version: 9,
+    },
+    {
+      type: "add" as const,
+      path: "docs/saved.md",
+      kind: "file" as const,
+      version: 10,
+    },
+  ].reduce(
+    (items, event, index) => recordReviewEvent(items, event, 500_000 + index),
+    [] as ReturnType<typeof recordReviewEvent>,
+  );
+  expect(
+    mergeReviewChanges(summarizeReviewEvents(replaceInPlaceEvents), null),
+  ).toEqual([
+    {
+      path: "docs/saved.md",
+      status: "added",
+      source: "watcher",
+    },
+  ]);
 });
 
 it("counts review queue files by signal without duplicating directory state", () => {
@@ -1928,14 +2343,12 @@ it("counts review queue files by signal without duplicating directory state", ()
         status: "modified",
         source: "git",
       },
-      threadCounts: { open: 0, resolved: 0, archived: 0 },
       commentCount: 0,
       unread: true,
     },
     {
       path: "docs/review.html",
       change: null,
-      threadCounts: { open: 1, resolved: 0, archived: 0 },
       commentCount: 1,
       pendingDraftCount: 2,
       unread: false,
@@ -1981,13 +2394,10 @@ it("treats draft review comments as pending in-review work", () => {
     change: null,
     pendingDraftCount: 1,
     pendingDraftIds: ["draft-1"],
-    threadCounts: { open: 0, resolved: 0, archived: 0 },
   });
-  expect(reviewQueueItemState(items[0]!)).toBe("reviewing");
-  expect(reviewQueueItemState(items[1]!)).toBe("queued");
 });
 
-it("highlights in-review files only when the latest open-thread movement is an agent reply", () => {
+it("uses agent reads, not replies, as Review Queue recency", () => {
   const comments = [
     {
       ...makeReviewComment("agent-open", "docs/agent.md", "open"),
@@ -2003,7 +2413,11 @@ it("highlights in-review files only when the latest open-thread movement is an a
     },
   ];
   const items = buildReviewQueueItems(
-    [],
+    [
+      { path: "docs/agent.md", status: "modified", source: "git" },
+      { path: "docs/quiet.md", status: "modified", source: "git" },
+      { path: "docs/human.md", status: "modified", source: "git" },
+    ],
     comments,
     {
       "thread-agent": {
@@ -2046,144 +2460,26 @@ it("highlights in-review files only when the latest open-thread movement is an a
     new Set(),
   );
 
-  expect(reviewQueueItemHasAgentReply(items[0]!)).toBe(true);
-  expect(items[0]?.path).toBe("docs/agent.md");
   expect(
-    items
-      .filter((item) => item.path !== "docs/agent.md")
-      .every((item) => !reviewQueueItemHasAgentReply(item)),
-  ).toBe(true);
+    items.find((item) => item.path === "docs/agent.md")?.latestActivity,
+  ).toBeUndefined();
+  expect(
+    items.find((item) => item.path === "docs/quiet.md")?.latestActivity,
+  ).toMatchObject({ id: "activity-agent-read", type: "thread_read" });
+  expect(
+    items.find((item) => item.path === "docs/human.md")?.latestActivity,
+  ).toBeUndefined();
 });
 
-it("turns review queue state into a clear next sidebar action", () => {
-  const comments = [
-    {
-      ...makeReviewComment("open-1", "docs/agent.md", "open"),
-      threadId: "thread-open",
-    },
-  ];
-  const items = buildReviewQueueItems(
-    [{ path: "src/app.ts", status: "modified", source: "git" }],
-    comments,
-    {},
-    new Set(["src/app.ts"]),
-  );
-
-  expect(
-    buildReviewNextAction({
-      activePath: "docs/agent.md",
-      items,
-    }),
-  ).toMatchObject({
-    kind: "open-path",
-    primaryLabel: "Review current file",
-    targetPath: "docs/agent.md",
-    title: "Resolve current thread",
-  });
-
-  expect(
-    buildReviewNextAction({
-      activePath: null,
-      items,
-    }),
-  ).toMatchObject({
-    kind: "open-path",
-    primaryLabel: "Open unseen change",
-    targetPath: "src/app.ts",
-    title: "Inspect an unseen change",
-  });
-
-  const seenCurrentChangeItems = buildReviewQueueItems(
-    [{ path: "src/app.ts", status: "modified", source: "git" }],
-    comments,
-    {},
-    new Set(),
-  );
-
-  expect(
-    buildReviewNextAction({
-      activePath: "src/app.ts",
-      items: seenCurrentChangeItems,
-    }),
-  ).toMatchObject({
-    kind: "open-path",
-    primaryLabel: "Review current file",
-    targetPath: "src/app.ts",
-    title: "Review the current file",
-  });
-
-  expect(
-    buildReviewNextAction({
-      activePath: null,
-      items: [],
-    }),
-  ).toMatchObject({
-    emphasis: "clear",
-    kind: "clear",
-    primaryLabel: "Queue clear",
-  });
-});
-
-it("summarizes review lifecycle without inventing accept state", () => {
-  const items = buildReviewQueueItems(
-    [
-      { path: "src/seen.ts", status: "modified", source: "git" },
-      { path: "src/unseen.ts", status: "modified", source: "git" },
-      { path: "src/reviewing.ts", status: "modified", source: "git" },
-    ],
-    [
-      {
-        ...makeReviewComment("open-review", "src/reviewing.ts", "open"),
-        threadId: "thread-reviewing",
-      },
-    ],
-    {},
-    new Set(["src/unseen.ts"]),
-  );
-
-  expect(summarizeReviewLifecycle(items, 2)).toEqual({
-    detected: 1,
-    hidden: 2,
-    reviewing: 1,
-    seen: 1,
-    visible: 3,
-  });
-});
-
-it("keeps accepted change-only files out of the review queue until a thread opens", () => {
+it("keeps recent changes visible alongside pending drafts", () => {
   const changes: ReviewChangeItem[] = [
     { path: "docs/accepted.md", status: "modified", source: "git" },
     { path: "docs/reviewing.md", status: "modified", source: "git" },
   ];
-  const acceptedPaths = new Set(["docs/accepted.md"]);
 
   expect(
-    buildReviewQueueItems(changes, [], {}, new Set(), {
-      acceptedPaths,
-    }).map((item) => item.path),
-  ).toEqual(["docs/reviewing.md"]);
-
-  const itemsWithOpenThread = buildReviewQueueItems(
-    changes,
-    [
-      {
-        ...makeReviewComment("accepted-open", "docs/accepted.md", "open"),
-        threadId: "thread-accepted-open",
-      },
-    ],
-    {},
-    new Set(),
-    { acceptedPaths },
-  );
-
-  expect(itemsWithOpenThread.map((item) => item.path)).toEqual([
-    "docs/accepted.md",
-    "docs/reviewing.md",
-  ]);
-  expect(itemsWithOpenThread[0]).toMatchObject({
-    change: changes[0],
-    threadCounts: { open: 1, resolved: 0, archived: 0 },
-  });
+    buildReviewQueueItems(changes, [], {}, new Set()).map((item) => item.path),
+  ).toEqual(["docs/accepted.md", "docs/reviewing.md"]);
 
   const itemsWithPendingDraft = buildReviewQueueItems(
     changes,
@@ -2191,7 +2487,6 @@ it("keeps accepted change-only files out of the review queue until a thread open
     {},
     new Set(),
     {
-      acceptedPaths,
       draftComments: [
         {
           id: "accepted-pending",
@@ -2218,147 +2513,16 @@ it("keeps accepted change-only files out of the review queue until a thread open
     pendingDraftCount: 1,
     pendingDraftIds: ["accepted-pending"],
   });
-  expect(reviewQueueItemState(itemsWithPendingDraft[0]!)).toBe("reviewing");
 });
 
-it("separates review decisions from short-lived reviewed receipts", () => {
-  const currentFingerprints = new Map([
-    ["src/accepted.ts", "fingerprint-current"],
-  ]);
-  const decisions = [
-    {
-      path: "src/accepted.ts",
-      fingerprint: "fingerprint-current",
-      reason: "accepted_change" as const,
-      createdAt: "2026-07-01T00:00:00.000Z",
-    },
-  ];
-  const visibleReceipt = createReviewReceipt({
-    path: "src/accepted.ts",
-    reason: "accepted_change",
-    now: Date.parse("2026-07-01T00:00:00.000Z"),
-    visibleMs: 10 * 60 * 1000,
-    fingerprint: "fingerprint-current",
-  });
-
-  expect(reviewDecisionPathSet(decisions, currentFingerprints)).toEqual(
-    new Set(["src/accepted.ts"]),
-  );
-  expect(
-    visibleReviewReceipts(
-      [visibleReceipt],
-      Date.parse("2026-07-01T00:05:00.000Z"),
-      new Set(),
-    ).map((receipt) => receipt.path),
-  ).toEqual(["src/accepted.ts"]);
-  expect(
-    visibleReviewReceipts(
-      [visibleReceipt],
-      Date.parse("2026-07-01T00:11:00.000Z"),
-      new Set(),
-    ),
-  ).toEqual([]);
-  expect(reviewDecisionPathSet(decisions, currentFingerprints)).toEqual(
-    new Set(["src/accepted.ts"]),
-  );
-});
-
-it("uses tree-stable file metadata for review fingerprints", () => {
-  const change: ReviewChangeItem = {
-    path: "src/accepted.ts",
-    status: "modified",
-    source: "git",
-  };
-  const loadedFile: FilePayload = {
-    path: change.path,
-    viewerKind: "code",
-    encoding: "utf8",
-    content: "export const accepted = true;\n",
-    etag: "sha256:loaded-file-only",
-    size: 30,
-    mtimeMs: 42,
-  };
-  const treeFile: FsNode = {
-    id: change.path,
-    path: change.path,
-    name: "accepted.ts",
-    kind: "file",
-    parentPath: "src",
-    size: loadedFile.size,
-    mtimeMs: loadedFile.mtimeMs,
-  };
-
-  expect(reviewChangeFingerprint(change, loadedFile)).toBe(
-    reviewChangeFingerprint(change, treeFile),
-  );
-  expect(reviewChangeFingerprint(change, treeFile)).not.toBe(
-    reviewChangeFingerprint(change, { ...treeFile, mtimeMs: 43 }),
-  );
-});
-
-it("lets new diff fingerprints bypass old reviewed decisions", () => {
-  const decisions = [
-    {
-      path: "src/accepted.ts",
-      fingerprint: "fingerprint-old",
-      reason: "accepted_change" as const,
-      createdAt: "2026-07-01T00:00:00.000Z",
-    },
-  ];
-  const currentFingerprints = new Map([["src/accepted.ts", "fingerprint-new"]]);
-
-  expect(reviewDecisionPathSet(decisions, currentFingerprints)).toEqual(
-    new Set(),
-  );
-  expect(compactReviewDecisions(decisions, currentFingerprints)).toEqual([]);
-});
-
-it("keeps an active review decision while its fingerprint inputs hydrate", () => {
-  const decision = {
-    path: "src/accepted.ts",
-    fingerprint: "fingerprint-current",
-    reason: "accepted_change" as const,
-    createdAt: "2026-07-01T00:00:00.000Z",
-  };
-
-  expect(
-    compactReviewDecisions([decision], new Map(), new Set(["src/accepted.ts"])),
-  ).toEqual([decision]);
-  expect(compactReviewDecisions([decision], new Map(), new Set())).toEqual([]);
-});
-
-it("hides reviewed receipts when active review attention returns", () => {
-  const receipt = createReviewReceipt({
-    path: "src/accepted.ts",
-    reason: "threads_resolved",
-    now: Date.parse("2026-07-01T00:00:00.000Z"),
-    threadIds: ["thread-1"],
-  });
-
-  expect(
-    visibleReviewReceipts(
-      [receipt],
-      Date.parse("2026-07-01T00:02:00.000Z"),
-      new Set(["src/accepted.ts"]),
-    ),
-  ).toEqual([]);
-  expect(
-    compactReviewReceipts([receipt], Date.parse("2026-07-03T00:00:00.000Z")),
-  ).toEqual([]);
-});
-
-it("keeps completed thread paths out of the active review queue until reopened", () => {
+it("does not let legacy terminal thread state suppress recent activity", () => {
   const changes: ReviewChangeItem[] = [
     { path: "docs/resolved.md", status: "modified", source: "git" },
     { path: "docs/candidate.md", status: "modified", source: "git" },
   ];
-  const completedThreadPaths = new Set(["docs/resolved.md"]);
-
   expect(
-    buildReviewQueueItems(changes, [], {}, new Set(), {
-      completedThreadPaths,
-    }).map((item) => item.path),
-  ).toEqual(["docs/candidate.md"]);
+    buildReviewQueueItems(changes, [], {}, new Set()).map((item) => item.path),
+  ).toEqual(["docs/resolved.md", "docs/candidate.md"]);
 
   const itemsWithReopenedThread = buildReviewQueueItems(
     changes,
@@ -2369,8 +2533,8 @@ it("keeps completed thread paths out of the active review queue until reopened",
       },
     ],
     {},
-    new Set(),
-    { completedThreadPaths },
+    new Set(["docs/resolved.md"]),
+    { unseenFeedbackPaths: new Set(["docs/resolved.md"]) },
   );
 
   expect(itemsWithReopenedThread.map((item) => item.path)).toEqual([
@@ -2379,7 +2543,6 @@ it("keeps completed thread paths out of the active review queue until reopened",
   ]);
   expect(itemsWithReopenedThread[0]).toMatchObject({
     change: changes[0],
-    threadCounts: { open: 1, resolved: 0, archived: 0 },
   });
 });
 
@@ -2408,8 +2571,15 @@ it("hides stale comment-only paths while keeping git review paths", () => {
     ],
     comments,
     {},
-    new Set(),
-    { knownMissingPaths: new Set(["README.md", "docs/deleted.md"]) },
+    new Set(["docs/agent.md"]),
+    {
+      knownMissingPaths: new Set(["README.md", "docs/deleted.md"]),
+      unseenFeedbackPaths: new Set([
+        "README.md",
+        "docs/agent.md",
+        "docs/deleted.md",
+      ]),
+    },
   );
 
   expect(items.map((item) => item.path).sort()).toEqual([
@@ -2419,7 +2589,6 @@ it("hides stale comment-only paths while keeping git review paths", () => {
   expect(items.find((item) => item.path === "README.md")).toBeUndefined();
   expect(items.find((item) => item.path === "docs/deleted.md")).toMatchObject({
     change: { status: "deleted" },
-    threadCounts: { open: 1, resolved: 0, archived: 0 },
   });
 });
 
@@ -2431,7 +2600,8 @@ it("navigates the prioritized work queue and keeps read receipts low-noise", () 
     ],
     [makeReviewComment("open-1", "README.md", "open")],
     {},
-    new Set(["README.md", "src/app.ts"]),
+    new Set(["README.md"]),
+    { unseenFeedbackPaths: new Set(["README.md"]) },
   );
   expect(nextReviewQueueItemPath(items, null, "next")).toBe("README.md");
   expect(nextReviewQueueItemPath(items, "README.md", "next")).toBe(
@@ -2460,27 +2630,9 @@ it("navigates the prioritized work queue and keeps read receipts low-noise", () 
   expect(
     pinActiveReviewQueueItem(items, "src/app.ts").map((item) => item.path),
   ).toEqual(["src/app.ts", "README.md", "deleted.md"]);
-  expect(
-    activityNeedsHumanAttention({
-      id: "read-1",
-      threadId: "thread-1",
-      type: "thread_read",
-      actor: { id: "codex:1", kind: "codex" },
-      createdAt: "2026-06-20T00:00:00.000Z",
-    }),
-  ).toBe(false);
-  expect(
-    activityNeedsHumanAttention({
-      id: "reply-1",
-      threadId: "thread-1",
-      type: "comment_added",
-      actor: { id: "codex:1", kind: "codex" },
-      createdAt: "2026-06-20T00:01:00.000Z",
-    }),
-  ).toBe(true);
 });
 
-it("builds review navigation targets without changing thread lifecycle state", () => {
+it("builds feedback navigation targets without exposing legacy lifecycle state", () => {
   const comments = [
     {
       ...makeReviewComment("open-1", "docs/a.md", "open"),
@@ -2546,15 +2698,21 @@ it("builds review navigation targets without changing thread lifecycle state", (
     },
   ];
 
-  const openTargets = openThreadNavigationTargets(comments);
-  expect(openTargets).toHaveLength(2);
-  expect(openTargets[0]).toMatchObject({
+  const feedbackTargets = feedbackNavigationTargets(comments);
+  expect(feedbackTargets).toHaveLength(3);
+  expect(feedbackTargets[0]).toMatchObject({
     threadId: "thread-a",
     commentId: "open-1",
     path: "docs/a.md",
     surface: "source",
   });
-  expect(openTargets[1]).toMatchObject({
+  expect(feedbackTargets[1]).toMatchObject({
+    threadId: "resolved-1",
+    commentId: "resolved-1",
+    path: "docs/b.md",
+    surface: "source",
+  });
+  expect(feedbackTargets[2]).toMatchObject({
     threadId: "thread-missing-source",
     commentId: "missing-1",
     path: "README.md",
@@ -2565,7 +2723,7 @@ it("builds review navigation targets without changing thread lifecycle state", (
       tree: null,
       openTabCount: 0,
       reviewFileCount: 13,
-      openThreadCount: openTargets.length,
+      feedbackCount: feedbackTargets.length,
       draftCount: 0,
       connectionStatus: "connected",
       activeFile: null,
@@ -2579,9 +2737,9 @@ it("builds review navigation targets without changing thread lifecycle state", (
         pendingDiffPaths: 0,
       },
     }).review,
-  ).toBe("2 threads open");
+  ).toBe("3 feedback items");
   expect(
-    openThreadNavigationTargets(comments, { reviewBatchId: "batch-1" }),
+    feedbackNavigationTargets(comments, { reviewBatchId: "batch-1" }),
   ).toHaveLength(1);
   expect(draftCommentNavigationTargets(drafts)[0]).toMatchObject({
     draftId: "draft-1",
@@ -2593,10 +2751,6 @@ it("builds review navigation targets without changing thread lifecycle state", (
     commentId: "draft:draft-2",
     surface: "diff",
   });
-  expect(agentReplyNavigationTargets(comments)[0]).toMatchObject({
-    threadId: "thread-a",
-    commentId: "reply-1",
-  });
   expect(commentNavigationTarget(comments[0]!)).toMatchObject({
     id: "comment:open-1",
     threadId: "thread-a",
@@ -2606,8 +2760,8 @@ it("builds review navigation targets without changing thread lifecycle state", (
     label: "Source comment in a.md",
   });
   expect(
-    moveReviewNavigationTarget(openTargets, { path: "docs/z.md" }, "next"),
-  ).toBe(openTargets[0]);
+    moveReviewNavigationTarget(feedbackTargets, { path: "docs/z.md" }, "next"),
+  ).toBe(feedbackTargets[0]);
 });
 
 it("builds contextual review command palette actions", () => {
@@ -2622,12 +2776,11 @@ it("builds contextual review command palette actions", () => {
   expect(
     reviewCommandActions({
       activeComment,
-      canMarkCurrentReviewPathReviewed: true,
       canToggleDiff: true,
       diffEnabled: false,
-      openThreadTargetCount: 3,
+      feedbackTargetCount: 3,
       reviewItemCount: 4,
-      unreadReviewCount: 1,
+      unseenReviewCount: 1,
     }),
   ).toMatchObject([
     {
@@ -2637,26 +2790,9 @@ it("builds contextual review command palette actions", () => {
       shortcut: "Cmd/Ctrl I",
     },
     {
-      id: "toggle-current-thread-status",
-      label: "Resolve current thread",
-      detail: "docs/a.md · L4",
-      shortcut: "Cmd/Ctrl Shift Enter",
-    },
-    {
-      id: "archive-current-thread",
-      label: "Archive current thread",
-      detail: "docs/a.md · L4",
-      shortcut: "Cmd/Ctrl Shift Backspace",
-    },
-    {
-      id: "open-latest-unread",
+      id: "open-latest-unseen",
       label: "Open next unseen item",
       shortcut: "Cmd/Ctrl Shift U",
-    },
-    {
-      id: "mark-current-reviewed",
-      label: "Mark current file reviewed",
-      shortcut: "Cmd/Ctrl Shift M",
     },
     {
       id: "open-next-review",
@@ -2669,12 +2805,12 @@ it("builds contextual review command palette actions", () => {
     },
     {
       id: "open-next-thread",
-      label: "Next open thread",
+      label: "Next feedback",
       shortcut: "Cmd/Ctrl ]",
     },
     {
       id: "open-previous-thread",
-      label: "Previous open thread",
+      label: "Previous feedback",
       shortcut: "Cmd/Ctrl [",
     },
     {
@@ -2687,85 +2823,33 @@ it("builds contextual review command palette actions", () => {
   expect(
     reviewCommandActions({
       activeComment: null,
-      canMarkCurrentReviewPathReviewed: false,
       canToggleDiff: false,
       diffEnabled: false,
-      openThreadTargetCount: 0,
+      feedbackTargetCount: 0,
       reviewItemCount: 0,
-      unreadReviewCount: 0,
+      unseenReviewCount: 0,
     }),
   ).toEqual([]);
   expect(
     reviewCommandActions({
       activeComment: makeReviewComment("resolved-1", "docs/a.md", "resolved"),
-      canMarkCurrentReviewPathReviewed: false,
       canToggleDiff: false,
       diffEnabled: false,
-      openThreadTargetCount: 0,
+      feedbackTargetCount: 0,
       reviewItemCount: 0,
-      unreadReviewCount: 0,
+      unseenReviewCount: 0,
     }).map((action) => action.label),
-  ).toEqual([
-    "Return to current thread",
-    "Reopen current thread",
-    "Archive current thread",
-  ]);
+  ).toEqual(["Return to current thread"]);
   expect(
     reviewCommandActions({
       activeComment: makeReviewComment("archived-1", "docs/a.md", "archived"),
-      canMarkCurrentReviewPathReviewed: false,
       canToggleDiff: false,
       diffEnabled: false,
-      openThreadTargetCount: 0,
+      feedbackTargetCount: 0,
       reviewItemCount: 0,
-      unreadReviewCount: 0,
+      unseenReviewCount: 0,
     }).map((action) => action.label),
-  ).toEqual(["Return to current thread", "Reopen current thread"]);
-});
-
-it("derives active comment lifecycle updates for review shortcuts", () => {
-  const openThread = makeReviewComment("open-1", "docs/a.md", "open");
-  const resolvedThread = makeReviewComment(
-    "resolved-1",
-    "docs/a.md",
-    "resolved",
-  );
-  const archivedThread = makeReviewComment(
-    "archived-1",
-    "docs/a.md",
-    "archived",
-  );
-
-  expect(
-    currentThreadLifecycleShortcutStatus(
-      openThread,
-      "toggle-current-thread-status",
-    ),
-  ).toBe("resolved");
-  expect(
-    currentThreadLifecycleShortcutStatus(
-      resolvedThread,
-      "toggle-current-thread-status",
-    ),
-  ).toBe("open");
-  expect(
-    currentThreadLifecycleShortcutStatus(
-      archivedThread,
-      "toggle-current-thread-status",
-    ),
-  ).toBe("open");
-  expect(
-    currentThreadLifecycleShortcutStatus(openThread, "archive-current-thread"),
-  ).toBe("archived");
-  expect(
-    currentThreadLifecycleShortcutStatus(
-      archivedThread,
-      "archive-current-thread",
-    ),
-  ).toBeNull();
-  expect(
-    currentThreadLifecycleShortcutStatus(null, "toggle-current-thread-status"),
-  ).toBeNull();
+  ).toEqual(["Return to current thread"]);
 });
 
 it("preserves comment surfaces when building direct comment navigation targets", () => {
@@ -2806,7 +2890,7 @@ it("preserves comment surfaces when building direct comment navigation targets",
   });
 });
 
-it("prefers relevant open threads when jumping from a review queue item", () => {
+it("opens the first positioned feedback when legacy statuses coexist", () => {
   const comments = [
     {
       ...makeReviewComment("resolved-1", "docs/a.md", "resolved"),
@@ -2821,12 +2905,18 @@ it("prefers relevant open threads when jumping from a review queue item", () => 
       },
     },
   ];
-  const items = buildReviewQueueItems([], comments, {}, new Set());
+  const items = buildReviewQueueItems(
+    [],
+    comments,
+    {},
+    new Set(["docs/a.md"]),
+    { unseenFeedbackPaths: new Set(["docs/a.md"]) },
+  );
 
   expect(firstRelevantThreadForReviewItem(items[0]!, comments)).toMatchObject({
-    threadId: "thread-open",
-    commentId: "open-1",
-    surface: "diff",
+    threadId: "thread-old",
+    commentId: "resolved-1",
+    surface: "source",
   });
 });
 
@@ -2836,108 +2926,6 @@ it("uses scheduled inline comment ids instead of stale active comment state", ()
     "comment-next",
   );
   expect(inlineThreadFocusCommentId("comment-current")).toBe("comment-current");
-});
-
-it("treats unread activity as a navigation hint rather than status", () => {
-  const resolvedComment = {
-    ...makeReviewComment("resolved-1", "docs/a.md", "resolved"),
-    anchor: {
-      surface: "diff" as const,
-      canonical: { path: "docs/a.md", lineStart: 5 },
-      diff: {
-        path: "docs/a.md",
-        base: "HEAD",
-        ref: "working-tree",
-        hunkId: "hunk-1",
-        side: "new" as const,
-        newLineStart: 5,
-      },
-    },
-  };
-  const items = buildReviewQueueItems(
-    [{ path: "docs/a.md", status: "modified", source: "git" }],
-    [resolvedComment],
-    {
-      "resolved-1": {
-        inline: [],
-        timeline: [
-          {
-            id: "activity-1",
-            threadId: "resolved-1",
-            type: "thread_status_changed",
-            actor: { id: "codex:1", kind: "codex" },
-            createdAt: "2026-06-20T00:04:00.000Z",
-          },
-        ],
-      },
-    },
-    new Set(["docs/a.md"]),
-  );
-
-  expect(latestUnreadActivityTarget(items, [resolvedComment])).toMatchObject({
-    path: "docs/a.md",
-    threadId: "resolved-1",
-    commentId: "resolved-1",
-    activityId: "activity-1",
-    surface: "diff",
-  });
-  expect(items[0]?.threadCounts).toEqual({
-    open: 0,
-    resolved: 1,
-    archived: 0,
-  });
-});
-
-it("uses the activity comment surface for latest unread navigation", () => {
-  const root = {
-    ...makeReviewComment("root-1", "docs/a.md", "open"),
-    threadId: "thread-a",
-    anchor: {
-      surface: "source" as const,
-      canonical: { path: "docs/a.md", lineStart: 1 },
-    },
-  };
-  const renderedReply = {
-    ...makeReviewComment("reply-1", "docs/a.md", "open"),
-    threadId: "thread-a",
-    anchor: {
-      surface: "rendered" as const,
-      canonical: { path: "docs/a.md", lineStart: 8 },
-      rendered: { kind: "markdown" as const, blockId: "intro" },
-    },
-  };
-  const items = buildReviewQueueItems(
-    [{ path: "docs/a.md", status: "modified", source: "git" }],
-    [root, renderedReply],
-    {
-      "thread-a": {
-        inline: [],
-        timeline: [
-          {
-            id: "activity-1",
-            threadId: "thread-a",
-            commentId: "reply-1",
-            type: "comment_added",
-            actor: { id: "codex:1", kind: "codex" },
-            createdAt: "2026-06-20T00:04:00.000Z",
-          },
-        ],
-      },
-    },
-    new Set(["docs/a.md"]),
-  );
-
-  expect(
-    latestUnreadActivityTarget(items, [root, renderedReply]),
-  ).toMatchObject({
-    id: "unread:docs/a.md",
-    path: "docs/a.md",
-    threadId: "thread-a",
-    commentId: "reply-1",
-    activityId: "activity-1",
-    surface: "rendered",
-    sortKey: "2026-06-20T00:04:00.000Z",
-  });
 });
 
 it("loads comment activity targets from authoritative thread state", () => {
@@ -2963,7 +2951,7 @@ it("loads comment activity targets from authoritative thread state", () => {
 
   expect(
     countAttentionCommentThreads(comments, new Set(["docs/a.md", "docs/b.md"])),
-  ).toBe(1);
+  ).toBe(2);
   expect(
     commentActivityThreadTargets({
       comments,
@@ -3212,6 +3200,10 @@ it("restores workspace tabs and layout only for the current root and tree", () =
         { path: "README.md", viewerKind: "markdown", lastOpenedAt: now - 1 },
         { path: "missing.md", viewerKind: "markdown", lastOpenedAt: now },
       ],
+      reviewAttention: {
+        "README.md": now - 1,
+        "missing.md": now,
+      },
       inspectorVisible: false,
       sidebarVisible: false,
       sidebarWidth: 640,
@@ -3234,6 +3226,7 @@ it("restores workspace tabs and layout only for the current root and tree", () =
   expect(restored?.recentFiles).toEqual([
     { path: "README.md", viewerKind: "markdown", lastOpenedAt: now - 1 },
   ]);
+  expect(restored?.reviewAttention).toEqual({ "README.md": now - 1 });
   expect(restored ? flattenPanes(restored.layout) : []).toEqual([
     { id: "main", activePath: "README.md" },
     { id: "pane-1", activePath: "docs/guide.md" },
@@ -3254,6 +3247,36 @@ it("restores workspace tabs and layout only for the current root and tree", () =
       now + workspaceSessionTtlMs + 1,
     ),
   ).toBeNull();
+});
+
+it("migrates recent files into the shared attention clock", () => {
+  const now = 100_000;
+  const stored = parseWorkspaceSession(
+    JSON.stringify({
+      version: 1,
+      root: "/workspace",
+      updatedAt: now,
+      openTabs: [],
+      layout: initialEditorLayout,
+      recentFiles: [
+        {
+          path: "README.md",
+          viewerKind: "markdown",
+          lastOpenedAt: now - 1_000,
+        },
+      ],
+      inspectorVisible: true,
+    }),
+  );
+  const restored = restoreWorkspaceSession(
+    stored,
+    "/workspace",
+    new Set(["README.md"]),
+    now,
+  );
+
+  expect(stored?.reviewAttention).toBeUndefined();
+  expect(restored?.reviewAttention).toEqual({ "README.md": now - 1_000 });
 });
 
 it("resets persisted layout when the last tab is closed but keeps recents", () => {

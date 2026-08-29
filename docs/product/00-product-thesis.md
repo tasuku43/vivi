@@ -4,7 +4,7 @@
 
 Vivi is a local workspace review surface shared by humans and coding agents.
 
-Humans need a low-friction browser interface for reading local artifacts. Coding agents need a precise command-line interface for receiving human feedback, replying to it, and closing the loop. Vivi sits between those two interfaces.
+Humans need a low-friction browser interface for reading local artifacts. Coding agents need a precise command-line interface for receiving human feedback and recording that they saw it. Vivi sits between those two interfaces.
 
 Vivi is not only a file viewer, a diff viewer, or a comment tool. It is a bridge that turns human review context into agent-readable work.
 
@@ -16,7 +16,7 @@ Coding agents write. Humans read, judge, and redirect. The best interface for th
 
 For humans, the right interface is a browser-based document reader. It should open local Markdown and HTML documents as readable artifacts and make feedback natural at the exact place where the human notices an issue. Markdown and HTML are both required document adapters from the first complete slice. Source and diffs are supporting evidence, not independent product destinations.
 
-For coding agents, the right interface is a command-line contract. Agents do not need a beautiful visual interface. They need clear, structured, current feedback: what is open, where it is anchored, what the human said, what needs a reply, and what can be resolved.
+For coding agents, the right interface is a command-line contract. Agents do not need a beautiful visual interface. They need clear, structured, current feedback: where it is anchored, what the human said, and whether it has already been seen.
 
 The feedback layer between those interfaces is the product's core. Today that layer is comment threads. Over time it may grow into a richer feedback protocol, but the job stays the same: convert human review context into actionable agent input.
 
@@ -50,9 +50,8 @@ Useful feedback should capture:
 - the surface where the issue was seen, such as rendered Markdown, HTML preview, source, or diff,
 - the position or range when available,
 - the human's message,
-- the thread state,
 - the activity history,
-- whether the agent has read, replied to, resolved, or archived it.
+- whether the agent has read it.
 
 The visible UX should still feel simple. Humans should not be forced to fill out a task form when they only want to say what looks wrong. The structure should exist to help the agent, not to burden the human.
 
@@ -60,16 +59,16 @@ The visible UX should still feel simple. Humans should not be forced to fill out
 
 The CLI is for acting.
 
-Coding agents should be able to ask Vivi for the next relevant feedback without scraping the UI or relying on copied prompts. The CLI should expose a small, stable contract for reading active threads, replying, and closing the loop.
+Coding agents should be able to ask Vivi for the next relevant feedback without scraping the UI or relying on copied prompts. The CLI should expose a small, stable contract for reading active feedback and recording read activity.
 
 The agent-side interface should optimize for:
 
-- discovering open work,
+- discovering active feedback,
 - reading feedback with enough file and view context,
 - recording read activity without creating noisy human work,
-- replying into the same thread,
-- resolving or archiving completed feedback,
 - staying deterministic enough to test without a real model.
+
+Agent conversation belongs in the terminal or agent workbench where the human is already directing the work. Vivi does not need an agent-reply inbox or a parallel conversation that asks the human to read the same work twice. Existing reply- and terminal-status-capable transports may remain for compatibility, but replies, resolved, and archived are not product-level attention states.
 
 The CLI should not become a second human UI. It should be shaped around the needs of coding agents and automation.
 
@@ -121,9 +120,9 @@ A thread should not drift into a generic chat message. Its value comes from the 
 
 The human experience should feel like commenting. The agent experience should feel like receiving actionable review work. Vivi should hide unnecessary structure from the human while preserving it for automation.
 
-### Prefer state over chat sprawl
+### Prefer attention recency over workflow state
 
-Open, read, replied, resolved, and archived states matter. A long unstructured conversation is harder for both humans and agents to process. Vivi should support conversation, but the product should make the lifecycle of feedback clear.
+Vivi only needs to distinguish feedback the agent has not observed from feedback it has observed. Unobserved feedback stays in active attention without expiring. An agent read becomes another activity timestamp; after that, the same inactivity window used for file changes and user opens lets quiet work recede. Conversation stays in the terminal or agent workbench.
 
 ### Stay local-first by default
 
@@ -138,8 +137,8 @@ The most important near-term UX questions are:
 - Can a human leave feedback exactly where they noticed the issue?
 - Can the comment preserve the view context that made the issue clear?
 - Can an agent fetch only the feedback it needs to act on?
-- Can the agent reply in a way the human can review without losing context?
-- Can both sides see whether the feedback loop is still open or complete?
+- Can the human see that the agent has observed the feedback without waiting for a reply?
+- Does quiet, already-observed feedback recede without requiring either side to manage another status?
 
 If those questions are answered well, Vivi becomes more than a viewer. It becomes the local workspace review surface for agent-written workspaces.
 

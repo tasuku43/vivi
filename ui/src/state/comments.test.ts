@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { DraftReviewComment, ViviComment } from "../domain/comments.js";
 import {
   codeCommentThreads,
+  draftPreviewThreadsForSurface,
   draftReviewCommentAsViviComment,
-  draftForCommentComposerIntent,
-  matchingOpenThreadForDraft,
+  draftForNewComment,
   matchingDraftPreviewThread,
 } from "./comments.js";
 
@@ -48,20 +48,15 @@ function draft(
 }
 
 describe("draftReviewCommentAsViviComment", () => {
-  it("removes threadId when the composer intent is a new top-level thread", () => {
-    const replyDraft = {
+  it("removes a legacy threadId from a new top-level comment", () => {
+    const legacyDraft = {
       threadId: existingComment.threadId,
       path: "README.md",
       viewerKind: "markdown" as const,
       anchor,
     };
 
-    expect(draftForCommentComposerIntent(replyDraft, "reply").threadId).toBe(
-      existingComment.threadId,
-    );
-    expect(
-      draftForCommentComposerIntent(replyDraft, "new-thread").threadId,
-    ).toBeUndefined();
+    expect(draftForNewComment(legacyDraft).threadId).toBeUndefined();
   });
 
   it("keeps threadId-less same-anchor drafts separate from published threads", () => {
@@ -144,40 +139,40 @@ describe("draftReviewCommentAsViviComment", () => {
     ).toBe("draft:saved");
   });
 
-  it("matches a new composer draft to an existing open thread on the same anchor", () => {
-    const draftOnExistingAnchor = {
-      path: "README.md",
-      viewerKind: "markdown" as const,
-      anchor,
-    };
-
-    expect(
-      matchingOpenThreadForDraft(
-        codeCommentThreads([existingComment]),
-        draftOnExistingAnchor,
-      )?.comments[0]?.id,
-    ).toBe(existingComment.id);
-  });
-
-  it("does not match closed threads when a same-anchor composer starts", () => {
-    const resolvedComment = {
-      ...existingComment,
-      id: "comment-resolved",
-      threadId: "thread-resolved",
-      status: "resolved" as const,
-      updatedAt: "2026-06-20T09:20:00.000Z",
-    };
-    const draftOnResolvedAnchor = {
-      path: "README.md",
-      viewerKind: "markdown" as const,
-      anchor,
-    };
-
-    expect(
-      matchingOpenThreadForDraft(
-        codeCommentThreads([resolvedComment]),
-        draftOnResolvedAnchor,
+  it("keeps draft preview matching within the selected viewer surface", () => {
+    const sourceDraft = draftReviewCommentAsViviComment(
+      draft("source", { body: "Source draft." }),
+    );
+    const renderedDraft = {
+      ...draftReviewCommentAsViviComment(
+        draft("rendered", { body: "Rendered draft." }),
       ),
-    ).toBeUndefined();
+      anchor: {
+        ...anchor,
+        surface: "rendered" as const,
+        rendered: {
+          kind: "markdown" as const,
+          blockId: "vivi-block-4",
+          sourceLineStart: 4,
+          sourceLineEnd: 4,
+        },
+      },
+    };
+    const diffDraft = {
+      ...draftReviewCommentAsViviComment(
+        draft("diff", { body: "Diff draft." }),
+      ),
+      anchor: {
+        ...anchor,
+        surface: "diff" as const,
+      },
+    };
+
+    expect(
+      draftPreviewThreadsForSurface(
+        [sourceDraft, renderedDraft, diffDraft],
+        "source",
+      ).flatMap((thread) => thread.comments.map((comment) => comment.id)),
+    ).toEqual(["draft:source"]);
   });
 });

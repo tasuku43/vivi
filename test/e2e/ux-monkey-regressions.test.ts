@@ -267,7 +267,9 @@ it("keeps a saved Markdown follow-up focused while the next block stays targetab
     .getByRole("button", { name: "Save pending draft comment" })
     .click();
 
-  const followUp = page!.getByRole("textbox", { name: "Continue thread" });
+  const followUp = page!.getByRole("textbox", {
+    name: "Add another pending note",
+  });
   await expect.poll(() => followUp.count()).toBe(1);
   await expect.poll(() => followUp.inputValue()).toBe("");
   await expect
@@ -373,12 +375,14 @@ it("keeps a saved HTML follow-up focused while the next block stays targetable",
     )
     .toBe(1);
   await expect
-    .poll(() => page!.getByRole("textbox", { name: "Continue thread" }).count())
+    .poll(() =>
+      page!.getByRole("textbox", { name: "Add another pending note" }).count(),
+    )
     .toBe(1);
   await expect
     .poll(() =>
       page!
-        .getByRole("textbox", { name: "Continue thread" })
+        .getByRole("textbox", { name: "Add another pending note" })
         .evaluate((node) => node === document.activeElement),
     )
     .toBe(true);

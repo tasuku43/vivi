@@ -1,13 +1,7 @@
 import type { ReactNode } from "react";
-import type { CommentStatus } from "../../../domain/comments.js";
 import styles from "./CommentStatusBadge.module.css";
 
-export type CommentStatusTone =
-  | CommentStatus
-  | "accepted"
-  | "draft"
-  | "published"
-  | "reviewed";
+export type CommentStatusTone = "draft" | "published";
 
 export function CommentStatusBadge({
   children,

@@ -2,11 +2,6 @@ import { createContext, useContext } from "react";
 import type { ReactNode } from "react";
 import type { FilePayload } from "../../../domain/fs-node.js";
 import { fileLocationSegments } from "../../../state/file-location.js";
-import {
-  reviewFileStateLabel,
-  reviewFileStateTone,
-  type ReviewFileState,
-} from "../../../state/review-state.js";
 import styles from "./ViewerControlButton.module.css";
 import surfaceStyles from "../viewers/ViewerSurface.module.css";
 
@@ -15,19 +10,10 @@ export interface ViewerHeaderReviewStop {
   preview: string;
 }
 
-export interface ViewerHeaderReviewState {
-  state: ReviewFileState;
-  label: string;
-  title: string;
-  tone: string;
-}
-
 interface ViewerHeaderContextValue {
   activeReviewStop?: ViewerHeaderReviewStop | null;
   file: FilePayload;
-  reviewState?: ViewerHeaderReviewState | null;
   onFocusActiveComment?: () => void;
-  onMarkReviewed?: () => void;
   onRevealInTree?: (path?: string) => void;
 }
 
@@ -81,7 +67,6 @@ export function ViewerToolbar({
         <ViewerToolbarLocation
           file={header.file}
           activeReviewStop={header.activeReviewStop}
-          reviewState={header.reviewState}
           onFocusActiveComment={header.onFocusActiveComment}
           onRevealInTree={header.onRevealInTree}
         />
@@ -98,17 +83,6 @@ export function ViewerToolbar({
           actionsClassName,
         )}
       >
-        {header?.reviewState?.state === "queued" && header.onMarkReviewed ? (
-          <button
-            className={cx(styles.markReviewedButton, "mark-reviewed-button")}
-            type="button"
-            aria-keyshortcuts="Meta+Shift+M Control+Shift+M"
-            title="Mark as reviewed (Cmd/Ctrl Shift M)"
-            onClick={header.onMarkReviewed}
-          >
-            Mark as reviewed
-          </button>
-        ) : null}
         {children}
       </div>
     </div>
@@ -118,13 +92,11 @@ export function ViewerToolbar({
 export function ViewerToolbarLocation({
   file,
   activeReviewStop = null,
-  reviewState = null,
   onFocusActiveComment,
   onRevealInTree,
 }: {
   file: FilePayload;
   activeReviewStop?: ViewerHeaderReviewStop | null;
-  reviewState?: ViewerHeaderReviewState | null;
   onFocusActiveComment?: () => void;
   onRevealInTree?: (path?: string) => void;
 }) {
@@ -171,20 +143,6 @@ export function ViewerToolbarLocation({
               >
                 {segment.label}
               </button>
-              {segment.kind === "file" && reviewState ? (
-                <span
-                  aria-label={reviewState.title}
-                  className={cx(
-                    styles.reviewStateLabel,
-                    styles[reviewState.tone],
-                    "review-state-label",
-                    reviewState.tone,
-                  )}
-                  title={reviewState.title}
-                >
-                  {reviewState.label}
-                </span>
-              ) : null}
             </span>
           );
         })}
@@ -206,18 +164,6 @@ export function ViewerToolbarLocation({
       ) : null}
     </div>
   );
-}
-
-export function viewerHeaderReviewState(
-  state: ReviewFileState | null | undefined,
-): ViewerHeaderReviewState | null {
-  if (!state) return null;
-  return {
-    state,
-    label: reviewFileStateLabel(state),
-    title: `Review state: ${reviewFileStateLabel(state)}`,
-    tone: reviewFileStateTone(state),
-  };
 }
 
 function fileLocationBarLabel(path: string): string {

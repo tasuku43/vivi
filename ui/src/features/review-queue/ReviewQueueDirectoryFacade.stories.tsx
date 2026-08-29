@@ -17,7 +17,7 @@ import { Inspector } from "./Inspector.js";
 const signalItems: ReviewQueueSignalLedgerItem[] = [
   {
     path: "docs/product/01-product-brief.md",
-    unread: true,
+    unseen: true,
     changed: true,
     draftCount: 0,
     additions: 18,
@@ -25,7 +25,7 @@ const signalItems: ReviewQueueSignalLedgerItem[] = [
   },
   {
     path: "docs/ui-mocks/44-compact-review-queue-inspector.html",
-    unread: true,
+    unseen: true,
     changed: true,
     draftCount: 0,
     additions: 244,
@@ -33,13 +33,13 @@ const signalItems: ReviewQueueSignalLedgerItem[] = [
   },
   {
     path: "docs/product-review.md",
-    unread: false,
+    unseen: false,
     changed: false,
     draftCount: 1,
   },
   {
     path: "examples/onboarding/README.md",
-    unread: true,
+    unseen: true,
     changed: true,
     draftCount: 0,
     additions: 32,
@@ -47,7 +47,7 @@ const signalItems: ReviewQueueSignalLedgerItem[] = [
   },
   {
     path: "packages/agent-guide/docs/getting-started.md",
-    unread: true,
+    unseen: true,
     changed: true,
     draftCount: 0,
     additions: 7,
@@ -60,28 +60,23 @@ const wiredReviewChanges: ReviewChangeItem[] = signalItems
   .map((item) => ({ path: item.path, status: "modified", source: "git" }));
 
 const wiredDraft = sampleDraftComments[1]!;
-const wiredResolvedComment = sampleComments.find(
-  (comment) => comment.id === "comment-resolved",
-)!;
+const wiredUnseenComment = sampleComments[0]!;
 const wiredReviewItems: ReviewQueueItem[] = [
   ...wiredReviewChanges.map((change): ReviewQueueItem => ({
     path: change.path,
     change,
-    threadCounts: { open: 0, resolved: 0, archived: 0 },
     commentCount: 0,
     unread: true,
   })),
   {
-    path: wiredResolvedComment.path,
+    path: wiredUnseenComment.path,
     change: null,
-    threadCounts: { open: 0, resolved: 1, archived: 0 },
     commentCount: 1,
-    unread: false,
+    unread: true,
   },
   {
     path: wiredDraft.path,
     change: null,
-    threadCounts: { open: 0, resolved: 0, archived: 0 },
     commentCount: 0,
     pendingDraftCount: 1,
     pendingDraftIds: [wiredDraft.id],
@@ -102,7 +97,6 @@ const meta = {
   args: {
     items: signalItems,
     selectedPath: "docs/product/01-product-brief.md",
-    reviewedCount: 0,
     onNextQueued: fn(),
     onSelectDocument: fn(),
     onSelectPath: fn(),
@@ -125,7 +119,6 @@ export const EmptyLedger: Story = {
   args: {
     items: [],
     selectedPath: null,
-    reviewedCount: 7,
   },
 };
 
@@ -181,10 +174,10 @@ export const WiredInspector: Story = {
       loadingReviewDiffs={{}}
       unreadReviewPaths={
         new Set(
-          signalItems.filter((item) => item.unread).map((item) => item.path),
+          signalItems.filter((item) => item.unseen).map((item) => item.path),
         )
       }
-      reviewComments={[wiredResolvedComment]}
+      reviewComments={[wiredUnseenComment]}
       draftComments={[wiredDraft]}
       selectedCodeRange={null}
       activePath="docs/product/01-product-brief.md"
@@ -213,6 +206,9 @@ export const WiredInspectorFilterInteraction: Story = {
     const draftBadge = canvasElement.querySelector<HTMLElement>(
       ".review-signal-badges > .draft",
     );
+    const publishButton = canvas.getByRole("button", {
+      name: `Publish 1 draft for ${draftPath}`,
+    });
 
     await expect(draftBadge).toBeVisible();
     await expect(window.getComputedStyle(draftBadge!).fontSize).toBe("9px");
@@ -220,6 +216,12 @@ export const WiredInspectorFilterInteraction: Story = {
     await expect(Math.round(draftBadge!.getBoundingClientRect().height)).toBe(
       18,
     );
+    await expect(
+      canvasElement.querySelector(".review-next"),
+    ).not.toBeInTheDocument();
+    await expect(
+      canvasElement.querySelector(".review-thread-count-toggle"),
+    ).not.toBeInTheDocument();
 
     await userEvent.click(draftsFilter);
     await expect(draftsFilter).toBeChecked();
@@ -230,11 +232,7 @@ export const WiredInspectorFilterInteraction: Story = {
       canvasElement.querySelector(`[data-review-path="${changedPath}"]`),
     ).not.toBeVisible();
 
-    await userEvent.click(
-      canvas.getByRole("button", {
-        name: `Publish 1 draft for ${draftPath}`,
-      }),
-    );
+    await userEvent.click(publishButton);
     await expect(args.onPublishPath).toHaveBeenCalledWith(draftPath);
 
     await userEvent.click(canvas.getByRole("radio", { name: "Changed 4" }));

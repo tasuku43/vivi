@@ -10,22 +10,19 @@ import {
 } from "../../../state/git-review.js";
 import { extractHighlightedLines } from "../../../state/highlighted-lines.js";
 import {
-  codeCommentThreadKey,
   codeCommentThreads,
   commentViewerKindForFile,
   commentsForLine,
   diffCommentDraft,
   lineCommentThreadActionLabel,
-  matchingDraftPreviewThread,
-  matchingOpenThreadForDraft,
   preferredCodeCommentThread,
   rectLikeFromElement,
   scheduleSelectionCommentUpdate,
   type CommentCreateHandler,
   type CommentDraft,
-  type CommentStatusChangeHandler,
   type CodeCommentThread as CodeCommentThreadModel,
 } from "../../../state/comments.js";
+import { commentInputSessionId } from "../../../state/comment-input-session.js";
 import { languageForPath } from "../../../state/file-icons.js";
 import type { ResolvedTheme } from "../../../state/theme.js";
 import { CodeCommentThread } from "../../comments/components/CodeCommentThread.js";
@@ -63,7 +60,6 @@ export function DiffViewer({
   expandActiveCommentThread = true,
   currentActorId,
   onOpenComment,
-  onCommentStatusChange,
   threadActivities = {},
 }: {
   path: string;
@@ -78,7 +74,6 @@ export function DiffViewer({
   expandActiveCommentThread?: boolean;
   currentActorId?: string;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
-  onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities?: Record<string, CommentActivitySummary>;
 }) {
   return (
@@ -106,7 +101,6 @@ export function DiffViewer({
             activeCommentId={activeCommentId}
             expandActiveCommentThread={expandActiveCommentThread}
             currentActorId={currentActorId}
-            onCommentStatusChange={onCommentStatusChange}
             threadActivities={threadActivities}
           />
         ) : (
@@ -119,7 +113,6 @@ export function DiffViewer({
             activeCommentId={activeCommentId}
             currentActorId={currentActorId}
             onOpenComment={onOpenComment}
-            onCommentStatusChange={onCommentStatusChange}
             threadActivities={threadActivities}
           />
         )
@@ -137,7 +130,6 @@ function SourceDiff({
   activeCommentId,
   expandActiveCommentThread,
   currentActorId,
-  onCommentStatusChange,
   threadActivities,
 }: {
   diff: TextDiff;
@@ -148,7 +140,6 @@ function SourceDiff({
   activeCommentId?: string | null;
   expandActiveCommentThread: boolean;
   currentActorId?: string;
-  onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities: Record<string, CommentActivitySummary>;
 }) {
   const diffRef = useRef<HTMLDivElement | null>(null);
@@ -182,10 +173,7 @@ function SourceDiff({
   const visibleThreadKeys = useMemo(() => {
     const keys = new Set<string>();
     for (const draftThread of draftThreads) {
-      keys.add(
-        matchingDraftPreviewThread(commentThreads, draftThread.thread)?.key ??
-          draftThread.thread.key,
-      );
+      keys.add(draftThread.thread.key);
     }
     for (const key of openThreadKeys) keys.add(key);
     if (expandActiveCommentThread && activeThread) keys.add(activeThread.key);
@@ -283,7 +271,6 @@ function SourceDiff({
       (lines.some((line) => line.newLine === lineStart && line.kind === "add")
         ? "added"
         : "context");
-    const key = codeCommentThreadKey(diff.path, lineStart, lineEnd);
     const draft = diffCommentDraft(
       file,
       lineStart,
@@ -292,25 +279,13 @@ function SourceDiff({
       quote,
       diffCommentContextForRange(diff, lineStart, lineEnd),
     );
-    const existingThread = matchingOpenThreadForDraft(commentThreads, draft);
-    if (existingThread) {
-      setDraftThreads((items) =>
-        items.filter((item) => item.thread.key !== existingThread.key),
-      );
-      setOpenThreadKeys((keys) =>
-        keys.includes(existingThread.key)
-          ? keys
-          : [...keys, existingThread.key],
-      );
-      return;
-    }
+    const key = JSON.stringify(["input", commentInputSessionId(draft)]);
     const nextDraftThread: DiffDraftThread = {
       thread: {
         key,
         path: diff.path,
         lineStart,
         lineEnd,
-        status: "open",
         comments: [],
       },
       draft,
@@ -368,7 +343,6 @@ function SourceDiff({
         const draftThread = currentLine
           ? draftThreads.find(
               (candidate) =>
-                !matchingDraftPreviewThread(commentThreads, candidate.thread) &&
                 currentLine >= candidate.thread.lineStart &&
                 currentLine <= candidate.thread.lineEnd,
             )
@@ -445,7 +419,6 @@ function SourceDiff({
                   activeCommentId={activeCommentId}
                   currentActorId={currentActorId}
                   onCreateComment={onCreateComment}
-                  onStatusChange={onCommentStatusChange}
                   onClose={() => closeCommentThread(entry.thread.key)}
                 />
               </div>
@@ -557,7 +530,6 @@ function RenderedDiff({
   activeCommentId,
   currentActorId,
   onOpenComment,
-  onCommentStatusChange,
   threadActivities,
 }: {
   diff: TextDiff;
@@ -568,7 +540,6 @@ function RenderedDiff({
   activeCommentId?: string | null;
   currentActorId?: string;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
-  onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities: Record<string, CommentActivitySummary>;
 }) {
   const rows = buildRenderedDiffRows(
@@ -598,7 +569,6 @@ function RenderedDiff({
       activeCommentId={activeCommentId}
       currentActorId={currentActorId}
       onOpenComment={onOpenComment}
-      onCommentStatusChange={onCommentStatusChange}
       threadActivities={threadActivities}
     />
   );
@@ -614,7 +584,6 @@ function RenderedChangeCards({
   activeCommentId,
   currentActorId,
   onOpenComment,
-  onCommentStatusChange,
   threadActivities,
 }: {
   diff: TextDiff;
@@ -626,7 +595,6 @@ function RenderedChangeCards({
   activeCommentId?: string | null;
   currentActorId?: string;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
-  onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities: Record<string, CommentActivitySummary>;
 }) {
   const cardListRef = useRef<HTMLDivElement | null>(null);
@@ -758,7 +726,6 @@ function RenderedChangeCards({
             onToggleCommentThread={toggleCommentThread}
             onCloseCommentThread={closeCommentThread}
             onCreateComment={onCreateComment}
-            onCommentStatusChange={onCommentStatusChange}
             threadActivities={threadActivities}
           />
         ))}
@@ -888,7 +855,6 @@ function RenderedChangeCardView({
   onToggleCommentThread,
   onCloseCommentThread,
   onCreateComment,
-  onCommentStatusChange,
   threadActivities,
 }: {
   card: RenderedChangeCard;
@@ -903,7 +869,6 @@ function RenderedChangeCardView({
   onToggleCommentThread: (thread: CodeCommentThreadModel) => void;
   onCloseCommentThread: (threadKey: string) => void;
   onCreateComment?: CommentCreateHandler;
-  onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities: Record<string, CommentActivitySummary>;
 }) {
   if (!card.before && !card.after) return <DiffGap label="Changed block" />;
@@ -1053,7 +1018,6 @@ function RenderedChangeCardView({
               activeCommentId={activeCommentId}
               currentActorId={currentActorId}
               onCreateComment={onCreateComment}
-              onStatusChange={onCommentStatusChange}
               onClose={() => onCloseCommentThread(commentThread.key)}
             />
           </div>

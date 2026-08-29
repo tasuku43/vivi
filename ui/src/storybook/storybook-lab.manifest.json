@@ -59,7 +59,7 @@
         "normal reading is the default state and does not imply a review queue",
         "every rendered block uses the same hover and double-click comment affordance whether or not it changed",
         "single click and drag remain ordinary text-selection gestures and never open comment input",
-        "comment input and open threads stay attached to the document location",
+        "comment input and feedback stay attached to the document location",
         "change context appears only after the reader enables the Changes lens",
         "the sidebar preserves the real nested directory structure while hiding non-document files and empty directories"
       ],
@@ -95,30 +95,26 @@
       ]
     },
     {
-      "id": "comment-lifecycle",
-      "label": "Comment lifecycle",
+      "id": "comment-attention",
+      "label": "Comment attention",
       "stage": "storybook-facade",
-      "intent": "Represent open, resolved, draft, published, failure, agent-read/reply, and archive-action states without requiring a backend. Archived threads are hidden from the browser UI after the transition.",
+      "intent": "Represent pending and published human feedback plus the agent seen receipt as a compact attention model.",
       "reviewFocus": [
         "draft comments read as private until publish",
         "pending drafts can be deleted before publish",
-        "open and resolved threads are visually distinct",
-        "failure and published states are recoverable and obvious"
+        "agent reads are visible as Seen while agent-authored messages stay out of the browser",
+        "published feedback exposes the read receipt without browser response controls"
       ],
       "requiredStories": [
-        "Review/Inline Comment States/Open",
+        "Review/Inline Comment States/UnseenPublishedFeedback",
         "Review/Inline Comment States/NewLineComment",
-        "Review/Inline Comment States/Resolved",
-        "Review/Inline Comment States/AgentHasReadThread",
-        "Review/Inline Comment States/AgentHasReplied",
-        "Review/Inline Comment States/SelfCommentOwnership",
-        "Review/Inline Comment States/UserWritesOneDraftComment"
+        "Review/Inline Comment States/SeenByAgent",
+        "Review/Inline Comment States/AgentMessageIsNotAnInbox"
       ],
       "interactionStories": [
-        "Review/Inline Comment States/Open",
+        "Review/Inline Comment States/UnseenPublishedFeedback",
         "Review/Inline Comment States/NewLineComment",
-        "Review/Inline Comment States/SelfCommentOwnership",
-        "Review/Inline Comment States/UserWritesOneDraftComment"
+        "Review/Inline Comment States/AgentMessageIsNotAnInbox"
       ]
     },
     {
@@ -145,10 +141,10 @@
       "intent": "Keep the right inspector compact by presenting one attention-ordered file ledger with signal filters instead of duplicating the Explorer directory tree.",
       "reviewFocus": [
         "the left Explorer remains the only directory hierarchy",
-        "All, Unread, Drafts, and Changed filters expose their counts and preserve attention ordering",
+        "All, Unseen, Drafts, and Changed filters expose their counts and preserve attention ordering",
         "each row keeps the parent path as secondary metadata for disambiguation",
-        "draft publication stays available on the actionable file row while reviewed history recedes",
-        "resolved feedback retains its file in the queue until every thread is archived"
+        "draft publication stays available on the actionable file row",
+        "recent activity expires after 30 minutes while drafts and unseen feedback remain pinned"
       ],
       "requiredStories": [
         "Review/Queue Signal Ledger/MixedSignals",
@@ -184,7 +180,7 @@
         "Files/Markdown Review States/RenderedShowsSourceInputReturn",
         "Files/Markdown Review States/RenderedMarkdownSyntaxGallery",
         "Files/Markdown Review States/RenderedMarkdownOpenThreadBesideNewDraft",
-        "Files/Markdown Review States/RenderedSameAnchorFollowUpKeepsThreadId",
+        "Files/Markdown Review States/RenderedSameAnchorStartsNewFeedback",
         "Files/Markdown Review States/RenderedListDraftFormsDoNotBridge",
         "Files/Markdown Review States/RenderedMarkerPlacement",
         "Files/Markdown Review States/RenderedMarkdownComment",
@@ -192,7 +188,7 @@
         "Files/HTML Preview States/SinglePreviewDraftFormFixedSlot",
         "Files/HTML Preview States/PreviewMultipleRenderedHtmlLineThreads",
         "Files/HTML Preview States/PreviewDraftComposerReplacesTarget",
-        "Files/HTML Preview States/PreviewDraftOnlyThreadFollowUpKeepsThreadId",
+        "Files/HTML Preview States/PreviewSavedDraftKeepsPendingComposer",
         "Files/HTML Preview States/SourceHtmlComment",
         "Files/Open File Surface States/HtmlSource",
         "Files/Viewer Coverage States/ViewerFailureContained",

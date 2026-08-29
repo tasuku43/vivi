@@ -6,9 +6,13 @@ import {
   commentLineLabel,
   commentLineLabelForAnchor,
   commentAnchorThreadKey,
-  statusLabel,
   truncateCommentPreview,
 } from "../../state/comments.js";
+import {
+  commentThreadReviewReceipt,
+  isHumanFeedback,
+  type CommentActivitySummary,
+} from "../../state/comment-activity.js";
 import type { DiffStat, ReviewChangeItem } from "../../state/git-review.js";
 import type { OutlineHeading } from "../../state/outline.js";
 import { InspectorSurfaceTabs } from "../../shared/components/InspectorSurfaceTabs.js";
@@ -27,6 +31,7 @@ export interface DocumentInspectorProps {
   draftComments?: DraftReviewComment[];
   commentsLoading?: boolean;
   activeCommentId?: string | null;
+  threadActivities?: Record<string, CommentActivitySummary>;
   unsavedInputCount?: number;
   resumableInput?: { path: string; location: string } | null;
   change?: ReviewChangeItem | null;
@@ -37,6 +42,7 @@ export interface DocumentInspectorProps {
   onOpenComment?: (comment: ViviComment) => void;
   onOpenDraft?: (draft: DraftReviewComment) => void;
   onPublishDrafts?: (draftIds?: string[]) => void | Promise<void>;
+  publishDisabled?: boolean;
   onResumeInput?: () => void;
   onToggleChanges?: () => void;
   reviewQueueCount?: number;
@@ -51,6 +57,7 @@ export function DocumentInspector({
   draftComments = [],
   commentsLoading = false,
   activeCommentId = null,
+  threadActivities = {},
   unsavedInputCount = 0,
   resumableInput = null,
   change = null,
@@ -61,6 +68,7 @@ export function DocumentInspector({
   onOpenComment,
   onOpenDraft,
   onPublishDrafts,
+  publishDisabled = false,
   onResumeInput,
   onToggleChanges,
   reviewQueueCount = 0,
@@ -69,13 +77,12 @@ export function DocumentInspector({
   const documentDrafts = file
     ? draftComments.filter((draft) => draft.path === file.path)
     : [];
-  const threads = buildCommentThreads(comments)
-    .filter((thread) => thread.status !== "archived")
-    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-  const openCount = threads.filter((thread) => thread.status === "open").length;
-  const feedbackCount = openCount + documentDrafts.length;
-  const contextFeedbackLabel = openCount
-    ? `${openCount} open`
+  const threads = buildCommentThreads(comments.filter(isHumanFeedback)).sort(
+    (left, right) => right.updatedAt.localeCompare(left.updatedAt),
+  );
+  const feedbackCount = threads.length + documentDrafts.length;
+  const contextFeedbackLabel = threads.length
+    ? `${threads.length} published`
     : documentDrafts.length
       ? `${documentDrafts.length} pending`
       : null;
@@ -202,6 +209,7 @@ export function DocumentInspector({
                       documentDrafts.map((draft) => draft.id),
                     )
                   }
+                  publishDisabled={publishDisabled}
                 />
               ) : null}
 
@@ -216,6 +224,10 @@ export function DocumentInspector({
                       (item) => item.id === activeCommentId,
                     );
                     const latest = thread.comments[thread.comments.length - 1]!;
+                    const receipt = commentThreadReviewReceipt(
+                      thread,
+                      threadActivities[thread.id]?.timeline,
+                    );
                     return (
                       <button
                         className={`${styles.thread} ${active ? styles.activeThread : ""}`}
@@ -223,11 +235,7 @@ export function DocumentInspector({
                         type="button"
                         onClick={() => onOpenComment?.(comment)}
                       >
-                        <span
-                          className={`${styles.status} ${styles[thread.status]}`}
-                        >
-                          {statusLabel(thread.status)}
-                        </span>
+                        <span className={styles.status}>{receipt.label}</span>
                         <strong>{commentLineLabel(comment)}</strong>
                         <small>{truncateCommentPreview(latest.body, 72)}</small>
                         <span className={styles.messageCount}>
@@ -335,7 +343,8 @@ function groupDocumentDrafts(
 ): Array<[string, DraftReviewComment[]]> {
   const groups = new Map<string, DraftReviewComment[]>();
   for (const draft of drafts) {
-    const id = draft.threadId ?? commentAnchorThreadKey(draft.path, draft.anchor);
+    const id =
+      draft.threadId ?? commentAnchorThreadKey(draft.path, draft.anchor);
     groups.set(id, [...(groups.get(id) ?? []), draft]);
   }
   return [...groups.entries()];

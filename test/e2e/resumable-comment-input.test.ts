@@ -251,7 +251,9 @@ it("keeps a saved Markdown thread open and focuses its follow-up", async () => {
 
   await page.locator('[data-tree-path="README.md"]').click();
   await page.getByRole("tab", { name: "Document" }).click();
-  await page.getByText("Contract workspace changed", { exact: true }).dblclick();
+  await page
+    .getByText("Contract workspace changed", { exact: true })
+    .dblclick();
 
   const firstBody = "First pending Markdown review note.";
   await page.getByRole("textbox", { name: "New line comment" }).fill(firstBody);
@@ -267,7 +269,9 @@ it("keeps a saved Markdown thread open and focuses its follow-up", async () => {
         .count(),
     )
     .toBe(1);
-  const followUp = page.getByRole("textbox", { name: "Continue thread" });
+  const followUp = page.getByRole("textbox", {
+    name: "Add another pending note",
+  });
   await expect.poll(() => followUp.count()).toBe(1);
   await expect.poll(() => followUp.inputValue()).toBe("");
   await expect
@@ -339,7 +343,9 @@ it("keeps a saved HTML thread open and focuses its follow-up", async () => {
   await expect
     .poll(() => page.getByRole("textbox", { name: "New line comment" }).count())
     .toBe(0);
-  const followUp = page.getByRole("textbox", { name: "Continue thread" });
+  const followUp = page.getByRole("textbox", {
+    name: "Add another pending note",
+  });
   await expect.poll(() => followUp.count()).toBe(1);
   await expect.poll(() => followUp.inputValue()).toBe("");
   await expect
@@ -361,9 +367,16 @@ it("keeps a saved HTML thread open and focuses its follow-up", async () => {
   await followUp.fill(secondBody);
   await followUp.press("Control+Enter");
 
-  await expect
-    .poll(() => followUp.inputValue(), { timeout: 250 })
-    .toBe("");
+  const publishWhileSaving = page.getByRole("button", {
+    name: "Publish 1",
+    exact: true,
+  });
+  await expect.poll(() => publishWhileSaving.isDisabled()).toBe(true);
+  const deleteWhileSaving = page.getByRole("button", {
+    name: "Delete pending draft comment 1",
+  });
+  await expect.poll(() => deleteWhileSaving.isDisabled()).toBe(true);
+  await expect.poll(() => followUp.inputValue(), { timeout: 250 }).toBe("");
   const thirdBody = "A third thought typed while the save completes.";
   await followUp.pressSequentially(thirdBody);
 
@@ -419,7 +432,10 @@ it("keeps a saved HTML thread open and focuses its follow-up", async () => {
       page.getByRole("article", { name: "Comment thread for line 4" }).count(),
     )
     .toBe(1);
-  await expect.poll(() => followUp.inputValue()).toBe(thirdBody);
+  const preservedNewFeedback = page.getByRole("textbox", {
+    name: "New line comment",
+  });
+  await expect.poll(() => preservedNewFeedback.inputValue()).toBe(thirdBody);
   await page.getByRole("button", { name: "Close comment thread" }).click();
   await expect
     .poll(() =>

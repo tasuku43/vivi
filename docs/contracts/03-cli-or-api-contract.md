@@ -1,5 +1,11 @@
 # CLI and API contract
 
+> Product-attention note: reply, resolved, and archived commands remain
+> supported compatibility transports. The browser does not require those
+> states to clear review attention; unseen published feedback stays pinned, and
+> an agent read receipt starts the same inactivity window used by watcher events
+> and user opens.
+
 ## CLI contract
 
 The canonical `vivi` command is the Go CLI/backend, whether invoked from a

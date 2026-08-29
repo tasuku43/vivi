@@ -3,7 +3,6 @@ import {
   type CommentAnchor,
   type DraftReviewComment,
   type SourceAnchor,
-  type CommentStatus,
   type CommentViewerKind,
   type ViviComment,
 } from "../domain/comments.js";
@@ -19,17 +18,10 @@ export interface CommentDraft {
   anchor: CommentAnchor;
 }
 
-export type CommentComposerIntent = "new-thread" | "reply";
-
 export type CommentCreateHandler = (
   draft: CommentDraft,
   body: string,
   rect?: SelectionCommentTarget["rect"],
-) => void | Promise<void>;
-
-export type CommentStatusChangeHandler = (
-  id: string,
-  status: CommentStatus,
 ) => void | Promise<void>;
 
 export interface CodeCommentThread {
@@ -37,7 +29,6 @@ export interface CodeCommentThread {
   path: string;
   lineStart: number;
   lineEnd: number;
-  status: CommentStatus;
   comments: ThreadComment[];
 }
 
@@ -140,11 +131,7 @@ export function codeCommentThreadKey(
   return JSON.stringify([path, lineStart, lineEnd]);
 }
 
-export function draftForCommentComposerIntent(
-  draft: CommentDraft,
-  intent: CommentComposerIntent,
-): CommentDraft {
-  if (intent === "reply") return draft;
+export function draftForNewComment(draft: CommentDraft): CommentDraft {
   const { threadId: _threadId, ...newThreadDraft } = draft;
   return newThreadDraft;
 }
@@ -169,19 +156,6 @@ export function commentAnchorThreadKey(
     anchor.diff?.oldLineEnd ?? null,
     anchor.diff?.newLineStart ?? null,
     anchor.diff?.newLineEnd ?? null,
-  ]);
-}
-
-export function canonicalCommentAnchorThreadKey(
-  path: string,
-  anchor: CommentAnchor,
-): string {
-  const canonical = anchor.canonical;
-  return JSON.stringify([
-    path,
-    anchor.surface,
-    canonical.lineStart ?? null,
-    canonical.lineEnd ?? canonical.lineStart ?? null,
   ]);
 }
 
@@ -215,7 +189,7 @@ export function codeCommentThreads(
   comments: ThreadComment[],
 ): CodeCommentThread[] {
   const byKey = new Map<string, CodeCommentThread>();
-  for (const comment of visibleThreadComments(comments)) {
+  for (const comment of comments) {
     const lineStart = comment.anchor.canonical.lineStart;
     if (!lineStart) continue;
     const lineEnd = comment.anchor.canonical.lineEnd ?? lineStart;
@@ -227,11 +201,9 @@ export function codeCommentThreads(
       path: comment.path,
       lineStart,
       lineEnd,
-      status: "open",
       comments: [],
     };
     thread.comments.push(comment);
-    thread.status = latestPublishedStatus(thread.comments);
     byKey.set(key, thread);
   }
   return [...byKey.values()]
@@ -271,6 +243,18 @@ export function matchingDraftPreviewThread(
   );
 }
 
+export function draftPreviewThreadsForSurface(
+  comments: ThreadComment[],
+  surface: CommentAnchor["surface"],
+): CodeCommentThread[] {
+  return codeCommentThreads(
+    comments.filter(
+      (comment) =>
+        isDraftThreadComment(comment) && comment.anchor.surface === surface,
+    ),
+  );
+}
+
 export function preferredCodeCommentThread(
   threads: CodeCommentThread[],
   activeCommentId?: string | null,
@@ -281,34 +265,7 @@ export function preferredCodeCommentThread(
     );
     if (activeThread) return activeThread;
   }
-  return (
-    threads.find((thread) => thread.status === "open") ??
-    threads.find((thread) => thread.status === "resolved") ??
-    threads[0]
-  );
-}
-
-export function matchingOpenThreadForDraft(
-  threads: CodeCommentThread[],
-  draft: CommentDraft,
-): CodeCommentThread | undefined {
-  const draftKey = commentAnchorThreadKey(draft.path, draft.anchor);
-  const canonicalDraftKey = canonicalCommentAnchorThreadKey(
-    draft.path,
-    draft.anchor,
-  );
-  const sameAnchorThreads = threads.filter(
-    (thread) =>
-      thread.status === "open" &&
-      thread.comments.some(
-        (comment) =>
-          !isDraftThreadComment(comment) &&
-          (commentAnchorThreadKey(comment.path, comment.anchor) === draftKey ||
-            canonicalCommentAnchorThreadKey(comment.path, comment.anchor) ===
-              canonicalDraftKey),
-      ),
-  );
-  return preferredCodeCommentThread(sameAnchorThreads, draft.threadId);
+  return threads[0];
 }
 
 export function lineCommentThreadActionLabel(
@@ -324,66 +281,13 @@ export function lineCommentThreadActionLabel(
   }
   const count = thread.comments.length;
   const messageLabel = count === 1 ? "message" : "messages";
-  if (thread.status === "open") {
-    return `Open comment thread on line ${lineNumber} with ${count} ${messageLabel}`;
-  }
-  return `Open ${thread.status} comment thread on line ${lineNumber} with ${count} ${messageLabel}`;
-}
-
-export function latestPublishedStatus(
-  comments: ThreadComment[],
-): CommentStatus {
-  const published = comments.filter(
-    (comment) => !isDraftThreadComment(comment),
-  );
-  if (!published.length) return "open";
-  return published.reduce((latest, comment) =>
-    comment.updatedAt > latest.updatedAt ? comment : latest,
-  ).status;
+  return `Open comment thread on line ${lineNumber} with ${count} ${messageLabel}`;
 }
 
 export function isDraftThreadComment(
   comment: ThreadComment,
 ): comment is ThreadComment & { draft: true } {
   return comment.draft === true || comment.id.startsWith("draft:");
-}
-
-export function visibleThreadComments<T extends ThreadComment>(
-  comments: T[],
-): T[] {
-  const groups = new Map<string, T[]>();
-  for (const comment of comments) {
-    const threadId = comment.threadId ?? comment.id;
-    groups.set(threadId, [...(groups.get(threadId) ?? []), comment]);
-  }
-
-  const hiddenThreadIds = new Set<string>();
-  for (const [threadId, threadComments] of groups.entries()) {
-    const published = threadComments.filter(
-      (comment) => !isDraftThreadComment(comment),
-    );
-    if (!published.length) continue;
-    const latest = published.reduce((current, comment) =>
-      comment.updatedAt > current.updatedAt ? comment : current,
-    );
-    if (latest.status === "archived") hiddenThreadIds.add(threadId);
-  }
-
-  return comments.filter(
-    (comment) => !hiddenThreadIds.has(comment.threadId ?? comment.id),
-  );
-}
-
-export function activeCommentsForPath(
-  comments: ViviComment[],
-  path: string,
-): ViviComment[] {
-  return buildCommentThreads(
-    comments.filter((comment) => comment.path === path),
-  )
-    .filter((thread) => thread.status === "open")
-    .flatMap((thread) => thread.comments)
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
 export function renderedCommentDraft(
@@ -572,12 +476,6 @@ export function selectedLineRangeInElement(
   return { start: Math.min(start, end), end: Math.max(start, end) };
 }
 
-export function statusLabel(status: CommentStatus): string {
-  if (status === "resolved") return "Resolved";
-  if (status === "archived") return "Archived";
-  return "Open";
-}
-
 export function commentLineLabel(comment: ViviComment): string {
   return commentLineLabelForAnchor(comment.anchor.canonical);
 }
@@ -598,9 +496,7 @@ export function commentsForLine(
   comments: ViviComment[],
   line: number,
 ): ViviComment[] {
-  return visibleThreadComments(comments).filter((comment) =>
-    commentContainsLine(comment, line),
-  );
+  return comments.filter((comment) => commentContainsLine(comment, line));
 }
 
 export function commentContainsLine(

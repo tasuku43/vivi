@@ -30,7 +30,6 @@ const meta = {
     onCreateComment: fn(),
     onOpenComment: fn(),
     onCloseComment: fn(),
-    onCommentStatusChange: fn(),
     onDiffToggle: fn(),
   },
 } satisfies Meta<typeof CodeViewer>;
@@ -61,7 +60,7 @@ export const SourceWithOpenThread: Story = {
   },
 };
 
-export const SourceWithAgentReply: Story = {
+export const SourceWithAgentMessageHidden: Story = {
   args: {
     activeCommentId: "comment-workbench-agent-1",
   },
@@ -191,6 +190,12 @@ export const SourceWithStackedLineThreads: Story = {
           },
         },
         body: "Second independent same-line review item.",
+        createdBy: {
+          id: "human:reviewer-2",
+          kind: "human",
+          displayName: "Reviewer 2",
+        },
+        source: "human",
         createdAt: "2026-06-20T09:16:00.000Z",
         updatedAt: "2026-06-20T09:16:00.000Z",
       },
@@ -295,7 +300,8 @@ export const SourceDraftOnExistingLineStaysSeparate: Story = {
   },
 };
 
-export const DraftOnlyThreadFollowUpKeepsThreadId: Story = {
+export const DraftOnlyThreadAllowsAnotherPendingNote: Story = {
+  name: "Draft-only thread allows another pending note",
   tags: ["interaction"],
   args: {
     selectedRange: null,
@@ -322,39 +328,28 @@ export const DraftOnlyThreadFollowUpKeepsThreadId: Story = {
   },
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    const followUpBody = "Second pending note in the same draft-only thread.";
-    const expectedThreadId =
-      'draft-thread:draft-only-root-follow-up:["ui/src/features/workbench/WorkbenchContainer.tsx","source",10,10,null,null,null,null,null,null,null,null,null,null]';
     await userEvent.click(
       canvas.getByRole("button", {
         name: "Open comment thread on line 10 with 1 message",
       }),
     );
     await expect(canvas.getByText("Pending draft")).toBeVisible();
-    await userEvent.type(
-      canvas.getByLabelText("Continue thread"),
-      followUpBody,
-    );
+    const composer = canvas.getByLabelText("Add another pending note");
+    await userEvent.type(composer, "A second private note before publish.");
     await userEvent.click(
-      canvas.getByRole("button", { name: "Add follow-up" }),
+      canvas.getByRole("button", { name: "Save pending draft comment" }),
     );
-
-    const calls = (
-      args.onCreateComment as unknown as {
-        mock: { calls: unknown[][] };
-      }
-    ).mock.calls;
-    await expect(args.onCreateComment).toHaveBeenCalled();
-    await expect(calls).toHaveLength(1);
-    await expect(calls[0]?.[0]).toMatchObject({
-      threadId: expectedThreadId,
-    });
-    await expect(calls[0]?.[1]).toBe(followUpBody);
+    await expect(args.onCreateComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        threadId: expect.stringContaining("draft-thread:"),
+      }),
+      "A second private note before publish.",
+    );
   },
 };
 
-export const SourceThreadReplyStaysFocusedOnExistingLine: Story = {
-  name: "Code line keeps replies focused on the existing thread",
+export const SourcePublishedFeedbackHasNoResponseComposer: Story = {
+  name: "Published source feedback has no response composer",
   tags: ["interaction"],
   args: {
     selectedRange: null,
@@ -400,12 +395,7 @@ export const SourceThreadReplyStaysFocusedOnExistingLine: Story = {
       canvas.queryByRole("button", { name: "Start separate thread" }),
     ).not.toBeInTheDocument();
     await expect(canvas.queryByLabelText("New line comment")).toBeNull();
-    await expect(canvas.getByLabelText("Continue thread")).toBeVisible();
-    for (const saveButton of canvas.queryAllByRole("button", {
-      name: "Save pending draft comment",
-    })) {
-      await expect(saveButton).toBeDisabled();
-    }
+    await expect(canvas.queryByRole("textbox")).not.toBeInTheDocument();
   },
 };
 

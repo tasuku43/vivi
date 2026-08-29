@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vivi — Shared attention window</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0c1419;
+        --panel: #111d24;
+        --line: #29404b;
+        --text: #e8f0f3;
+        --muted: #8da3ad;
+        --cyan: #72cbd4;
+        --amber: #d7b45b;
+        --green: #70c98b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          13px/1.5 Inter,
+          ui-sans-serif,
+          system-ui,
+          sans-serif;
+      }
+      main {
+        width: min(1040px, calc(100% - 40px));
+        margin: 40px auto 64px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 26px;
+      }
+      .lead {
+        max-width: 780px;
+        margin: 0 0 28px;
+        color: var(--muted);
+      }
+      .rule {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--line);
+      }
+      .state {
+        min-height: 255px;
+        padding: 20px;
+        background: var(--panel);
+      }
+      .step {
+        color: var(--cyan);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+      }
+      h2 {
+        margin: 8px 0;
+        font-size: 18px;
+      }
+      .state p {
+        margin: 0 0 16px;
+        color: var(--muted);
+      }
+      .row {
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #0e191f;
+      }
+      .title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .title strong {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .badge {
+        border: 1px solid #846e2e;
+        border-radius: 10px;
+        padding: 1px 7px;
+        color: var(--amber);
+        font-size: 9px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+      .badge.seen {
+        border-color: #3f7560;
+        color: var(--green);
+      }
+      .meta {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .timer {
+        margin-top: 13px;
+        height: 4px;
+        overflow: hidden;
+        border-radius: 3px;
+        background: #263a43;
+      }
+      .timer span {
+        display: block;
+        width: 66%;
+        height: 100%;
+        background: var(--cyan);
+      }
+      .empty {
+        display: grid;
+        min-height: 75px;
+        place-items: center;
+        border: 1px dashed #36505a;
+        border-radius: 7px;
+        color: var(--muted);
+        text-align: center;
+      }
+      .timeline {
+        margin-top: 24px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--panel);
+      }
+      .timeline h2 {
+        margin: 0;
+        padding: 15px 18px;
+        border-bottom: 1px solid var(--line);
+      }
+      .events {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+      }
+      .event {
+        padding: 18px;
+        border-right: 1px solid var(--line);
+      }
+      .event:last-child {
+        border-right: 0;
+      }
+      .event b,
+      .event span {
+        display: block;
+      }
+      .event b {
+        color: var(--cyan);
+      }
+      .event span {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .note {
+        margin-top: 20px;
+        padding: 15px 18px;
+        border-left: 3px solid var(--green);
+        background: #101d20;
+        color: #b9c9ce;
+      }
+      @media (max-width: 800px) {
+        .rule,
+        .events {
+          grid-template-columns: 1fr;
+        }
+        .event {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>One attention rule, no completion state</h1>
+      <p class="lead">
+        A published comment stays visible until an agent observes it. That read
+        timestamp then joins file changes and user opens in one 30-minute
+        inactivity window. Nothing is moved to Resolved, Archived, or Reviewed.
+      </p>
+      <section class="rule">
+        <article class="state">
+          <span class="step">1 · Published</span>
+          <h2>Pinned until seen</h2>
+          <p>Time does not clear feedback that has not reached an agent.</p>
+          <div class="row">
+            <div class="title">
+              <strong>README.md</strong><span class="badge">UNSEEN</span>
+            </div>
+            <span class="meta">Published feedback · no agent read</span>
+          </div>
+        </article>
+        <article class="state">
+          <span class="step">2 · Agent read at 10:12</span>
+          <h2>Shared 30-minute window</h2>
+          <p>The read is activity, just like a watcher event or user open.</p>
+          <div class="row">
+            <div class="title">
+              <strong>README.md</strong><span class="badge seen">SEEN</span>
+            </div>
+            <span class="meta">Seen by Codex · 20 min remaining</span>
+            <div class="timer"><span></span></div>
+          </div>
+        </article>
+        <article class="state">
+          <span class="step">3 · Quiet for 30 min</span>
+          <h2>Simply recedes</h2>
+          <p>
+            No receipt and no status change. The comment remains attached to the
+            document.
+          </p>
+          <div class="empty">README.md leaves<br />active Review Queue</div>
+        </article>
+      </section>
+      <section class="timeline">
+        <h2>Signals update the same clock</h2>
+        <div class="events">
+          <div class="event">
+            <b>New feedback</b><span>Pinned; expiry disabled until read</span>
+          </div>
+          <div class="event">
+            <b>Agent read</b><span>Starts the 30-minute window</span>
+          </div>
+          <div class="event">
+            <b>File changed</b><span>Resets the clock</span>
+          </div>
+          <div class="event">
+            <b>User opened</b><span>Resets the clock</span>
+          </div>
+          <div class="event">
+            <b>Pending draft</b
+            ><span>Stays visible until published or discarded</span>
+          </div>
+        </div>
+      </section>
+      <p class="note">
+        A newly published comment disables expiry again until that specific
+        feedback has an agent read receipt. Agent replies and terminal lifecycle
+        statuses do not create browser attention states.
+      </p>
+    </main>
+  </body>
+</html>

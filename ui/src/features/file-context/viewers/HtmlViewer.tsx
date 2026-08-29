@@ -4,21 +4,21 @@ import type { TextDiff } from "../../../domain/change-review.js";
 import type { ViviComment } from "../../../domain/comments.js";
 import type { FilePayload } from "../../../domain/fs-node.js";
 import { renderedCommentBlocksForHtml } from "../../../domain/rendered-comment-blocks.js";
-import type { CommentActivitySummary } from "../../../state/comment-activity.js";
+import {
+  isHumanFeedback,
+  type CommentActivitySummary,
+} from "../../../state/comment-activity.js";
 import {
   commentAnchorThreadKey,
   codeCommentThreads,
   lineRangeForQuote,
-  latestPublishedStatus,
+  isDraftThreadComment,
   matchingDraftPreviewThread,
-  matchingOpenThreadForDraft,
   renderedCommentDraft,
   sourceTextForLineRange,
-  visibleThreadComments,
   type CodeCommentThread as CodeCommentThreadModel,
   type CommentCreateHandler,
   type CommentDraft,
-  type CommentStatusChangeHandler,
 } from "../../../state/comments.js";
 import { commentInputSessionId } from "../../../state/comment-input-session.js";
 import { unsavedCommentInputCount } from "../../../state/comment-input-session.js";
@@ -68,7 +68,6 @@ export function HtmlViewer({
   currentActorId,
   onOpenComment,
   onCloseComment,
-  onCommentStatusChange,
   threadActivities = {},
   previewSrcDoc,
   onOpenPath,
@@ -91,7 +90,6 @@ export function HtmlViewer({
   currentActorId?: string;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onCloseComment?: () => void;
-  onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities?: Record<string, CommentActivitySummary>;
   previewSrcDoc?: string;
   onOpenPath?: (path: string) => void;
@@ -136,7 +134,10 @@ export function HtmlViewer({
   );
   const htmlSourceBlocks = renderedCommentBlocksForHtml(file.content);
   const visibleRenderedComments = useMemo(
-    () => visibleThreadComments(comments),
+    () =>
+      comments.filter(
+        (comment) => isDraftThreadComment(comment) || isHumanFeedback(comment),
+      ),
     [comments],
   );
   const setMode = (nextMode: ViewerMode) => {
@@ -445,11 +446,17 @@ export function HtmlViewer({
       threadComments[0]?.threadId ??
       threadComments[0]?.id ??
       target.draft.threadId;
-    const replyDraft = threadId ? { ...target.draft, threadId } : target.draft;
-    const thread = renderedThreadModel(file.path, replyDraft, threadComments);
+    const feedbackDraft = threadId
+      ? { ...target.draft, threadId }
+      : target.draft;
+    const thread = renderedThreadModel(
+      file.path,
+      feedbackDraft,
+      threadComments,
+    );
     const key = renderedHtmlThreadTargetKey(file.path, target);
     return {
-      draft: replyDraft,
+      draft: feedbackDraft,
       key,
       position: renderedThreadPosition,
       target,
@@ -510,7 +517,6 @@ export function HtmlViewer({
           activeCommentId={activeCommentId}
           currentActorId={currentActorId}
           onOpenComment={onOpenComment}
-          onCommentStatusChange={onCommentStatusChange}
           threadActivities={threadActivities}
         />
       ) : mode === "preview" ? (
@@ -545,7 +551,6 @@ export function HtmlViewer({
           onCreateComment={onCreateComment}
           onOpenComment={onOpenComment}
           onCloseComment={onCloseComment}
-          onCommentStatusChange={onCommentStatusChange}
           threadActivities={threadActivities}
         />
       )}
@@ -574,7 +579,6 @@ export function HtmlViewer({
               currentActorId={currentActorId}
               onCreateComment={onCreateComment}
               keepOpenAfterCreate
-              onStatusChange={onCommentStatusChange}
               onClose={() => closeRenderedThreadTarget(entry.key)}
             />
           </div>
@@ -709,13 +713,7 @@ function commentsForRenderedHtmlTarget(
     codeCommentThreads(renderedHtmlComments),
     renderedThreadModel(target.draft.path, target.draft, []),
   );
-  const openThread =
-    draftThread ??
-    matchingOpenThreadForDraft(
-      codeCommentThreads(renderedHtmlComments),
-      target.draft,
-    );
-  return openThread?.comments ?? [];
+  return draftThread?.comments ?? [];
 }
 
 function renderedThreadModel(
@@ -732,7 +730,6 @@ function renderedThreadModel(
     path,
     lineStart,
     lineEnd,
-    status: latestPublishedStatus(comments),
     comments,
   };
 }

@@ -1,4 +1,4 @@
-import type { CommentStatus, ViviComment } from "../domain/comments.js";
+import type { ViviComment } from "../domain/comments.js";
 import type { CommandActionItem } from "./search-palette.js";
 import { commentLineLabel } from "./comments.js";
 
@@ -8,22 +8,18 @@ export interface ReviewCommandActionState {
   activeComment: ViviComment | null;
   canToggleDiff: boolean;
   diffEnabled: boolean;
-  canMarkCurrentReviewPathReviewed: boolean;
-  openThreadTargetCount: number;
-  inReviewReplyTargetCount: number;
+  feedbackTargetCount: number;
   reviewItemCount: number;
-  unreadReviewCount: number;
+  unseenReviewCount: number;
 }
 
 export function reviewCommandActions({
   activeComment,
   canToggleDiff,
-  canMarkCurrentReviewPathReviewed,
   diffEnabled,
-  inReviewReplyTargetCount,
-  openThreadTargetCount,
+  feedbackTargetCount,
   reviewItemCount,
-  unreadReviewCount,
+  unseenReviewCount,
 }: ReviewCommandActionState): CommandActionItem[] {
   const actions: CommandActionItem[] = [];
 
@@ -34,55 +30,19 @@ export function reviewCommandActions({
       detail: `${activeComment.path} · ${commentLineLabel(activeComment)}`,
       shortcut: `${shortcutPrefix} I`,
     });
-    actions.push({
-      id: "toggle-current-thread-status",
-      label:
-        activeComment.status === "open"
-          ? "Resolve current thread"
-          : "Reopen current thread",
-      detail: `${activeComment.path} · ${commentLineLabel(activeComment)}`,
-      shortcut: `${shortcutPrefix} Shift Enter`,
-    });
-    if (activeComment.status !== "archived") {
-      actions.push({
-        id: "archive-current-thread",
-        label: "Archive current thread",
-        detail: `${activeComment.path} · ${commentLineLabel(activeComment)}`,
-        shortcut: `${shortcutPrefix} Shift Backspace`,
-      });
-    }
   }
 
-  if (unreadReviewCount) {
+  if (unseenReviewCount) {
     actions.push({
-      id: "open-latest-unread",
+      id: "open-latest-unseen",
       label: "Open next unseen item",
-      detail: `${unreadReviewCount} unseen review ${unreadReviewCount === 1 ? "file" : "files"}`,
+      detail: `${unseenReviewCount} unseen review ${unseenReviewCount === 1 ? "file" : "files"}`,
       shortcut: `${shortcutPrefix} Shift U`,
-    });
-  }
-
-  if (inReviewReplyTargetCount) {
-    actions.push({
-      id: "open-in-review-reply",
-      label: "Open next in-review reply",
-      detail: `${inReviewReplyTargetCount} in-review ${inReviewReplyTargetCount === 1 ? "reply" : "replies"}`,
-      shortcut: `${shortcutPrefix} Shift I`,
     });
   }
 
   if (reviewItemCount) {
     actions.push(
-      ...(canMarkCurrentReviewPathReviewed
-        ? [
-            {
-              id: "mark-current-reviewed",
-              label: "Mark current file reviewed",
-              detail: "Hide this reviewed change and open the next review item",
-              shortcut: `${shortcutPrefix} Shift M`,
-            },
-          ]
-        : []),
       {
         id: "open-next-review",
         label: "Next review item",
@@ -97,18 +57,18 @@ export function reviewCommandActions({
     );
   }
 
-  if (openThreadTargetCount) {
+  if (feedbackTargetCount) {
     actions.push(
       {
         id: "open-next-thread",
-        label: "Next open thread",
-        detail: `${openThreadTargetCount} open ${openThreadTargetCount === 1 ? "thread" : "threads"}`,
+        label: "Next feedback",
+        detail: `${feedbackTargetCount} feedback ${feedbackTargetCount === 1 ? "item" : "items"}`,
         shortcut: `${shortcutPrefix} ]`,
       },
       {
         id: "open-previous-thread",
-        label: "Previous open thread",
-        detail: `${openThreadTargetCount} open ${openThreadTargetCount === 1 ? "thread" : "threads"}`,
+        label: "Previous feedback",
+        detail: `${feedbackTargetCount} feedback ${feedbackTargetCount === 1 ? "item" : "items"}`,
         shortcut: `${shortcutPrefix} [`,
       },
     );
@@ -124,20 +84,4 @@ export function reviewCommandActions({
   }
 
   return actions;
-}
-
-export type CurrentThreadLifecycleShortcut =
-  | "toggle-current-thread-status"
-  | "archive-current-thread";
-
-export function currentThreadLifecycleShortcutStatus(
-  activeComment: ViviComment | null,
-  shortcut: CurrentThreadLifecycleShortcut,
-): CommentStatus | null {
-  if (!activeComment) return null;
-  if (shortcut === "toggle-current-thread-status") {
-    return activeComment.status === "open" ? "resolved" : "open";
-  }
-  if (activeComment.status === "archived") return null;
-  return "archived";
 }

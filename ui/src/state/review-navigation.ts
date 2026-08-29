@@ -1,8 +1,6 @@
 import {
   buildCommentThreads,
   type CommentThread,
-  type CommentThreadActivityEvent,
-  type CommentStatus,
   type DraftReviewComment,
   type ViviComment,
 } from "../domain/comments.js";
@@ -52,12 +50,12 @@ export function reviewQueueOpenTransition({
   };
 }
 
-export function openThreadNavigationTargets(
+export function feedbackNavigationTargets(
   comments: ViviComment[],
   options: { path?: string | null; reviewBatchId?: string | null } = {},
 ): ReviewNavigationTarget[] {
   return buildCommentThreads(comments)
-    .filter((thread) => thread.status === "open")
+    .filter((thread) => thread.comments.some(isHumanFeedback))
     .filter((thread) => !options.path || thread.path === options.path)
     .filter(
       (thread) =>
@@ -66,12 +64,6 @@ export function openThreadNavigationTargets(
     )
     .map(threadTarget)
     .sort(compareTargets);
-}
-
-export function unresolvedThreadNavigationTargets(
-  comments: ViviComment[],
-): ReviewNavigationTarget[] {
-  return openThreadNavigationTargets(comments);
 }
 
 export function draftCommentNavigationTargets(
@@ -91,26 +83,6 @@ export function draftCommentNavigationTargets(
       sortKey: targetSortKey(draft.path, draft.anchor.canonical.lineStart),
     }))
     .sort(compareTargets);
-}
-
-export function agentReplyNavigationTargets(
-  comments: ViviComment[],
-): ReviewNavigationTarget[] {
-  return buildCommentThreads(comments)
-    .filter((thread) => thread.status === "open")
-    .flatMap((thread) =>
-      thread.comments.filter(isAgentReply).map((comment) => ({
-        id: `agent-reply:${comment.id}`,
-        path: comment.path,
-        threadId: thread.id,
-        commentId: comment.id,
-        surface: comment.anchor.surface,
-        label: `In-review reply in ${basenameForPath(comment.path)}`,
-        detail: anchorDetail(comment.anchor.canonical.lineStart, comment.body),
-        sortKey: comment.updatedAt,
-      })),
-    )
-    .sort((a, b) => b.sortKey.localeCompare(a.sortKey) || compareTargets(a, b));
 }
 
 export function commentNavigationTarget(
@@ -140,60 +112,10 @@ export function countAttentionCommentThreads(
   unreadReviewPaths: ReadonlySet<string>,
 ): number {
   return buildCommentThreads(comments).filter(
-    (thread) => thread.status === "open" && unreadReviewPaths.has(thread.path),
+    (thread) =>
+      thread.comments.some(isHumanFeedback) &&
+      unreadReviewPaths.has(thread.path),
   ).length;
-}
-
-export function latestUnreadActivityTarget(
-  reviewItems: ReviewQueueItem[],
-  comments: ViviComment[] = [],
-): ReviewNavigationTarget | null {
-  const item = reviewItems.find(
-    (candidate) => candidate.unread && candidate.change?.status !== "deleted",
-  );
-  if (!item) return null;
-  const activity = item.latestActivity;
-  if (activity?.threadId) {
-    const threadComments = comments.filter(
-      (comment) => (comment.threadId ?? comment.id) === activity.threadId,
-    );
-    const activityComment = activity.commentId
-      ? threadComments.find((comment) => comment.id === activity.commentId)
-      : null;
-    if (activityComment) {
-      return {
-        ...commentNavigationTarget(activityComment),
-        id: `unread:${item.path}`,
-        activityId: activity.id,
-        label: `Latest unread activity in ${basenameForPath(item.path)}`,
-        sortKey: activity.createdAt,
-      };
-    }
-    const thread = buildCommentThreads(threadComments)[0];
-    if (thread) {
-      return {
-        ...threadTarget(thread),
-        id: `unread:${item.path}`,
-        activityId: activity.id,
-        label: `Latest unread activity in ${basenameForPath(item.path)}`,
-        sortKey: activity.createdAt,
-      };
-    }
-  }
-  return {
-    id: `unread:${item.path}`,
-    path: item.path,
-    threadId: activity?.threadId,
-    activityId: activity?.id,
-    surface: "source",
-    label: `Latest unread activity in ${basenameForPath(item.path)}`,
-    detail: activity
-      ? activityDetail(activity)
-      : item.change
-        ? "Changed file"
-        : "Review item",
-    sortKey: activity?.createdAt ?? item.path,
-  };
 }
 
 export function firstRelevantThreadForReviewItem(
@@ -201,12 +123,9 @@ export function firstRelevantThreadForReviewItem(
   comments: ViviComment[],
 ): ReviewNavigationTarget | null {
   const pathThreads = buildCommentThreads(comments).filter(
-    (thread) => thread.path === item.path,
+    (thread) =>
+      thread.path === item.path && thread.comments.some(isHumanFeedback),
   );
-  const open = pathThreads
-    .filter((thread) => thread.status === "open")
-    .sort(compareThreads)[0];
-  if (open) return threadTarget(open);
   return pathThreads.sort(compareThreads)[0]
     ? threadTarget(pathThreads.sort(compareThreads)[0]!)
     : null;
@@ -231,7 +150,6 @@ export function commentActivityThreadTargets({
       selectedPath !== null && thread.path === selectedPath;
     const reviewTarget = reviewPathSet.has(thread.path);
     if (selectedTarget || reviewTarget) targets.push(thread.id);
-    if (targets.length >= 40) break;
   }
   return targets;
 }
@@ -271,7 +189,7 @@ function threadTarget(thread: CommentThread): ReviewNavigationTarget {
     threadId: thread.id,
     commentId: first?.id,
     surface: thread.anchor.surface,
-    label: `${statusLabel(thread.status)} thread in ${basenameForPath(thread.path)}`,
+    label: `Feedback in ${basenameForPath(thread.path)}`,
     detail: anchorDetail(thread.anchor.canonical.lineStart, first?.body ?? ""),
     sortKey: targetSortKey(thread.path, thread.anchor.canonical.lineStart),
   };
@@ -289,10 +207,6 @@ function compareTargets(a: ReviewNavigationTarget, b: ReviewNavigationTarget) {
   return a.sortKey.localeCompare(b.sortKey) || a.id.localeCompare(b.id);
 }
 
-function isAgentReply(comment: ViviComment): boolean {
-  return comment.source === "codex" || comment.source === "claude-code";
-}
-
 function targetSortKey(path: string, line?: number): string {
   return `${path}\0${String(line ?? 0).padStart(8, "0")}`;
 }
@@ -302,26 +216,16 @@ function anchorDetail(line: number | undefined, body: string): string {
   return `${line ? `Line ${line}` : "File"}${preview ? ` - ${preview}` : ""}`;
 }
 
-function activityDetail(event: CommentThreadActivityEvent): string {
-  if (event.type === "comment_added") return "Agent or reviewer reply";
-  if (event.type === "thread_status_changed") return "Status changed";
-  if (event.type === "thread_claimed") return "Agent claimed thread";
-  if (event.type === "thread_claim_released") return "Agent released thread";
-  if (event.type === "thread_created") return "New thread";
-  if (event.type === "comment_updated") return "Comment updated";
-  return "Thread read";
-}
-
 function surfaceLabel(surface: "source" | "rendered" | "diff"): string {
   if (surface === "rendered") return "Rendered";
   if (surface === "diff") return "Diff";
   return "Source";
 }
 
-function statusLabel(status: CommentStatus): string {
-  if (status === "resolved") return "Resolved";
-  if (status === "archived") return "Archived";
-  return "Open";
+function isHumanFeedback(comment: ViviComment): boolean {
+  if (comment.createdBy) return comment.createdBy.kind === "human";
+  if (comment.source) return comment.source === "human";
+  return true;
 }
 
 function basenameForPath(path: string): string {

@@ -202,68 +202,6 @@
   color: var(--vivi-color-comment-text);
 }
 
-.reviewSummaryHistory {
-  color: var(--vivi-color-content-muted);
-}
-
-.reviewStateLabel {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid var(--vivi-color-border-soft);
-  border-radius: 999px;
-  background: color-mix(
-    in srgb,
-    var(--vivi-color-surface-panel-raised) 72%,
-    transparent
-  );
-  color: var(--vivi-color-content-muted);
-  font-size: 9px;
-  font-weight: 840;
-  line-height: 1;
-  padding: 3px 6px;
-  text-transform: uppercase;
-}
-
-.reviewStateLabel::before {
-  content: "";
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: currentColor;
-}
-
-.queued {
-  border-color: var(--vivi-color-accent-border);
-  color: var(--vivi-color-accent);
-}
-
-.reviewing {
-  border-color: var(--vivi-color-comment-border);
-  color: var(--vivi-color-comment-text);
-}
-
-.reviewed {
-  border-color: color-mix(in srgb, var(--vivi-color-success) 46%, transparent);
-  color: color-mix(in srgb, var(--vivi-color-success) 84%, white);
-}
-
-.markReviewedButton {
-  border-color: color-mix(
-    in srgb,
-    var(--vivi-color-success) 54%,
-    var(--vivi-color-border-soft)
-  ) !important;
-  background: color-mix(
-    in srgb,
-    var(--vivi-color-success) 15%,
-    var(--vivi-color-surface-panel-raised)
-  ) !important;
-  color: color-mix(in srgb, var(--vivi-color-success) 88%, white) !important;
-}
-
 .separator {
   color: var(--vivi-color-content-subtle);
   font-size: 12px;

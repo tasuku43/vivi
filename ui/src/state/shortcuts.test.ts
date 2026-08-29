@@ -36,21 +36,21 @@ describe("keyboardShortcutAction", () => {
     );
   });
 
-  it("maps Cmd/Ctrl+Shift+I to in-review replies", () => {
+  it("leaves Cmd/Ctrl+Shift+I unassigned", () => {
     expect(
       keyboardShortcutAction(commandEvent({ key: "i", shiftKey: true })),
-    ).toBe("open-in-review-reply");
+    ).toBeNull();
   });
 
   it("keeps Cmd/Ctrl+Shift+U mapped to unseen work", () => {
     expect(
       keyboardShortcutAction(commandEvent({ key: "u", shiftKey: true })),
-    ).toBe("open-latest-unread");
+    ).toBe("open-latest-unseen");
   });
 
-  it("maps Cmd/Ctrl+Shift+M to marking the current file reviewed", () => {
+  it("leaves the removed reviewed shortcut unassigned", () => {
     expect(
       keyboardShortcutAction(commandEvent({ key: "m", shiftKey: true })),
-    ).toBe("mark-current-reviewed");
+    ).toBeNull();
   });
 });

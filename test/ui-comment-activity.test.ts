@@ -2,11 +2,13 @@ import { expect, it } from "vitest";
 import type { CommentThreadActivityEvent } from "../ui/src/domain/comments.js";
 import {
   addCommentActivities,
+  agentReadReviewObservation,
   activityLabel,
   commentActivityRefreshTarget,
   commentActivityThreadPath,
   emptyCommentActivityState,
   summarizeThreadActivity,
+  unseenFeedbackPathSet,
 } from "../ui/src/state/comment-activity.js";
 
 const baseEvent = {
@@ -15,7 +17,7 @@ const baseEvent = {
   createdAt: "2026-06-20T00:00:00.000Z",
 } satisfies Partial<CommentThreadActivityEvent>;
 
-it("deduplicates activity events and tracks latest observed time by actor", () => {
+it("deduplicates activity events per thread", () => {
   const read = event({
     id: "activity-1",
     type: "thread_read",
@@ -44,15 +46,9 @@ it("deduplicates activity events and tracks latest observed time by actor", () =
     "activity-2",
     "activity-1",
   ]);
-  expect(state.latestObservedByActor["claude-code:run-1"]).toBe(
-    "2026-06-20T00:00:01.000Z",
-  );
-  expect(state.latestObservedByActor["codex:run-1"]).toBe(
-    "2026-06-20T00:01:01.000Z",
-  );
 });
 
-it("summarizes the newest two activity events inline and keeps the rest in the timeline", () => {
+it("projects only the latest agent read into the browser activity summary", () => {
   const summary = summarizeThreadActivity(
     [
       event({
@@ -96,17 +92,41 @@ it("summarizes the newest two activity events inline and keeps the rest in the t
     new Date("2026-06-20T00:01:00.000Z").getTime(),
   );
 
-  expect(summary.inline).toEqual([
-    "Codex released 5s ago",
-    "Codex claimed 10s ago",
+  expect(summary.inline).toEqual(["Claude Code read 12s ago"]);
+  expect(summary.timeline.map((item) => item.id)).toEqual(["activity-3"]);
+});
+
+it("retains the latest agent read through legacy reply and status chatter", () => {
+  const read = event({
+    id: "activity-read",
+    type: "thread_read",
+    actor: { id: "codex:run-1", kind: "codex", displayName: "Codex" },
+    createdAt: "2026-06-20T00:00:00.000Z",
+  });
+  const legacyChatter = Array.from({ length: 30 }, (_, index) =>
+    event({
+      id: `activity-chatter-${index}`,
+      type: "thread_status_changed",
+      actor: { id: "human:tasuku", kind: "human", displayName: "Tasuku" },
+      status: index % 2 === 0 ? "resolved" : "open",
+      previousStatus: index % 2 === 0 ? "open" : "resolved",
+      createdAt: new Date(
+        Date.parse("2026-06-20T00:01:00.000Z") + index * 1_000,
+      ).toISOString(),
+    }),
+  );
+
+  const state = addCommentActivities(emptyCommentActivityState, [
+    read,
+    ...legacyChatter,
   ]);
-  expect(summary.timeline.map((item) => item.id)).toEqual([
-    "activity-1",
-    "activity-2",
-    "activity-3",
-    "activity-4",
-    "activity-5",
-  ]);
+
+  expect(state.byThreadId["thread-1"]).toHaveLength(24);
+  expect(
+    summarizeThreadActivity(state.byThreadId["thread-1"]).timeline.map(
+      (item) => item.id,
+    ),
+  ).toEqual(["activity-read"]);
 });
 
 it("uses an unknown actor id instead of hiding it behind a generic label", () => {
@@ -161,7 +181,6 @@ it("targets authoritative comment refreshes without inferring thread status from
   ).toEqual({
     shouldRefresh: false,
     path: "docs/a.md",
-    shouldMarkUnread: false,
   });
 
   expect(
@@ -176,7 +195,6 @@ it("targets authoritative comment refreshes without inferring thread status from
   ).toEqual({
     shouldRefresh: true,
     path: "docs/a.md",
-    shouldMarkUnread: true,
   });
 
   expect(
@@ -193,7 +211,6 @@ it("targets authoritative comment refreshes without inferring thread status from
   ).toEqual({
     shouldRefresh: true,
     path: "docs/a.md",
-    shouldMarkUnread: false,
   });
 });
 
@@ -208,7 +225,6 @@ it("falls back to a global refresh for unseen activity threads", () => {
   expect(commentActivityRefreshTarget(reply, [])).toEqual({
     shouldRefresh: true,
     path: null,
-    shouldMarkUnread: true,
   });
   expect(
     commentActivityThreadPath(reply, [
@@ -220,6 +236,76 @@ it("falls back to a global refresh for unseen activity threads", () => {
       }),
     ]),
   ).toBe("src/new.ts");
+});
+
+it("pins published feedback until an agent read newer than the latest human note", () => {
+  const root = {
+    ...comment({
+      id: "root-1",
+      threadId: "thread-1",
+      path: "docs/a.md",
+      status: "open",
+    }),
+    createdBy: { id: "human:tasuku", kind: "human" as const },
+  };
+  const read = event({
+    id: "read-1",
+    type: "thread_read",
+    actor: { id: "codex:1", kind: "codex", displayName: "Codex" },
+    createdAt: "2026-06-20T00:01:00.000Z",
+  });
+
+  expect(unseenFeedbackPathSet([root], {})).toEqual(new Set(["docs/a.md"]));
+  expect(unseenFeedbackPathSet([root], { "thread-1": [read] })).toEqual(
+    new Set(),
+  );
+  expect(agentReadReviewObservation(read, [root])).toEqual({
+    path: "docs/a.md",
+    observedAt: Date.parse("2026-06-20T00:01:00.000Z"),
+  });
+
+  const laterHumanNote = {
+    ...root,
+    id: "follow-up-1",
+    createdAt: "2026-06-20T00:02:00.000Z",
+    updatedAt: "2026-06-20T00:02:00.000Z",
+  };
+  expect(
+    unseenFeedbackPathSet([root, laterHumanNote], { "thread-1": [read] }),
+  ).toEqual(new Set(["docs/a.md"]));
+});
+
+it("ignores legacy status and agent-only threads when pinning human feedback", () => {
+  const terminal = {
+    ...comment({
+      id: "root-1",
+      threadId: "thread-1",
+      path: "docs/a.md",
+      status: "resolved",
+    }),
+    createdBy: { id: "human:tasuku", kind: "human" as const },
+  };
+  const reply = event({
+    id: "reply-1",
+    type: "comment_added",
+    actor: { id: "codex:1", kind: "codex", displayName: "Codex" },
+    createdAt: "2026-06-20T00:01:00.000Z",
+  });
+
+  expect(unseenFeedbackPathSet([terminal], { "thread-1": [reply] })).toEqual(
+    new Set(["docs/a.md"]),
+  );
+  const agentOnly = {
+    ...terminal,
+    id: "agent-only",
+    threadId: "thread-agent-only",
+    path: "docs/agent-only.md",
+    status: "open" as const,
+    source: "codex",
+    createdBy: { id: "codex:1", kind: "codex" as const },
+  };
+  expect(unseenFeedbackPathSet([agentOnly], {})).toEqual(new Set());
+  expect(agentReadReviewObservation(reply, [terminal])).toBeNull();
 });
 
 function event(

@@ -1,17 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import type { CommentStatus } from "../../../domain/comments.js";
-import type { CommentActivitySummary } from "../../../state/comment-activity.js";
-import { activityLabel } from "../../../state/comment-activity.js";
+import {
+  isHumanFeedback,
+  type CommentActivitySummary,
+} from "../../../state/comment-activity.js";
 import type {
   CodeCommentThread as CodeCommentThreadModel,
   CommentCreateHandler,
   CommentDraft,
-  CommentStatusChangeHandler,
 } from "../../../state/comments.js";
 import {
-  draftForCommentComposerIntent,
+  draftForNewComment,
   isDraftThreadComment,
-  statusLabel,
 } from "../../../state/comments.js";
 import { commentAgentIdentity } from "../comment-agent-identity.js";
 import sharedUiStyles from "../../../shared/styles/SharedUi.module.css";
@@ -29,7 +28,6 @@ export function CodeCommentThread({
   draft,
   className,
   onCreateComment,
-  onStatusChange,
   onClose,
   activity,
   activeCommentId = null,
@@ -41,7 +39,6 @@ export function CodeCommentThread({
   draft: CommentDraft;
   className?: string;
   onCreateComment?: CommentCreateHandler;
-  onStatusChange?: CommentStatusChangeHandler;
   onClose: () => void;
   activity?: CommentActivitySummary;
   activeCommentId?: string | null;
@@ -49,13 +46,20 @@ export function CodeCommentThread({
   onDeleteDraft?: DraftReviewCommentDeleteHandler;
   keepOpenAfterCreate?: boolean;
 }) {
-  const hasThreadMessages = thread.comments.length > 0;
-  const hasPublishedComments = thread.comments.some(
+  const visibleComments = thread.comments.filter(
+    (comment) => isDraftThreadComment(comment) || isHumanFeedback(comment),
+  );
+  const hasThreadMessages = visibleComments.length > 0;
+  const hasPublishedComments = visibleComments.some(
     (comment) => !isDraftThreadComment(comment),
   );
-  const canContinueThread = hasThreadMessages && Boolean(draft.threadId);
+  const canContinuePendingDraft =
+    hasThreadMessages && !hasPublishedComments && Boolean(draft.threadId);
   const input = useCommentInputSession(draft);
   const body = input.session?.body ?? "";
+  const hasPreservedNewFeedback = hasPublishedComments && Boolean(body.trim());
+  const showComposer =
+    !hasThreadMessages || canContinuePendingDraft || hasPreservedNewFeedback;
   const stale = input.session?.status === "stale";
   const [saving, setSaving] = useState(false);
   const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null);
@@ -67,38 +71,26 @@ export function CodeCommentThread({
   const refocusAfterSubmitRef = useRef(false);
   const latestBodyRef = useRef(body);
   latestBodyRef.current = body;
-  const threadStatus: CommentStatus = thread.status;
-  const threadBadgeStatus = hasPublishedComments ? threadStatus : "draft";
-  const threadBadgeLabel = hasPublishedComments
-    ? statusLabel(threadStatus)
-    : "Pending";
   const lineLabel =
     thread.lineStart === thread.lineEnd
       ? `Line ${thread.lineEnd}`
       : `Lines ${thread.lineStart}-${thread.lineEnd}`;
-  const isReplyComposer = canContinueThread;
   const composerModeId = commentComposerModeId(thread.key);
-  const replyHintId = commentReplyHintId(thread.key);
-  const submitLabel = isReplyComposer
-    ? "Add follow-up"
-    : "Save pending draft comment";
-  const submitHint = isReplyComposer
-    ? "to add follow-up"
-    : "to save pending draft";
-  const composerModeLabel = isReplyComposer
-    ? "Continue thread"
+  const inputHintId = commentInputHintId(thread.key);
+  const submitLabel = "Save pending draft comment";
+  const composerModeLabel = canContinuePendingDraft
+    ? "Add another pending note"
     : `Add comment on ${lineLabel}`;
-  const toggleStatusLabel = threadStatus === "open" ? "Resolve" : "Reopen";
-  const archiveLabel = "Archive";
+  const receiptLabel = reviewReceiptLabel(visibleComments, activity);
   const requestClose = () => {
     input.collapse(input.id);
     onClose();
   };
 
   useEffect(() => {
-    if (hasThreadMessages) return;
+    if (!showComposer) return;
     textareaRef.current?.focus();
-  }, [hasThreadMessages, thread.key]);
+  }, [showComposer, thread.key]);
 
   useEffect(() => {
     if (!refocusAfterSubmitRef.current || body) return;
@@ -108,42 +100,29 @@ export function CodeCommentThread({
       refocusAfterSubmitRef.current = false;
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [body, draft.threadId, isReplyComposer, saving, thread.comments.length]);
+  }, [body, canContinuePendingDraft, saving, thread.comments.length]);
 
   async function submit() {
     const trimmed = body.trim();
     if (!trimmed || !onCreateComment || saving || stale) return;
-    const keepComposerOpen = isReplyComposer || keepOpenAfterCreate;
+    const keepComposerOpen =
+      canContinuePendingDraft || (!hasThreadMessages && keepOpenAfterCreate);
     setSaving(true);
     setError(null);
     if (keepComposerOpen) {
-      // Clear immediately, before the local API round trip completes. This is
-      // what lets a rapid follow-up start as a fresh thought instead of being
-      // appended to the text that is currently being saved.
       refocusAfterSubmitRef.current = true;
       latestBodyRef.current = "";
       input.change(draft, "");
     }
     try {
       await onCreateComment(
-        draftForCommentComposerIntent(
-          draft,
-          isReplyComposer ? "reply" : "new-thread",
-        ),
+        canContinuePendingDraft ? draft : draftForNewComment(draft),
         trimmed,
       );
       if (keepComposerOpen) {
-        // A follow-up often comes as a short sequence of thoughts. Clear the
-        // submitted body but keep the same composer active until the user
-        // explicitly moves focus or closes the thread. HTML preview uses the
-        // same behavior after its first message because its composer already
-        // occupies a fixed slot and does not block the next rendered target.
-        if (!isReplyComposer) input.discard(input.id);
+        if (!canContinuePendingDraft) input.discard(input.id);
         return;
       }
-      // Saving moves the thought into the durable pending-draft collection.
-      // Remove the local composer immediately so it cannot cover or push down
-      // the next rendered block the user wants to comment on.
       input.discard(input.id);
       onClose();
     } catch (cause) {
@@ -162,19 +141,10 @@ export function CodeCommentThread({
     }
   }
 
-  function updateThread(status: CommentStatus) {
-    const first = thread.comments.find(
-      (comment) => !isDraftThreadComment(comment),
-    );
-    if (first && threadStatus !== status) {
-      void onStatusChange?.(first.threadId ?? first.id, status);
-    }
-  }
-
   async function deletePendingDraft(id: string) {
-    if (!deleteDraft || deletingDraftId) return;
+    if (!deleteDraft || deletingDraftId || saving) return;
     const closesDraftOnlyThread =
-      !hasPublishedComments && thread.comments.length === 1;
+      !hasPublishedComments && visibleComments.length === 1;
     setDeletingDraftId(id);
     setError(null);
     try {
@@ -189,8 +159,6 @@ export function CodeCommentThread({
       setDeletingDraftId(null);
     }
   }
-
-  if (threadStatus === "archived") return null;
 
   return (
     <article
@@ -207,13 +175,20 @@ export function CodeCommentThread({
           <strong>{lineLabel}</strong>
           <span>
             {hasThreadMessages
-              ? `${thread.comments.length} ${thread.comments.length === 1 ? "message" : "messages"}`
+              ? `${visibleComments.length} ${visibleComments.length === 1 ? "message" : "messages"}`
               : "Composing"}
           </span>
           {hasThreadMessages ? (
-            <CommentStatusBadge status={threadBadgeStatus}>
-              {threadBadgeLabel}
-            </CommentStatusBadge>
+            hasPublishedComments ? (
+              <>
+                <CommentStatusBadge status="published">
+                  Published
+                </CommentStatusBadge>
+                <span>{receiptLabel}</span>
+              </>
+            ) : (
+              <CommentStatusBadge status="draft">Pending</CommentStatusBadge>
+            )
           ) : null}
         </div>
         <button
@@ -224,41 +199,24 @@ export function CodeCommentThread({
           ×
         </button>
       </header>
-      {activity?.inline.length ? (
+      {receiptLabel === "Seen" && activity?.inline[0] ? (
         <div
           className="comment-activity-summary"
           role="group"
           aria-label="Thread activity"
         >
-          {activity.inline.map((label) => (
-            <span key={label}>{label}</span>
-          ))}
-          {activity.timeline.length > activity.inline.length ? (
-            <details className="comment-activity-timeline">
-              <summary>{activity.timeline.length} events</summary>
-              <ol>
-                {activity.timeline.map((event) => (
-                  <li key={event.id}>
-                    <span>{activityLabel(event)}</span>
-                    {activityMetadataLabel(event) ? (
-                      <small>{activityMetadataLabel(event)}</small>
-                    ) : null}
-                  </li>
-                ))}
-              </ol>
-            </details>
-          ) : null}
+          <span>{activity.inline[0]}</span>
         </div>
       ) : null}
 
-      {thread.comments.length ? (
+      {visibleComments.length ? (
         <div
           className="code-comment-thread-messages"
           role="group"
           aria-label="Thread messages"
           tabIndex={0}
         >
-          {thread.comments.map((comment, index) => {
+          {visibleComments.map((comment, index) => {
             const active = comment.id === activeCommentId;
             const agent = commentAgentIdentity(comment);
             const draftComment = isDraftThreadComment(comment);
@@ -270,7 +228,7 @@ export function CodeCommentThread({
               comment.createdBy?.id === currentActorId;
             return (
               <div
-                className={`code-thread-comment ${comment.status}${draftComment ? " draft" : ""}${active ? " active" : ""}${currentUserComment ? " current-user" : ""}`}
+                className={`code-thread-comment${draftComment ? " draft" : ""}${active ? " active" : ""}${currentUserComment ? " current-user" : ""}`}
                 data-comment-id={comment.id}
                 aria-current={active ? "true" : undefined}
                 tabIndex={active ? -1 : undefined}
@@ -288,8 +246,8 @@ export function CodeCommentThread({
                     {draftComment
                       ? "Pending draft"
                       : index === 0
-                        ? `Started by ${agent.label}`
-                        : `Reply by ${agent.label}`}
+                        ? `Comment by ${agent.label}`
+                        : `Additional comment by ${agent.label}`}
                   </strong>
                   <time dateTime={comment.createdAt}>
                     {formatCommentTime(comment.createdAt)}
@@ -306,15 +264,12 @@ export function CodeCommentThread({
                       Published
                     </CommentStatusBadge>
                   )}
-                  {!draftComment && comment.status !== "open" ? (
-                    <span>{statusLabel(comment.status)}</span>
-                  ) : null}
                   {draftId && deleteDraft ? (
                     <button
                       className="code-thread-comment-delete"
                       type="button"
                       aria-label={`Delete pending draft comment ${index + 1}`}
-                      disabled={deletingDraftId === draftId}
+                      disabled={deletingDraftId === draftId || saving}
                       onClick={() => void deletePendingDraft(draftId)}
                     >
                       {deletingDraftId === draftId ? "Deleting…" : "Delete"}
@@ -328,127 +283,109 @@ export function CodeCommentThread({
         </div>
       ) : null}
 
-      <form
-        className="code-comment-thread-reply"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void submit();
-        }}
-      >
-        <div className="code-comment-composer-mode" id={composerModeId}>
-          <span aria-hidden="true" />
-          {composerModeLabel}
-        </div>
-        {stale ? (
-          <div className="code-comment-stale" role="alert">
-            <strong>File changed since this comment was started.</strong>
-            <span>Check the selected lines, then re-anchor or discard.</span>
-            <div>
-              <button
-                type="button"
-                onClick={() => input.reanchor(input.id, draft)}
-              >
-                Re-anchor here
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  input.discard(input.id);
-                  onClose();
-                }}
-              >
-                Discard
-              </button>
+      {showComposer ? (
+        <form
+          className="code-comment-thread-composer"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submit();
+          }}
+        >
+          <div className="code-comment-composer-mode" id={composerModeId}>
+            <span aria-hidden="true" />
+            {composerModeLabel}
+          </div>
+          {stale ? (
+            <div className="code-comment-stale" role="alert">
+              <strong>File changed since this comment was started.</strong>
+              <span>Check the selected lines, then re-anchor or discard.</span>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => input.reanchor(input.id, draft)}
+                >
+                  Re-anchor here
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    input.discard(input.id);
+                    onClose();
+                  }}
+                >
+                  Discard
+                </button>
+              </div>
             </div>
-          </div>
-        ) : null}
-        <textarea
-          ref={textareaRef}
-          autoFocus={!hasThreadMessages}
-          rows={2}
-          value={body}
-          disabled={stale || (saving && !isReplyComposer)}
-          placeholder={isReplyComposer ? "Add a follow-up" : "Add a comment"}
-          aria-label={isReplyComposer ? "Continue thread" : "New line comment"}
-          aria-describedby={`${composerModeId} ${replyHintId}`}
-          aria-keyshortcuts="Meta+Enter Control+Enter"
-          onChange={(event) => {
-            latestBodyRef.current = event.currentTarget.value;
-            input.change(draft, event.currentTarget.value);
-            if (error) setError(null);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              event.preventDefault();
-              event.stopPropagation();
-              requestClose();
-              return;
+          ) : null}
+          <textarea
+            ref={textareaRef}
+            autoFocus={showComposer}
+            rows={2}
+            value={body}
+            disabled={stale || (saving && !canContinuePendingDraft)}
+            placeholder="Add a comment"
+            aria-label={
+              canContinuePendingDraft
+                ? "Add another pending note"
+                : "New line comment"
             }
-            if (isCommentSubmitShortcut(event)) {
-              event.preventDefault();
-              void submit();
-            }
-          }}
-        />
-        <p className="code-comment-thread-hint" id={replyHintId}>
-          <kbd className={sharedUiStyles.keycap}>Cmd/Ctrl Enter</kbd>{" "}
-          {submitHint} <span>Esc collapses · input is kept</span>
-        </p>
-        <div className="code-comment-thread-footer">
-          <div>
-            {thread.comments.some(
-              (comment) => !isDraftThreadComment(comment),
-            ) ? (
-              <>
-                <button
-                  type="button"
-                  aria-keyshortcuts="Meta+Shift+Enter Control+Shift+Enter"
-                  title={`${toggleStatusLabel} (Cmd/Ctrl Shift Enter)`}
-                  onClick={() =>
-                    updateThread(threadStatus === "open" ? "resolved" : "open")
-                  }
-                >
-                  {toggleStatusLabel}
-                </button>
-                <button
-                  type="button"
-                  aria-keyshortcuts="Meta+Shift+Backspace Control+Shift+Backspace"
-                  title={`${archiveLabel} (Cmd/Ctrl Shift Backspace)`}
-                  onClick={() => updateThread("archived")}
-                >
-                  {archiveLabel}
-                </button>
-              </>
-            ) : null}
-            {body.trim() && !stale ? (
-              <button
-                type="button"
-                onClick={() => {
-                  input.discard(input.id);
-                  onClose();
-                }}
-              >
-                Discard
-              </button>
-            ) : null}
-          </div>
-          <button
-            className="code-comment-submit"
-            disabled={!body.trim() || saving || stale}
-            type="submit"
-            aria-label={submitLabel}
+            aria-describedby={`${composerModeId} ${inputHintId}`}
             aria-keyshortcuts="Meta+Enter Control+Enter"
-            title={`${submitLabel} (Cmd/Ctrl Enter)`}
-          >
-            ↑
-          </button>
-        </div>
-        {error ? (
-          <p className="code-comment-thread-error" role="alert">
-            {error}
+            onChange={(event) => {
+              latestBodyRef.current = event.currentTarget.value;
+              input.change(draft, event.currentTarget.value);
+              if (error) setError(null);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                event.stopPropagation();
+                requestClose();
+                return;
+              }
+              if (isCommentSubmitShortcut(event)) {
+                event.preventDefault();
+                void submit();
+              }
+            }}
+          />
+          <p className="code-comment-thread-hint" id={inputHintId}>
+            <kbd className={sharedUiStyles.keycap}>Cmd/Ctrl Enter</kbd> to save
+            pending draft <span>Esc collapses · input is kept</span>
           </p>
-        ) : null}
-      </form>
+          <div className="code-comment-thread-footer">
+            <div>
+              {body.trim() && !stale ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    input.discard(input.id);
+                    onClose();
+                  }}
+                >
+                  Discard
+                </button>
+              ) : null}
+            </div>
+            <button
+              className="code-comment-submit"
+              disabled={!body.trim() || saving || stale}
+              type="submit"
+              aria-label={submitLabel}
+              aria-keyshortcuts="Meta+Enter Control+Enter"
+              title={`${submitLabel} (Cmd/Ctrl Enter)`}
+            >
+              ↑
+            </button>
+          </div>
+          {error ? (
+            <p className="code-comment-thread-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+        </form>
+      ) : null}
     </article>
   );
 }
@@ -466,8 +403,8 @@ export function isCommentSubmitShortcut(event: {
   );
 }
 
-function commentReplyHintId(threadKey: string): string {
-  return `comment-reply-hint-${safeCommentThreadKey(threadKey)}`;
+function commentInputHintId(threadKey: string): string {
+  return `comment-input-hint-${safeCommentThreadKey(threadKey)}`;
 }
 
 function commentComposerModeId(threadKey: string): string {
@@ -482,21 +419,26 @@ function safeCommentThreadKey(threadKey: string): string {
   return safeKey || "thread";
 }
 
-function activityMetadataLabel(event: {
-  clientEventId?: string;
-  leaseExpiresAt?: string;
-}): string | null {
-  const details = [
-    event.clientEventId ? `client ${shortMetadataId(event.clientEventId)}` : "",
-    event.leaseExpiresAt
-      ? `lease until ${formatCommentTime(event.leaseExpiresAt)}`
-      : "",
-  ].filter(Boolean);
-  return details.length ? details.join(" · ") : null;
-}
-
-function shortMetadataId(value: string): string {
-  return value.length > 12 ? `${value.slice(0, 8)}...` : value;
+function reviewReceiptLabel(
+  comments: CodeCommentThreadModel["comments"],
+  activity: CommentActivitySummary | undefined,
+): "Seen" | "Unseen" {
+  const latestFeedbackAt = comments
+    .filter(
+      (comment) => !isDraftThreadComment(comment) && isHumanFeedback(comment),
+    )
+    .reduce(
+      (latest, comment) => Math.max(latest, Date.parse(comment.updatedAt)),
+      0,
+    );
+  const latestReadAt =
+    activity?.timeline.reduce(
+      (latest, event) => Math.max(latest, Date.parse(event.createdAt)),
+      0,
+    ) ?? 0;
+  return latestFeedbackAt > 0 && latestReadAt >= latestFeedbackAt
+    ? "Seen"
+    : "Unseen";
 }
 
 function formatCommentTime(value: string): string {

@@ -2,11 +2,11 @@ import { useMemo, useState, type CSSProperties } from "react";
 import { InspectorSurfaceTabs } from "../shared/components/InspectorSurfaceTabs.js";
 import styles from "./ReviewQueueDirectoryFacade.module.css";
 
-export type ReviewQueueSignalFilter = "all" | "unread" | "drafts" | "changed";
+export type ReviewQueueSignalFilter = "all" | "unseen" | "drafts" | "changed";
 
 export interface ReviewQueueSignalLedgerItem {
   path: string;
-  unread: boolean;
+  unseen: boolean;
   changed: boolean;
   draftCount: number;
   additions?: number;
@@ -16,7 +16,6 @@ export interface ReviewQueueSignalLedgerItem {
 export interface ReviewQueueSignalLedgerFacadeProps {
   items: ReviewQueueSignalLedgerItem[];
   selectedPath: string | null;
-  reviewedCount: number;
   onNextQueued: () => void;
   onSelectDocument: () => void;
   onSelectPath: (path: string) => void;
@@ -27,7 +26,7 @@ export interface ReviewQueueSignalLedgerFacadeProps {
 
 const filters: Array<{ id: ReviewQueueSignalFilter; label: string }> = [
   { id: "all", label: "All" },
-  { id: "unread", label: "Unread" },
+  { id: "unseen", label: "Unseen" },
   { id: "drafts", label: "Drafts" },
   { id: "changed", label: "Changed" },
 ];
@@ -35,7 +34,6 @@ const filters: Array<{ id: ReviewQueueSignalFilter; label: string }> = [
 export function ReviewQueueSignalLedgerFacade({
   items,
   selectedPath,
-  reviewedCount,
   onNextQueued,
   onSelectDocument,
   onSelectPath,
@@ -47,7 +45,7 @@ export function ReviewQueueSignalLedgerFacade({
   const counts = useMemo(
     () => ({
       all: items.length,
-      unread: items.filter((item) => item.unread).length,
+      unseen: items.filter((item) => item.unseen).length,
       drafts: items.filter((item) => item.draftCount > 0).length,
       changed: items.filter((item) => item.changed).length,
     }),
@@ -120,8 +118,8 @@ export function ReviewQueueSignalLedgerFacade({
                 >
                   <span className={styles.filename}>{basename(item.path)}</span>
                   <span className={styles.meta}>
-                    {item.unread ? (
-                      <i className={styles.unread}>Unread</i>
+                    {item.unseen ? (
+                      <i className={styles.unread}>Unseen</i>
                     ) : null}
                     {item.draftCount ? (
                       <i className={styles.draft}>{item.draftCount} draft</i>
@@ -156,14 +154,10 @@ export function ReviewQueueSignalLedgerFacade({
             <span aria-hidden="true">✓</span>
             <strong>Active queue clear</strong>
             <small>
-              Recent document edits and open feedback will appear here.
+              Recent activity, unseen feedback, and drafts will appear here.
             </small>
           </div>
         )}
-        <div className={styles.reviewed}>
-          <span>Reviewed history</span>
-          <span>{reviewedCount} · hidden</span>
-        </div>
       </div>
     </aside>
   );
@@ -173,7 +167,7 @@ function matchesFilter(
   item: ReviewQueueSignalLedgerItem,
   filter: ReviewQueueSignalFilter,
 ): boolean {
-  if (filter === "unread") return item.unread;
+  if (filter === "unseen") return item.unseen;
   if (filter === "drafts") return item.draftCount > 0;
   if (filter === "changed") return item.changed;
   return true;

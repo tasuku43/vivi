@@ -1,4 +1,8 @@
 import type { FsEvent } from "../domain/fs-node.js";
+import {
+  reviewActivityWindowMs,
+  type ReviewAttentionClock,
+} from "./review-attention.js";
 
 export interface ReviewEvent {
   id: string;
@@ -17,62 +21,49 @@ export interface RenameReviewPair {
   fromPath: string;
   toPath: string;
   receivedAt: number;
+  intermediatePaths?: string[];
 }
-
-export interface ReviewPathObservation {
-  path: string;
-  observedAt: number;
-}
-
-export const reviewActivityWindowMs = 30 * 60 * 1000;
 
 export function recentReviewEvents(
   events: readonly ReviewEvent[],
   now = Date.now(),
   windowMs = reviewActivityWindowMs,
 ): ReviewEvent[] {
-  return events.filter(
-    (item) => now - item.receivedAt <= windowMs,
-  );
-}
-
-export function recentReviewActivityPaths(
-  observations: readonly ReviewPathObservation[],
-  now = Date.now(),
-  windowMs = reviewActivityWindowMs,
-): Set<string> {
-  return new Set(
-    observations
-      .filter((observation) => now - observation.observedAt <= windowMs)
-      .map((observation) => observation.path),
-  );
-}
-
-export function nextReviewActivityExpiryDelay(
-  observedAtTimes: readonly number[],
-  now = Date.now(),
-  windowMs = reviewActivityWindowMs,
-): number | null {
-  const nextExpiry = observedAtTimes.reduce<number | null>((earliest, observedAt) => {
-    const expiresAt = observedAt + windowMs + 1;
-    if (expiresAt <= now) return earliest;
-    return earliest === null ? expiresAt : Math.min(earliest, expiresAt);
-  }, null);
-  return nextExpiry === null ? null : Math.max(1, nextExpiry - now);
+  return events.filter((item) => now - item.receivedAt <= windowMs);
 }
 
 export function recordReviewEvent(
   events: ReviewEvent[],
   event: FsEvent,
   now = Date.now(),
-  limit = 40,
 ): ReviewEvent[] {
+  const recent = events.filter(
+    (item) => now - item.receivedAt <= reviewActivityWindowMs,
+  );
+  if (event.type !== "change" && event.kind === "directory") return recent;
+
   const next: ReviewEvent = {
     id: `${event.version}:${event.type}:${event.path}:${now}`,
     event,
     receivedAt: now,
   };
-  return [next, ...events].slice(0, limit);
+  return compactReviewEvents([next, ...recent]);
+}
+
+export function isFileReviewActivityEvent(event: FsEvent): boolean {
+  return event.type === "change" || event.kind === "file";
+}
+
+export function fileReviewAttentionForQueue(
+  clock: ReviewAttentionClock,
+  state: Pick<FileReviewState, "renamePairs">,
+): ReviewAttentionClock {
+  const renamedFromPaths = new Set(
+    state.renamePairs.flatMap(renameSuppressedPaths),
+  );
+  return Object.fromEntries(
+    Object.entries(clock).filter(([path]) => !renamedFromPaths.has(path)),
+  );
 }
 
 export function summarizeReviewEvents(events: ReviewEvent[]): FileReviewState {
@@ -80,27 +71,30 @@ export function summarizeReviewEvents(events: ReviewEvent[]): FileReviewState {
   const removedPaths = new Set<string>();
   const latestByPath = new Map<string, ReviewEvent>();
   const renamePairs = detectRenamePairs(events);
-  const renamedFromPaths = new Set(renamePairs.map((pair) => pair.fromPath));
+  const renamedFromPaths = new Set(renamePairs.flatMap(renameSuppressedPaths));
   const renamedToPaths = new Set(renamePairs.map((pair) => pair.toPath));
 
   for (const item of events) {
-    if (!latestByPath.has(item.event.path))
-      latestByPath.set(item.event.path, item);
+    if (item.event.type !== "change" && item.event.kind === "directory")
+      continue;
     if (renamedFromPaths.has(item.event.path)) {
       removedPaths.delete(item.event.path);
       continue;
     }
+    if (latestByPath.has(item.event.path)) continue;
+    latestByPath.set(item.event.path, item);
     if (item.event.type === "unlink") {
       removedPaths.add(item.event.path);
       changedPaths.delete(item.event.path);
       continue;
     }
-    if (item.event.type === "add" && item.event.kind === "directory") continue;
     changedPaths.add(item.event.path);
     removedPaths.delete(item.event.path);
   }
 
-  for (const path of renamedToPaths) changedPaths.add(path);
+  for (const path of renamedToPaths) {
+    if (!removedPaths.has(path)) changedPaths.add(path);
+  }
 
   return { changedPaths, removedPaths, latestByPath, renamePairs };
 }
@@ -137,11 +131,90 @@ function detectRenamePairs(events: ReviewEvent[]): RenameReviewPair[] {
     });
   }
 
-  return pairs;
+  return collapseRenameChains(pairs);
+}
+
+function collapseRenameChains(pairs: RenameReviewPair[]): RenameReviewPair[] {
+  const byFromPath = new Map(pairs.map((pair) => [pair.fromPath, pair]));
+  const byToPath = new Map(pairs.map((pair) => [pair.toPath, pair]));
+  const collapsed: RenameReviewPair[] = [];
+
+  for (const terminal of pairs) {
+    if (byFromPath.has(terminal.toPath)) continue;
+    let first = terminal;
+    const intermediatePaths: string[] = [];
+    const visited = new Set([terminal.toPath]);
+    while (byToPath.has(first.fromPath) && !visited.has(first.fromPath)) {
+      visited.add(first.fromPath);
+      intermediatePaths.unshift(first.fromPath);
+      first = byToPath.get(first.fromPath)!;
+    }
+    collapsed.push({
+      fromPath: first.fromPath,
+      toPath: terminal.toPath,
+      receivedAt: Math.max(first.receivedAt, terminal.receivedAt),
+      ...(intermediatePaths.length ? { intermediatePaths } : {}),
+    });
+  }
+
+  const handledCyclePaths = new Set<string>();
+  for (const seed of pairs) {
+    if (handledCyclePaths.has(seed.fromPath)) continue;
+    const pathOrder: string[] = [];
+    const pathIndex = new Map<string, number>();
+    let cursor = seed.fromPath;
+    while (byFromPath.has(cursor) && !pathIndex.has(cursor)) {
+      pathIndex.set(cursor, pathOrder.length);
+      pathOrder.push(cursor);
+      cursor = byFromPath.get(cursor)!.toPath;
+    }
+    const cycleStart = pathIndex.get(cursor);
+    if (cycleStart === undefined) continue;
+    const cyclePaths = pathOrder.slice(cycleStart);
+    for (const path of cyclePaths) handledCyclePaths.add(path);
+    const cyclePairs = cyclePaths.map((path) => byFromPath.get(path)!);
+    const latest = cyclePairs.reduce((candidate, pair) =>
+      pair.receivedAt > candidate.receivedAt ? pair : candidate,
+    );
+    const finalPath = latest.toPath;
+    collapsed.push({
+      fromPath: finalPath,
+      toPath: finalPath,
+      receivedAt: latest.receivedAt,
+      intermediatePaths: cyclePaths.filter((path) => path !== finalPath),
+    });
+  }
+
+  return collapsed;
+}
+
+function compactReviewEvents(events: ReviewEvent[]): ReviewEvent[] {
+  const sorted = [...events].sort((a, b) => b.receivedAt - a.receivedAt);
+  const byPathAndType = new Map<string, ReviewEvent[]>();
+  for (const item of sorted) {
+    const key = `${item.event.path}\u0000${item.event.type}`;
+    const grouped = byPathAndType.get(key);
+    if (grouped) grouped.push(item);
+    else byPathAndType.set(key, [item]);
+  }
+  return [...byPathAndType.values()]
+    .flatMap((grouped) => {
+      if (grouped[0]!.event.type === "change" || grouped.length === 1) {
+        return grouped[0]!;
+      }
+      return [grouped[0]!, grouped[grouped.length - 1]!];
+    })
+    .sort((a, b) => b.receivedAt - a.receivedAt);
+}
+
+function renameSuppressedPaths(pair: RenameReviewPair): string[] {
+  if (pair.fromPath === pair.toPath) return pair.intermediatePaths ?? [];
+  return [pair.fromPath, ...(pair.intermediatePaths ?? [])];
 }
 
 function looksLikeRename(remove: ReviewEvent, add: ReviewEvent): boolean {
   if (Math.abs(add.receivedAt - remove.receivedAt) > 2_000) return false;
+  if (add.event.path === remove.event.path) return false;
   return (
     parentPath(add.event.path) === parentPath(remove.event.path) &&
     extensionForPath(add.event.path) === extensionForPath(remove.event.path)

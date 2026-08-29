@@ -58,7 +58,7 @@ Prefer adding color roles by product state rather than by visual intensity:
   current review stops, and other spatial selection.
 - `focus-*` is for keyboard and drag/drop focus rings.
 - `change-*` is for changed, stale, pending, watcher, and unseen-change signals.
-- `review-*` is for review work, open threads, unread review attention, and
+- `review-*` is for review work, feedback, unread review attention, and
   search/comment highlights.
 - `comment-*` remains the lower-level inline comment surface family and should
   stay visually compatible with `review-*`.
@@ -155,21 +155,46 @@ Requirements:
   queue count visible on Review Queue.
 - The Review surface should lead with a deduplicated file queue of recent document edits observed by the live workspace session. When Git is available, its working-tree state against `HEAD` supplies the authoritative change kind and diff evidence for those recent paths without promoting every old uncommitted file back into active attention. It is the inspector's default surface; Document is the contextual secondary surface while reading.
 - The left Explorer is the only directory hierarchy. The Review Queue should use one compact signal ledger rather than a second directory tree; each file row keeps its parent path as secondary metadata for disambiguation.
-- The ledger exposes `All`, `Unread`, `Drafts`, and `Changed` filters with exact file counts. Filtering changes visibility only: “Next queued” and keyboard next/previous actions continue to follow the globally ordered queue.
-- Pending drafts stay in the same ledger as changed and unread files. Draft-bearing rows expose their Publish action directly, while reviewed history remains collapsed below active work.
-- The Review Queue is a file-level work queue: it is the union of changed documents with file-change or user-open activity observed in the last thirty minutes, files with authoritative non-archived comment threads, and files with saved pending drafts. Change-only work recedes after one shared inactivity window regardless of whether its latest signal was a watcher event or the user opening the file. Open and resolved feedback remain until every thread for the file is archived; pending drafts remain until their own lifecycle advances. Files with only archived threads are hidden from the browser UI.
-- Accepting a change as-is is a local right-inspector review decision, not a Git operation. It hides the current `path + change fingerprint` from the active queue, keeps it recoverable while its recent receipt is visible, and never hides the file when an authoritative `open` comment thread or a saved pending draft exists.
-- `Reviewed` is not a durable file or thread lifecycle state. It is a short-lived completion receipt for a review stop that just left active attention, such as a manually accepted diff or a resolved feedback thread. When that receipt expires, the item leaves the Reviewed section without returning to Needs Review as long as its current fingerprint is still covered by a review decision.
-- Review decisions and Reviewed receipts are stored in the workspace-scoped local Vivi data directory as `review-ledger.jsonl`. The ledger is compacted on read/write so expired receipts and inactive decisions do not accumulate indefinitely.
-- A changed file whose review conversation is resolved in the UI, or whose agent/CLI resolution is observed by the UI, is hidden from the active queue by a fingerprint-scoped review decision. The decision uses tree-stable file metadata so it survives reload without depending on an open file or loaded diff; new file evidence changes the fingerprint and returns the file to Needs Review.
-- Each row should keep change kind and diff size visible while adding only the open-thread count, message count, latest attributed activity, and an unseen marker. Agent reads are visible activity but do not create unseen work; new threads, replies, and status changes do.
-- Queue ordering should put files with open threads first, then unseen work and recent activity. The summary progress is explicitly files "seen", not a claim that review is complete.
-- Activity is observation history. The UI must refresh authoritative comments after agent replies or status changes and must never infer a thread lifecycle status from an activity event.
+- The ledger exposes `All`, `Unseen`, `Drafts`, and `Changed` filters with exact file counts. Filtering changes visibility only: “Next queued” and keyboard next/previous actions continue to follow the globally ordered queue.
+- Pending drafts stay in the same ledger as changed and unseen files. Draft-bearing rows expose their Publish action directly.
+- The Review Queue is a file-level attention queue, not a workflow-state ledger. A file is active when it has a saved pending draft, any current published feedback without an agent read receipt, or a watcher event, user open, or agent read observed within the last thirty minutes. Unseen feedback is exempt from expiry. After the agent observes every current published comment, the latest read timestamp participates in the same inactivity window as every other signal; thirty quiet minutes later the file simply recedes.
+- There is no browser-level Reviewed, Resolved, or Archived attention state and no Mark reviewed or Resolve all action. Existing review-ledger records and terminal statuses may be read for compatibility, but active attention is derived from drafts, unseen feedback, and the shared activity window.
+- A later watcher event, user open, pending draft, or newly published unseen comment returns the file to active attention. A newly published comment stays until its own agent read receipt exists even when older comments were already observed.
+- Each row should keep change kind and diff size visible while using lightweight Unseen and Draft badges for state. It should not repeat open or pending counts beside those badges. Agent reads are visible activity but do not create a separate completion state; agent replies are not a browser attention signal.
+- Queue ordering should put unseen feedback first, then drafts and recent activity. The summary progress is explicitly files "seen", not a claim that review is complete.
+- Activity is observation history and the source of attention recency. The UI must refresh authoritative comments after agent reads, keep unobserved published feedback pinned, and use the latest relevant activity timestamp only after the feedback has been observed.
 - Watcher events define the queue's recent-change window and should be collapsed by file path instead of shown as raw event history. Git status enriches matching recent paths when available; when it is unavailable, watcher-derived change kinds remain the fallback evidence.
 - Markdown and HTML documents should expose an H1/H2 outline under "In this file" below the Review Queue.
 - Comments should preserve the surface where the issue was seen, such as rendered Markdown, HTML preview, source, or diff.
-- Typed comment input is browser-local working state until the user saves it as a pending draft. Outside clicks do not close it. Escape and the close action collapse it without deleting text; explicit Discard removes it. Open and collapsed input survives file, tab, rendered/source navigation, and page reload for the same workspace. Saving the first comment promotes the text into a durable pending draft and removes the browser-local input session. Saving a follow-up clears that session body but keeps its textarea focused so consecutive replies do not require another click. Stored unsaved input expires after 30 days.
-- Pending drafts are the Publish boundary. Unsaved input is shown separately and never contributes to the Publish count. Rendered Markdown and HTML preview show a compact Source-input return action when typed Source input exists for the active file. Saving the first rendered comment keeps the pending draft available through its document marker and inspector entry, turns the same composer into the saved thread's empty follow-up input, and keeps focus there for consecutive thoughts. Double-clicking another rendered block can still open a separate Markdown composer or replace the fixed HTML composer. Opening a marker or inspector entry resumes the same pending thread; later saves likewise keep that thread open and ready for the next input until focus moves or the user closes it. Deleting its last pending message closes the now-empty thread. Successful Publish retains the published thread while preserving any next unsaved thought at the same anchor. When the underlying file hash changes, an open input becomes stale and requires Re-anchor or Discard before it can be saved.
+- Typed comment input is browser-local working state until the user saves it as a pending draft. Outside clicks do not close it. Escape and the close action collapse it without deleting text; explicit Discard removes it. Open and collapsed input survives file, tab, rendered/source navigation, and page reload for the same workspace. Saving the first comment promotes the text into a durable pending draft and removes the browser-local input session. Saving an additional review note clears that session body but keeps its textarea focused so consecutive thoughts do not require another click. Stored unsaved input expires after 30 days.
+- Pending drafts are the Publish boundary. Unsaved input is shown separately and never contributes to the Publish count. Rendered Markdown and HTML preview show a compact Source-input return action when typed Source input exists for the active file. Saving the first rendered comment keeps the pending draft available through its document marker and inspector entry, turns the same composer into the saved thread's empty additional-note input, and keeps focus there for consecutive thoughts. Double-clicking another rendered block can still open a separate Markdown composer or replace the fixed HTML composer. Opening a marker or inspector entry resumes the same pending thread; later saves likewise keep that thread open and ready for the next review note until focus moves or the user closes it. Deleting its last pending message closes the now-empty thread. Successful Publish retains the published thread while preserving any next unsaved thought at the same anchor. When the underlying file hash changes, an open input becomes stale and requires Re-anchor or Discard before it can be saved.
+- Agent conversation stays in the terminal or agent workbench. The browser shows whether published feedback has been observed; it does not promote agent-authored replies into a parallel inbox or ask the human to manage terminal lifecycle states. Existing reply- and status-capable CLI/API transports may remain for compatibility while the product no longer depends on them.
+
+- The thirty-minute rule should be implemented once as application state rather
+  than repeated in watcher, tab, and comment components. A review-attention
+  clock owns only the latest observed timestamp by path and the shared window
+  duration:
+  - Its behavioral surface is equivalent to `touch(path, observedAt)`,
+    `recentPaths(now)`, and `nextExpiry(now)`.
+  - `touch` keeps the greatest timestamp for a path so delayed or replayed
+    events cannot move the clock backwards. Expired entries are compacted from
+    the workspace-scoped snapshot.
+  - Producers decide what counts as activity and translate their own event
+    types into a generic path/timestamp observation. Initial producers are
+    watcher file events, user file opens, and observed agent reads. The clock
+    does not import filesystem event, comment, actor, or UI types and does not
+    retain an activity reason.
+  - Pending drafts and feedback not yet observed by an agent are pin conditions,
+    not clock activity. The Review Queue projector combines those independently
+    derived pin sets with the clock's recent path set:
+    `visible = pinnedByDraft || pinnedByUnseenFeedback || recentlyActive`.
+  - Publishing new feedback pins the path until that feedback is observed. The
+    matching agent read both removes the unseen pin and touches the clock at the
+    read timestamp, making the transition into the inactivity window atomic
+    from the queue's perspective.
+  - React components report user intent to application use cases; they do not
+    mutate the clock directly. Infrastructure adapters report watcher and
+    comment activity through the same application port.
 - HTML preview comments should use one fixed floating composer near the right-middle of the viewport. Unlike source/code comments, opening a second HTML preview target replaces the current composer instead of keeping multiple block-local forms open.
 - The active heading should be highlightable later as the user scrolls.
 - File type, path, watch status, size, and last update information should be minimized or kept behind a lightweight details disclosure.
@@ -194,7 +219,7 @@ Shortcuts:
 - Cmd/Ctrl + Shift + F opens full-text search across text-previewable files.
 - Cmd/Ctrl + W closes the active vivi tab when one is open.
 - Cmd/Ctrl + / opens a bundled keyboard shortcut reference.
-- Cmd/Ctrl + Shift + J/K moves to the next/previous Review Queue item, Cmd/Ctrl + Shift + U opens the next unseen work item, and Cmd/Ctrl + Shift + I opens the next in-review reply.
+- Cmd/Ctrl + Shift + J/K moves to the next/previous Review Queue item, and Cmd/Ctrl + Shift + U opens the next unseen work item.
 - Cmd/Ctrl + O is avoided because it conflicts with browser and operating-system file-open expectations.
 
 The palette should close on Escape, open selected files with Enter, and preserve the current workspace state.

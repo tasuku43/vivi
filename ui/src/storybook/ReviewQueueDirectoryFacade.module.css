@@ -220,15 +220,6 @@
   );
   font-size: 9px;
 }
-.reviewed {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 36px;
-  padding: 0 11px;
-  color: var(--vivi-color-content-muted);
-  font-size: 10px;
-}
 .emptyQueue {
   display: grid;
   justify-items: center;

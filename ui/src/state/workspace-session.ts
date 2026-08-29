@@ -7,6 +7,10 @@ import {
   type EditorLayoutNode,
 } from "./editor-layout.js";
 import type { OpenTab } from "./tabs.js";
+import {
+  compactReviewAttention,
+  type ReviewAttentionClock,
+} from "./review-attention.js";
 
 export interface RecentFile {
   path: string;
@@ -18,6 +22,7 @@ export interface WorkspaceSessionState {
   openTabs: OpenTab[];
   layout: EditorLayout;
   recentFiles: RecentFile[];
+  reviewAttention?: ReviewAttentionClock;
   sidebarVisible?: boolean;
   inspectorVisible: boolean;
   sidebarWidth?: number;
@@ -86,6 +91,7 @@ export function buildWorkspaceSession(
     })),
     layout: persistentTabs.length > 0 ? state.layout : initialEditorLayout,
     recentFiles: trimRecentFiles(state.recentFiles),
+    reviewAttention: compactReviewAttention(state.reviewAttention ?? {}, now),
     sidebarVisible: state.sidebarVisible ?? true,
     inspectorVisible: state.inspectorVisible,
     sidebarWidth:
@@ -122,6 +128,7 @@ export function parseWorkspaceSession(
         value.inspectorWidth === undefined
           ? undefined
           : clampInspectorWidth(value.inspectorWidth),
+      reviewAttention: value.reviewAttention,
     };
   } catch {
     return null;
@@ -143,12 +150,27 @@ export function restoreWorkspaceSession(
   const recentFiles = trimRecentFiles(
     stored.recentFiles.filter((file) => isValidPath(file.path)),
   );
+  const migratedReviewAttention =
+    stored.reviewAttention ??
+    recentFiles.reduce<ReviewAttentionClock>(
+      (clock, file) => ({ ...clock, [file.path]: file.lastOpenedAt }),
+      {},
+    );
+  const reviewAttention = compactReviewAttention(
+    Object.fromEntries(
+      Object.entries(migratedReviewAttention).filter(([path]) =>
+        isValidPath(path),
+      ),
+    ),
+    now,
+  );
   const layout = sanitizeLayout(stored.layout, openTabs);
 
   return {
     openTabs,
     layout,
     recentFiles,
+    reviewAttention,
     sidebarVisible: stored.sidebarVisible ?? true,
     inspectorVisible: stored.inspectorVisible,
     sidebarWidth: stored.sidebarWidth,
@@ -300,6 +322,8 @@ function isStoredWorkspaceSession(
     isEditorLayout(value.layout) &&
     Array.isArray(value.recentFiles) &&
     value.recentFiles.every(isRecentFile) &&
+    (value.reviewAttention === undefined ||
+      isNumberRecord(value.reviewAttention)) &&
     (typeof value.diffEnabled === "boolean" ||
       value.diffEnabled === undefined) &&
     (value.diffFocusByPath === undefined ||
@@ -320,6 +344,19 @@ function isBooleanRecord(value: unknown): value is Record<string, boolean> {
     isRecord(value) &&
     Object.entries(value).every(
       ([key, item]) => typeof key === "string" && typeof item === "boolean",
+    )
+  );
+}
+
+function isNumberRecord(value: unknown): value is Record<string, number> {
+  return (
+    isRecord(value) &&
+    Object.entries(value).every(
+      ([key, item]) =>
+        typeof key === "string" &&
+        key.length > 0 &&
+        typeof item === "number" &&
+        Number.isFinite(item),
     )
   );
 }

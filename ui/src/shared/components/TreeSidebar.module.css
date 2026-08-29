@@ -136,50 +136,6 @@
   color: var(--vivi-color-change-text);
 }
 
-.reviewStateLabel {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid var(--vivi-color-border-soft);
-  border-radius: 999px;
-  background: color-mix(
-    in srgb,
-    var(--vivi-color-surface-panel-raised) 72%,
-    transparent
-  );
-  color: var(--vivi-color-content-muted);
-  font-size: 9px;
-  font-weight: 840;
-  line-height: 1;
-  padding: 3px 6px;
-  text-transform: uppercase;
-}
-
-.reviewStateLabel::before {
-  content: "";
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: currentColor;
-}
-
-.queued {
-  border-color: var(--vivi-color-selection-border);
-  color: var(--vivi-color-selection-indicator);
-}
-
-.reviewing {
-  border-color: var(--vivi-color-review-border);
-  color: var(--vivi-color-review-text);
-}
-
-.reviewed {
-  border-color: color-mix(in srgb, var(--vivi-color-success) 46%, transparent);
-  color: color-mix(in srgb, var(--vivi-color-success) 84%, white);
-}
-
 .badges {
   display: inline-flex;
   flex: 0 0 auto;

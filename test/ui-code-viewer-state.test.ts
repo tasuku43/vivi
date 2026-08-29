@@ -18,9 +18,7 @@ import {
   codeCommentThreads,
   draftReviewCommentAsViviComment,
   flushDeferredSourceHighlightState,
-  matchingOpenThreadForDraft,
   nextDeferredSourceHighlightState,
-  renderedCommentDraft,
   sourceLineCommentDraft,
 } from "../ui/src/state/comments.js";
 
@@ -231,7 +229,7 @@ it("uses the latest published update as inline thread status", () => {
         path: "src/app.ts",
         viewerKind: "text",
         anchor,
-        body: "Unpublished reply should not reopen the thread",
+        body: "Unpublished note stays grouped with the same feedback anchor",
         source: "human",
         createdAt: "2026-06-19T01:20:00.000Z",
         updatedAt: "2026-06-19T01:20:00.000Z",
@@ -242,8 +240,8 @@ it("uses the latest published update as inline thread status", () => {
 
   expect(threads[0]).toMatchObject({
     key: JSON.stringify(["thread", "thread-a"]),
-    status: "resolved",
   });
+  expect(threads[0]).not.toHaveProperty("status");
   expect(threads[0]?.comments.map((comment) => comment.id)).toEqual([
     "root",
     "resolved",
@@ -295,63 +293,6 @@ it("keeps same-anchor draft review comments as separate draft threads", () => {
       (thread) => thread.comments.length === 1 && thread.comments[0]?.draft,
     ),
   ).toBe(true);
-});
-
-it("matches rendered drafts to open threads by canonical line when rendered selectors drift", () => {
-  const file = {
-    path: "AGENTS.md",
-    viewerKind: "markdown" as const,
-    encoding: "utf8" as const,
-    content: "# Agent instructions\n",
-    etag: "sha256:agents",
-    size: 21,
-    mtimeMs: 1,
-  };
-  const existingAnchor = {
-    surface: "rendered" as const,
-    canonical: {
-      path: "AGENTS.md",
-      lineStart: 1,
-      lineEnd: 1,
-      quote: "# Agent instructions",
-      fileHash: "sha256:agents",
-    },
-    rendered: {
-      kind: "markdown" as const,
-      blockId: "vivi-block-1",
-      selector: "#agent",
-      textQuote: "Agent",
-      sourceLineStart: 1,
-      sourceLineEnd: 1,
-    },
-  };
-  const threads = codeCommentThreads([
-    {
-      id: "comment-l1-root",
-      threadId: "thread-l1",
-      path: "AGENTS.md",
-      viewerKind: "markdown",
-      anchor: existingAnchor,
-      body: "First L1 note.",
-      status: "open",
-      createdAt: "2026-07-02T01:00:00.000Z",
-      updatedAt: "2026-07-02T01:00:00.000Z",
-    },
-  ]);
-  const draft = renderedCommentDraft(file, "markdown", {
-    text: "Agent instructions",
-    blockId: "vivi-block-1",
-    selector: "#agent-instructions",
-    sourceLineStart: 1,
-    sourceLineEnd: 1,
-    sourceQuote: "# Agent instructions",
-  });
-
-  expect(matchingOpenThreadForDraft(threads, draft)?.comments[0]).toMatchObject(
-    {
-      threadId: "thread-l1",
-    },
-  );
 });
 
 it("records and summarizes recent review events by file path", () => {

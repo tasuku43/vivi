@@ -10,11 +10,6 @@ import {
 } from "../../state/tree-expansion.js";
 import { treeKeyboardAction } from "../../state/tree-navigation.js";
 import { unloadedAncestorDirectoryPaths } from "../../state/files.js";
-import {
-  reviewFileStateLabel,
-  reviewFileStateTone,
-  type ReviewFileState,
-} from "../../state/review-state.js";
 import fileIconStyles from "./FileIcon.module.css";
 import sharedUiStyles from "../styles/SharedUi.module.css";
 import styles from "./TreeSidebar.module.css";
@@ -27,12 +22,10 @@ interface Props {
   revealRevision?: number;
   changedPaths?: Set<string>;
   reviewPaths?: Set<string>;
-  reviewStateByPath?: Record<string, ReviewFileState>;
   unreadReviewPaths?: Set<string>;
   activePaths?: Set<string>;
   currentStopPath?: string | null;
   commentCountsByPath?: Record<string, number>;
-  openThreadCountsByPath?: Record<string, number>;
   removedPaths?: Set<string>;
   loadingDirectoryPaths?: Set<string>;
   onLoadDirectory?: (path: string) => Promise<void>;
@@ -50,12 +43,10 @@ export function TreeSidebar({
   revealRevision = 0,
   changedPaths = new Set(),
   reviewPaths = new Set(),
-  reviewStateByPath = {},
   unreadReviewPaths = new Set(),
   activePaths = new Set(),
   currentStopPath = null,
   commentCountsByPath = {},
-  openThreadCountsByPath = {},
   removedPaths = new Set(),
   loadingDirectoryPaths = new Set(),
   onLoadDirectory,
@@ -129,7 +120,6 @@ export function TreeSidebar({
         activePaths,
         commentCountsByPath,
         currentStopPath,
-        openThreadCountsByPath,
         reviewPaths,
         unreadReviewPaths,
       }),
@@ -138,7 +128,6 @@ export function TreeSidebar({
       commentCountsByPath,
       currentStopPath,
       nodes,
-      openThreadCountsByPath,
       reviewPaths,
       unreadReviewPaths,
     ],
@@ -261,11 +250,9 @@ export function TreeSidebar({
             currentStopAncestorPaths={currentStopAncestorPaths}
             changedPaths={changedPaths}
             reviewPaths={reviewPaths}
-            reviewStateByPath={reviewStateByPath}
             unreadReviewPaths={unreadReviewPaths}
             activePaths={activePaths}
             commentCountsByPath={commentCountsByPath}
-            openThreadCountsByPath={openThreadCountsByPath}
             removedPaths={removedPaths}
             loadingDirectoryPaths={loadingDirectoryPaths}
             interactionHelpId={interactionHelpId}
@@ -293,11 +280,9 @@ function TreeRow({
   currentStopAncestorPaths,
   changedPaths,
   reviewPaths,
-  reviewStateByPath,
   unreadReviewPaths,
   activePaths,
   commentCountsByPath,
-  openThreadCountsByPath,
   removedPaths,
   loadingDirectoryPaths,
   interactionHelpId,
@@ -318,11 +303,9 @@ function TreeRow({
   currentStopAncestorPaths: Set<string>;
   changedPaths: Set<string>;
   reviewPaths: Set<string>;
-  reviewStateByPath: Record<string, ReviewFileState>;
   unreadReviewPaths: Set<string>;
   activePaths: Set<string>;
   commentCountsByPath: Record<string, number>;
-  openThreadCountsByPath: Record<string, number>;
   removedPaths: Set<string>;
   loadingDirectoryPaths: Set<string>;
   interactionHelpId: string;
@@ -347,7 +330,6 @@ function TreeRow({
       activePaths,
       commentCountsByPath,
       currentStopPath,
-      openThreadCountsByPath,
     );
     const reviewReason = directoryTreeReviewReason(summary, {
       containsCurrentStop,
@@ -409,14 +391,9 @@ function TreeRow({
     );
   }
   const commentCount = commentCountsByPath[node.path] ?? 0;
-  const openThreadCount = openThreadCountsByPath[node.path] ?? 0;
   const unread = unreadReviewPaths.has(node.path);
   const changed = changedPaths.has(node.path);
   const review = reviewPaths.has(node.path);
-  const reviewState =
-    reviewStateByPath[node.path.toLowerCase()] ??
-    reviewStateByPath[node.path] ??
-    null;
   const open = activePaths.has(node.path);
   const removed = removedPaths.has(node.path);
   const fileEnd = renderFileEnd?.(node) ?? null;
@@ -425,10 +402,8 @@ function TreeRow({
     comments: commentCount,
     currentStop,
     open,
-    openThreads: openThreadCount,
     removed,
     review,
-    reviewState,
     unread,
   });
   return (
@@ -444,8 +419,6 @@ function TreeRow({
         open,
         removed,
         currentStop,
-        reviewState,
-        openThreads: openThreadCount,
         comments: commentCount,
       })}
       aria-describedby={interactionHelpId}
@@ -478,19 +451,6 @@ function TreeRow({
       <span className={styles.main}>
         <span className={styles.labelLine}>
           <span className={styles.label}>{node.name}</span>
-          {reviewState ? (
-            <span
-              className={[
-                styles.reviewStateLabel,
-                styles[reviewFileStateTone(reviewState)],
-                "review-state-label",
-                reviewFileStateTone(reviewState),
-              ].join(" ")}
-              title={`Review state: ${reviewFileStateLabel(reviewState)}`}
-            >
-              {reviewFileStateLabel(reviewState)}
-            </span>
-          ) : null}
         </span>
         {reviewReason ? (
           <span className={styles.reason} aria-hidden="true">
@@ -504,7 +464,7 @@ function TreeRow({
           currentStop={currentStop}
           open={open}
           reviewFiles={0}
-          showChangedBadge={!reviewState && !fileEnd}
+          showChangedBadge={!fileEnd}
           unreadFiles={unread ? 1 : 0}
         />
       ) : null}
@@ -541,8 +501,7 @@ function directoryTreeRowAriaLabel({
       : "",
     countPhrase(summary.openFiles, "open file"),
     countPhrase(summary.reviewFiles, "review file"),
-    countPhrase(summary.unreadFiles, "unread review file"),
-    countPhrase(summary.openThreads, "open thread"),
+    countPhrase(summary.unreadFiles, "unseen feedback file"),
     countPhrase(summary.comments, "comment"),
     loading ? "loading" : "",
   ]
@@ -559,8 +518,6 @@ function fileTreeRowAriaLabel({
   open,
   removed,
   currentStop,
-  reviewState,
-  openThreads,
   comments,
 }: {
   name: string;
@@ -571,8 +528,6 @@ function fileTreeRowAriaLabel({
   open: boolean;
   removed: boolean;
   currentStop: boolean;
-  reviewState: ReviewFileState | null;
-  openThreads: number;
   comments: number;
 }): string {
   return [
@@ -580,12 +535,11 @@ function fileTreeRowAriaLabel({
     "file",
     selected ? "selected" : "",
     changed ? "changed" : "",
-    reviewState ? reviewFileStateLabel(reviewState) : review ? "review file" : "",
-    unread ? "unread review activity" : "",
+    review ? "review file" : "",
+    unread ? "unseen feedback" : "",
     open ? "open in tab" : "",
     removed ? "removed" : "",
     currentStop ? "current review stop" : "",
-    countPhrase(openThreads, "open thread"),
     countPhrase(comments, "comment"),
   ]
     .filter(Boolean)
@@ -602,10 +556,9 @@ function directoryTreeReviewReason(
   return [
     directoryReviewStopReason(summary, { containsCurrentStop }),
     ...treeReasonParts({
-      comments: summary.openThreads ? 0 : summary.comments,
+      comments: summary.comments,
       loading,
       openFiles: summary.openFiles,
-      openThreads: summary.openThreads,
       reviewFiles: summary.reviewFiles,
       unreadFiles: summary.unreadFiles,
     }),
@@ -631,28 +584,23 @@ function fileTreeReviewReason({
   comments,
   currentStop,
   open,
-  openThreads,
   removed,
   review,
-  reviewState,
   unread,
 }: {
   changed: boolean;
   comments: number;
   currentStop: boolean;
   open: boolean;
-  openThreads: number;
   removed: boolean;
   review: boolean;
-  reviewState: ReviewFileState | null;
   unread: boolean;
 }): string {
   return [
     unread ? "attention" : "",
     currentStop ? "current stop" : "",
-    openThreads ? countReason(openThreads, "open thread") : "",
-    review && !reviewState ? "review" : "",
-    comments && !openThreads ? countReason(comments, "comment") : "",
+    review ? "review" : "",
+    comments ? countReason(comments, "comment") : "",
     changed ? "changed" : "",
     open ? "open tab" : "",
     removed ? "removed" : "",
@@ -666,7 +614,6 @@ function treeReasonParts({
   comments = 0,
   loading = false,
   openFiles = 0,
-  openThreads = 0,
   removed = false,
   reviewFiles = 0,
   unreadFiles = 0,
@@ -675,14 +622,12 @@ function treeReasonParts({
   comments?: number;
   loading?: boolean;
   openFiles?: number;
-  openThreads?: number;
   removed?: boolean;
   reviewFiles?: number;
   unreadFiles?: number;
 }): string[] {
   return [
     unreadFiles ? countReason(unreadFiles, "attention") : "",
-    openThreads ? countReason(openThreads, "open thread") : "",
     reviewFiles ? countReason(reviewFiles, "review file") : "",
     comments ? countReason(comments, "comment") : "",
     changed ? "changed" : "",
@@ -719,9 +664,8 @@ function workspaceTreeAriaLabel(
     countPhrase(summary.rootEntries, "root entry"),
     countPhrase(summary.files, "loaded file"),
     countPhrase(summary.reviewFiles, "review file"),
-    countPhrase(summary.unreadFiles, "unread review file"),
+    countPhrase(summary.unreadFiles, "unseen feedback file"),
     countPhrase(summary.openFiles, "open file"),
-    countPhrase(summary.openThreads, "open thread"),
     countPhrase(summary.comments, "comment"),
   ]
     .filter(Boolean)
@@ -770,7 +714,10 @@ function TreeBadges({
         </>
       ) : null}
       {currentStop ? (
-        <span className={`${styles.badge} ${styles.current}`} title="Current review stop">
+        <span
+          className={`${styles.badge} ${styles.current}`}
+          title="Current review stop"
+        >
           now
         </span>
       ) : null}
@@ -791,7 +738,10 @@ function TreeBadges({
         </span>
       ) : null}
       {changed && showChangedBadge ? (
-        <span className={`${styles.badge} ${styles.changedBadge}`} title="Changed">
+        <span
+          className={`${styles.badge} ${styles.changedBadge}`}
+          title="Changed"
+        >
           mod
         </span>
       ) : null}
@@ -807,7 +757,6 @@ function TreeBadges({
 interface TreeReviewSummary {
   comments: number;
   openFiles: number;
-  openThreads: number;
   reviewFiles: number;
   reviewStopKind: ReviewStopKind | null;
   reviewStopPath: string | null;
@@ -821,25 +770,20 @@ function directoryReviewSummary(
   activePaths: Set<string>,
   commentCountsByPath: Record<string, number>,
   currentStopPath: string | null,
-  openThreadCountsByPath: Record<string, number>,
 ): TreeReviewSummary {
   if (node.kind !== "directory") {
-    const openThreads = openThreadCountsByPath[node.path] ?? 0;
     return {
       comments: commentCountsByPath[node.path] ?? 0,
       openFiles: activePaths.has(node.path) ? 1 : 0,
-      openThreads,
       reviewFiles: reviewPaths.has(node.path) ? 1 : 0,
       reviewStopKind: fileReviewStopKind({
         currentStop: node.path === currentStopPath,
-        openThreads,
         review: reviewPaths.has(node.path),
         unread: unreadReviewPaths.has(node.path),
       }),
       reviewStopPath:
         node.path === currentStopPath ||
         unreadReviewPaths.has(node.path) ||
-        openThreads > 0 ||
         reviewPaths.has(node.path)
           ? node.path
           : null,
@@ -856,12 +800,10 @@ function directoryReviewSummary(
         activePaths,
         commentCountsByPath,
         currentStopPath,
-        openThreadCountsByPath,
       );
       return {
         comments: summary.comments + childSummary.comments,
         openFiles: summary.openFiles + childSummary.openFiles,
-        openThreads: summary.openThreads + childSummary.openThreads,
         reviewFiles: summary.reviewFiles + childSummary.reviewFiles,
         reviewStopKind: preferredReviewStop(summary, childSummary).kind,
         reviewStopPath: preferredReviewStop(summary, childSummary).path,
@@ -871,7 +813,6 @@ function directoryReviewSummary(
     {
       comments: 0,
       openFiles: 0,
-      openThreads: 0,
       reviewFiles: 0,
       reviewStopKind: null,
       reviewStopPath: null,
@@ -880,22 +821,19 @@ function directoryReviewSummary(
   );
 }
 
-type ReviewStopKind = "current" | "attention" | "thread" | "review";
+type ReviewStopKind = "current" | "attention" | "review";
 
 function fileReviewStopKind({
   currentStop,
-  openThreads,
   review,
   unread,
 }: {
   currentStop: boolean;
-  openThreads: number;
   review: boolean;
   unread: boolean;
 }): ReviewStopKind | null {
   if (currentStop) return "current";
   if (unread) return "attention";
-  if (openThreads) return "thread";
   if (review) return "review";
   return null;
 }
@@ -922,7 +860,6 @@ function preferredReviewStop(
 function reviewStopPriority(kind: ReviewStopKind | null): number {
   if (kind === "current") return 4;
   if (kind === "attention") return 3;
-  if (kind === "thread") return 2;
   if (kind === "review") return 1;
   return 0;
 }
@@ -933,19 +870,19 @@ function workspaceTreeSummary(
     activePaths: Set<string>;
     commentCountsByPath: Record<string, number>;
     currentStopPath: string | null;
-    openThreadCountsByPath: Record<string, number>;
     reviewPaths: Set<string>;
     unreadReviewPaths: Set<string>;
   },
 ): TreeReviewSummary & { files: number; rootEntries: number } {
-  return nodes.reduce<TreeReviewSummary & { files: number; rootEntries: number }>(
+  return nodes.reduce<
+    TreeReviewSummary & { files: number; rootEntries: number }
+  >(
     (summary, node) => {
       const childSummary = workspaceNodeSummary(node, context);
       return {
         comments: summary.comments + childSummary.comments,
         files: summary.files + childSummary.files,
         openFiles: summary.openFiles + childSummary.openFiles,
-        openThreads: summary.openThreads + childSummary.openThreads,
         reviewFiles: summary.reviewFiles + childSummary.reviewFiles,
         reviewStopKind: preferredReviewStop(summary, childSummary).kind,
         reviewStopPath: preferredReviewStop(summary, childSummary).path,
@@ -957,7 +894,6 @@ function workspaceTreeSummary(
       comments: 0,
       files: 0,
       openFiles: 0,
-      openThreads: 0,
       reviewFiles: 0,
       reviewStopKind: null,
       reviewStopPath: null,
@@ -973,7 +909,6 @@ function workspaceNodeSummary(
     activePaths: Set<string>;
     commentCountsByPath: Record<string, number>;
     currentStopPath: string | null;
-    openThreadCountsByPath: Record<string, number>;
     reviewPaths: Set<string>;
     unreadReviewPaths: Set<string>;
   },
@@ -985,7 +920,6 @@ function workspaceNodeSummary(
     context.activePaths,
     context.commentCountsByPath,
     context.currentStopPath,
-    context.openThreadCountsByPath,
   );
   if (node.kind !== "directory") {
     return { ...summary, files: 1 };

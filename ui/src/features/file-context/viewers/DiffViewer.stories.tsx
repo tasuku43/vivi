@@ -169,8 +169,8 @@ export const ActiveDiffCommentStaysInline: Story = {
   },
 };
 
-export const DiffThreadReplyStaysFocusedOnExistingLine: Story = {
-  name: "Diff line keeps replies focused on the existing thread",
+export const DiffPublishedFeedbackHasNoResponseComposer: Story = {
+  name: "Published diff feedback has no response composer",
   tags: ["interaction"],
   args: {
     comments: [
@@ -204,7 +204,7 @@ export const DiffThreadReplyStaysFocusedOnExistingLine: Story = {
       canvas.queryByRole("button", { name: "Start separate thread" }),
     ).not.toBeInTheDocument();
     await expect(canvas.queryByLabelText("New line comment")).toBeNull();
-    await expect(canvas.getByLabelText("Continue thread")).toBeVisible();
+    await expect(canvas.queryByRole("textbox")).not.toBeInTheDocument();
   },
 };
 
@@ -242,8 +242,8 @@ export const DiffCommentOnRemovedLine: Story = {
   },
 };
 
-export const ResolvedDiffThreadMarker: Story = {
-  name: "Resolved diff thread can be reopened",
+export const LegacyResolvedDiffFeedback: Story = {
+  name: "Legacy resolved status is not shown in the browser",
   tags: ["interaction"],
   args: {
     comments: [
@@ -268,7 +268,7 @@ export const ResolvedDiffThreadMarker: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     const marker = canvas.getByRole("button", {
-      name: "Open resolved comment thread on line 10 with 2 messages",
+      name: "Open comment thread on line 10 with 2 messages",
     });
     await expect(marker).toBeInTheDocument();
     await userEvent.click(marker);
@@ -277,7 +277,11 @@ export const ResolvedDiffThreadMarker: Story = {
       name: "Comment thread for line 10",
     });
     await expect(thread).toBeVisible();
-    expect(within(thread).getAllByText("Resolved").length).toBeGreaterThan(0);
+    await expect(within(thread).getAllByText("Published")[0]).toBeVisible();
+    await expect(
+      within(thread).queryByText("Resolved"),
+    ).not.toBeInTheDocument();
+    await expect(within(thread).queryByRole("textbox")).not.toBeInTheDocument();
   },
 };
 
@@ -318,39 +322,10 @@ export const RenderedMarkdownComment: Story = {
     await expect(activeCard).toHaveTextContent(
       "This sentence captures the feedback layer well; keep it visible in the inspector outline story.",
     );
-    await userEvent.type(
-      activeCardCanvas.getByLabelText("Continue thread"),
-      "Keep this follow-up on the rendered diff card.",
-    );
-    await userEvent.click(
-      activeCardCanvas.getByRole("button", { name: "Add follow-up" }),
-    );
-    await expect(args.onCreateComment).toHaveBeenCalled();
-    const draft = (
-      args.onCreateComment as unknown as { mock: { calls: unknown[][] } }
-    ).mock.calls.at(-1)?.[0];
-    await expect(draft).toMatchObject({
-      threadId: "thread-md-rendered",
-      path: sampleFiles.markdown.path,
-      viewerKind: "markdown",
-      anchor: {
-        surface: "diff",
-        canonical: {
-          path: sampleFiles.markdown.path,
-          lineStart: 7,
-          lineEnd: 7,
-        },
-        diff: {
-          path: sampleFiles.markdown.path,
-          hunkId: "@@ -1,8 +1,12 @@",
-          side: "new",
-          newLineStart: 7,
-          newLineEnd: 7,
-          diffHash: "diff-markdown-42",
-          changeKind: "added",
-        },
-      },
-    });
+    await expect(
+      activeCardCanvas.queryByRole("textbox"),
+    ).not.toBeInTheDocument();
+    await expect(args.onCreateComment).not.toHaveBeenCalled();
     const toggle = cardsCanvas.getAllByRole("button", {
       name: /Show source hunk for/,
     })[0];

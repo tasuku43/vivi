@@ -21,6 +21,7 @@ export interface ReadyToPublishPanelProps {
   onResumeInput?: () => void;
   onReview: () => void;
   onPublish: () => void;
+  publishDisabled?: boolean;
 }
 
 export function ReadyToPublishPanel({
@@ -32,6 +33,7 @@ export function ReadyToPublishPanel({
   onResumeInput,
   onReview,
   onPublish,
+  publishDisabled = false,
 }: ReadyToPublishPanelProps) {
   const readyCount = items.reduce((total, item) => total + item.count, 0);
   const scopeLabel = scope === "workspace" ? "Workspace" : "Current document";
@@ -96,6 +98,7 @@ export function ReadyToPublishPanel({
         <button
           className={styles.publishButton}
           type="button"
+          disabled={publishDisabled}
           onClick={onPublish}
         >
           Publish {readyCount}

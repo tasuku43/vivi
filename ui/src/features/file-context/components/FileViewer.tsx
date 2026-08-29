@@ -18,8 +18,6 @@ import {
   DiffToggleButton,
   ViewerHeaderProvider,
   type ViewerHeaderReviewStop,
-  viewerHeaderReviewState,
-  type ViewerHeaderReviewState,
 } from "./ViewerControlButton.js";
 import { LargeTextPreview } from "../viewers/LargeTextPreview.js";
 import {
@@ -27,10 +25,7 @@ import {
   type CodeSymbol,
   type LineRange,
 } from "../../../state/code-viewer.js";
-import type {
-  CommentCreateHandler,
-  CommentStatusChangeHandler,
-} from "../../../state/comments.js";
+import type { CommentCreateHandler } from "../../../state/comments.js";
 import {
   commentLineLabel,
   truncateCommentPreview,
@@ -38,7 +33,6 @@ import {
 import type { OutlineHeading } from "../../../state/outline.js";
 import type { ResolvedTheme } from "../../../state/theme.js";
 import type { ViewerMode } from "../../../state/viewer-mode.js";
-import type { ReviewFileState } from "../../../state/review-state.js";
 import styles from "./FileViewer.module.css";
 import viewerMessageStyles from "../../../shared/components/ViewerMessage.module.css";
 
@@ -113,10 +107,7 @@ export function FileViewer({
   expandActiveCommentThread = true,
   onOpenComment,
   onCloseComment,
-  onCommentStatusChange,
   threadActivities = {},
-  reviewState = null,
-  onMarkReviewed,
   onRevealInTree,
   onFocusActiveComment,
   onOpenPath,
@@ -143,14 +134,11 @@ export function FileViewer({
   onOutlineSelect?: (id: string) => void;
   onCreateComment?: CommentCreateHandler;
   comments?: ViviComment[];
-  reviewState?: ReviewFileState | null;
   activeCommentId?: string | null;
   expandActiveCommentThread?: boolean;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onCloseComment?: () => void;
-  onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities?: Record<string, CommentActivitySummary>;
-  onMarkReviewed?: () => void;
   onRevealInTree?: (path?: string) => void;
   onFocusActiveComment?: () => void;
   onOpenPath?: (path: string) => void;
@@ -168,13 +156,10 @@ export function FileViewer({
     comments,
     activeCommentId ?? null,
   );
-  const headerReviewState = viewerHeaderReviewState(reviewState);
   const frameProps = {
     file,
     activeReviewStop,
-    reviewState: headerReviewState,
     onFocusActiveComment,
-    onMarkReviewed,
     onRevealInTree,
   };
   const localOutline = (
@@ -257,7 +242,6 @@ export function FileViewer({
             currentActorId={currentActorId}
             onOpenComment={onOpenComment}
             onCloseComment={onCloseComment}
-            onCommentStatusChange={onCommentStatusChange}
             threadActivities={threadActivities}
             onOpenPath={onOpenPath}
           />
@@ -287,7 +271,6 @@ export function FileViewer({
             currentActorId={currentActorId}
             onOpenComment={onOpenComment}
             onCloseComment={onCloseComment}
-            onCommentStatusChange={onCommentStatusChange}
             threadActivities={threadActivities}
             onOpenPath={onOpenPath}
           />
@@ -313,7 +296,6 @@ export function FileViewer({
             currentActorId={currentActorId}
             onOpenComment={onOpenComment}
             onCloseComment={onCloseComment}
-            onCommentStatusChange={onCommentStatusChange}
             threadActivities={threadActivities}
           />
         </LazyViewerFallback>
@@ -362,7 +344,6 @@ export function FileViewer({
             currentActorId={currentActorId}
             onOpenComment={onOpenComment}
             onCloseComment={onCloseComment}
-            onCommentStatusChange={onCommentStatusChange}
             threadActivities={threadActivities}
           />
         </LazyViewerFallback>
@@ -486,17 +467,13 @@ function FileViewerFrame({
   children,
   file,
   activeReviewStop,
-  reviewState,
   onFocusActiveComment,
-  onMarkReviewed,
   onRevealInTree,
 }: {
   children: ReactNode;
   file: FilePayload;
   activeReviewStop?: ActiveFileReviewStop | null;
-  reviewState?: ViewerHeaderReviewState | null;
   onFocusActiveComment?: () => void;
-  onMarkReviewed?: () => void;
   onRevealInTree?: (path?: string) => void;
 }) {
   return (
@@ -505,9 +482,7 @@ function FileViewerFrame({
         value={{
           file,
           activeReviewStop,
-          reviewState,
           onFocusActiveComment,
-          onMarkReviewed,
           onRevealInTree,
         }}
       >

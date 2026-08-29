@@ -1,25 +1,16 @@
 import { useState, type ComponentProps } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import {
-  expect,
-  fireEvent,
-  fn,
-  userEvent,
-  waitFor,
-  within,
-} from "storybook/test";
-import type { CommentStatus, ViviComment } from "../../domain/comments.js";
-import { draftReviewCommentAsViviComment } from "../../state/comments.js";
+import { expect, fn, userEvent, within } from "storybook/test";
+import type {
+  CommentThreadActivityEvent,
+  ViviComment,
+} from "../../domain/comments.js";
 import { summarizeThreadActivity } from "../../state/comment-activity.js";
 import { CodeCommentThread } from "./components/CodeCommentThread.js";
 import { useCommentInputSessions } from "./CommentInputSessionProvider.js";
-import {
-  sampleComments,
-  sampleDraftComments,
-  sampleFiles,
-  sampleThreadActivities,
-} from "../../storybook/fixtures/review-lab.js";
+import { sampleFiles } from "../../storybook/fixtures/review-lab.js";
 
+const threadId = "thread-review-attention";
 const anchor = {
   surface: "source" as const,
   canonical: {
@@ -31,132 +22,173 @@ const anchor = {
   },
 };
 
-function comments(status: CommentStatus): ViviComment[] {
-  return [
-    {
-      ...sampleComments[0]!,
-      status,
-      resolvedAt:
-        status === "resolved" ? "2026-06-20T09:20:00.000Z" : undefined,
-      archivedAt:
-        status === "archived" ? "2026-06-20T09:25:00.000Z" : undefined,
-    },
-    {
-      ...sampleComments[1]!,
-      status,
-      resolvedAt:
-        status === "resolved" ? "2026-06-20T09:20:00.000Z" : undefined,
-      archivedAt:
-        status === "archived" ? "2026-06-20T09:25:00.000Z" : undefined,
-    },
-  ];
-}
+const humanComment: ViviComment = {
+  id: "comment-human-review",
+  threadId,
+  path: sampleFiles.code.path,
+  viewerKind: "text",
+  anchor,
+  body: "Keep the activity window independent from the feedback payload.",
+  createdBy: {
+    id: "human:tasuku",
+    kind: "human",
+    displayName: "Tasuku",
+  },
+  source: "human",
+  status: "open",
+  createdAt: "2026-08-29T09:00:00.000Z",
+  updatedAt: "2026-08-29T09:00:00.000Z",
+};
+
+const legacyAgentMessage: ViviComment = {
+  ...humanComment,
+  id: "comment-agent-message",
+  body: "I implemented this and left an agent message.",
+  createdBy: {
+    id: "codex:run-24",
+    kind: "codex",
+    displayName: "Codex",
+  },
+  source: "codex",
+  createdAt: "2026-08-29T09:04:00.000Z",
+  updatedAt: "2026-08-29T09:04:00.000Z",
+};
+
+const agentRead: CommentThreadActivityEvent = {
+  id: "activity-agent-read",
+  threadId,
+  type: "thread_read",
+  actor: {
+    id: "codex:run-24",
+    kind: "codex",
+    displayName: "Codex",
+  },
+  createdAt: "2026-08-29T09:05:00.000Z",
+};
+
+const baseArgs: ComponentProps<typeof CodeCommentThread> = {
+  thread: {
+    key: threadId,
+    path: sampleFiles.code.path,
+    lineStart: 9,
+    lineEnd: 12,
+    comments: [humanComment],
+  },
+  draft: {
+    threadId,
+    path: sampleFiles.code.path,
+    viewerKind: "text",
+    anchor,
+  },
+  onClose: fn(),
+  onCreateComment: fn(),
+  onDeleteDraft: fn(),
+};
 
 const meta = {
   title: "Review/Inline Comment States",
   component: CodeCommentThread,
   parameters: { layout: "centered", a11y: { test: "error" } },
-  args: {
-    onClose: fn(),
-    onCreateComment: fn(),
-    onStatusChange: fn(),
-    onDeleteDraft: fn(),
-  },
+  args: baseArgs,
 } satisfies Meta<typeof CodeCommentThread>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-function args(status: CommentStatus) {
-  return {
-    thread: {
-      key: "thread-workbench-open",
-      path: sampleFiles.code.path,
-      lineStart: 9,
-      lineEnd: 12,
-      status,
-      comments: comments(status),
-    },
-    draft: {
-      threadId: "thread-workbench-open",
-      path: sampleFiles.code.path,
-      viewerKind: "text" as const,
-      anchor,
-    },
-  };
-}
-
-export const Open: Story = {
+export const UnseenPublishedFeedback: Story = {
   tags: ["interaction"],
-  args: args("open"),
-  play: async ({ args, canvasElement }) => {
+  play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const followUp = canvas.getByLabelText("Continue thread");
-    await expect(
-      canvas.getByRole("article", { name: "Comment thread for lines 9-12" }),
-    ).toBeInTheDocument();
-    await expect(canvas.getByText("Continue thread")).toBeVisible();
-    await expect(
-      canvas.getByLabelText("Continue thread"),
-    ).toHaveAccessibleDescription(/Continue thread.*to add follow-up/);
-    await userEvent.type(followUp, "Following up");
-    await fireEvent.keyDown(followUp, { key: "Enter", metaKey: true });
-    await expect(args.onCreateComment).toHaveBeenCalled();
-    await waitFor(() => expect(followUp).toHaveValue(""));
-    await expect(followUp).toHaveFocus();
-    await expect(args.onClose).not.toHaveBeenCalled();
-    await expect(
-      (args.onCreateComment as unknown as { mock: { calls: unknown[][] } }).mock
-        .calls[0]?.[0],
-    ).toMatchObject({ threadId: "thread-workbench-open" });
-    await expect(
-      canvas.queryByRole("button", { name: "New thread" }),
-    ).not.toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Resolve" }));
-    await expect(args.onStatusChange).toHaveBeenCalledWith(
-      "thread-workbench-open",
-      "resolved",
-    );
+    await expect(canvas.getAllByText("Published")[0]).toBeVisible();
+    await expect(canvas.getByText("Unseen")).toBeVisible();
+    await expect(canvas.queryByRole("button", { name: "Resolve" })).toBeNull();
+    await expect(canvas.queryByRole("button", { name: "Archive" })).toBeNull();
+    await expect(canvas.queryByRole("textbox")).toBeNull();
   },
 };
-export const Resolved: Story = { args: args("resolved") };
+
+export const SeenByAgent: Story = {
+  args: {
+    activity: summarizeThreadActivity(
+      [agentRead],
+      Date.parse(agentRead.createdAt),
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Seen")).toBeVisible();
+    await expect(canvas.getByText(/Codex read/)).toBeVisible();
+  },
+};
+
+export const AgentMessageIsNotAnInbox: Story = {
+  tags: ["interaction"],
+  args: {
+    thread: {
+      ...baseArgs.thread,
+      comments: [humanComment, legacyAgentMessage],
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(humanComment.body)).toBeVisible();
+    await expect(canvas.queryByText(legacyAgentMessage.body)).toBeNull();
+  },
+};
+
+export const NewLineComment: Story = {
+  tags: ["interaction"],
+  args: {
+    thread: { ...baseArgs.thread, key: "new-comment", comments: [] },
+    draft: { ...baseArgs.draft, threadId: undefined },
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByLabelText("New line comment");
+    await userEvent.type(input, "Use one shared attention clock.");
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Save pending draft comment" }),
+    );
+    await expect(args.onCreateComment).toHaveBeenCalled();
+    const submitted = (
+      args.onCreateComment as unknown as { mock: { calls: unknown[][] } }
+    ).mock.calls[0]?.[0];
+    await expect(submitted).not.toHaveProperty("threadId");
+  },
+};
 
 export const ResumableInput: Story = {
   tags: ["interaction"],
-  args: args("open"),
-  render: (storyArgs) => <ResumableInputHarness {...storyArgs} />,
+  args: {
+    thread: { ...baseArgs.thread, key: "resumable-comment", comments: [] },
+    draft: { ...baseArgs.draft, threadId: undefined },
+  },
+  render: (args) => <ResumableInputHarness {...args} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const textarea = canvas.getByLabelText("Continue thread");
-    await userEvent.type(textarea, "Keep this across navigation");
+    const input = canvas.getByLabelText("New line comment");
+    await userEvent.type(input, "Keep this across navigation");
     await userEvent.click(canvas.getByRole("button", { name: "Other file" }));
-    await expect(textarea).toHaveValue("Keep this across navigation");
-    await userEvent.type(textarea, "{Escape}");
-    await expect(
-      canvas.queryByLabelText("Continue thread"),
-    ).not.toBeInTheDocument();
     await userEvent.click(
       canvas.getByRole("button", { name: "Return to comment" }),
     );
-    await expect(canvas.getByLabelText("Continue thread")).toHaveValue(
+    await expect(canvas.getByLabelText("New line comment")).toHaveValue(
       "Keep this across navigation",
     );
-    await userEvent.click(canvas.getByRole("button", { name: "Discard" }));
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Return to comment" }),
-    );
-    await expect(canvas.getByLabelText("Continue thread")).toHaveValue("");
   },
 };
 
 export const StaleInputRequiresDecision: Story = {
   tags: ["interaction"],
-  args: args("open"),
-  render: (storyArgs) => <StaleInputHarness {...storyArgs} />,
+  args: {
+    thread: { ...baseArgs.thread, key: "stale-comment", comments: [] },
+    draft: { ...baseArgs.draft, threadId: undefined },
+  },
+  render: (args) => <StaleInputHarness {...args} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.type(
-      canvas.getByLabelText("Continue thread"),
+      canvas.getByLabelText("New line comment"),
       "Check this after refresh",
     );
     await userEvent.click(
@@ -165,14 +197,10 @@ export const StaleInputRequiresDecision: Story = {
     await expect(
       canvas.getByText("File changed since this comment was started."),
     ).toBeVisible();
-    await expect(canvas.getByLabelText("Continue thread")).toBeDisabled();
     await userEvent.click(
       canvas.getByRole("button", { name: "Re-anchor here" }),
     );
-    await expect(canvas.getByLabelText("Continue thread")).toBeEnabled();
-    await expect(canvas.getByLabelText("Continue thread")).toHaveValue(
-      "Check this after refresh",
-    );
+    await expect(canvas.getByLabelText("New line comment")).toBeEnabled();
   },
 };
 
@@ -183,7 +211,9 @@ function ResumableInputHarness(
   const inputs = useCommentInputSessions();
   return (
     <div>
-      <button type="button">Other file</button>
+      <button type="button" onClick={() => setVisible(false)}>
+        Other file
+      </button>
       {!visible ? (
         <button
           type="button"
@@ -232,674 +262,3 @@ function StaleInputHarness(
     </div>
   );
 }
-
-export const MultiActorConversation: Story = {
-  name: "Human and coding agents conversation",
-  tags: ["interaction"],
-  args: {
-    thread: {
-      key: "thread-multi-actor-conversation",
-      path: sampleFiles.code.path,
-      lineStart: 9,
-      lineEnd: 12,
-      status: "open",
-      comments: [
-        {
-          ...sampleComments[0]!,
-          id: "multi-actor-human-start",
-          threadId: "thread-multi-actor-conversation",
-          source: "human",
-          author: "Tasuku",
-          body: "This review batch has several notes on the same source range.",
-          createdAt: "2026-06-20T09:00:00.000Z",
-          updatedAt: "2026-06-20T09:00:00.000Z",
-          createdBy: {
-            id: "human:tasuku",
-            kind: "human",
-            displayName: "Tasuku",
-          },
-        },
-        {
-          ...sampleComments[1]!,
-          id: "multi-actor-human-follow-up",
-          threadId: "thread-multi-actor-conversation",
-          source: "human",
-          author: "Tasuku",
-          body: "Adding a second consecutive human note should not feel like a conversation reply.",
-          createdAt: "2026-06-20T09:01:00.000Z",
-          updatedAt: "2026-06-20T09:01:00.000Z",
-          createdBy: {
-            id: "human:tasuku",
-            kind: "human",
-            displayName: "Tasuku",
-          },
-        },
-        {
-          ...sampleComments[1]!,
-          id: "multi-actor-claude-reply",
-          threadId: "thread-multi-actor-conversation",
-          source: "claude-code",
-          author: "Claude Code",
-          body: "I can take the parsing branch and report back with the failing fixture.",
-          createdAt: "2026-06-20T09:04:00.000Z",
-          updatedAt: "2026-06-20T09:04:00.000Z",
-          createdBy: {
-            id: "claude-code:run-17",
-            kind: "claude-code",
-            displayName: "Claude Code",
-          },
-        },
-        {
-          ...sampleComments[1]!,
-          id: "multi-actor-cursor-reply",
-          threadId: "thread-multi-actor-conversation",
-          source: "unknown",
-          author: "Cursor",
-          body: "I can check the editor-side handoff and confirm the marker state.",
-          createdAt: "2026-06-20T09:05:00.000Z",
-          updatedAt: "2026-06-20T09:05:00.000Z",
-          createdBy: {
-            id: "cursor:composer-3",
-            kind: "unknown",
-            displayName: "Cursor",
-          },
-        },
-        {
-          ...sampleComments[1]!,
-          id: "multi-actor-copilot-reply",
-          threadId: "thread-multi-actor-conversation",
-          source: "unknown",
-          author: "GitHub Copilot",
-          body: "I will compare this against the pull request conversation view.",
-          createdAt: "2026-06-20T09:06:00.000Z",
-          updatedAt: "2026-06-20T09:06:00.000Z",
-          createdBy: {
-            id: "github-copilot:review-11",
-            kind: "unknown",
-            displayName: "GitHub Copilot",
-          },
-        },
-        {
-          ...sampleComments[1]!,
-          id: "multi-actor-codex-reply",
-          threadId: "thread-multi-actor-conversation",
-          source: "codex",
-          author: "Codex",
-          body: "I will patch the thread projection and add a focused regression story.",
-          createdAt: "2026-06-20T09:07:00.000Z",
-          updatedAt: "2026-06-20T09:07:00.000Z",
-          createdBy: {
-            id: "codex:run-24",
-            kind: "codex",
-            displayName: "Codex",
-          },
-        },
-        {
-          ...sampleComments[1]!,
-          id: "multi-actor-windsurf-reply",
-          threadId: "thread-multi-actor-conversation",
-          source: "unknown",
-          author: "Windsurf",
-          body: "I can verify the workspace-level agent labels stay readable in dense mode.",
-          createdAt: "2026-06-20T09:08:00.000Z",
-          updatedAt: "2026-06-20T09:08:00.000Z",
-          createdBy: {
-            id: "windsurf:cascade-5",
-            kind: "unknown",
-            displayName: "Windsurf",
-          },
-        },
-        {
-          ...sampleComments[1]!,
-          id: "multi-actor-devin-reply",
-          threadId: "thread-multi-actor-conversation",
-          source: "unknown",
-          author: "Devin",
-          body: "I will take the longer-running verification branch and leave a status note here.",
-          createdAt: "2026-06-20T09:09:00.000Z",
-          updatedAt: "2026-06-20T09:09:00.000Z",
-          createdBy: {
-            id: "devin:session-2",
-            kind: "unknown",
-            displayName: "Devin",
-          },
-        },
-        {
-          ...sampleComments[1]!,
-          id: "multi-actor-human-final",
-          threadId: "thread-multi-actor-conversation",
-          source: "human",
-          author: "Tasuku",
-          body: "Thanks. This is the kind of mixed-thread shape I want to inspect.",
-          createdAt: "2026-06-20T09:10:00.000Z",
-          updatedAt: "2026-06-20T09:10:00.000Z",
-          createdBy: {
-            id: "human:tasuku",
-            kind: "human",
-            displayName: "Tasuku",
-          },
-        },
-      ],
-    },
-    draft: {
-      threadId: "thread-multi-actor-conversation",
-      path: sampleFiles.code.path,
-      viewerKind: "text" as const,
-      anchor,
-    },
-    activeCommentId: "multi-actor-codex-reply",
-    currentActorId: "human:tasuku",
-  },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(
-      canvas.getByRole("article", { name: "Comment thread for lines 9-12" }),
-    ).toBeInTheDocument();
-    await expect(canvas.getByText("9 messages")).toBeVisible();
-    await expect(canvas.getByText("Started by Tasuku")).toBeVisible();
-    await expect(canvas.getByText("Reply by Claude Code")).toBeVisible();
-    await expect(canvas.getByText("Reply by Cursor")).toBeVisible();
-    await expect(canvas.getByText("Reply by GitHub Copilot")).toBeVisible();
-    await expect(canvas.getByText("Reply by Codex")).toBeVisible();
-    await expect(canvas.getByText("Reply by Windsurf")).toBeVisible();
-    await expect(canvas.getByText("Reply by Devin")).toBeVisible();
-    for (const icon of [
-      "codex.svg",
-      "cursor.svg",
-      "github-copilot.svg",
-      "windsurf.svg",
-    ]) {
-      await expect(
-        canvasElement.querySelector(`img[src="/vivi/agent-icons/${icon}"]`),
-      ).toBeInTheDocument();
-    }
-    await expect(
-      canvasElement.querySelector(
-        '[data-comment-id="multi-actor-human-start"]',
-      ),
-    ).toHaveClass("current-user");
-    await expect(
-      canvasElement.querySelector(
-        '[data-comment-id="multi-actor-claude-reply"]',
-      ),
-    ).not.toHaveClass("current-user");
-    await expect(canvas.queryByText("Current stop")).not.toBeInTheDocument();
-    await expect(canvas.getByLabelText("Continue thread")).toBeVisible();
-  },
-};
-
-export const SelfCommentOwnership: Story = {
-  name: "Self comment ownership",
-  tags: ["interaction"],
-  args: {
-    thread: {
-      key: "thread-self-comment-ownership",
-      path: sampleFiles.code.path,
-      lineStart: 9,
-      lineEnd: 12,
-      status: "open",
-      comments: [
-        {
-          ...sampleComments[0]!,
-          id: "self-comment-start",
-          threadId: "thread-self-comment-ownership",
-          source: "human",
-          author: "Tasuku",
-          body: "Can everyone check the comment-thread experience from their side?",
-          createdAt: "2026-06-20T09:00:00.000Z",
-          updatedAt: "2026-06-20T09:00:00.000Z",
-          createdBy: {
-            id: "human:tasuku",
-            kind: "human",
-            displayName: "Tasuku",
-          },
-        },
-        {
-          ...sampleComments[1]!,
-          id: "self-comment-codex",
-          threadId: "thread-self-comment-ownership",
-          source: "codex",
-          author: "Codex",
-          body: "I see the source projection and will keep the current stop anchored.",
-          createdAt: "2026-06-20T09:01:00.000Z",
-          updatedAt: "2026-06-20T09:01:00.000Z",
-          createdBy: {
-            id: "codex:run-31",
-            kind: "codex",
-            displayName: "Codex",
-          },
-        },
-        {
-          ...sampleComments[1]!,
-          id: "self-comment-claude",
-          threadId: "thread-self-comment-ownership",
-          source: "claude-code",
-          author: "Claude Code",
-          body: "I can verify the failing fixture and report whether this should be a reply or a follow-up.",
-          createdAt: "2026-06-20T09:02:00.000Z",
-          updatedAt: "2026-06-20T09:02:00.000Z",
-          createdBy: {
-            id: "claude-code:run-18",
-            kind: "claude-code",
-            displayName: "Claude Code",
-          },
-        },
-        {
-          ...sampleComments[1]!,
-          id: "self-comment-follow-up",
-          threadId: "thread-self-comment-ownership",
-          source: "human",
-          author: "Tasuku",
-          body: "This separation is helpful. I want my own comments to scan as a stable reference point.",
-          createdAt: "2026-06-20T09:07:00.000Z",
-          updatedAt: "2026-06-20T09:07:00.000Z",
-          createdBy: {
-            id: "human:tasuku",
-            kind: "human",
-            displayName: "Tasuku",
-          },
-        },
-      ],
-    },
-    draft: {
-      threadId: "thread-self-comment-ownership",
-      path: sampleFiles.code.path,
-      viewerKind: "text" as const,
-      anchor,
-    },
-    currentActorId: "human:tasuku",
-  },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByText("4 messages")).toBeVisible();
-    await expect(canvas.getAllByText("You")).toHaveLength(2);
-    await expect(
-      canvasElement.querySelector('img[src="/vivi/agent-icons/human.svg"]'),
-    ).toBeInTheDocument();
-    await expect(
-      canvasElement.querySelector('[data-comment-id="self-comment-start"]'),
-    ).toHaveClass("current-user");
-    await expect(
-      canvasElement.querySelector('[data-comment-id="self-comment-follow-up"]'),
-    ).toHaveClass("current-user");
-    await expect(
-      canvasElement.querySelector('[data-comment-id="self-comment-codex"]'),
-    ).not.toHaveClass("current-user");
-  },
-};
-
-export const AllAgentsConversation: Story = {
-  name: "All agents in one thread",
-  tags: ["interaction"],
-  args: {
-    thread: {
-      key: "thread-all-agents-conversation",
-      path: sampleFiles.code.path,
-      lineStart: 9,
-      lineEnd: 12,
-      status: "open",
-      comments: [
-        {
-          ...sampleComments[0]!,
-          id: "all-agents-human-start",
-          threadId: "thread-all-agents-conversation",
-          source: "human",
-          author: "Tasuku",
-          body: "Can everyone check the comment-thread experience from their side?",
-          createdAt: "2026-06-20T09:00:00.000Z",
-          updatedAt: "2026-06-20T09:00:00.000Z",
-          createdBy: {
-            id: "human:tasuku",
-            kind: "human",
-            displayName: "Tasuku",
-          },
-        },
-        {
-          ...sampleComments[1]!,
-          id: "all-agents-codex",
-          threadId: "thread-all-agents-conversation",
-          source: "codex",
-          author: "Codex",
-          body: "I see the source projection and will keep the current stop anchored.",
-          createdAt: "2026-06-20T09:01:00.000Z",
-          updatedAt: "2026-06-20T09:01:00.000Z",
-          createdBy: {
-            id: "codex:run-31",
-            kind: "codex",
-            displayName: "Codex",
-          },
-        },
-        {
-          ...sampleComments[1]!,
-          id: "all-agents-claude",
-          threadId: "thread-all-agents-conversation",
-          source: "claude-code",
-          author: "Claude Code",
-          body: "I can verify the failing fixture and report whether this should be a reply or a follow-up.",
-          createdAt: "2026-06-20T09:02:00.000Z",
-          updatedAt: "2026-06-20T09:02:00.000Z",
-          createdBy: {
-            id: "claude-code:run-18",
-            kind: "claude-code",
-            displayName: "Claude Code",
-          },
-        },
-        {
-          ...sampleComments[1]!,
-          id: "all-agents-cursor",
-          threadId: "thread-all-agents-conversation",
-          source: "unknown",
-          author: "Cursor",
-          body: "I will check the editor handoff and keep the inline marker readable.",
-          createdAt: "2026-06-20T09:03:00.000Z",
-          updatedAt: "2026-06-20T09:03:00.000Z",
-          createdBy: {
-            id: "cursor:composer-4",
-            kind: "unknown",
-            displayName: "Cursor",
-          },
-        },
-        {
-          ...sampleComments[1]!,
-          id: "all-agents-copilot",
-          threadId: "thread-all-agents-conversation",
-          source: "unknown",
-          author: "GitHub Copilot",
-          body: "I will compare the thread wording with the pull request review surface.",
-          createdAt: "2026-06-20T09:04:00.000Z",
-          updatedAt: "2026-06-20T09:04:00.000Z",
-          createdBy: {
-            id: "github-copilot:review-12",
-            kind: "unknown",
-            displayName: "GitHub Copilot",
-          },
-        },
-        {
-          ...sampleComments[1]!,
-          id: "all-agents-windsurf",
-          threadId: "thread-all-agents-conversation",
-          source: "unknown",
-          author: "Windsurf",
-          body: "I will keep an eye on dense-mode spacing with every actor visible.",
-          createdAt: "2026-06-20T09:05:00.000Z",
-          updatedAt: "2026-06-20T09:05:00.000Z",
-          createdBy: {
-            id: "windsurf:cascade-6",
-            kind: "unknown",
-            displayName: "Windsurf",
-          },
-        },
-        {
-          ...sampleComments[1]!,
-          id: "all-agents-devin",
-          threadId: "thread-all-agents-conversation",
-          source: "unknown",
-          author: "Devin",
-          body: "I can take the longer verification branch and post the result back here.",
-          createdAt: "2026-06-20T09:06:00.000Z",
-          updatedAt: "2026-06-20T09:06:00.000Z",
-          createdBy: {
-            id: "devin:session-3",
-            kind: "unknown",
-            displayName: "Devin",
-          },
-        },
-        {
-          ...sampleComments[1]!,
-          id: "all-agents-human-close",
-          threadId: "thread-all-agents-conversation",
-          source: "human",
-          author: "Tasuku",
-          body: "Great. This is the full thread shape I wanted to inspect.",
-          createdAt: "2026-06-20T09:07:00.000Z",
-          updatedAt: "2026-06-20T09:07:00.000Z",
-          createdBy: {
-            id: "human:tasuku",
-            kind: "human",
-            displayName: "Tasuku",
-          },
-        },
-      ],
-    },
-    draft: {
-      threadId: "thread-all-agents-conversation",
-      path: sampleFiles.code.path,
-      viewerKind: "text" as const,
-      anchor,
-    },
-    activeCommentId: "all-agents-devin",
-    currentActorId: "human:tasuku",
-  },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByText("8 messages")).toBeVisible();
-    for (const actor of [
-      "Tasuku",
-      "Codex",
-      "Claude Code",
-      "Cursor",
-      "GitHub Copilot",
-      "Windsurf",
-      "Devin",
-    ]) {
-      await expect(
-        canvas.getAllByText(new RegExp(`by ${actor}$`)).length,
-      ).toBeGreaterThan(0);
-    }
-    await expect(canvas.queryByText("Current stop")).not.toBeInTheDocument();
-  },
-};
-
-export const CurrentThreadActions: Story = {
-  name: "Resolved thread can be reopened",
-  tags: ["interaction"],
-  args: {
-    ...args("resolved"),
-    activeCommentId: "comment-workbench-open-1",
-  },
-  play: async ({ args, canvasElement }) => {
-    const canvas = within(canvasElement);
-    const reopen = canvas.getByRole("button", {
-      name: "Reopen",
-    });
-    await expect(reopen).toBeInTheDocument();
-    await expect(
-      canvas.getByRole("button", { name: "Archive" }),
-    ).toBeInTheDocument();
-    await userEvent.click(reopen);
-    await expect(args.onStatusChange).toHaveBeenCalledWith(
-      "thread-workbench-open",
-      "open",
-    );
-  },
-};
-
-export const NewLineComment: Story = {
-  tags: ["interaction"],
-  args: {
-    thread: {
-      key: "new-line-comment",
-      path: sampleFiles.code.path,
-      lineStart: 14,
-      lineEnd: 14,
-      status: "open",
-      comments: [],
-    },
-    draft: {
-      path: sampleFiles.code.path,
-      viewerKind: "text",
-      anchor: {
-        surface: "source",
-        canonical: {
-          path: sampleFiles.code.path,
-          lineStart: 14,
-          lineEnd: 14,
-          quote: "setError(String(err));",
-          fileHash: sampleFiles.code.etag,
-        },
-      },
-    },
-  },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByText("Composing")).toBeVisible();
-    await expect(canvas.getByText("Add comment on Line 14")).toBeVisible();
-    await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
-    await expect(
-      canvas.getByLabelText("New line comment"),
-    ).toHaveAccessibleDescription(
-      /Add comment on Line 14.*to save pending draft/,
-    );
-    await expect(
-      canvas.getByRole("button", { name: "Save pending draft comment" }),
-    ).toBeDisabled();
-    await expect(canvas.getByText("to save pending draft")).toBeVisible();
-  },
-};
-
-export const DirtyComposerCollapsesWithoutDiscard: Story = {
-  tags: ["interaction"],
-  args: {
-    thread: {
-      key: "dirty-new-line-comment",
-      path: sampleFiles.code.path,
-      lineStart: 16,
-      lineEnd: 16,
-      status: "open",
-      comments: [],
-    },
-    draft: {
-      path: sampleFiles.code.path,
-      viewerKind: "text",
-      anchor: {
-        surface: "source",
-        canonical: {
-          path: sampleFiles.code.path,
-          lineStart: 16,
-          lineEnd: 16,
-          quote: "return next;",
-          fileHash: sampleFiles.code.etag,
-        },
-      },
-    },
-  },
-  play: async ({ args, canvasElement }) => {
-    const canvas = within(canvasElement);
-    await userEvent.type(
-      canvas.getByLabelText("New line comment"),
-      "Keep this in progress.",
-    );
-
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Close comment thread" }),
-    );
-    await expect(args.onClose).toHaveBeenCalled();
-    await expect(canvas.getByLabelText("New line comment")).toHaveValue(
-      "Keep this in progress.",
-    );
-  },
-};
-
-export const SubmitFailureKeepsDraftEditable: Story = {
-  tags: ["interaction"],
-  args: {
-    ...args("open"),
-    onCreateComment: fn(async () => {
-      throw new Error("Comment save failed. Try again.");
-    }),
-  },
-  play: async ({ args, canvasElement }) => {
-    const canvas = within(canvasElement);
-    const reply = canvas.getByLabelText("Continue thread");
-    await userEvent.type(reply, "This should survive a failed save.");
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Add follow-up" }),
-    );
-
-    await expect(args.onCreateComment).toHaveBeenCalled();
-    await expect(reply).toHaveValue("This should survive a failed save.");
-    await expect(canvas.getByRole("alert")).toHaveTextContent(
-      "Comment save failed. Try again.",
-    );
-
-    await userEvent.type(reply, " Continuing.");
-    await expect(canvas.queryByRole("alert")).toBeNull();
-    await expect(reply).toHaveValue(
-      "This should survive a failed save. Continuing.",
-    );
-  },
-};
-
-export const UserWritesOneDraftComment: Story = {
-  tags: ["interaction"],
-  args: {
-    thread: {
-      key: "draft-review-1",
-      path: sampleFiles.code.path,
-      lineStart: 6,
-      lineEnd: 6,
-      status: "open",
-      comments: [draftReviewCommentAsViviComment(sampleDraftComments[0]!)],
-    },
-    draft: {
-      path: sampleFiles.code.path,
-      viewerKind: "text",
-      anchor: sampleDraftComments[0]!.anchor,
-      threadId: draftReviewCommentAsViviComment(sampleDraftComments[0]!)
-        .threadId,
-    },
-  },
-  play: async ({ args, canvasElement }) => {
-    const canvas = within(canvasElement);
-    expect(canvas.getAllByText("Pending").length).toBeGreaterThan(0);
-    await expect(canvas.getByText("Pending draft")).toBeVisible();
-    await expect(canvas.getByText("Continue thread")).toBeVisible();
-    await expect(canvas.getByLabelText("Continue thread")).toBeVisible();
-    await expect(canvas.queryByText("Private draft")).not.toBeInTheDocument();
-    await expect(canvas.queryByText("Private")).not.toBeInTheDocument();
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Delete pending draft comment 1" }),
-    );
-    await expect(args.onDeleteDraft).toHaveBeenCalledWith(
-      sampleDraftComments[0]!.id,
-    );
-  },
-};
-
-export const UserWritesMultipleDraftComments: Story = {
-  args: {
-    thread: {
-      key: "draft-review-multiple",
-      path: sampleFiles.code.path,
-      lineStart: 6,
-      lineEnd: 10,
-      status: "open",
-      comments: sampleDraftComments
-        .filter((draft) => draft.path === sampleFiles.code.path)
-        .map((draft) => draftReviewCommentAsViviComment(draft)),
-    },
-    draft: {
-      path: sampleFiles.code.path,
-      viewerKind: "text",
-      anchor: sampleDraftComments[0]!.anchor,
-    },
-  },
-};
-
-export const AgentHasReadThread: Story = {
-  args: {
-    ...args("open"),
-    activity: summarizeThreadActivity(
-      sampleThreadActivities["thread-workbench-open"]?.timeline.filter(
-        (event) => event.type === "thread_read",
-      ),
-    ),
-  },
-};
-
-export const AgentHasReplied: Story = {
-  args: {
-    ...args("open"),
-    activity: sampleThreadActivities["thread-workbench-open"],
-  },
-};

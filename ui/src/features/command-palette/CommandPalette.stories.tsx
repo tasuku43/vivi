@@ -97,8 +97,8 @@ export const Actions: Story = {
     actions: [
       {
         id: "next-open-thread",
-        label: "Next open thread",
-        detail: "Move to the next unresolved thread across review files",
+        label: "Next feedback",
+        detail: "Move to the next feedback item across review files",
         shortcut: "Cmd/Ctrl ]",
       },
       {

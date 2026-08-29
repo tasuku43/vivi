@@ -6,13 +6,9 @@ export type KeyboardShortcutAction =
   | "toggle-sidebar"
   | "toggle-inspector"
   | "focus-current-inline-thread"
-  | "toggle-current-thread-status"
-  | "archive-current-thread"
-  | "open-in-review-reply"
-  | "open-latest-unread"
+  | "open-latest-unseen"
   | "open-next-review"
   | "open-previous-review"
-  | "mark-current-reviewed"
   | "open-next-thread"
   | "open-previous-thread"
   | "open-next-search-result"
@@ -45,15 +41,9 @@ export function keyboardShortcutAction(
   if (!event.shiftKey && key === "b") return "toggle-sidebar";
   if (event.shiftKey && key === "\\") return "toggle-inspector";
   if (!event.shiftKey && key === "i") return "focus-current-inline-thread";
-  if (event.shiftKey && event.key === "Enter")
-    return "toggle-current-thread-status";
-  if (event.shiftKey && event.key === "Backspace")
-    return "archive-current-thread";
-  if (event.shiftKey && key === "i") return "open-in-review-reply";
-  if (event.shiftKey && key === "u") return "open-latest-unread";
+  if (event.shiftKey && key === "u") return "open-latest-unseen";
   if (event.shiftKey && key === "j") return "open-next-review";
   if (event.shiftKey && key === "k") return "open-previous-review";
-  if (event.shiftKey && key === "m") return "mark-current-reviewed";
   if (!event.shiftKey && key === "]") return "open-next-thread";
   if (!event.shiftKey && key === "[") return "open-previous-thread";
   if (!event.shiftKey && key === "g") return "open-next-search-result";
