@@ -47,6 +47,43 @@ export interface ReviewQueueBuildOptions {
   recentActivityByPath?: Readonly<Record<string, number>>;
 }
 
+export interface UnavailableFeedbackItem {
+  path: string;
+  publishedCount: number;
+  draftCount: number;
+}
+
+export function buildUnavailableFeedbackItems(
+  comments: readonly ViviComment[],
+  drafts: readonly DraftReviewComment[],
+  missingPaths: ReadonlySet<string>,
+): UnavailableFeedbackItem[] {
+  const counts = new Map<string, UnavailableFeedbackItem>();
+  for (const comment of comments) {
+    if (!isHumanFeedback(comment) || !missingPaths.has(comment.path)) continue;
+    const item = counts.get(comment.path) ?? {
+      path: comment.path,
+      publishedCount: 0,
+      draftCount: 0,
+    };
+    item.publishedCount += 1;
+    counts.set(comment.path, item);
+  }
+  for (const draft of drafts) {
+    if (!missingPaths.has(draft.path)) continue;
+    const item = counts.get(draft.path) ?? {
+      path: draft.path,
+      publishedCount: 0,
+      draftCount: 0,
+    };
+    item.draftCount += 1;
+    counts.set(draft.path, item);
+  }
+  return [...counts.values()].sort((left, right) =>
+    left.path.localeCompare(right.path),
+  );
+}
+
 /**
  * Builds a file-level attention queue from recent activity plus explicit pins.
  * Pending drafts and published feedback that no agent has seen are pins;
@@ -60,7 +97,11 @@ export function buildReviewQueueItems(
   options: ReviewQueueBuildOptions = {},
 ): ReviewQueueItem[] {
   const threads = collectThreads(comments.filter(isHumanFeedback));
-  const paths = new Set(changes.map((change) => change.path));
+  const paths = new Set(
+    changes
+      .map((change) => change.path)
+      .filter((path) => !options.knownMissingPaths?.has(path)),
+  );
   for (const path of Object.keys(options.recentActivityByPath ?? {})) {
     if (!options.knownMissingPaths?.has(path)) paths.add(path);
   }

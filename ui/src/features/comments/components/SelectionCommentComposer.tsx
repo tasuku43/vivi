@@ -2,8 +2,14 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { CommentDraft } from "../../../state/comments.js";
 import { commentLineLabelForAnchor } from "../../../state/comments.js";
-import { commentInputSessionId } from "../../../state/comment-input-session.js";
-import { useCommentInputSessions } from "../CommentInputSessionProvider.js";
+import {
+  commentInputSessionId,
+  commentInputSessionIsCollapsed,
+} from "../../../state/comment-input-session.js";
+import {
+  useCommentInputResumePaneId,
+  useCommentInputSessions,
+} from "../CommentInputSessionProvider.js";
 import styles from "./SelectionCommentComposer.module.css";
 
 const composerWidth = 384;
@@ -29,16 +35,31 @@ export function SelectionCommentComposer({
   currentFileHash?: string;
 }) {
   const inputs = useCommentInputSessions();
-  const restoredSession = [...inputs.sessions]
-    .reverse()
-    .find(
+  const resumePaneId = useCommentInputResumePaneId();
+  const lastProcessedResumeRevisionRef = useRef(0);
+  const requestedSession =
+    inputs.resumeIntent &&
+    inputs.resumeIntent.paneId === resumePaneId &&
+    inputs.resumeIntent.revision > lastProcessedResumeRevisionRef.current
+      ? inputs.sessions.find(
+          (session) =>
+            session.id === inputs.resumeIntent?.sessionId &&
+            session.draft.path === restorePath &&
+            session.rect,
+        )
+      : undefined;
+  const restoredSession =
+    requestedSession ??
+    [...inputs.sessions].reverse().find(
       (session) =>
         session.draft.path === restorePath &&
         session.rect &&
-        session.status !== "collapsed",
+        !commentInputSessionIsCollapsed(session),
     );
-  const effectiveDraft = draft ?? restoredSession?.draft ?? null;
-  const effectiveRect = rect ?? restoredSession?.rect ?? null;
+  const effectiveDraft =
+    requestedSession?.draft ?? draft ?? restoredSession?.draft ?? null;
+  const effectiveRect =
+    requestedSession?.rect ?? rect ?? restoredSession?.rect ?? null;
   const inputId = effectiveDraft ? commentInputSessionId(effectiveDraft) : null;
   const inputSession = inputId
     ? inputs.sessions.find((session) => session.id === inputId)
@@ -63,6 +84,34 @@ export function SelectionCommentComposer({
       inputs.markPathVersion(restorePath, currentFileHash);
     }
   }, [currentFileHash, inputs.markPathVersion, restorePath]);
+
+  useEffect(() => {
+    const intent = inputs.resumeIntent;
+    if (!intent || requestedSession?.id !== inputId) return;
+    lastProcessedResumeRevisionRef.current = intent.revision;
+    for (const session of inputs.sessions) {
+      if (
+        session.id !== requestedSession.id &&
+        session.draft.path === requestedSession.draft.path &&
+        session.rect &&
+        !commentInputSessionIsCollapsed(session)
+      ) {
+        inputs.collapse(session.id);
+      }
+    }
+    const frame = window.requestAnimationFrame(() => {
+      const target =
+        inputSession?.status === "stale"
+          ? composerRef.current?.querySelector<HTMLButtonElement>(
+              "button[data-stale-reanchor]",
+            )
+          : composerRef.current?.querySelector<HTMLTextAreaElement>("textarea");
+      target?.focus({ preventScroll: true });
+      composerRef.current?.scrollIntoView({ block: "center", inline: "nearest" });
+      inputs.acknowledgeResume(intent.revision, resumePaneId);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [inputs.resumeIntent?.revision, inputId, requestedSession?.id]);
 
   useLayoutEffect(() => {
     if (!effectiveDraft || !effectiveRect) return;
@@ -185,6 +234,7 @@ export function SelectionCommentComposer({
           <div>
             <button
               type="button"
+              data-stale-reanchor
               onClick={() =>
                 inputs.reanchor(inputId, {
                   ...effectiveDraft,

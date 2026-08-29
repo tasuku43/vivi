@@ -115,6 +115,26 @@ it("assembles file context through GraphQL", async () => {
   expect(request.mock.calls.map(([url]) => String(url))).toEqual(["/graphql"]);
 });
 
+it("classifies GraphQL file-not-found without treating permission errors as missing", async () => {
+  const missing = new LightGraphqlViviClient({
+    fetch: vi.fn<typeof fetch>(async () =>
+      Response.json({ errors: [{ message: "open gone.md: no such file or directory" }] }),
+    ),
+  });
+  const forbidden = new LightGraphqlViviClient({
+    fetch: vi.fn<typeof fetch>(async () =>
+      Response.json({ errors: [{ message: "permission denied: private.md" }] }),
+    ),
+  });
+
+  await expect(missing.getFileContext({ path: "gone.md" })).rejects.toMatchObject({
+    code: "not_found",
+  });
+  await expect(
+    forbidden.getFileContext({ path: "private.md" }),
+  ).rejects.toMatchObject({ code: "forbidden" });
+});
+
 it("loads comment thread activity through GraphQL", async () => {
   const request = vi.fn<typeof fetch>(async (_input, init) => {
     const body = JSON.parse(String(init?.body));

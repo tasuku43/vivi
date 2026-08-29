@@ -469,8 +469,8 @@ export const PreviewDraftComposerReplacesTarget: Story = {
   },
 };
 
-export const SinglePreviewDraftFormFixedSlot: Story = {
-  name: "HTML preview keeps one fixed draft composer",
+export const SinglePreviewDraftFormAnchoredPopover: Story = {
+  name: "HTML preview keeps one anchored draft composer",
   tags: ["interaction"],
   args: {
     mode: "preview",
@@ -512,11 +512,8 @@ export const SinglePreviewDraftFormFixedSlot: Story = {
       expect(host?.style.top).not.toBe("");
       return host!;
     });
-    const firstSlot = {
-      left: firstHost.style.left,
-      top: firstHost.style.top,
-      width: firstHost.style.width,
-    };
+    await expect(firstHost).toHaveAttribute("data-placement");
+    await expect(getComputedStyle(firstHost).position).toBe("fixed");
     const hoverStatePromise = waitForHtmlDraftHoverState(frame);
     frame.contentWindow?.postMessage(
       { type: "vivi-story-hover-layout", selector: ".viewer" },
@@ -557,9 +554,44 @@ export const SinglePreviewDraftFormFixedSlot: Story = {
       ".html-rendered-comment-thread-host",
     );
     await expect(secondHost).toBeInTheDocument();
-    expect(secondHost?.style.left).toBe(firstSlot.left);
-    expect(secondHost?.style.top).toBe(firstSlot.top);
-    expect(secondHost?.style.width).toBe(firstSlot.width);
+    await expect(secondHost).toHaveAttribute("data-placement");
+    await expect(getComputedStyle(secondHost!).position).toBe("fixed");
+  },
+};
+
+export const PreviewLegacySourceFeedbackUsesOneViewerThread: Story = {
+  name: "HTML preview owns projected legacy source feedback",
+  tags: ["interaction"],
+  args: {
+    mode: "preview",
+    activeCommentId: "comment-html-rendered",
+    comments: commentsForPath(sampleFiles.html.path).map((comment) =>
+      comment.id === "comment-html-rendered"
+        ? {
+            ...comment,
+            anchor: {
+              surface: "source" as const,
+              canonical: comment.anchor.canonical,
+            },
+          }
+        : comment,
+    ),
+    previewSrcDoc: htmlCommentPreviewStoryDocument(sampleFiles.html.path),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const frame = (await canvas.findByTitle(
+      sampleFiles.html.path,
+    )) as HTMLIFrameElement;
+    await waitForHtmlDraftPreviewReady(frame);
+    const thread = await canvas.findByRole("article", {
+      name: "Comment thread for lines 6-7",
+    });
+    await expect(
+      within(thread).getByText(/HTML rendered comments should be visible/),
+    ).toBeVisible();
+    await expect(canvas.getAllByRole("article")).toHaveLength(1);
+    await expect(canvas.queryByRole("textbox")).not.toBeInTheDocument();
   },
 };
 

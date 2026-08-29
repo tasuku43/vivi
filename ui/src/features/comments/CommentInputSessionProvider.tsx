@@ -5,6 +5,7 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -23,10 +24,17 @@ import {
 
 interface CommentInputSessionContextValue {
   sessions: CommentInputSession[];
+  resumeIntent: {
+    sessionId: string;
+    revision: number;
+    paneId: string | null;
+  } | null;
   setWorkspaceRoot: (root: string) => void;
   start: (draft: CommentDraft, rect?: CommentInputRect) => void;
   change: (draft: CommentDraft, body: string, rect?: CommentInputRect) => void;
   collapse: (id: string) => void;
+  resume: (id: string, paneId?: string | null) => void;
+  acknowledgeResume: (revision: number, paneId?: string | null) => void;
   discard: (id: string) => void;
   discardAnchors: (anchorKeys: string[]) => void;
   discardEmptyAnchors: (anchorKeys: string[]) => void;
@@ -36,10 +44,13 @@ interface CommentInputSessionContextValue {
 
 const emptyCommentInputSessionContext: CommentInputSessionContextValue = {
   sessions: [],
+  resumeIntent: null,
   setWorkspaceRoot: () => undefined,
   start: () => undefined,
   change: () => undefined,
   collapse: () => undefined,
+  resume: () => undefined,
+  acknowledgeResume: () => undefined,
   discard: () => undefined,
   discardAnchors: () => undefined,
   discardEmptyAnchors: () => undefined,
@@ -51,6 +62,7 @@ const CommentInputSessionContext =
   createContext<CommentInputSessionContextValue>(
     emptyCommentInputSessionContext,
   );
+const CommentInputResumePaneContext = createContext<string | null>(null);
 
 export function CommentInputSessionProvider({
   children,
@@ -60,6 +72,12 @@ export function CommentInputSessionProvider({
   const [sessions, dispatch] = useReducer(reduceCommentInputSessions, []);
   const [persistenceRoot, setPersistenceRoot] = useState<string | null>(null);
   const [hydratedRoot, setHydratedRoot] = useState<string | null>(null);
+  const [resumeIntent, setResumeIntent] = useState<{
+    sessionId: string;
+    revision: number;
+    paneId: string | null;
+  } | null>(null);
+  const resumeRevisionRef = useRef(0);
   const setWorkspaceRoot = useCallback((root: string) => {
     if (!root) return;
     let restored: CommentInputSession[] = [];
@@ -91,6 +109,25 @@ export function CommentInputSessionProvider({
   );
   const collapse = useCallback(
     (id: string) => dispatch({ type: "collapse", id }),
+    [],
+  );
+  const resume = useCallback((id: string, paneId: string | null = null) => {
+    dispatch({ type: "expand", id });
+    resumeRevisionRef.current += 1;
+    setResumeIntent({
+      sessionId: id,
+      revision: resumeRevisionRef.current,
+      paneId,
+    });
+  }, []);
+  const acknowledgeResume = useCallback(
+    (revision: number, paneId: string | null = null) => {
+      setResumeIntent((current) =>
+        current?.revision === revision && current.paneId === paneId
+          ? null
+          : current,
+      );
+    },
     [],
   );
   const discard = useCallback(
@@ -137,10 +174,13 @@ export function CommentInputSessionProvider({
   const value = useMemo<CommentInputSessionContextValue>(
     () => ({
       sessions,
+      resumeIntent,
       setWorkspaceRoot,
       start,
       change,
       collapse,
+      resume,
+      acknowledgeResume,
       discard,
       discardAnchors,
       discardEmptyAnchors,
@@ -148,6 +188,7 @@ export function CommentInputSessionProvider({
       reanchor,
     }),
     [
+      acknowledgeResume,
       change,
       collapse,
       discard,
@@ -155,6 +196,8 @@ export function CommentInputSessionProvider({
       discardEmptyAnchors,
       markPathVersion,
       reanchor,
+      resume,
+      resumeIntent,
       sessions,
       setWorkspaceRoot,
       start,
@@ -169,6 +212,24 @@ export function CommentInputSessionProvider({
 
 export function useCommentInputSessions(): CommentInputSessionContextValue {
   return useContext(CommentInputSessionContext);
+}
+
+export function CommentInputResumePaneProvider({
+  paneId,
+  children,
+}: {
+  paneId: string;
+  children: ReactNode;
+}) {
+  return (
+    <CommentInputResumePaneContext.Provider value={paneId}>
+      {children}
+    </CommentInputResumePaneContext.Provider>
+  );
+}
+
+export function useCommentInputResumePaneId(): string | null {
+  return useContext(CommentInputResumePaneContext);
 }
 
 export function useCommentInputSession(draft: CommentDraft) {

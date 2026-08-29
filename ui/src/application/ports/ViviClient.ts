@@ -98,3 +98,30 @@ export interface ViviClient {
     options?: WorkspaceEventSubscriptionOptions,
   ): () => void;
 }
+
+export type ViviClientErrorCode = "not_found" | "forbidden" | "transport";
+
+export class ViviClientError extends Error {
+  readonly code: ViviClientErrorCode;
+  readonly status?: number;
+
+  constructor(
+    code: ViviClientErrorCode,
+    message: string,
+    options: { status?: number; cause?: unknown } = {},
+  ) {
+    super(message, { cause: options.cause });
+    this.name = "ViviClientError";
+    this.code = code;
+    this.status = options.status;
+  }
+}
+
+export function isViviClientError(
+  error: unknown,
+  code?: ViviClientErrorCode,
+): error is ViviClientError {
+  return (
+    error instanceof ViviClientError && (code === undefined || error.code === code)
+  );
+}

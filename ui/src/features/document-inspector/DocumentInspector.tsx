@@ -34,6 +34,11 @@ export interface DocumentInspectorProps {
   threadActivities?: Record<string, CommentActivitySummary>;
   unsavedInputCount?: number;
   resumableInput?: { path: string; location: string } | null;
+  resumableInputs?: Array<{
+    id: string;
+    path: string;
+    location: string;
+  }>;
   change?: ReviewChangeItem | null;
   diffStat?: DiffStat | null;
   diffLoading?: boolean;
@@ -43,7 +48,7 @@ export interface DocumentInspectorProps {
   onOpenDraft?: (draft: DraftReviewComment) => void;
   onPublishDrafts?: (draftIds?: string[]) => void | Promise<void>;
   publishDisabled?: boolean;
-  onResumeInput?: () => void;
+  onResumeInput?: (id: string) => void;
   onToggleChanges?: () => void;
   reviewQueueCount?: number;
   onOpenReviewQueue?: () => void;
@@ -60,6 +65,7 @@ export function DocumentInspector({
   threadActivities = {},
   unsavedInputCount = 0,
   resumableInput = null,
+  resumableInputs,
   change = null,
   diffStat = null,
   diffLoading = false,
@@ -74,6 +80,9 @@ export function DocumentInspector({
   reviewQueueCount = 0,
   onOpenReviewQueue,
 }: DocumentInspectorProps) {
+  const visibleResumableInputs =
+    resumableInputs ??
+    (resumableInput ? [{ id: "resumable-input", ...resumableInput }] : []);
   const documentDrafts = file
     ? draftComments.filter((draft) => draft.path === file.path)
     : [];
@@ -173,16 +182,18 @@ export function DocumentInspector({
                     {unsavedInputCount} unsaved{" "}
                     {unsavedInputCount === 1 ? "input" : "inputs"}
                   </span>
-                  {resumableInput && onResumeInput ? (
-                    <button
-                      type="button"
-                      aria-label={`Resume input in ${resumableInput.path}, ${resumableInput.location}`}
-                      onClick={onResumeInput}
-                    >
-                      Resume {basename(resumableInput.path)} ·{" "}
-                      {resumableInput.location}
-                    </button>
-                  ) : null}
+                  {onResumeInput
+                    ? visibleResumableInputs.map((input) => (
+                        <button
+                          type="button"
+                          key={input.id}
+                          aria-label={`Resume input in ${input.path}, ${input.location}`}
+                          onClick={() => onResumeInput(input.id)}
+                        >
+                          Resume {basename(input.path)} · {input.location}
+                        </button>
+                      ))
+                    : null}
                 </div>
               ) : null}
 
@@ -190,9 +201,7 @@ export function DocumentInspector({
                 <ReadyToPublishPanel
                   scope="document"
                   items={documentReadyItems}
-                  localInput={
-                    resumableInput?.path === file.path ? resumableInput : null
-                  }
+                  localInput={visibleResumableInputs[0] ?? null}
                   excludedInputCount={unsavedInputCount}
                   onOpenItem={(item) => {
                     const draft = documentReadyDraftGroups.find(
@@ -200,7 +209,10 @@ export function DocumentInspector({
                     )?.[1][0];
                     if (draft) onOpenDraft?.(draft);
                   }}
-                  onResumeInput={() => onResumeInput?.()}
+                  onResumeInput={() => {
+                    const input = visibleResumableInputs[0];
+                    if (input) onResumeInput?.(input.id);
+                  }}
                   onReview={() => {
                     if (documentDrafts[0]) onOpenDraft?.(documentDrafts[0]);
                   }}

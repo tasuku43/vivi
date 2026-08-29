@@ -2,6 +2,10 @@ import type {
   ViviClient,
   WorkspaceEventSubscriptionOptions,
 } from "../../application/ports/ViviClient.js";
+import {
+  viviClientGraphqlError,
+  viviClientHttpError,
+} from "./client-errors.js";
 import type {
   CommentListFilters,
   CommentExportFilters,
@@ -360,11 +364,13 @@ export class LightGraphqlViviClient implements ViviClient {
       signal: init.signal,
     });
     if (!response.ok) {
-      throw new Error(`/graphql request failed: ${response.status}`);
+      throw viviClientHttpError("/graphql", response.status);
     }
     const payload = (await response.json()) as GraphqlResponse<T>;
     if (payload.errors?.length) {
-      throw new Error(payload.errors.map((error) => error.message).join("; "));
+      throw viviClientGraphqlError(
+        payload.errors.map((error) => error.message),
+      );
     }
     if (!payload.data) {
       throw new Error("/graphql response did not include data");
@@ -375,7 +381,7 @@ export class LightGraphqlViviClient implements ViviClient {
   private async getJson<T>(path: string, init: RequestInit = {}): Promise<T> {
     const response = await this.request(this.url(path), init);
     if (!response.ok) {
-      throw new Error(`${path} request failed: ${response.status}`);
+      throw viviClientHttpError(path, response.status);
     }
     return response.json() as Promise<T>;
   }

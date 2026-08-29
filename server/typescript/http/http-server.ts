@@ -1369,8 +1369,8 @@ function renderEmbeddedMermaidPreviewHtml(
     ? replaceHtmlElementBlocks(
         html,
         new Set(["pre", "div", "code"]),
-        ({ match, attributes, innerHtml }) => {
-          if (!hasMermaidClass(attributes)) return match;
+        ({ match, tagName, attributes, innerHtml }) => {
+          if (!isMermaidElement(tagName, attributes, innerHtml)) return match;
           const source = htmlToText(innerHtml).trim();
           if (!source) return match;
           const id = `vivi-html-mermaid-${index}`;
@@ -1417,12 +1417,31 @@ function replaceHtmlElementBlocks(
     }
     const openingTag = html.slice(tagStart, tagEnd + 1);
     const tagName = tagNameFromOpeningTag(openingTag);
+    if (tagName && htmlRawTextTagNames.has(tagName)) {
+      const closeStart = findRawTextClosingTagStart(html, tagName, tagEnd + 1);
+      if (closeStart === -1) {
+        output += html.slice(tagStart);
+        break;
+      }
+      const closeEnd = findTagEnd(html, closeStart);
+      if (closeEnd === -1) {
+        output += html.slice(tagStart);
+        break;
+      }
+      output += html.slice(tagStart, closeEnd + 1);
+      index = closeEnd + 1;
+      continue;
+    }
     if (!tagName || !tagNames.has(tagName) || isSelfClosingTag(openingTag)) {
       output += openingTag;
       index = tagEnd + 1;
       continue;
     }
-    const closeStart = findClosingTagStart(html, tagName, tagEnd + 1);
+    const closeStart = findMatchingClosingTagStart(
+      html,
+      tagName,
+      tagEnd + 1,
+    );
     if (closeStart === -1) {
       output += openingTag;
       index = tagEnd + 1;
@@ -1433,15 +1452,36 @@ function replaceHtmlElementBlocks(
       output += html.slice(tagStart);
       break;
     }
-    output += replaceBlock({
-      match: html.slice(tagStart, closeEnd + 1),
+    const match = html.slice(tagStart, closeEnd + 1);
+    const innerHtml = html.slice(tagEnd + 1, closeStart);
+    const replacement = replaceBlock({
+      match,
       tagName,
       attributes: openingTagAttributes(openingTag, tagName),
-      innerHtml: html.slice(tagEnd + 1, closeStart),
+      innerHtml,
     });
+    output +=
+      replacement === match
+        ? `${openingTag}${replaceHtmlElementBlocks(
+            innerHtml,
+            tagNames,
+            replaceBlock,
+          )}${html.slice(closeStart, closeEnd + 1)}`
+        : replacement;
     index = closeEnd + 1;
   }
   return output;
+}
+
+const htmlRawTextTagNames = new Set(["script", "style", "textarea", "title"]);
+
+function findRawTextClosingTagStart(
+  html: string,
+  tagName: string,
+  from: number,
+): number {
+  const closing = new RegExp(`</${tagName}\\s*>`, "i").exec(html.slice(from));
+  return closing ? from + closing.index : -1;
 }
 
 function htmlCommentBlockAttributes(attributes: string): string {
@@ -1454,9 +1494,25 @@ function htmlCommentBlockAttributes(attributes: string): string {
     .join("");
 }
 
+function isMermaidElement(
+  tagName: string,
+  attributes: string,
+  innerHtml: string,
+): boolean {
+  if (hasMermaidClass(attributes)) return true;
+  if (tagName !== "pre") return false;
+  const nestedCode = /^\s*<code\b([^>]*)>/i.exec(innerHtml);
+  return Boolean(nestedCode && hasMermaidClass(nestedCode[1] ?? ""));
+}
+
 function hasMermaidClass(attributes: string): boolean {
-  const match = /\sclass\s*=\s*(["'])(.*?)\1/i.exec(attributes);
-  return Boolean(match?.[2].split(/\s+/).includes("mermaid"));
+  const match = /(?:^|\s)class\s*=\s*(?:(["'])(.*?)\1|([^\s>]+))/i.exec(
+    attributes,
+  );
+  const value = match?.[2] ?? match?.[3] ?? "";
+  return value
+    .split(/\s+/)
+    .some((className) => className === "mermaid" || className === "language-mermaid");
 }
 
 function hasClosedMermaidCandidate(html: string): boolean {
@@ -1493,6 +1549,16 @@ function stripHtmlTags(html: string): string {
     if (tagEnd === -1) break;
     const rawTag = html.slice(tagStart, tagEnd + 1);
     const tagName = tagNameFromOpeningTag(rawTag);
+    if (
+      tagName &&
+      /^(?:address|article|aside|blockquote|div|figcaption|figure|footer|h[1-6]|header|li|main|nav|p|pre|section|tr)$/i.test(
+        tagName,
+      ) &&
+      output &&
+      !output.endsWith("\n")
+    ) {
+      output += "\n";
+    }
     if (tagName === "script" || tagName === "style") {
       const closeTag = `</${tagName}>`;
       const closeStart = html.toLowerCase().indexOf(closeTag, tagEnd + 1);
@@ -1573,6 +1639,33 @@ function findClosingTagStart(html: string, tagName: string, from = 0): number {
   return -1;
 }
 
+function findMatchingClosingTagStart(
+  html: string,
+  tagName: string,
+  from: number,
+): number {
+  let depth = 1;
+  let cursor = from;
+  while (cursor < html.length) {
+    const opening = findOpeningTagStart(html, tagName, cursor);
+    const closing = findClosingTagStart(html, tagName, cursor);
+    if (closing === -1) return -1;
+    if (opening !== -1 && opening < closing) {
+      const openingEnd = findTagEnd(html, opening);
+      if (openingEnd === -1) return -1;
+      if (!isSelfClosingTag(html.slice(opening, openingEnd + 1))) depth += 1;
+      cursor = openingEnd + 1;
+      continue;
+    }
+    depth -= 1;
+    if (depth === 0) return closing;
+    const closingEnd = findTagEnd(html, closing);
+    if (closingEnd === -1) return -1;
+    cursor = closingEnd + 1;
+  }
+  return -1;
+}
+
 function injectHtmlPreviewRuntime(
   html: string,
   options: {
@@ -1582,7 +1675,6 @@ function injectHtmlPreviewRuntime(
     path: string;
   },
 ): string {
-  if (/data-vivi-mermaid-preview/i.test(html)) return html;
   const palette = htmlPreviewPalette(options.theme);
   const styles = `<style data-vivi-mermaid-preview data-vivi-html-theme="${options.theme}">
 	html{color-scheme:${options.theme};}
@@ -1928,6 +2020,10 @@ function injectHtmlPreviewRuntime(
     pendingRenderedThreadOpen = false;
     if (renderedThreadOpen()) setHoveredBlock(null);
     applyHighlights();
+    if (openBlockIds.length) {
+      const openIds = new Set(openBlockIds);
+      commentableBlocks().find((block) => openIds.has(block.dataset.viviCommentBlockId))?.scrollIntoView({ block: "center", inline: "nearest" });
+    }
     if (activeCommentId && activeCommentId !== previousActiveCommentId && !renderedThreadOpen()) {
       const comment = renderedComments.find((item) => item.id === activeCommentId);
       const target = targetForBlocks(comment ? findBlocksForComment(comment) : []);

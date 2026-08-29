@@ -115,6 +115,59 @@ func TestHTMLPreviewSkipsUnclosedMermaidCandidates(t *testing.T) {
 	}
 }
 
+func TestHTMLPreviewRecognizesCommonMermaidClassForms(t *testing.T) {
+	input := `<pre class=mermaid>flowchart LR\nA-->B</pre><pre><code class="language-mermaid">sequenceDiagram\nA->>B: Hi</code></pre>`
+
+	rendered := renderEmbeddedMermaidPreviewHTML(input, "index.html", "nonce", "dark", false)
+
+	if count := strings.Count(rendered, `<figure class="html-mermaid"`); count != 2 {
+		t.Fatalf("converted mermaid blocks = %d, want 2\n%s", count, rendered)
+	}
+	if !strings.Contains(rendered, `/vivi/vendor/mermaid.min.js`) {
+		t.Fatalf("rendered preview is missing Mermaid runtime")
+	}
+}
+
+func TestHTMLPreviewKeepsNestedMermaidElementBalanced(t *testing.T) {
+	input := `<main data-vivi-mermaid-preview="authored"><div class="preview-wrapper"><div class="mermaid">flowchart LR
+A-->B</div></div><p>After diagram</p></main>`
+
+	rendered := renderEmbeddedMermaidPreviewHTML(input, "index.html", "nonce", "dark", false)
+
+	if count := strings.Count(rendered, `<figure class="html-mermaid"`); count != 1 {
+		t.Fatalf("converted mermaid blocks = %d, want 1\n%s", count, rendered)
+	}
+	if !strings.Contains(rendered, `<p>After diagram</p></main>`) {
+		t.Fatalf("nested conversion malformed the surrounding document: %s", rendered)
+	}
+	if !strings.Contains(rendered, `/vivi/vendor/mermaid.min.js`) {
+		t.Fatalf("authored marker must not suppress the preview runtime")
+	}
+	if !strings.Contains(rendered, "data-mermaid-source=\"flowchart LR\nA-->B\"") {
+		t.Fatalf("nested Mermaid source lost its line break: %s", rendered)
+	}
+}
+
+func TestHTMLPreviewLeavesMermaidLikeRawTextUntouched(t *testing.T) {
+	input := `<script>window.template = "<div class=mermaid>graph TD; A-->B</div>";</script><style>.x::after{content:"<pre class=mermaid>A-->B</pre>"}</style><textarea><div class=mermaid>not markup</div></textarea><title><div class=mermaid>title</div></title><pre class=mermaid>flowchart LR\nA-->B</pre>`
+
+	rendered := renderEmbeddedMermaidPreviewHTML(input, "index.html", "nonce", "dark", true)
+
+	if count := strings.Count(rendered, `<figure class="html-mermaid"`); count != 1 {
+		t.Fatalf("converted mermaid blocks = %d, want only the authored element\n%s", count, rendered)
+	}
+	for _, decoy := range []string{
+		`window.template = "<div class=mermaid>graph TD; A-->B</div>";`,
+		`.x::after{content:"<pre class=mermaid>A-->B</pre>"}`,
+		`<textarea><div class=mermaid>not markup</div></textarea>`,
+		`<title><div class=mermaid>title</div></title>`,
+	} {
+		if !strings.Contains(rendered, decoy) {
+			t.Fatalf("raw-text content was rewritten: %q\n%s", decoy, rendered)
+		}
+	}
+}
+
 func TestAddHeadingIDsSkipsDocumentsWithoutHeadingCandidates(t *testing.T) {
 	input := `<body ` + strings.Repeat("<body ", 2000) + `><p>ok</p></body>`
 

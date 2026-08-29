@@ -179,6 +179,26 @@ export const WiredInspector: Story = {
       }
       reviewComments={[wiredUnseenComment]}
       draftComments={[wiredDraft]}
+      unsavedInputCount={2}
+      resumableInputs={[
+        {
+          id: "input-product-brief",
+          path: "docs/product/01-product-brief.md",
+          location: "Line 12",
+        },
+        {
+          id: "input-product-review",
+          path: "docs/product-review.md",
+          location: "Lines 8-9",
+        },
+      ]}
+      unavailableFeedbackItems={[
+        {
+          path: "archive/moved-review.md",
+          publishedCount: 2,
+          draftCount: 0,
+        },
+      ]}
       selectedCodeRange={null}
       activePath="docs/product/01-product-brief.md"
       activePaneId="main"
@@ -190,6 +210,7 @@ export const WiredInspector: Story = {
       onRevealInTree={() => undefined}
       onOpenDraft={() => undefined}
       onPublishDrafts={() => args.onPublishPath(wiredDraft.path)}
+      onResumeInput={(id) => args.onSelectPath(id)}
       onOpenDocument={args.onSelectDocument}
     />
   ),
@@ -222,6 +243,18 @@ export const WiredInspectorFilterInteraction: Story = {
     await expect(
       canvasElement.querySelector(".review-thread-count-toggle"),
     ).not.toBeInTheDocument();
+    const resumeButtons = canvas.getAllByRole("button", {
+      name: /Resume input in/,
+    });
+    await expect(resumeButtons).toHaveLength(2);
+    await userEvent.click(resumeButtons[1]!);
+    await expect(args.onSelectPath).toHaveBeenCalledWith(
+      "input-product-review",
+    );
+    const unavailable = canvas.getByText("Unavailable feedback · 1");
+    await expect(unavailable).toBeVisible();
+    await userEvent.click(unavailable);
+    await expect(canvas.getByText("moved-review.md")).toBeVisible();
 
     await userEvent.click(draftsFilter);
     await expect(draftsFilter).toBeChecked();

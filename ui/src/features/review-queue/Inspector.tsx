@@ -27,6 +27,7 @@ import {
   reviewQueuePosition,
   reviewQueueSignalCounts,
   type ReviewQueueItem,
+  type UnavailableFeedbackItem,
 } from "../../state/review-queue.js";
 import { gitReviewUnavailableGuidance } from "../../state/git-review-refresh.js";
 import type { OutlineHeading } from "../../state/outline.js";
@@ -39,6 +40,7 @@ interface Props {
   fileRemoved?: boolean;
   reviewChanges: ReviewChangeItem[];
   reviewItems?: ReviewQueueItem[];
+  unavailableFeedbackItems?: UnavailableFeedbackItem[];
   reviewLoading?: boolean;
   reviewUnavailableReason?: string | null;
   reviewDiffStats: Record<string, DiffStat | null>;
@@ -52,6 +54,11 @@ interface Props {
     path: string;
     location: string;
   } | null;
+  resumableInputs?: Array<{
+    id: string;
+    path: string;
+    location: string;
+  }>;
   commentsLoading?: boolean;
   threadActivities?: Record<string, CommentActivitySummary>;
   activeCommentId?: string | null;
@@ -72,13 +79,14 @@ interface Props {
   onPublishDrafts?: (draftIds?: string[]) => void | Promise<void>;
   publishDisabled?: boolean;
   onOpenDocument?: () => void;
-  onResumeInput?: () => void;
+  onResumeInput?: (id: string) => void;
 }
 
 export function Inspector({
   file,
   reviewChanges,
   reviewItems,
+  unavailableFeedbackItems = [],
   reviewLoading = false,
   reviewUnavailableReason = null,
   reviewDiffStats,
@@ -89,6 +97,7 @@ export function Inspector({
   draftComments = [],
   unsavedInputCount = 0,
   resumableInput = null,
+  resumableInputs,
   activePath = file?.path ?? null,
   onOpenEventPath,
   onConfirmEventPath,
@@ -98,6 +107,9 @@ export function Inspector({
   onOpenDocument,
   onResumeInput,
 }: Props) {
+  const visibleResumableInputs =
+    resumableInputs ??
+    (resumableInput ? [{ id: "resumable-input", ...resumableInput }] : []);
   const queueItems: ReviewQueueItem[] =
     reviewItems ??
     reviewChanges.map((change) => ({
@@ -275,16 +287,18 @@ export function Inspector({
                 {unsavedInputCount === 1 ? "input" : "inputs"} in progress
                 <span>Not included in Publish until saved.</span>
               </p>
-              {resumableInput && onResumeInput ? (
-                <button
-                  type="button"
-                  aria-label={`Resume input in ${resumableInput.path}, ${resumableInput.location}`}
-                  onClick={onResumeInput}
-                >
-                  Resume {basenameForPath(resumableInput.path)} ·{" "}
-                  {resumableInput.location}
-                </button>
-              ) : null}
+              {onResumeInput
+                ? visibleResumableInputs.map((input) => (
+                    <button
+                      type="button"
+                      key={input.id}
+                      aria-label={`Resume input in ${input.path}, ${input.location}`}
+                      onClick={() => onResumeInput(input.id)}
+                    >
+                      Resume {basenameForPath(input.path)} · {input.location}
+                    </button>
+                  ))
+                : null}
             </div>
           ) : null}
           {queueItems.length ? (
@@ -387,6 +401,32 @@ export function Inspector({
                 need attention right now.
               </span>
             </div>
+          ) : null}
+          {unavailableFeedbackItems.length ? (
+            <details className="review-unavailable-feedback">
+              <summary>
+                Unavailable feedback · {unavailableFeedbackItems.length}
+              </summary>
+              <p>
+                Source files were moved or deleted. Excluded from active
+                navigation.
+              </p>
+              <ul>
+                {unavailableFeedbackItems.map((item) => (
+                  <li key={item.path}>
+                    <strong>{basenameForPath(item.path)}</strong>
+                    <span title={item.path}>{directoryForPath(item.path)}</span>
+                    <small>
+                      {item.publishedCount
+                        ? `${item.publishedCount} published`
+                        : ""}
+                      {item.publishedCount && item.draftCount ? " · " : ""}
+                      {item.draftCount ? `${item.draftCount} drafts` : ""}
+                    </small>
+                  </li>
+                ))}
+              </ul>
+            </details>
           ) : null}
         </div>
       </div>

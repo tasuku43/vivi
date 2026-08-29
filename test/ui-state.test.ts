@@ -297,7 +297,7 @@ it("detects when active comments are already rendered inside the viewer", () => 
       viewerKind: "html",
       viewerMode: "preview",
     }),
-  ).toBe(false);
+  ).toBe(true);
   expect(
     activeCommentRendersInViewerThread({
       comment: renderedHtmlComment,
@@ -2546,7 +2546,7 @@ it("does not let legacy terminal thread state suppress recent activity", () => {
   });
 });
 
-it("hides stale comment-only paths while keeping git review paths", () => {
+it("hides every source path known missing from the active review queue", () => {
   const comments = [
     {
       ...makeReviewComment("stale-1", "README.md", "open"),
@@ -2582,14 +2582,9 @@ it("hides stale comment-only paths while keeping git review paths", () => {
     },
   );
 
-  expect(items.map((item) => item.path).sort()).toEqual([
-    "docs/agent.md",
-    "docs/deleted.md",
-  ]);
+  expect(items.map((item) => item.path).sort()).toEqual(["docs/agent.md"]);
   expect(items.find((item) => item.path === "README.md")).toBeUndefined();
-  expect(items.find((item) => item.path === "docs/deleted.md")).toMatchObject({
-    change: { status: "deleted" },
-  });
+  expect(items.find((item) => item.path === "docs/deleted.md")).toBeUndefined();
 });
 
 it("navigates the prioritized work queue and keeps read receipts low-noise", () => {

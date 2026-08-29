@@ -32,16 +32,55 @@ import {
   type CommentCreateHandler,
   type CommentDraft,
 } from "../../../state/comments.js";
-import { commentInputSessionId } from "../../../state/comment-input-session.js";
+import {
+  commentInputSessionId,
+  commentInputSessionIsCollapsed,
+  type CommentInputSession,
+} from "../../../state/comment-input-session.js";
 import { CodeCommentThread } from "./CodeCommentThread.js";
-import { useCommentInputSessions } from "../CommentInputSessionProvider.js";
+import {
+  useCommentInputResumePaneId,
+  useCommentInputSessions,
+} from "../CommentInputSessionProvider.js";
 import railStyles from "./LineCommentRail.module.css";
 import styles from "./SourceCommentSurface.module.css";
 
 type SourceDraftThread = {
   thread: CodeCommentThreadModel;
   draft: CommentDraft;
+  reanchorDraft: CommentDraft;
 };
+
+export function sourceDraftThreadForSession(
+  file: FilePayload,
+  session: CommentInputSession,
+): SourceDraftThread | null {
+  const lines = splitCodeLines(file.content);
+  const storedStart = session.draft.anchor.canonical.lineStart;
+  if (!storedStart || !lines.length) return null;
+  const storedEnd = session.draft.anchor.canonical.lineEnd ?? storedStart;
+  const currentRange = normalizeLineRange(storedStart, storedEnd, lines.length);
+  return {
+    thread: {
+      key: sourceInputThreadKey(session.id),
+      path: file.path,
+      lineStart: currentRange.start,
+      lineEnd: currentRange.end,
+      comments: [],
+    },
+    // Keep this identity so the composer reads the persisted body and stale
+    // state. Re-anchor adopts the current hash and the clamped visible range.
+    draft: session.draft,
+    reanchorDraft: {
+      ...sourceCommentDraft(
+        file,
+        currentRange,
+        lines.slice(currentRange.start - 1, currentRange.end).join("\n"),
+      ),
+      threadId: session.draft.threadId,
+    },
+  };
+}
 
 export function SourceCommentSurface({
   file,
@@ -77,16 +116,22 @@ export function SourceCommentSurface({
   threadActivities?: Record<string, CommentActivitySummary>;
 }) {
   const commentInputs = useCommentInputSessions();
+  const resumePaneId = useCommentInputResumePaneId();
   const [anchorLine, setAnchorLine] = useState<number | null>(null);
   const [expandedThreads, setExpandedThreads] = useState<
     ExpandedSourceThread[]
   >([]);
+  const [resumeFocus, setResumeFocus] = useState<{
+    sessionId: string;
+    revision: number;
+  } | null>(null);
   const [lineDragging, setLineDragging] = useState(false);
   const [highlightState, setHighlightState] = useState(() => ({
     visible: highlightedLines ?? null,
     pending: highlightedLines ?? null,
   }));
   const linesRef = useRef<HTMLDivElement | null>(null);
+  const lastProcessedResumeRevisionRef = useRef(0);
   const lineDragRef = useRef<{
     start: number;
     current: number;
@@ -110,23 +155,10 @@ export function SourceCommentSurface({
       session.draft.anchor.surface === "source",
   );
   const draftThreads: SourceDraftThread[] = pathInputSessions
-    .filter((session) => session.status !== "collapsed")
+    .filter((session) => !commentInputSessionIsCollapsed(session))
     .flatMap((session) => {
-      const lineStart = session.draft.anchor.canonical.lineStart;
-      if (!lineStart) return [];
-      const lineEnd = session.draft.anchor.canonical.lineEnd ?? lineStart;
-      return [
-        {
-          thread: {
-            key: sourceInputThreadKey(session.id),
-            path: file.path,
-            lineStart,
-            lineEnd,
-            comments: [],
-          },
-          draft: session.draft,
-        },
-      ];
+      const projection = sourceDraftThreadForSession(file, session);
+      return projection ? [projection] : [];
     });
   const activeThread = activeCommentId
     ? commentThreads.find((thread) =>
@@ -185,6 +217,35 @@ export function SourceCommentSurface({
     });
     return () => window.cancelAnimationFrame(frame);
   }, [file.path, focusLineNumber, focusRevision]);
+
+  useEffect(() => {
+    const intent = commentInputs.resumeIntent;
+    if (
+      !intent ||
+      intent.paneId !== resumePaneId ||
+      intent.revision <= lastProcessedResumeRevisionRef.current
+    ) {
+      return;
+    }
+    const session = pathInputSessions.find(
+      (candidate) => candidate.id === intent.sessionId,
+    );
+    const lineStart = session?.draft.anchor.canonical.lineStart;
+    if (!session || !lineStart) return;
+    lastProcessedResumeRevisionRef.current = intent.revision;
+    setResumeFocus({ sessionId: session.id, revision: intent.revision });
+    commentInputs.acknowledgeResume(intent.revision, resumePaneId);
+    const lineEnd = session.draft.anchor.canonical.lineEnd ?? lineStart;
+    const currentRange = normalizeLineRange(lineStart, lineEnd, lines.length);
+    setExpandedThreads([]);
+    setAnchorLine(currentRange.start);
+    onSelectionChange(currentRange);
+    linesRef.current
+      ?.querySelector<HTMLElement>(
+        `.code-line[data-line="${currentRange.end}"]`,
+      )
+      ?.scrollIntoView({ block: "center", inline: "nearest" });
+  }, [commentInputs.resumeIntent?.revision, file.path]);
 
   function selectLine(lineNumber: number, shiftKey: boolean) {
     const next =
@@ -318,6 +379,7 @@ export function SourceCommentSurface({
         comments: [],
       },
       draft,
+      reanchorDraft: draft,
     };
     setExpandedThreads([]);
     setAnchorLine(normalized.start);
@@ -521,6 +583,7 @@ export function SourceCommentSurface({
                 ),
                 threadId,
               },
+              reanchorDraft: undefined,
             };
           }),
           ...(draftingThread && draftThread
@@ -529,6 +592,7 @@ export function SourceCommentSurface({
                   thread: draftThread.thread,
                   threadId: undefined,
                   draft: draftThread.draft,
+                  reanchorDraft: draftThread.reanchorDraft,
                 },
               ]
             : []),
@@ -619,6 +683,7 @@ export function SourceCommentSurface({
                 <CodeCommentThread
                   thread={entry.thread}
                   draft={entry.draft}
+                  reanchorDraft={entry.reanchorDraft}
                   activity={
                     entry.threadId
                       ? threadActivities[entry.threadId]
@@ -629,6 +694,12 @@ export function SourceCommentSurface({
                   onCreateComment={onCreateComment}
                   onClose={() =>
                     closeCommentThread(entry.thread.key, entry.thread)
+                  }
+                  focusRevision={
+                    resumeFocus?.sessionId ===
+                    commentInputSessionId(entry.draft)
+                      ? resumeFocus.revision
+                      : 0
                   }
                 />
               </div>

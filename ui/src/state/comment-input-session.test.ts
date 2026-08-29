@@ -116,6 +116,36 @@ describe("comment input sessions", () => {
     expect(reanchored[0]?.draft.anchor.canonical.fileHash).toBe("sha256:v2");
   });
 
+  it("keeps stale freshness while allowing the composer to collapse and resume", () => {
+    const input = draft();
+    const stale = reduceCommentInputSessions(
+      reduceCommentInputSessions(
+        reduceCommentInputSessions([], {
+          type: "change",
+          draft: input,
+          body: "Preserve this stale thought",
+        }),
+        {
+          type: "mark-path-version",
+          path: input.path,
+          fileHash: "sha256:v2",
+        },
+      ),
+      { type: "collapse", id: commentInputSessionId(input) },
+    );
+    const resumed = reduceCommentInputSessions(stale, {
+      type: "expand",
+      id: commentInputSessionId(input),
+    });
+
+    expect(stale[0]).toMatchObject({ status: "stale", collapsed: true });
+    expect(resumed[0]).toMatchObject({
+      status: "stale",
+      collapsed: false,
+      body: "Preserve this stale thought",
+    });
+  });
+
   it("removes input only through discard", () => {
     const input = draft();
     const started = reduceCommentInputSessions([], {

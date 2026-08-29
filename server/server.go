@@ -807,41 +807,151 @@ func maxInt(a, b int) int {
 }
 
 func renderEmbeddedMermaidPreviewHTML(rawHTML, relativePath, nonce, theme string, allowScripts bool) string {
-	if regexp.MustCompile(`(?i)data-vivi-mermaid-preview`).MatchString(rawHTML) {
-		return rawHTML
-	}
 	if !hasClosedMermaidCandidate(rawHTML) {
 		return injectPreviewRuntime(rawHTML, relativePath, nonce, theme, allowScripts, false)
 	}
 	blockIndex := 0
-	blockRe := regexp.MustCompile(`(?is)<(pre|div|code)(\s[^>]*)?>(.*?)</(?:pre|div|code)>`)
-	rendered := blockRe.ReplaceAllStringFunc(rawHTML, func(match string) string {
-		parts := blockRe.FindStringSubmatch(match)
-		if len(parts) < 4 || !hasMermaidClass(parts[2]) {
-			return match
-		}
-		source := strings.TrimSpace(htmlToText(parts[3]))
-		if source == "" {
-			return match
-		}
-		id := fmt.Sprintf("vivi-html-mermaid-%d", blockIndex)
-		blockIndex++
-		scriptStatus := "user scripts inactive"
-		if allowScripts {
-			scriptStatus = "user scripts active"
-		}
-		commentAttributes := htmlCommentBlockAttributes(parts[2])
-		return fmt.Sprintf(
-			`<figure class="html-mermaid" id="%s" data-vivi-html-mermaid data-mermaid-status="pending" data-mermaid-custom-style="%t" data-mermaid-source="%s"%s><figcaption>Mermaid preview - %s</figcaption><div class="mermaid-render-target" aria-live="polite"></div><div class="markdown-mermaid-fallback unsupported"><p>Mermaid preview is loading. Source is shown below if rendering fails.</p><details class="markdown-mermaid-source"><summary>Mermaid source</summary><pre><code>%s</code></pre></details></div></figure>`,
-			escapeAttribute(id),
-			hasCustomMermaidStyle(source),
-			escapeAttribute(source),
-			commentAttributes,
-			scriptStatus,
-			escapeHTML(source),
-		)
-	})
+	rendered := rawHTML
+	for _, tagName := range []string{"pre", "div", "code"} {
+		rendered = replaceHTMLElementBlocks(rendered, tagName, func(match, attributes, innerHTML string) string {
+			if !isMermaidElement(tagName, attributes, innerHTML) {
+				return match
+			}
+			source := strings.TrimSpace(htmlToText(innerHTML))
+			if source == "" {
+				return match
+			}
+			id := fmt.Sprintf("vivi-html-mermaid-%d", blockIndex)
+			blockIndex++
+			scriptStatus := "user scripts inactive"
+			if allowScripts {
+				scriptStatus = "user scripts active"
+			}
+			commentAttributes := htmlCommentBlockAttributes(attributes)
+			return fmt.Sprintf(
+				`<figure class="html-mermaid" id="%s" data-vivi-html-mermaid data-mermaid-status="pending" data-mermaid-custom-style="%t" data-mermaid-source="%s"%s><figcaption>Mermaid preview - %s</figcaption><div class="mermaid-render-target" aria-live="polite"></div><div class="markdown-mermaid-fallback unsupported"><p>Mermaid preview is loading. Source is shown below if rendering fails.</p><details class="markdown-mermaid-source"><summary>Mermaid source</summary><pre><code>%s</code></pre></details></div></figure>`,
+				escapeAttribute(id),
+				hasCustomMermaidStyle(source),
+				escapeAttribute(source),
+				commentAttributes,
+				scriptStatus,
+				escapeHTML(source),
+			)
+		})
+	}
 	return injectPreviewRuntime(rendered, relativePath, nonce, theme, allowScripts, blockIndex > 0)
+}
+
+func replaceHTMLElementBlocks(rawHTML, tagName string, replace func(match, attributes, innerHTML string) string) string {
+	openingRe := regexp.MustCompile(`(?is)<` + regexp.QuoteMeta(tagName) + `(\s[^>]*)?>`)
+	rawTextRanges := htmlRawTextRanges(rawHTML)
+	var output strings.Builder
+	index := 0
+	for index < len(rawHTML) {
+		parts := openingRe.FindStringSubmatchIndex(rawHTML[index:])
+		if parts == nil {
+			output.WriteString(rawHTML[index:])
+			break
+		}
+		start := index + parts[0]
+		openingEnd := index + parts[1]
+		if rawTextEnd, ok := containingHTMLRawTextRange(rawTextRanges, start); ok {
+			output.WriteString(rawHTML[index:rawTextEnd])
+			index = rawTextEnd
+			continue
+		}
+		output.WriteString(rawHTML[index:start])
+		closeStart, closeEnd := findMatchingHTMLClosingTag(rawHTML, tagName, openingEnd)
+		if closeStart == -1 {
+			output.WriteString(rawHTML[start:openingEnd])
+			index = openingEnd
+			continue
+		}
+		attributes := ""
+		if parts[2] >= 0 {
+			attributes = rawHTML[index+parts[2] : index+parts[3]]
+		}
+		match := rawHTML[start:closeEnd]
+		innerHTML := rawHTML[openingEnd:closeStart]
+		replacement := replace(
+			match,
+			attributes,
+			innerHTML,
+		)
+		if replacement == match {
+			output.WriteString(rawHTML[start:openingEnd])
+			output.WriteString(replaceHTMLElementBlocks(innerHTML, tagName, replace))
+			output.WriteString(rawHTML[closeStart:closeEnd])
+		} else {
+			output.WriteString(replacement)
+		}
+		index = closeEnd
+	}
+	return output.String()
+}
+
+type htmlTextRange struct {
+	start int
+	end   int
+}
+
+func htmlRawTextRanges(rawHTML string) []htmlTextRange {
+	openingRe := regexp.MustCompile(`(?is)<(script|style|textarea|title)(?:\s[^>]*)?>`)
+	ranges := make([]htmlTextRange, 0)
+	cursor := 0
+	for cursor < len(rawHTML) {
+		parts := openingRe.FindStringSubmatchIndex(rawHTML[cursor:])
+		if parts == nil {
+			break
+		}
+		start := cursor + parts[0]
+		openingEnd := cursor + parts[1]
+		tagName := rawHTML[cursor+parts[2] : cursor+parts[3]]
+		closingRe := regexp.MustCompile(`(?is)</` + regexp.QuoteMeta(tagName) + `\s*>`)
+		closing := closingRe.FindStringIndex(rawHTML[openingEnd:])
+		if closing == nil {
+			ranges = append(ranges, htmlTextRange{start: start, end: len(rawHTML)})
+			break
+		}
+		end := openingEnd + closing[1]
+		ranges = append(ranges, htmlTextRange{start: start, end: end})
+		cursor = end
+	}
+	return ranges
+}
+
+func containingHTMLRawTextRange(ranges []htmlTextRange, offset int) (int, bool) {
+	for _, candidate := range ranges {
+		if offset >= candidate.start && offset < candidate.end {
+			return candidate.end, true
+		}
+	}
+	return 0, false
+}
+
+func findMatchingHTMLClosingTag(rawHTML, tagName string, from int) (int, int) {
+	tokenRe := regexp.MustCompile(`(?is)</?` + regexp.QuoteMeta(tagName) + `(?:\s[^>]*)?>`)
+	depth := 1
+	cursor := from
+	for cursor < len(rawHTML) {
+		location := tokenRe.FindStringIndex(rawHTML[cursor:])
+		if location == nil {
+			return -1, -1
+		}
+		start := cursor + location[0]
+		end := cursor + location[1]
+		token := strings.TrimSpace(rawHTML[start:end])
+		if strings.HasPrefix(token, "</") {
+			depth--
+			if depth == 0 {
+				return start, end
+			}
+		} else if !strings.HasSuffix(strings.TrimSuffix(token, ">"), "/") {
+			depth++
+		}
+		cursor = end
+	}
+	return -1, -1
 }
 
 func hasClosedMermaidCandidate(rawHTML string) bool {
@@ -1219,6 +1329,10 @@ pre{border:1px solid %s;border-radius:8px;padding:12px;overflow:auto;}
     pendingRenderedThreadOpen = false;
     if (renderedThreadOpen()) setHoveredBlock(null);
     applyHighlights();
+    if (openBlockIds.length) {
+      const openIds = new Set(openBlockIds);
+      commentableBlocks().find((block) => openIds.has(block.dataset.viviCommentBlockId))?.scrollIntoView({ block: "center", inline: "nearest" });
+    }
     if (activeCommentId && activeCommentId !== previousActiveCommentId && !renderedThreadOpen()) {
       const comment = renderedComments.find((item) => item.id === activeCommentId);
       const target = targetForBlocks(comment ? findBlocksForComment(comment) : []);
@@ -1306,16 +1420,31 @@ pre{border:1px solid %s;border-radius:8px;padding:12px;overflow:auto;}
 }
 
 func hasMermaidClass(attributes string) bool {
-	match := regexp.MustCompile(`(?is)\sclass\s*=\s*["']([^"']*)["']`).FindStringSubmatch(attributes)
+	match := regexp.MustCompile(`(?is)(?:^|\s)class\s*=\s*(?:["']([^"']*)["']|([^\s>]+))`).FindStringSubmatch(attributes)
 	if len(match) < 2 {
 		return false
 	}
-	for _, className := range strings.Fields(match[1]) {
-		if className == "mermaid" {
+	value := match[1]
+	if value == "" && len(match) > 2 {
+		value = match[2]
+	}
+	for _, className := range strings.Fields(value) {
+		if className == "mermaid" || className == "language-mermaid" {
 			return true
 		}
 	}
 	return false
+}
+
+func isMermaidElement(tagName, attributes, innerHTML string) bool {
+	if hasMermaidClass(attributes) {
+		return true
+	}
+	if strings.ToLower(tagName) != "pre" {
+		return false
+	}
+	match := regexp.MustCompile(`(?is)^\s*<code\b([^>]*)>`).FindStringSubmatch(innerHTML)
+	return len(match) > 1 && hasMermaidClass(match[1])
 }
 
 func htmlCommentBlockAttributes(attributes string) string {
@@ -1335,6 +1464,7 @@ func htmlCommentBlockAttributes(attributes string) string {
 
 func htmlToText(value string) string {
 	value = regexp.MustCompile(`(?i)<br\s*/?>`).ReplaceAllString(value, "\n")
+	value = regexp.MustCompile(`(?i)</?(?:address|article|aside|blockquote|div|figcaption|figure|footer|h[1-6]|header|li|main|nav|p|pre|section|tr)(?:\s[^>]*)?>`).ReplaceAllString(value, "\n")
 	value = regexp.MustCompile(`<[^>]+>`).ReplaceAllString(value, "")
 	return stdhtml.UnescapeString(value)
 }

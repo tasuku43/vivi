@@ -14,6 +14,7 @@ import {
   type CommentDraft,
 } from "../../../state/comments.js";
 import type { ViewerMode } from "../../../state/viewer-mode.js";
+import { useCommentInputSessions } from "../../comments/CommentInputSessionProvider.js";
 import {
   commentsForPath,
   humanTasuku,
@@ -530,7 +531,8 @@ export const RenderedMarkdownSyntaxGallery: Story = {
   },
 };
 
-export const MultipleRenderedDraftFormsStayOpen: Story = {
+export const RenderedDraftTargetSwitchesWithoutReflow: Story = {
+  name: "Rendered Markdown keeps one anchored composer without reflow",
   tags: ["interaction"],
   args: {
     mode: "rendered",
@@ -542,18 +544,70 @@ export const MultipleRenderedDraftFormsStayOpen: Story = {
       canvas.getByRole("heading", { name: "Review Surface" }),
     );
     await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(1);
+    const paragraph = canvas.getByText(
+      "Vivi keeps the human review surface close to the files that changed.",
+    );
+    const paragraphTop = paragraph.getBoundingClientRect().top;
 
+    await doubleClickRenderedBlock(paragraph);
+
+    await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(1);
+    await expect(paragraph).toHaveClass("drafting-rendered-comment");
+    await expect(
+      Math.abs(paragraph.getBoundingClientRect().top - paragraphTop),
+    ).toBeLessThan(2);
+    const host = canvasElement.querySelector<HTMLElement>(
+      ".markdown-rendered-comment-thread-host",
+    );
+    await expect(host).toBeVisible();
+    await expect(getComputedStyle(host!).position).toBe("fixed");
+    await expect(host).toHaveAttribute("data-placement");
+    await expect(
+      rectanglesOverlap(
+        paragraph.getBoundingClientRect(),
+        host!.getBoundingClientRect(),
+      ),
+    ).toBe(false);
+  },
+};
+
+export const RenderedResumeChoosesExactInput: Story = {
+  name: "Rendered Markdown resumes the exact input",
+  tags: ["interaction"],
+  render: () => <ExactResumeHarness />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await doubleClickRenderedBlock(
+      canvas.getByRole("heading", { name: "Review Surface" }),
+    );
+    await userEvent.type(canvas.getByLabelText("New line comment"), "Heading thought");
     await doubleClickRenderedBlock(
       canvas.getByText(
         "Vivi keeps the human review surface close to the files that changed.",
       ),
     );
+    await userEvent.type(canvas.getByLabelText("New line comment"), "Paragraph thought");
 
-    await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(2);
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Resume Heading thought" }),
+    );
+    await expect(canvas.getByLabelText("New line comment")).toHaveValue(
+      "Heading thought",
+    );
+    await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
+
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Resume Paragraph thought" }),
+    );
+    await expect(canvas.getByLabelText("New line comment")).toHaveValue(
+      "Paragraph thought",
+    );
+    await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
+    await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(1);
   },
 };
 
-export const RenderedListDraftFormsDoNotBridge: Story = {
+export const RenderedListDraftSwitchDoesNotReflow: Story = {
   tags: ["interaction"],
   args: {
     mode: "rendered",
@@ -590,20 +644,16 @@ export const RenderedListDraftFormsDoNotBridge: Story = {
       canvas.getByText(/source\/rendered split-view exploration/),
     );
 
-    await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(2);
-    await expect(docReader).toHaveClass("drafting-rendered-comment");
+    await expect(canvas.getAllByLabelText("New line comment")).toHaveLength(1);
+    await expect(docReader).not.toHaveClass("drafting-rendered-comment");
     await expect(splitWorkbench).toHaveClass("drafting-rendered-comment");
     await expect(previewLab).not.toHaveClass("drafting-rendered-comment");
     await expect(
       canvasElement.querySelectorAll(".rendered-comment-range-join-after"),
     ).toHaveLength(0);
-    await waitFor(() =>
-      expect(
-        Number.parseFloat(
-          docReader.style.getPropertyValue("--rendered-comment-block-bottom"),
-        ),
-      ).toBeGreaterThan(0),
-    );
+    await expect(
+      docReader.style.getPropertyValue("--rendered-comment-block-bottom"),
+    ).toBe("");
   },
 };
 
@@ -782,8 +832,8 @@ export const RenderedMarkdownMultipleLineThreads: Story = {
   },
 };
 
-export const RenderedMarkdownOpenThreadBesideNewDraft: Story = {
-  name: "Rendered Markdown can show an existing thread beside a new draft",
+export const RenderedMarkdownOpenThreadSwitchesToNewDraft: Story = {
+  name: "Rendered Markdown switches an open thread to a new draft",
   tags: ["interaction", "current-ui-observation", "snapshot-ready"],
   args: {
     mode: "rendered",
@@ -817,14 +867,13 @@ export const RenderedMarkdownOpenThreadBesideNewDraft: Story = {
     ).toBeVisible();
     await expect(
       canvas.getAllByRole("article", { name: /Comment thread for line/ }),
-    ).toHaveLength(2);
-    await waitFor(() =>
-      expect(
-        Number.parseFloat(
-          listItem.style.getPropertyValue("--rendered-comment-block-bottom"),
-        ),
-      ).toBeGreaterThan(0),
-    );
+    ).toHaveLength(1);
+    await expect(
+      canvas.queryByRole("article", { name: "Comment thread for line 3" }),
+    ).not.toBeInTheDocument();
+    await expect(
+      listItem.style.getPropertyValue("--rendered-comment-block-bottom"),
+    ).toBe("");
     await waitForRenderedBlockMetricsToSettle(listItem);
     await waitForRenderedSnapshotLayoutToSettle(canvasElement);
     canvasElement.dataset.viviSnapshotReady = "true";
@@ -997,6 +1046,15 @@ function doubleClickRenderedBlock(element: Element): void {
   fireEvent.dblClick(element);
 }
 
+function rectanglesOverlap(left: DOMRect, right: DOMRect): boolean {
+  return !(
+    left.right <= right.left ||
+    right.right <= left.left ||
+    left.bottom <= right.top ||
+    right.bottom <= left.top
+  );
+}
+
 function SourceInputReturnHarness() {
   const [mode, setMode] = useState<ViewerMode>("source");
   return (
@@ -1012,6 +1070,39 @@ function SourceInputReturnHarness() {
       onOpenComment={fn()}
       onOpenPath={fn()}
     />
+  );
+}
+
+function ExactResumeHarness() {
+  const inputs = useCommentInputSessions();
+  return (
+    <>
+      <div style={{ position: "fixed", left: 12, bottom: 12, zIndex: 2147483647 }}>
+        {inputs.sessions
+          .filter((session) => session.body.trim())
+          .map((session) => (
+            <button
+              key={session.id}
+              type="button"
+              aria-label={`Resume ${session.body}`}
+              onClick={() => inputs.resume(session.id)}
+            >
+              Resume
+            </button>
+          ))}
+      </div>
+      <MarkdownViewer
+        file={sampleFiles.markdown}
+        mode="rendered"
+        theme="light"
+        comments={[]}
+        onCreateComment={fn()}
+        onDiffToggle={fn()}
+        onCloseComment={fn()}
+        onOpenComment={fn()}
+        onOpenPath={fn()}
+      />
+    </>
   );
 }
 

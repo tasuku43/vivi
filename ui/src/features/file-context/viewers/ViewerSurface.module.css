@@ -183,7 +183,7 @@
   position: relative;
 }
 
-.htmlRenderedCommentThreadHost {
+.renderedCommentThreadHost {
   position: fixed;
   z-index: 70;
   overflow: auto;
@@ -191,7 +191,7 @@
   line-height: normal;
 }
 
-.htmlRenderedCommentThreadHost > :global(.rendered-comment-thread) {
+.renderedCommentThreadHost > :global(.rendered-comment-thread) {
   width: 100%;
 }
 

@@ -144,7 +144,9 @@
         "All, Unseen, Drafts, and Changed filters expose their counts and preserve attention ordering",
         "each row keeps the parent path as secondary metadata for disambiguation",
         "draft publication stays available on the actionable file row",
-        "recent activity expires after 30 minutes while drafts and unseen feedback remain pinned"
+        "recent activity expires after 30 minutes while drafts and unseen feedback remain pinned",
+        "inputs are listed only for open files and every listed input resumes its exact session",
+        "missing sources leave active counts and navigation while their feedback remains inspectable in a collapsed unavailable section"
       ],
       "requiredStories": [
         "Review/Queue Signal Ledger/MixedSignals",
@@ -164,7 +166,9 @@
       "reviewFocus": [
         "Markdown and HTML remain readable without implying editing",
         "rendered and source modes preserve document context",
-        "HTML preview remains sandboxed"
+        "Markdown and HTML use one anchored no-reflow rendered-feedback popover",
+        "HTML preview remains sandboxed and common Mermaid markup renders as SVG",
+        "projected legacy HTML feedback is owned by the viewer without a duplicate global card"
       ],
       "requiredStories": [
         "Files/Viewer Coverage States/MarkdownKnownViewer",
@@ -179,13 +183,15 @@
         "Files/Markdown Review States/RenderedBlockClickDraft",
         "Files/Markdown Review States/RenderedShowsSourceInputReturn",
         "Files/Markdown Review States/RenderedMarkdownSyntaxGallery",
-        "Files/Markdown Review States/RenderedMarkdownOpenThreadBesideNewDraft",
+        "Files/Markdown Review States/RenderedMarkdownOpenThreadSwitchesToNewDraft",
         "Files/Markdown Review States/RenderedSameAnchorStartsNewFeedback",
-        "Files/Markdown Review States/RenderedListDraftFormsDoNotBridge",
+        "Files/Markdown Review States/RenderedListDraftSwitchDoesNotReflow",
+        "Files/Markdown Review States/RenderedDraftTargetSwitchesWithoutReflow",
         "Files/Markdown Review States/RenderedMarkerPlacement",
         "Files/Markdown Review States/RenderedMarkdownComment",
         "Files/HTML Preview States/PreviewHtmlPatternGallery",
-        "Files/HTML Preview States/SinglePreviewDraftFormFixedSlot",
+        "Files/HTML Preview States/SinglePreviewDraftFormAnchoredPopover",
+        "Files/HTML Preview States/PreviewLegacySourceFeedbackUsesOneViewerThread",
         "Files/HTML Preview States/PreviewMultipleRenderedHtmlLineThreads",
         "Files/HTML Preview States/PreviewDraftComposerReplacesTarget",
         "Files/HTML Preview States/PreviewSavedDraftKeepsPendingComposer",

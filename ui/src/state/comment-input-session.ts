@@ -8,6 +8,8 @@ export interface CommentInputSession {
   draft: CommentDraft;
   body: string;
   status: CommentInputSessionStatus;
+  /** Display state is separate from anchor freshness so stale inputs can close. */
+  collapsed?: boolean;
   rect?: CommentInputRect;
 }
 
@@ -28,6 +30,7 @@ export type CommentInputSessionAction =
       rect?: CommentInputRect;
     }
   | { type: "collapse"; id: string }
+  | { type: "expand"; id: string }
   | { type: "discard"; id: string }
   | { type: "discard-anchors"; anchorKeys: string[] }
   | { type: "discard-empty-anchors"; anchorKeys: string[] }
@@ -53,6 +56,12 @@ export function commentInputSessionForDraft(
         commentInputAnchorKey(session.draft) === commentInputAnchorKey(draft),
     )
   );
+}
+
+export function commentInputSessionIsCollapsed(
+  session: Pick<CommentInputSession, "status" | "collapsed">,
+): boolean {
+  return session.collapsed === true || session.status === "collapsed";
 }
 
 export function reduceCommentInputSessions(
@@ -81,8 +90,23 @@ export function reduceCommentInputSessions(
   }
   if (action.type === "collapse") {
     return sessions.map((session) =>
-      session.id === action.id && session.status !== "stale"
-        ? { ...session, status: "collapsed" }
+      session.id === action.id
+        ? {
+            ...session,
+            status: session.status === "stale" ? "stale" : "collapsed",
+            collapsed: true,
+          }
+        : session,
+    );
+  }
+  if (action.type === "expand") {
+    return sessions.map((session) =>
+      session.id === action.id
+        ? {
+            ...session,
+            status: session.status === "stale" ? "stale" : "open",
+            collapsed: false,
+          }
         : session,
     );
   }
@@ -97,7 +121,12 @@ export function reduceCommentInputSessions(
   if (action.type === "reanchor") {
     return sessions.map((session) =>
       session.id === action.id
-        ? { ...session, draft: action.draft, status: "open" }
+        ? {
+            ...session,
+            draft: action.draft,
+            status: "open",
+            collapsed: false,
+          }
         : session,
     );
   }
@@ -112,6 +141,7 @@ export function reduceCommentInputSessions(
         draft: action.draft,
         body: action.type === "change" ? action.body : "",
         status: "open",
+        collapsed: false,
         rect: action.rect,
       },
     ];
@@ -124,6 +154,7 @@ export function reduceCommentInputSessions(
       draft: session.status === "stale" ? session.draft : action.draft,
       body: action.type === "change" ? action.body : session.body,
       status: session.status === "stale" ? "stale" : "open",
+      collapsed: false,
       rect: action.rect ?? session.rect,
     };
   });
@@ -190,11 +221,15 @@ export function normalizeRestoredCommentInputSessions(
     if (session.status === "stale" && !session.body.trim()) continue;
     const key = restoredCommentInputAnchorKey(session.draft);
     const existing = normalized.get(key);
+    const restoredSession =
+      session.status === "collapsed"
+        ? { ...session, collapsed: true as const }
+        : session;
     normalized.set(
       key,
-      existing && preferRestoredCommentInputSession(existing, session)
+      existing && preferRestoredCommentInputSession(existing, restoredSession)
         ? existing
-        : session,
+        : restoredSession,
     );
   }
   return [...normalized.values()];
@@ -211,6 +246,19 @@ export function unsavedCommentInputCount(
       (!surface || session.draft.anchor.surface === surface) &&
       Boolean(session.body.trim()),
   ).length;
+}
+
+export function resumableCommentInputSessions(
+  sessions: readonly CommentInputSession[],
+  openPaths: ReadonlySet<string>,
+  activePath?: string | null,
+): CommentInputSession[] {
+  return sessions.filter(
+    (session) =>
+      Boolean(session.body.trim()) &&
+      openPaths.has(session.draft.path) &&
+      (activePath === undefined || session.draft.path === activePath),
+  );
 }
 
 export function commentInputAnchorKey(draft: CommentDraft): string {

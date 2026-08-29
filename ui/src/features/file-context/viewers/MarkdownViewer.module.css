@@ -103,12 +103,6 @@
   --rendered-comment-marker-top: calc(0.85em + 1px);
 }
 
-:global(
-  .markdown li.vivi-rendered-comment-block:has(> .rendered-comment-thread-host)
-) {
-  --rendered-comment-block-bottom-pad: 11px;
-}
-
 :global(.markdown pre.vivi-rendered-comment-block) {
   --rendered-comment-marker-left: calc(100% - 28px);
   --rendered-comment-marker-top: 18px;
@@ -377,24 +371,4 @@
     .rendered-comment-marker:focus-visible
 ) {
   transform: translateY(calc(-50% - 1px));
-}
-
-:global(.rendered-comment-thread-host) {
-  width: min(680px, 100%);
-  margin: 8px 0 20px;
-  line-height: normal;
-}
-
-:global(.rendered-comment-thread-host > .rendered-comment-thread) {
-  width: 100%;
-}
-
-:global(.markdown li > .rendered-comment-thread-host) {
-  margin-bottom: 10px;
-}
-
-:global(.markdown .rendered-comment-thread-table-row > td) {
-  padding: 8px 14px 14px;
-  border-bottom: 1px solid var(--vivi-color-border-default);
-  background: transparent;
 }

@@ -20,8 +20,11 @@ import {
   type CommentCreateHandler,
   type CommentDraft,
 } from "../../../state/comments.js";
-import { commentInputSessionId } from "../../../state/comment-input-session.js";
-import { unsavedCommentInputCount } from "../../../state/comment-input-session.js";
+import {
+  commentInputSessionId,
+  commentInputSessionIsCollapsed,
+  unsavedCommentInputCount,
+} from "../../../state/comment-input-session.js";
 import type { LineRange } from "../../../state/code-viewer.js";
 import { extractHighlightedLines } from "../../../state/highlighted-lines.js";
 import {
@@ -30,8 +33,16 @@ import {
 } from "../../../state/rendered-comment-blocks.js";
 import type { ResolvedTheme } from "../../../state/theme.js";
 import type { ViewerMode } from "../../../state/viewer-mode.js";
+import {
+  positionRenderedCommentThread,
+  sameRenderedCommentThreadPosition,
+  type RenderedCommentThreadPosition,
+} from "../../../state/rendered-comment-position.js";
 import { CodeCommentThread } from "../../comments/components/CodeCommentThread.js";
-import { useCommentInputSessions } from "../../comments/CommentInputSessionProvider.js";
+import {
+  useCommentInputResumePaneId,
+  useCommentInputSessions,
+} from "../../comments/CommentInputSessionProvider.js";
 import { SourceCommentSurface } from "../../comments/components/SourceCommentSurface.js";
 import {
   DiffToggleButton,
@@ -46,6 +57,7 @@ type HtmlRenderedThreadTarget = {
   blockId: string;
   blockIds: string[];
   draft: CommentDraft;
+  reanchorDraft?: CommentDraft;
   rect: DOMRectLike;
 };
 
@@ -95,6 +107,7 @@ export function HtmlViewer({
   onOpenPath?: (path: string) => void;
 }) {
   const commentInputs = useCommentInputSessions();
+  const resumePaneId = useCommentInputResumePaneId();
   const sourceInputCount = unsavedCommentInputCount(
     commentInputs.sessions,
     file.path,
@@ -107,7 +120,11 @@ export function HtmlViewer({
     HtmlRenderedThreadTarget[]
   >([]);
   const [renderedThreadPosition, setRenderedThreadPosition] =
-    useState<HtmlRenderedThreadPosition | null>(null);
+    useState<RenderedCommentThreadPosition | null>(null);
+  const [resumeFocus, setResumeFocus] = useState<{
+    sessionId: string;
+    revision: number;
+  } | null>(null);
   const [highlightedSourceHtml, setHighlightedSourceHtml] = useState<{
     content: string;
     theme: ResolvedTheme;
@@ -115,6 +132,7 @@ export function HtmlViewer({
   } | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const viewerRef = useRef<HTMLElement | null>(null);
+  const lastProcessedResumeRevisionRef = useRef(0);
   const renderedThreadTargetsRef = useRef(renderedThreadTargets);
   renderedThreadTargetsRef.current = renderedThreadTargets;
   const renderedThreadStateKey = htmlRenderedThreadStateKey(
@@ -254,7 +272,7 @@ export function HtmlViewer({
           commentInputs.sessions.some(
             (session) =>
               session.id === commentInputSessionId(target.draft) &&
-              session.status !== "collapsed",
+              !commentInputSessionIsCollapsed(session),
           ),
         );
         if (hasUnsentInput) return;
@@ -304,8 +322,8 @@ export function HtmlViewer({
     }
     const update = () => {
       const viewerRect = viewerRef.current?.getBoundingClientRect();
-      setRenderedThreadPosition(
-        positionHtmlRenderedThread(
+      const nextPosition = positionRenderedCommentThread(
+          renderedThreadTargets[0]!.rect,
           {
             width: window.innerWidth,
             height: window.innerHeight,
@@ -318,7 +336,15 @@ export function HtmlViewer({
                 height: viewerRect.height,
               }
             : undefined,
-        ),
+          {
+            width: 520,
+            height: 430,
+          },
+        );
+      setRenderedThreadPosition((current) =>
+        sameRenderedCommentThreadPosition(current, nextPosition)
+          ? current
+          : nextPosition,
       );
     };
     update();
@@ -345,21 +371,23 @@ export function HtmlViewer({
       htmlSourceBlocks,
       target,
     );
+    const currentDraft: CommentDraft = {
+      ...renderedCommentDraft(file, "html", {
+        text: target.text,
+        blockId: target.blockId,
+        selector: target.selector,
+        sourceLineStart: mappedRange?.start,
+        sourceLineEnd: mappedRange?.end,
+        sourceQuote: sourceTextForLineRange(file.content, mappedRange),
+      }),
+      threadId: draftOverride?.threadId ?? comment?.threadId ?? comment?.id,
+    };
     const nextTarget: HtmlRenderedThreadTarget = {
       blockId: target.blockId,
       blockIds: target.blockIds,
       rect: target.rect,
-      draft: {
-        ...renderedCommentDraft(file, "html", {
-          text: target.text,
-          blockId: target.blockId,
-          selector: target.selector,
-          sourceLineStart: mappedRange?.start,
-          sourceLineEnd: mappedRange?.end,
-          sourceQuote: sourceTextForLineRange(file.content, mappedRange),
-        }),
-        threadId: draftOverride?.threadId ?? comment?.threadId ?? comment?.id,
-      },
+      draft: draftOverride ?? currentDraft,
+      reanchorDraft: draftOverride ? currentDraft : undefined,
     };
     if (!comment && persistInput) {
       for (const existingTarget of renderedThreadTargets) {
@@ -374,21 +402,57 @@ export function HtmlViewer({
   };
 
   useEffect(() => {
-    if (mode !== "preview" || diffEnabled || renderedThreadTargets.length) {
-      return;
-    }
-    const session = [...commentInputs.sessions]
-      .reverse()
-      .find(
+    if (mode !== "preview" || diffEnabled) return;
+    const requestedSession =
+      commentInputs.resumeIntent &&
+      commentInputs.resumeIntent.paneId === resumePaneId &&
+      commentInputs.resumeIntent.revision > lastProcessedResumeRevisionRef.current
+      ? commentInputs.sessions.find(
+          (candidate) => candidate.id === commentInputs.resumeIntent?.sessionId,
+        )
+      : undefined;
+    const requestedForViewer =
+      requestedSession?.draft.path === file.path &&
+      requestedSession.draft.anchor.surface === "rendered" &&
+      requestedSession.draft.anchor.rendered?.kind === "html"
+        ? requestedSession
+        : undefined;
+    if (renderedThreadTargets.length && !requestedForViewer) return;
+    const session =
+      requestedForViewer ??
+      [...commentInputs.sessions].reverse().find(
         (candidate) =>
           candidate.draft.path === file.path &&
-          candidate.status !== "collapsed" &&
+          !commentInputSessionIsCollapsed(candidate) &&
           candidate.rect &&
           candidate.draft.anchor.surface === "rendered" &&
           candidate.draft.anchor.rendered?.kind === "html",
       );
     const rendered = session?.draft.anchor.rendered;
     if (!session?.rect || !rendered) return;
+    if (requestedForViewer) {
+      lastProcessedResumeRevisionRef.current =
+        commentInputs.resumeIntent?.revision ?? 0;
+      setResumeFocus({
+        sessionId: session.id,
+        revision: lastProcessedResumeRevisionRef.current,
+      });
+      commentInputs.acknowledgeResume(
+        lastProcessedResumeRevisionRef.current,
+        resumePaneId,
+      );
+      for (const candidate of commentInputs.sessions) {
+        if (
+          candidate.id !== session.id &&
+          candidate.draft.path === file.path &&
+          candidate.draft.anchor.surface === "rendered" &&
+          candidate.draft.anchor.rendered?.kind === "html" &&
+          !commentInputSessionIsCollapsed(candidate)
+        ) {
+          commentInputs.collapse(candidate.id);
+        }
+      }
+    }
     openRenderedDraft(
       {
         blockId: rendered.blockId ?? "restored-html-block",
@@ -405,6 +469,7 @@ export function HtmlViewer({
     );
   }, [
     commentInputs.sessions,
+    commentInputs.resumeIntent,
     diffEnabled,
     file.path,
     mode,
@@ -558,7 +623,8 @@ export function HtmlViewer({
         entry.position ? (
           <div
             key={entry.key}
-            className={`${surfaceStyles.htmlRenderedCommentThreadHost} html-rendered-comment-thread-host`}
+            className={`${surfaceStyles.renderedCommentThreadHost} rendered-comment-thread-host html-rendered-comment-thread-host`}
+            data-placement={entry.position.placement}
             style={
               {
                 left: entry.position.left,
@@ -572,6 +638,7 @@ export function HtmlViewer({
               className="rendered-comment-thread html-rendered-comment-thread"
               thread={entry.thread}
               draft={entry.draft}
+              reanchorDraft={entry.target.reanchorDraft}
               activity={
                 entry.threadId ? threadActivities[entry.threadId] : undefined
               }
@@ -579,6 +646,12 @@ export function HtmlViewer({
               currentActorId={currentActorId}
               onCreateComment={onCreateComment}
               keepOpenAfterCreate
+              focusRevision={
+                resumeFocus?.sessionId ===
+                commentInputSessionId(entry.draft)
+                  ? resumeFocus.revision
+                  : 0
+              }
               onClose={() => closeRenderedThreadTarget(entry.key)}
             />
           </div>
@@ -593,13 +666,6 @@ interface DOMRectLike {
   top: number;
   width: number;
   height: number;
-}
-
-interface HtmlRenderedThreadPosition {
-  left: number;
-  top: number;
-  width: number;
-  maxHeight?: number;
 }
 
 export function htmlRenderedThreadStateKey(
@@ -696,19 +762,21 @@ function commentsForRenderedHtmlTarget(
   target: { blockIds: string[]; draft: CommentDraft },
   comments: ViviComment[],
 ): ViviComment[] {
+  if (target.draft.threadId) {
+    return comments
+      .filter(
+        (comment) =>
+          comment.path === target.draft.path &&
+          (comment.threadId ?? comment.id) === target.draft.threadId,
+      )
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
   const renderedHtmlComments = comments.filter(
     (comment) =>
       comment.path === target.draft.path &&
       comment.anchor.surface === "rendered" &&
       comment.anchor.rendered?.kind === "html",
   );
-  if (target.draft.threadId) {
-    return renderedHtmlComments
-      .filter(
-        (comment) => (comment.threadId ?? comment.id) === target.draft.threadId,
-      )
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  }
   const draftThread = matchingDraftPreviewThread(
     codeCommentThreads(renderedHtmlComments),
     renderedThreadModel(target.draft.path, target.draft, []),
@@ -743,37 +811,6 @@ function renderedHtmlThreadTargetKey(
   return target.draft.threadId
     ? JSON.stringify(["thread", target.draft.threadId])
     : JSON.stringify([path, lineStart, lineEnd, target.blockIds.join("|")]);
-}
-
-export function positionHtmlRenderedThread(
-  viewport: {
-    width: number;
-    height: number;
-  },
-  container?: DOMRectLike,
-): HtmlRenderedThreadPosition {
-  const margin = 24;
-  const bounds = container ?? {
-    left: 0,
-    top: 0,
-    width: viewport.width,
-    height: viewport.height,
-  };
-  const width = Math.min(520, Math.max(300, bounds.width - margin * 2));
-  const maxHeight = Math.max(220, viewport.height - margin * 2);
-  const preferredHeight = Math.min(430, maxHeight);
-  return {
-    left: Math.max(
-      bounds.left + margin,
-      bounds.left + bounds.width - width - margin,
-    ),
-    top: Math.min(
-      Math.max((viewport.height - preferredHeight) / 2, margin),
-      viewport.height - margin - Math.min(preferredHeight, maxHeight),
-    ),
-    width,
-    maxHeight: preferredHeight,
-  };
 }
 
 function positiveNumber(value: number | undefined): number | undefined {

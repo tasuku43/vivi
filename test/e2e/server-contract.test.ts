@@ -410,6 +410,91 @@ it("serves HTML preview with sanitized generated ids and escaped Mermaid source"
   expect(html).not.toContain("<script>x</script>");
 }, 10000);
 
+it("renders unquoted and language-mermaid HTML blocks through the preview runtime", async () => {
+  await writeFile(
+    path.join(dir, "common-mermaid.html"),
+    '<pre class=mermaid>flowchart LR\nA-->B</pre><pre><code class="language-mermaid">sequenceDiagram\nA->>B: Hi</code></pre>',
+  );
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const html = await fetch(
+    `${server.url}/preview/html?path=common-mermaid.html`,
+  ).then((response) => response.text());
+  expect(html.match(/<figure class="html-mermaid"/g)).toHaveLength(2);
+  expect(html).toContain("/vivi/vendor/mermaid.min.js");
+
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.goto(`${server.url}/preview/html?path=common-mermaid.html`);
+    await expect
+      .poll(() => page.locator('[data-mermaid-status="rendered"]').count())
+      .toBe(2);
+    await expect
+      .poll(() => page.locator(".mermaid-render-target svg").count())
+      .toBe(2);
+  } finally {
+    await browser.close();
+  }
+}, 10000);
+
+it("keeps nested Mermaid markup balanced and ignores authored runtime markers", async () => {
+  await writeFile(
+    path.join(dir, "nested-mermaid.html"),
+    '<main data-vivi-mermaid-preview="authored"><div class="preview-wrapper"><div class="mermaid">flowchart LR\nA-->B</div></div><p>After diagram</p></main>',
+  );
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const html = await fetch(
+    `${server.url}/preview/html?path=nested-mermaid.html`,
+  ).then((response) => response.text());
+  expect(html.match(/<figure class="html-mermaid"/g)).toHaveLength(1);
+  expect(html).toContain(">After diagram</p></main>");
+  expect(html).toContain("/vivi/vendor/mermaid.min.js");
+
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.goto(`${server.url}/preview/html?path=nested-mermaid.html`);
+    await expect
+      .poll(() => page.locator('[data-mermaid-status="rendered"] svg').count())
+      .toBe(1);
+  } finally {
+    await browser.close();
+  }
+}, 10000);
+
+it("does not convert Mermaid-like strings inside HTML raw-text elements", async () => {
+  const script =
+    'window.template = "<script><div class=mermaid>graph TD; A-->B</div>";';
+  const style = '.x::after{content:"<pre class=mermaid>A-->B</pre>"}';
+  await writeFile(
+    path.join(dir, "raw-text-mermaid.html"),
+    `<script>${script}</script><style>${style}</style><textarea><div class=mermaid>not markup</div></textarea><title><div class=mermaid>title</div></title><pre class=mermaid>flowchart LR\nA-->B</pre>`,
+  );
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const html = await fetch(
+    `${server.url}/preview/html?path=raw-text-mermaid.html&scripts=1`,
+  ).then((response) => response.text());
+  expect(html.match(/<figure class="html-mermaid"/g)).toHaveLength(1);
+  expect(html).toContain(`<script>${script}</script>`);
+  expect(html).toContain(`<style>${style}</style>`);
+  expect(html).toContain(
+    "<textarea><div class=mermaid>not markup</div></textarea>",
+  );
+  expect(html).toContain("<title><div class=mermaid>title</div></title>");
+}, 10000);
+
 it("keeps draft review comments hidden until GraphQL publish", async () => {
   const service = new ViewerService({
     fileSystem: new NodeFileSystem({ rootDir: dir }),

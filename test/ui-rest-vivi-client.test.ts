@@ -83,6 +83,23 @@ it("assembles FileContext while keeping REST calls behind ViviClient", async () 
   ]);
 });
 
+it("classifies REST not-found separately from permission failures", async () => {
+  const missing = new RestViviClient({
+    fetch: vi.fn<typeof fetch>(async () => new Response(null, { status: 404 })),
+  });
+  const forbidden = new RestViviClient({
+    fetch: vi.fn<typeof fetch>(async () => new Response(null, { status: 403 })),
+  });
+
+  await expect(missing.getFileContext({ path: "gone.md" })).rejects.toMatchObject({
+    code: "not_found",
+    status: 404,
+  });
+  await expect(
+    forbidden.getFileContext({ path: "private.md" }),
+  ).rejects.toMatchObject({ code: "forbidden", status: 403 });
+});
+
 it("groups REST comments into compatibility comment threads", async () => {
   const request = vi.fn<typeof fetch>(async () => Response.json([comment]));
   const client = new RestViviClient({ fetch: request });

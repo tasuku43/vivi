@@ -34,6 +34,8 @@ export function CodeCommentThread({
   currentActorId,
   onDeleteDraft,
   keepOpenAfterCreate = false,
+  focusRevision = 0,
+  reanchorDraft,
 }: {
   thread: CodeCommentThreadModel;
   draft: CommentDraft;
@@ -45,6 +47,9 @@ export function CodeCommentThread({
   currentActorId?: string;
   onDeleteDraft?: DraftReviewCommentDeleteHandler;
   keepOpenAfterCreate?: boolean;
+  focusRevision?: number;
+  /** Current-file anchor to adopt while retaining the persisted draft identity. */
+  reanchorDraft?: CommentDraft;
 }) {
   const visibleComments = thread.comments.filter(
     (comment) => isDraftThreadComment(comment) || isHumanFeedback(comment),
@@ -55,7 +60,9 @@ export function CodeCommentThread({
   );
   const canContinuePendingDraft =
     hasThreadMessages && !hasPublishedComments && Boolean(draft.threadId);
-  const input = useCommentInputSession(draft);
+  const [adoptedDraft, setAdoptedDraft] = useState<CommentDraft | null>(null);
+  const activeDraft = adoptedDraft ?? draft;
+  const input = useCommentInputSession(activeDraft);
   const body = input.session?.body ?? "";
   const hasPreservedNewFeedback = hasPublishedComments && Boolean(body.trim());
   const showComposer =
@@ -93,6 +100,21 @@ export function CodeCommentThread({
   }, [showComposer, thread.key]);
 
   useEffect(() => {
+    if (!focusRevision || !showComposer) return;
+    const frame = window.requestAnimationFrame(() => {
+      if (stale) {
+        threadRef.current
+          ?.querySelector<HTMLButtonElement>("button[data-stale-reanchor]")
+          ?.focus({ preventScroll: true });
+      } else {
+        textareaRef.current?.focus({ preventScroll: true });
+      }
+      threadRef.current?.scrollIntoView({ block: "center", inline: "nearest" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusRevision, showComposer, stale]);
+
+  useEffect(() => {
     if (!refocusAfterSubmitRef.current || body) return;
     const frame = window.requestAnimationFrame(() => {
       if (!textareaRef.current || textareaRef.current.disabled) return;
@@ -112,11 +134,13 @@ export function CodeCommentThread({
     if (keepComposerOpen) {
       refocusAfterSubmitRef.current = true;
       latestBodyRef.current = "";
-      input.change(draft, "");
+      input.change(activeDraft, "");
     }
     try {
       await onCreateComment(
-        canContinuePendingDraft ? draft : draftForNewComment(draft),
+        canContinuePendingDraft
+          ? activeDraft
+          : draftForNewComment(activeDraft),
         trimmed,
       );
       if (keepComposerOpen) {
@@ -132,7 +156,7 @@ export function CodeCommentThread({
           ? `${trimmed}\n\n${latestBodyRef.current}`
           : body;
         latestBodyRef.current = restoredBody;
-        input.change(draft, restoredBody);
+        input.change(activeDraft, restoredBody);
         refocusAfterSubmitRef.current = true;
       }
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -302,7 +326,12 @@ export function CodeCommentThread({
               <div>
                 <button
                   type="button"
-                  onClick={() => input.reanchor(input.id, draft)}
+                  data-stale-reanchor
+                  onClick={() => {
+                    const nextDraft = reanchorDraft ?? draft;
+                    setAdoptedDraft(nextDraft);
+                    input.reanchor(input.id, nextDraft);
+                  }}
                 >
                   Re-anchor here
                 </button>
@@ -334,7 +363,7 @@ export function CodeCommentThread({
             aria-keyshortcuts="Meta+Enter Control+Enter"
             onChange={(event) => {
               latestBodyRef.current = event.currentTarget.value;
-              input.change(draft, event.currentTarget.value);
+              input.change(activeDraft, event.currentTarget.value);
               if (error) setError(null);
             }}
             onKeyDown={(event) => {

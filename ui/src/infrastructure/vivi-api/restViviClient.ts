@@ -2,6 +2,7 @@ import type {
   ViviClient,
   WorkspaceEventSubscriptionOptions,
 } from "../../application/ports/ViviClient.js";
+import { viviClientHttpError } from "./client-errors.js";
 import {
   buildCommentThreads,
   type CommentExportFilters,
@@ -265,9 +266,7 @@ export class RestViviClient implements ViviClient {
   private async getJson<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await this.request(this.url(path), init);
     if (!response.ok) {
-      throw new Error(
-        `${path.split("?")[0]} request failed: ${response.status}`,
-      );
+      throw viviClientHttpError(path.split("?")[0]!, response.status);
     }
     return (await response.json()) as T;
   }

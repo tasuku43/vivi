@@ -105,6 +105,63 @@
   background: var(--vivi-color-comment-surface-active);
 }
 
+:global(.review-unavailable-feedback) {
+  margin: 12px;
+  border: 1px dashed
+    color-mix(
+      in srgb,
+      var(--vivi-color-warning) 58%,
+      var(--vivi-color-border-soft)
+    );
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vivi-color-warning) 8%, transparent);
+  color: var(--vivi-color-content-muted);
+  font-size: 11px;
+  padding: 9px 10px;
+}
+
+:global(.review-unavailable-feedback summary) {
+  color: var(--vivi-color-content-primary);
+  cursor: pointer;
+  font-weight: 760;
+}
+
+:global(.review-unavailable-feedback p) {
+  margin: 8px 0;
+  line-height: 1.45;
+}
+
+:global(.review-unavailable-feedback ul) {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+:global(.review-unavailable-feedback li) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 8px;
+}
+
+:global(.review-unavailable-feedback li strong),
+:global(.review-unavailable-feedback li span) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:global(.review-unavailable-feedback li span) {
+  grid-column: 1;
+}
+
+:global(.review-unavailable-feedback li small) {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
 :global(.section-title.with-action button) {
   border: 1px solid var(--vivi-color-border-default);
   border-radius: 7px;

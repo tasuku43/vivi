@@ -5,6 +5,7 @@ import type {
   ViviClient,
   WorkspaceConnectionStatus,
 } from "../../application/ports/ViviClient.js";
+import { isViviClientError } from "../../application/ports/ViviClient.js";
 import type {
   CommentActor,
   CommentThreadActivityEvent,
@@ -29,7 +30,10 @@ import {
 import { DocumentInspector } from "../document-inspector/DocumentInspector.js";
 import { Inspector } from "../review-queue/Inspector.js";
 import { InlineCommentCard } from "../comments/components/InlineCommentCard.js";
-import { useCommentInputSessions } from "../comments/CommentInputSessionProvider.js";
+import {
+  CommentInputResumePaneProvider,
+  useCommentInputSessions,
+} from "../comments/CommentInputSessionProvider.js";
 import { DraftReviewCommentActionsProvider } from "../comments/DraftReviewCommentActions.js";
 import { CommandPalette } from "../command-palette/CommandPalette.js";
 import { ShortcutHelp } from "../../shared/components/ShortcutHelp.js";
@@ -104,6 +108,7 @@ import {
   type GitChangeReviewState,
 } from "../../state/git-review.js";
 import {
+  buildUnavailableFeedbackItems,
   buildReviewQueueItems,
   latestUnreadReviewItemPath,
   nextReviewQueueItemPath,
@@ -122,7 +127,10 @@ import {
   draftReviewCommentAsViviComment,
   type CommentDraft,
 } from "../../state/comments.js";
-import type { CommentInputSession } from "../../state/comment-input-session.js";
+import {
+  resumableCommentInputSessions,
+  type CommentInputSession,
+} from "../../state/comment-input-session.js";
 import {
   activeTextSearchResult,
   codeSelectionForTextSearchTarget,
@@ -270,6 +278,17 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [activeCommentRect, setActiveCommentRect] =
     useState<DOMRectLike | null>(null);
+  const [confirmedMissingPaths, setConfirmedMissingPaths] = useState<
+    Set<string>
+  >(new Set());
+  const [confirmedPresentPaths, setConfirmedPresentPaths] = useState<
+    Set<string>
+  >(new Set());
+  const fileLoadVersions = useRef<Record<string, number>>({});
+  const fileLoadInFlightCounts = useRef<Record<string, number>>({});
+  const treeLoadVersions = useRef<Record<string, number>>({});
+  const treeLoadSequence = useRef(0);
+  const resumeInputRequestVersion = useRef(0);
   const [viewerModes, setViewerModes] = useState<Record<string, ViewerMode>>(
     {},
   );
@@ -360,13 +379,28 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const loadedActivityThreadIds = useRef(new Set<string>());
 
   async function loadTree() {
-    setTree(await client.getTree({ depth: 1 }));
+    const key = "";
+    const version = treeLoadSequence.current + 1;
+    treeLoadSequence.current = version;
+    treeLoadVersions.current[key] = version;
+    try {
+      const snapshot = await client.getTree({ depth: 1 });
+      if (treeLoadVersions.current[key] === version) setTree(snapshot);
+    } finally {
+      if (treeLoadVersions.current[key] === version) {
+        delete treeLoadVersions.current[key];
+      }
+    }
   }
 
   async function loadDirectory(path: string) {
+    const version = treeLoadSequence.current + 1;
+    treeLoadSequence.current = version;
+    treeLoadVersions.current[path] = version;
     setLoadingDirectoryPaths((items) => new Set(items).add(path));
     try {
       const snapshot = await client.getTree({ path, depth: 1 });
+      if (treeLoadVersions.current[path] !== version) return;
       setTree((current) => {
         if (!current) return snapshot;
         return {
@@ -376,6 +410,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         };
       });
     } finally {
+      if (treeLoadVersions.current[path] === version) {
+        delete treeLoadVersions.current[path];
+      }
       setLoadingDirectoryPaths((items) => {
         const next = new Set(items);
         next.delete(path);
@@ -612,19 +649,24 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }
 
   async function resumeCommentInput(session: CommentInputSession) {
+    const requestVersion = resumeInputRequestVersion.current + 1;
+    resumeInputRequestVersion.current = requestVersion;
     const paneId = layout.activePaneId;
-    setDiffEnabled(false);
+    setDiffEnabled(session.draft.anchor.surface === "diff");
     setViewerModes((modes) => ({
       ...modes,
-      [session.draft.path]:
-        session.draft.anchor.surface === "source" ? "source" : "rendered",
+      [session.draft.path]: resumeViewerMode(session),
     }));
     const payload = await loadFile(session.draft.path, paneId, "normal");
-    commentInputs.start(session.draft, session.rect);
-    const lineNumber = session.draft.anchor.canonical.lineStart;
-    if (lineNumber && session.draft.anchor.surface === "source") {
-      focusSourceLine(paneId, lineNumber);
+    if (resumeInputRequestVersion.current !== requestVersion) return payload;
+    if (
+      session.draft.anchor.surface === "diff" &&
+      supportsDiffMode(payload)
+    ) {
+      await loadHeadDiff(session.draft.path);
+      if (resumeInputRequestVersion.current !== requestVersion) return payload;
     }
+    commentInputs.resume(session.id, paneId);
     return payload;
   }
 
@@ -646,9 +688,27 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         : [],
     [comments, selectedPath],
   );
-  const latestCommentInput = [...commentInputs.sessions]
-    .reverse()
-    .find((session) => session.body.trim());
+  const openCommentInputPathSet = new Set(openTabs.map((tab) => tab.path));
+  const openCommentInputs = resumableCommentInputSessions(
+    commentInputs.sessions,
+    openCommentInputPathSet,
+  );
+  const activeCommentInputs = resumableCommentInputSessions(
+    commentInputs.sessions,
+    openCommentInputPathSet,
+    selectedPath,
+  );
+  const resumableInputItems = (sessions: CommentInputSession[]) =>
+    sessions.map((session) => ({
+      id: session.id,
+      path: session.draft.path,
+      location: commentLineLabelForAnchor(session.draft.anchor.canonical),
+    }));
+  const resumeCommentInputById = (id: string) => {
+    const session = commentInputs.sessions.find((item) => item.id === id);
+    if (!session) return;
+    void resumeCommentInput(session).catch((err) => setError(String(err)));
+  };
   const quickOpenRecentFiles = useMemo<RecentFileSearchResult[]>(() => {
     const seen = new Set<string>();
     const candidates: RecentFileSearchResult[] = [];
@@ -799,19 +859,55 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     () => unseenFeedbackPathSet(comments, commentActivity.byThreadId),
     [commentActivity.byThreadId, comments],
   );
+  const reviewEvidencePathSet = useMemo(
+    () =>
+      new Set([
+        ...comments.filter(isHumanFeedback).map((comment) => comment.path),
+        ...draftComments.map((draft) => draft.path),
+        ...allReviewChanges.map((change) => change.path),
+        ...Object.keys(effectiveReviewActivity),
+      ]),
+    [allReviewChanges, comments, draftComments, effectiveReviewActivity],
+  );
+  useEffect(() => {
+    setConfirmedMissingPaths((items) =>
+      retainSetItems(items, reviewEvidencePathSet),
+    );
+    setConfirmedPresentPaths((items) =>
+      retainSetItems(items, reviewEvidencePathSet),
+    );
+  }, [reviewEvidencePathSet]);
   const knownMissingCommentPathSet = useMemo(() => {
-    if (!tree) return new Set<string>();
-    const paths = new Set<string>();
-    for (const comment of comments) {
+    const paths = new Set(confirmedMissingPaths);
+    if (!tree) return paths;
+    for (const path of reviewEvidencePathSet) {
       if (
-        isHumanFeedback(comment) &&
-        isPathKnownMissing(tree.nodes, comment.path)
+        !confirmedPresentPaths.has(path) &&
+        isPathKnownMissing(tree.nodes, path)
       ) {
-        paths.add(comment.path);
+        paths.add(path);
       }
     }
     return paths;
-  }, [comments, tree]);
+  }, [
+    allReviewChanges,
+    comments,
+    confirmedMissingPaths,
+    confirmedPresentPaths,
+    draftComments,
+    effectiveReviewActivity,
+    reviewEvidencePathSet,
+    tree,
+  ]);
+  const unavailableFeedbackItems = useMemo(
+    () =>
+      buildUnavailableFeedbackItems(
+        comments,
+        draftComments,
+        knownMissingCommentPathSet,
+      ),
+    [comments, draftComments, knownMissingCommentPathSet],
+  );
   const selectedPathSourceMissing = selectedPath
     ? knownMissingCommentPathSet.has(selectedPath)
     : false;
@@ -844,12 +940,23 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     [reviewItems],
   );
   const feedbackTargets = useMemo(
-    () => feedbackNavigationTargets(comments),
-    [comments],
+    () =>
+      feedbackNavigationTargets(
+        comments.filter(
+          (comment) => !knownMissingCommentPathSet.has(comment.path),
+        ),
+      ),
+    [comments, knownMissingCommentPathSet],
   );
   const currentFileFeedbackTargets = useMemo(
-    () => feedbackNavigationTargets(comments, { path: selectedPath }),
-    [comments, selectedPath],
+    () =>
+      feedbackNavigationTargets(
+        comments.filter(
+          (comment) => !knownMissingCommentPathSet.has(comment.path),
+        ),
+        { path: selectedPath },
+      ),
+    [comments, knownMissingCommentPathSet, selectedPath],
   );
   const changedPathSet = useMemo(
     () => new Set(allReviewChanges.map((change) => change.path)),
@@ -981,6 +1088,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     paneId = layout.activePaneId,
     mode: OpenTabMode = "preview",
   ): Promise<FilePayload> {
+    const loadVersion = (fileLoadVersions.current[path] ?? 0) + 1;
+    fileLoadVersions.current[path] = loadVersion;
+    fileLoadInFlightCounts.current[path] =
+      (fileLoadInFlightCounts.current[path] ?? 0) + 1;
     setLoadingFilePaths((items) => ({
       ...items,
       [path]: (items[path] ?? 0) + 1,
@@ -991,6 +1102,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     setError(null);
     try {
       const payload = await fetchFilePayload(path);
+      if (fileLoadVersions.current[path] === loadVersion) {
+        setConfirmedMissingPaths((items) => withoutSetItem(items, path));
+        setConfirmedPresentPaths((items) => withSetItem(items, path));
+      }
       setFiles((items) => ({ ...items, [payload.path]: payload }));
       setOpenTabs((tabs) => upsertOpenTab(tabs, payload, paneId, mode));
       setRecentFiles((items) => recordRecentFile(items, payload));
@@ -1000,7 +1115,23 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         void loadHeadDiff(payload.path).catch((err) => setError(String(err)));
       }
       return payload;
+    } catch (cause) {
+      if (
+        fileLoadVersions.current[path] === loadVersion &&
+        isMissingSourceError(cause)
+      ) {
+        setConfirmedMissingPaths((items) => withSetItem(items, path));
+        setConfirmedPresentPaths((items) => withoutSetItem(items, path));
+      }
+      throw cause;
     } finally {
+      const inFlightCount = (fileLoadInFlightCounts.current[path] ?? 1) - 1;
+      if (inFlightCount > 0) {
+        fileLoadInFlightCounts.current[path] = inFlightCount;
+      } else {
+        delete fileLoadInFlightCounts.current[path];
+        delete fileLoadVersions.current[path];
+      }
       setLoadingFilePaths((items) => {
         const nextCount = (items[path] ?? 1) - 1;
         if (nextCount > 0) return { ...items, [path]: nextCount };
@@ -2043,6 +2174,28 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         setRecentEvents((items) => recordReviewEvent(items, event));
         if (isFileReviewActivityEvent(event)) touchReviewPath(event.path);
 
+        if (event.type === "add" && event.kind === "file") {
+          if (fileLoadInFlightCounts.current[event.path]) {
+            fileLoadVersions.current[event.path] =
+              (fileLoadVersions.current[event.path] ?? 0) + 1;
+          }
+          setConfirmedMissingPaths((items) =>
+            withoutSetItem(items, event.path),
+          );
+          setConfirmedPresentPaths((items) => withSetItem(items, event.path));
+        }
+
+        if (event.type === "unlink" && event.kind === "file") {
+          if (fileLoadInFlightCounts.current[event.path]) {
+            fileLoadVersions.current[event.path] =
+              (fileLoadVersions.current[event.path] ?? 0) + 1;
+          }
+          setConfirmedPresentPaths((items) =>
+            withoutSetItem(items, event.path),
+          );
+          setConfirmedMissingPaths((items) => withSetItem(items, event.path));
+        }
+
         if (
           event.type === "change" &&
           !activeFilePaths.current.has(event.path)
@@ -2259,21 +2412,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                   draftComments={draftComments}
                   commentsLoading={commentsLoading}
                   activeCommentId={activeCommentId}
-                  unsavedInputCount={
-                    commentInputs.sessions.filter((session) =>
-                      session.body.trim(),
-                    ).length
-                  }
-                  resumableInput={
-                    latestCommentInput
-                      ? {
-                          path: latestCommentInput.draft.path,
-                          location: commentLineLabelForAnchor(
-                            latestCommentInput.draft.anchor.canonical,
-                          ),
-                        }
-                      : null
-                  }
+                  unsavedInputCount={activeCommentInputs.length}
+                  resumableInputs={resumableInputItems(activeCommentInputs)}
                   outline={activeFileOutline}
                   activeOutlineId={
                     activeOutlineByPane[layout.activePaneId] ?? null
@@ -2309,14 +2449,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                     )
                   }
                   publishDisabled={draftPublishing || draftSavingCount > 0}
-                  onResumeInput={
-                    latestCommentInput
-                      ? () =>
-                          void resumeCommentInput(latestCommentInput).catch(
-                            (err) => setError(String(err)),
-                          )
-                      : undefined
-                  }
+                  onResumeInput={resumeCommentInputById}
                   onToggleChanges={() => toggleHeadDiff(selectedPath)}
                   reviewQueueCount={reviewQueueProgress.total}
                   onOpenReviewQueue={() => setInspectorSurface("review")}
@@ -2327,6 +2460,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                   fileRemoved={activeFileRemoved}
                   reviewChanges={reviewChanges}
                   reviewItems={reviewItems}
+                  unavailableFeedbackItems={unavailableFeedbackItems}
                   reviewLoading={gitReviewLoading && gitReview === null}
                   reviewUnavailableReason={gitReview?.reason ?? null}
                   reviewDiffStats={reviewDiffStats}
@@ -2335,21 +2469,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                   comments={activeFileComments}
                   reviewComments={comments}
                   draftComments={draftComments}
-                  unsavedInputCount={
-                    commentInputs.sessions.filter((session) =>
-                      session.body.trim(),
-                    ).length
-                  }
-                  resumableInput={
-                    latestCommentInput
-                      ? {
-                          path: latestCommentInput.draft.path,
-                          location: commentLineLabelForAnchor(
-                            latestCommentInput.draft.anchor.canonical,
-                          ),
-                        }
-                      : null
-                  }
+                  unsavedInputCount={openCommentInputs.length}
+                  resumableInputs={resumableInputItems(openCommentInputs)}
                   commentsLoading={commentsLoading}
                   threadActivities={commentActivitySummaries}
                   activeCommentId={activeCommentId}
@@ -2364,14 +2485,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                     )
                   }
                   publishDisabled={draftPublishing || draftSavingCount > 0}
-                  onResumeInput={
-                    latestCommentInput
-                      ? () =>
-                          void resumeCommentInput(latestCommentInput).catch(
-                            (err) => setError(String(err)),
-                          )
-                      : undefined
-                  }
+                  onResumeInput={resumeCommentInputById}
                   selectedCodeRange={
                     file?.path ? (codeSelections[file.path] ?? null) : null
                   }
@@ -2635,8 +2749,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               {panePendingPath ? (
                 <WorkbenchPendingFileMessage path={panePendingPath} />
               ) : (
-                <FileViewer
-                  key={paneFile?.path ?? "empty"}
+                <CommentInputResumePaneProvider paneId={pane.id}>
+                  <FileViewer
+                    key={paneFile?.path ?? "empty"}
                   file={paneFile}
                   removed={Boolean(paneActiveTab?.removed)}
                   allowHtmlScripts={config?.allowHtmlScripts ?? false}
@@ -2731,7 +2846,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                   onCloseRemoved={() => {
                     if (pane.activePath) closeTab(pane.activePath, pane.id);
                   }}
-                />
+                  />
+                </CommentInputResumePaneProvider>
               )}
             </>
           )}
@@ -3096,6 +3212,37 @@ function errorMessage(error: unknown): string {
   if (error instanceof Error && error.message) return error.message;
   if (typeof error === "string" && error) return error;
   return "Unknown publish error";
+}
+
+export function isMissingSourceError(error: unknown): boolean {
+  return isViviClientError(error, "not_found");
+}
+
+function withSetItem(items: Set<string>, path: string): Set<string> {
+  if (items.has(path)) return items;
+  const next = new Set(items);
+  next.add(path);
+  return next;
+}
+
+function withoutSetItem(items: Set<string>, path: string): Set<string> {
+  if (!items.has(path)) return items;
+  const next = new Set(items);
+  next.delete(path);
+  return next;
+}
+
+function retainSetItems(
+  items: Set<string>,
+  retained: ReadonlySet<string>,
+): Set<string> {
+  if ([...items].every((path) => retained.has(path))) return items;
+  return new Set([...items].filter((path) => retained.has(path)));
+}
+
+export function resumeViewerMode(session: CommentInputSession): ViewerMode {
+  if (session.draft.anchor.surface === "source") return "source";
+  return session.draft.viewerKind === "html" ? "preview" : "rendered";
 }
 
 interface DOMRectLike {

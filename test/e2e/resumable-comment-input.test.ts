@@ -1,3 +1,5 @@
+import { writeFile } from "node:fs/promises";
+import path from "node:path";
 import { chromium, type Browser } from "playwright";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import {
@@ -192,6 +194,72 @@ it("restores Source input after reload and clears its composer after publish", a
   await expect
     .poll(() => page.getByText("Composing", { exact: true }).count())
     .toBe(0);
+}, 40_000);
+
+it("reanchors an out-of-range stale Source input to the current file", async () => {
+  server = await startViviServer({
+    rootDir: fixture.rootDir,
+    gitReviewTimeoutMs: 1_000,
+  });
+  browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  page.setDefaultTimeout(8_000);
+  await page.goto(server.url);
+
+  await page.locator('[data-tree-path="README.md"]').click();
+  await page.getByRole("tab", { name: "Document" }).click();
+  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await page.getByRole("button", { name: "Add comment on line 5" }).click();
+  const body = "Keep this thought after the selected lines disappear";
+  await page.getByRole("textbox", { name: "New line comment" }).fill(body);
+  await page.getByRole("button", { name: "Close comment thread" }).click();
+
+  await writeFile(path.join(fixture.rootDir, "README.md"), "# Short now\n");
+  await page.reload();
+  await page.locator('[data-tree-path="README.md"]').click();
+  await page.getByRole("tab", { name: "Document" }).click();
+  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await expect
+    .poll(() =>
+      page.locator('.code-line[data-line="1"] .line-code').textContent(),
+    )
+    .toBe("# Short now");
+  await page
+    .getByRole("button", { name: /Resume input in README\.md/ })
+    .click();
+
+  const reanchor = page.getByRole("button", { name: "Re-anchor here" });
+  await expect.poll(() => reanchor.count()).toBe(1);
+  await expect
+    .poll(() => reanchor.evaluate((node) => node === document.activeElement))
+    .toBe(true);
+  await expect
+    .poll(() => page.getByRole("textbox", { name: "New line comment" }).inputValue())
+    .toBe(body);
+  await reanchor.click();
+  const input = page.getByRole("textbox", { name: "New line comment" });
+  await expect.poll(() => input.isEnabled()).toBe(true);
+  await expect.poll(() => input.inputValue()).toBe(body);
+  const updatedBody = `${body} — checked on the current line`;
+  await input.fill(updatedBody);
+
+  await page.getByRole("button", { name: "Close comment thread" }).click();
+  await page
+    .getByRole("button", { name: /Resume input in README\.md/ })
+    .click();
+  await expect.poll(() => reanchor.count()).toBe(0);
+  await expect.poll(() => input.inputValue()).toBe(updatedBody);
+  await page
+    .getByRole("button", { name: "Save pending draft comment" })
+    .click();
+  await expect
+    .poll(() =>
+      page
+        .getByRole("article", { name: "Comment thread for line 1" })
+        .getByText(updatedBody, { exact: true })
+        .count(),
+    )
+    .toBe(1);
 }, 40_000);
 
 it("deletes a saved pending comment before publish", async () => {

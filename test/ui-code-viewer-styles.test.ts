@@ -114,8 +114,8 @@ describe("rendered comment block ranges", () => {
     expect(normalizedRenderedCommentStyles).toMatch(
       /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-y-pad: 5px;[\s\S]*?--rendered-comment-block-bottom-pad: var\(--rendered-comment-block-y-pad\);[\s\S]*?--rendered-comment-block-top: calc\([\s\S]*?-1 \* var\(--rendered-comment-block-y-pad\)/,
     );
-    expect(normalizedRenderedCommentStyles).toMatch(
-      /li\.vivi-rendered-comment-block:has\(> \.rendered-comment-thread-host\)\s*\{[\s\S]*?--rendered-comment-block-bottom-pad: 11px;/,
+    expect(normalizedRenderedCommentStyles).not.toContain(
+      "rendered-comment-thread-host",
     );
     expect(normalizedRenderedCommentStyles).toMatch(
       /\.vivi-rendered-comment-block:not\(tr\)::before \{[\s\S]*?bottom: calc\([\s\S]*?var\(--rendered-comment-block-bottom\)[\s\S]*?var\(--rendered-comment-block-bottom-pad\)/,

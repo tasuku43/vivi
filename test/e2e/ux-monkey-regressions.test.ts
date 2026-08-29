@@ -1,3 +1,5 @@
+import { writeFile } from "node:fs/promises";
+import path from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import {
@@ -213,7 +215,9 @@ it("dismisses the compact inspector when file navigation needs the reader", asyn
 });
 
 it("keeps typed feedback through outside clicks and comment close controls", async () => {
-  await explorerTree().locator('[data-tree-path="README.md"]').click();
+  // Keep README open while another preview is inspected. Inputs belonging to a
+  // replaced preview tab are intentionally omitted from the inspector.
+  await explorerTree().locator('[data-tree-path="README.md"]').dblclick();
   await page!.getByRole("button", { name: "Source", exact: true }).click();
   await page!.getByRole("button", { name: "Add comment on line 1" }).click();
 
@@ -287,13 +291,15 @@ it("keeps a saved Markdown follow-up focused while the next block stays targetab
   const paragraph = page!.getByText("Contract workspace changed", {
     exact: true,
   });
-  await paragraph.dblclick();
+  // The anchored follow-up card occupies the block's right side. Use the
+  // readable leading edge to continue the pass without closing the draft.
+  await paragraph.dblclick({ position: { x: 8, y: 8 } });
   await expect
     .poll(() =>
       page!.getByRole("textbox", { name: "New line comment" }).count(),
     )
     .toBe(1);
-  await expect.poll(() => followUp.count()).toBe(1);
+  await expect.poll(() => followUp.count()).toBe(0);
 }, 20_000);
 
 it("resumes a collapsed rendered comment without rediscovering its target", async () => {
@@ -334,6 +340,18 @@ it("resumes a collapsed rendered comment without rediscovering its target", asyn
   await page!.getByRole("button", { name: "Close comment thread" }).click();
   await expect.poll(() => input.count()).toBe(0);
 
+  await writeFile(
+    path.join(fixture.rootDir, "README.md"),
+    "# Vivi Fixture updated\n\n## Overview\n\nContract workspace changed\n",
+  );
+  await page!.reload();
+  await explorerTree().locator('[data-tree-path="README.md"]').click();
+  await expect
+    .poll(() =>
+      page!.getByRole("heading", { name: "Vivi Fixture updated" }).count(),
+    )
+    .toBe(1);
+
   await page!
     .getByRole("button", { name: /Resume input in README\.md/ })
     .click();
@@ -342,6 +360,21 @@ it("resumes a collapsed rendered comment without rediscovering its target", asyn
       page!.getByRole("textbox", { name: "New line comment" }).inputValue(),
     )
     .toBe("Return me to this rendered heading");
+  const reanchor = page!.getByRole("button", { name: "Re-anchor here" });
+  await expect.poll(() => reanchor.count()).toBe(1);
+  await expect
+    .poll(() => reanchor.evaluate((node) => node === document.activeElement))
+    .toBe(true);
+  await reanchor.click();
+  await expect.poll(() => input.isEnabled()).toBe(true);
+  const reanchoredBody = "Return me to this rendered heading after re-anchor";
+  await input.fill(reanchoredBody);
+  await page!.getByRole("button", { name: "Close comment thread" }).click();
+  await page!
+    .getByRole("button", { name: /Resume input in README\.md/ })
+    .click();
+  await expect.poll(() => reanchor.count()).toBe(0);
+  await expect.poll(() => input.inputValue()).toBe(reanchoredBody);
   await page!.getByRole("button", { name: "Discard" }).click();
 }, 20_000);
 
