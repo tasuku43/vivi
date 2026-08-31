@@ -177,6 +177,7 @@ for (const file of walk(root)) {
   if (rel === "vivi" || rel === "vivi-otel") continue;
   if (
     rel === "package-lock.json" ||
+    /\.(?:gif|ico|jpe?g|otf|pdf|png|ttf|webp|woff2?)$/i.test(rel) ||
     rel.startsWith(".git/") ||
     rel.startsWith("node_modules/") ||
     rel.startsWith("ui/node_modules/") ||

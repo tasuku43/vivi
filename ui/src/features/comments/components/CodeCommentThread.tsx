@@ -33,6 +33,7 @@ export function CodeCommentThread({
   activeCommentId = null,
   currentActorId,
   onDeleteDraft,
+  onStartNewFeedback,
   keepOpenAfterCreate = false,
   focusRevision = 0,
   reanchorDraft,
@@ -46,6 +47,7 @@ export function CodeCommentThread({
   activeCommentId?: string | null;
   currentActorId?: string;
   onDeleteDraft?: DraftReviewCommentDeleteHandler;
+  onStartNewFeedback?: (target: HTMLElement) => void;
   keepOpenAfterCreate?: boolean;
   focusRevision?: number;
   /** Current-file anchor to adopt while retaining the persisted draft identity. */
@@ -149,9 +151,7 @@ export function CodeCommentThread({
     }
     try {
       await onCreateComment(
-        canContinuePendingDraft
-          ? activeDraft
-          : draftForNewComment(activeDraft),
+        canContinuePendingDraft ? activeDraft : draftForNewComment(activeDraft),
         trimmed,
       );
       if (keepComposerOpen) {
@@ -315,6 +315,17 @@ export function CodeCommentThread({
               </div>
             );
           })}
+        </div>
+      ) : null}
+
+      {hasPublishedComments && !showComposer && onStartNewFeedback ? (
+        <div className="code-comment-thread-new-feedback">
+          <button
+            type="button"
+            onClick={(event) => onStartNewFeedback(event.currentTarget)}
+          >
+            Add new feedback
+          </button>
         </div>
       ) : null}
 

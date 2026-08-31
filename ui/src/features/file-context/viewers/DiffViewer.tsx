@@ -14,6 +14,7 @@ import {
   commentViewerKindForFile,
   commentsForLine,
   diffCommentDraft,
+  draftForNewComment,
   lineCommentThreadActionLabel,
   preferredCodeCommentThread,
   rectLikeFromElement,
@@ -309,6 +310,28 @@ function SourceDiff({
     setOpenThreadKeys((keys) => keys.filter((key) => key !== threadKey));
   }
 
+  function startNewDiffFeedback(threadKey: string, draft: CommentDraft) {
+    const nextDraft = draftForNewComment(draft);
+    const key = JSON.stringify(["input", commentInputSessionId(nextDraft)]);
+    setOpenThreadKeys((keys) => keys.filter((item) => item !== threadKey));
+    setDraftThreads((items) => [
+      ...items.filter((item) => item.thread.key !== key),
+      {
+        thread: {
+          key,
+          path: diff.path,
+          lineStart: nextDraft.anchor.canonical.lineStart ?? 1,
+          lineEnd:
+            nextDraft.anchor.canonical.lineEnd ??
+            nextDraft.anchor.canonical.lineStart ??
+            1,
+          comments: [],
+        },
+        draft: nextDraft,
+      },
+    ]);
+  }
+
   return (
     <div
       ref={diffRef}
@@ -419,6 +442,9 @@ function SourceDiff({
                   activeCommentId={activeCommentId}
                   currentActorId={currentActorId}
                   onCreateComment={onCreateComment}
+                  onStartNewFeedback={() =>
+                    startNewDiffFeedback(entry.thread.key, entry.draft)
+                  }
                   onClose={() => closeCommentThread(entry.thread.key)}
                 />
               </div>
@@ -626,6 +652,17 @@ function RenderedChangeCards({
     });
   }
 
+  function startNewCardFeedback(
+    thread: CodeCommentThreadModel,
+    target: HTMLElement,
+  ) {
+    setOpenThreadKeys((keys) => keys.filter((key) => key !== thread.key));
+    setSelectionComment({
+      draft: draftForNewComment(draftForExistingThread(thread)),
+      rect: rectLikeFromElement(target),
+    });
+  }
+
   useEffect(() => {
     if (!activeCommentId) return;
     const marker = cardListRef.current?.querySelector<HTMLElement>(
@@ -723,6 +760,7 @@ function RenderedChangeCards({
             currentActorId={currentActorId}
             onOpenComment={onOpenComment}
             onStartCardComment={startCardComment}
+            onStartNewFeedback={startNewCardFeedback}
             onToggleCommentThread={toggleCommentThread}
             onCloseCommentThread={closeCommentThread}
             onCreateComment={onCreateComment}
@@ -852,6 +890,7 @@ function RenderedChangeCardView({
   currentActorId,
   onOpenComment,
   onStartCardComment,
+  onStartNewFeedback,
   onToggleCommentThread,
   onCloseCommentThread,
   onCreateComment,
@@ -866,6 +905,10 @@ function RenderedChangeCardView({
   currentActorId?: string;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onStartCardComment: (card: RenderedChangeCard, target: HTMLElement) => void;
+  onStartNewFeedback: (
+    thread: CodeCommentThreadModel,
+    target: HTMLElement,
+  ) => void;
   onToggleCommentThread: (thread: CodeCommentThreadModel) => void;
   onCloseCommentThread: (threadKey: string) => void;
   onCreateComment?: CommentCreateHandler;
@@ -1018,6 +1061,9 @@ function RenderedChangeCardView({
               activeCommentId={activeCommentId}
               currentActorId={currentActorId}
               onCreateComment={onCreateComment}
+              onStartNewFeedback={(target) =>
+                onStartNewFeedback(commentThread, target)
+              }
               onClose={() => onCloseCommentThread(commentThread.key)}
             />
           </div>

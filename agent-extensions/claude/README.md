@@ -1,6 +1,6 @@
 # Vivi for Claude Code
 
-This package provides one focused skill for fetching published Vivi feedback on demand and replying safely.
+This package provides one focused skill for fetching published Vivi feedback on demand and reporting results in the existing coding conversation.
 
 ## Remote Install
 
@@ -30,7 +30,7 @@ agent-extensions/claude/vivi/
   .claude-plugin/plugin.json
     plugin metadata
   skills/apply-feedback/SKILL.md
-    one-shot review fetch and reply workflow
+    one-shot review fetch and implementation workflow
 ```
 
 ## Design

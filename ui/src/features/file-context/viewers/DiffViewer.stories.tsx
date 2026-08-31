@@ -170,7 +170,7 @@ export const ActiveDiffCommentStaysInline: Story = {
 };
 
 export const DiffPublishedFeedbackHasNoResponseComposer: Story = {
-  name: "Published diff feedback has no response composer",
+  name: "Published diff feedback starts separate feedback",
   tags: ["interaction"],
   args: {
     comments: [
@@ -200,11 +200,12 @@ export const DiffPublishedFeedbackHasNoResponseComposer: Story = {
         "Existing diff thread should stay separate from the next note.",
       ),
     ).toBeVisible();
-    await expect(
-      canvas.queryByRole("button", { name: "Start separate thread" }),
-    ).not.toBeInTheDocument();
     await expect(canvas.queryByLabelText("New line comment")).toBeNull();
     await expect(canvas.queryByRole("textbox")).not.toBeInTheDocument();
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Add new feedback" }),
+    );
+    await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
   },
 };
 
@@ -555,9 +556,7 @@ export const SelectionDraftSaveFailureIsRetryable: Story = {
     await expect(save).toBeEnabled();
 
     await userEvent.click(save);
-    await waitFor(() =>
-      expect(args.onCreateComment).toHaveBeenCalledTimes(2),
-    );
+    await waitFor(() => expect(args.onCreateComment).toHaveBeenCalledTimes(2));
   },
 };
 

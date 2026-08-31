@@ -66,7 +66,7 @@ running a downloaded binary.
 
 The canonical `vivi` command is the Go CLI/backend. Its public workflow is the
 local server launcher, running-server discovery, and the synchronous `inbox`
-and `reply` commands:
+command:
 
 ```bash
 vivi .
@@ -76,9 +76,6 @@ vivi . --ready-json
 vivi servers
 vivi inbox http://127.0.0.1:4317
 vivi inbox http://127.0.0.1:4317 --read-as codex
-export VIVI_ACTOR=codex
-vivi reply http://127.0.0.1:4317 <thread-id> --body "Fixed."
-vivi reply http://127.0.0.1:4317 <thread-id> --resolve --body-file /tmp/vivi-reply.md
 vivi . --exclude package-lock.json --exclude '**/generated/**'
 vivi . --exclude 'package-lock.json,snapshots/,**/generated/**'
 vivi . --max-file-size 2097152
@@ -141,8 +138,9 @@ over `--include`, and symlinks in the config path are followed normally.
 ## Feedback Loop
 
 Vivi comments are review feedback attached to local workspace context. Humans
-leave them in the browser while reading artifacts. Coding agents can read,
-reply to, resolve, or archive those threads through the CLI and GraphQL API.
+leave them in the browser while reading artifacts. Coding agents read the
+published feedback through the CLI and return their implementation result in
+the terminal where the agent is already running.
 
 This keeps the human-facing UI visual and low-friction while keeping the
 agent-facing interface structured and deterministic.
@@ -165,22 +163,17 @@ and only when the intended workspace root is unambiguous.
 
 After discovery, the top-level comment pipe stays explicit: `inbox <url>`
 fetches the currently published open feedback from that running Vivi server
-once and exits, and
-`reply <url> <thread-id>` writes back. Set `VIVI_ACTOR=codex` or
-`VIVI_ACTOR=claude` once in the shell that launches the coding agent; an
-explicit `--actor` overrides it. The human can keep
+once and exits. The human can keep
 drafting in the GUI and Publish when feedback should become agent-visible; the
 agent fetches when asked or when its workflow chooses to refresh. Add
 `--read-as codex` or `--read-as claude` only when the browser should show an
-explicit read receipt. `VIVI_ACTOR` never creates a read receipt. `reply` is
-non-interactive and requires `--body <text>` or `--body-file <path|->`; add
-`--resolve` or `--archive` when the reply should also close the thread. Use
+explicit read receipt. Use
 `review queue` and `review diff` as changed-file context helpers; they are not
 the human-feedback intake loop. The deeper `comments` commands remain available
 for adapter authors, compatibility, debugging, protocol inspection, and
 recovery. Resident watch/claim workflows are not the default product path. The
-agent must keep the selected URL unchanged across the initial inbox read, later
-refreshes, and every reply in that feedback pass.
+agent must keep the selected URL unchanged across the initial inbox read and
+later refreshes in that feedback pass.
 
 The default inbox output is a compact text projection. It preserves the exact
 thread ID, file anchor, and full conversation without repeating JSON field
@@ -251,7 +244,7 @@ npm run perf:otel
 The fixture-driven fake agent loop is documented in
 [`docs/engineering/23-local-agent-loop-harness.md`](docs/engineering/23-local-agent-loop-harness.md).
 Against a running Vivi server, run `npm run harness:agent-loop` to verify the
-human comment, actor-aware read receipt, agent reply, and terminal lifecycle.
+human comment, actor-aware read receipt, and terminal lifecycle.
 Use `--intake work --terminal cli` only when validating the legacy resident
 adapter compatibility path.
 

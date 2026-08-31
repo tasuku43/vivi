@@ -35,7 +35,7 @@ agent-extensions/codex/vivi/
   .codex-plugin/plugin.json
     plugin metadata and skill path
   skills/apply-feedback/SKILL.md
-    Codex workflow for fetching published comments on demand and replying
+    Codex workflow for fetching published comments on demand and reporting in the coding conversation
   skills/apply-feedback/agents/openai.yaml
     Codex app display metadata
 ```
@@ -43,5 +43,5 @@ agent-extensions/codex/vivi/
 ## Design
 
 The skill is invoked after the user publishes feedback. It fetches one current
-snapshot, applies each thread's feedback, and uses shell-safe replies without
-creating a resident background process.
+snapshot, applies each feedback item, and reports the result in the existing
+coding conversation without creating a resident background process.

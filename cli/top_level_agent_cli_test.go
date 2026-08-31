@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -46,7 +45,7 @@ func TestTopLevelInboxReadsOpenThreadsPassivelyAndWithReadReceipt(t *testing.T) 
 		t.Fatalf("JSON inbox failed: %v", err)
 	}
 	legacyItem := decodeSingleJSONLine(t, legacyJSON.String())
-	if legacyItem["type"] != "comment" || legacyItem["id"] != thread.ID || legacyItem["file"] != "README.md" || legacyItem["body"] != "導入文を新規ユーザー向けに寄せてください。" || legacyItem["action"] != "reply" {
+	if legacyItem["type"] != "comment" || legacyItem["id"] != thread.ID || legacyItem["file"] != "README.md" || legacyItem["body"] != "導入文を新規ユーザー向けに寄せてください。" || legacyItem["action"] != "review" {
 		t.Fatalf("legacy JSON inbox item = %#v", legacyItem)
 	}
 	if _, ok := legacyItem["readBy"]; ok {
@@ -225,7 +224,6 @@ func TestTopLevelAgentCommandHelpIsCommandSpecific(t *testing.T) {
 	}{
 		{command: "servers", want: []string{"vivi servers - identify running Vivi servers", "* means the root contains the current directory", "stale registrations", "servers count=<n> matches=<n>"}},
 		{command: "inbox", want: []string{"vivi inbox - fetch published feedback once", "vivi inbox <url> [--read-as codex|claude]", "The default read is passive."}},
-		{command: "reply", want: []string{"vivi reply - reply to published feedback", "VIVI_ACTOR", "--actor overrides it"}},
 	} {
 		t.Run(tt.command, func(t *testing.T) {
 			var stdout bytes.Buffer
@@ -274,107 +272,14 @@ func TestTopLevelInboxRejectsRemovedResidentFlags(t *testing.T) {
 	}
 }
 
-func TestTopLevelReplyCanLeaveOpenResolveAndArchive(t *testing.T) {
-	t.Setenv("VIVI_ACTOR", "")
-	ctx := context.Background()
-	serverURL := newTopLevelAgentTestServer(t)
-
-	openThread := createTopLevelAgentThread(t, ctx, serverURL, "README.md", "質問です")
-	var openReply bytes.Buffer
-	if err := runTopLevelAgentCommand(ctx, []string{"reply", serverURL, openThread.ID, "--actor", "codex", "--body", "確認です。CLI 初心者向けでよいですか？"}, &openReply); err != nil {
-		t.Fatalf("open reply failed: %v", err)
-	}
-	assertTopLevelWriteOutput(t, openReply.String(), "reply", openThread.ID, "codex", "open")
-
-	resolvedThread := createTopLevelAgentThread(t, ctx, serverURL, "docs/intro.md", "直してください")
-	bodyFile := filepath.Join(t.TempDir(), "reply.md")
-	if err := os.WriteFile(bodyFile, []byte("修正して確認しました。"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	var resolveReply bytes.Buffer
-	if err := runTopLevelAgentCommand(ctx, []string{"reply", serverURL, resolvedThread.ID, "--actor", "codex", "--resolve", "--body-file", bodyFile}, &resolveReply); err != nil {
-		t.Fatalf("resolve reply failed: %v", err)
-	}
-	assertTopLevelWriteOutput(t, resolveReply.String(), "reply", resolvedThread.ID, "codex", "resolved")
-
-	archivedThread := createTopLevelAgentThread(t, ctx, serverURL, "docs/generated.md", "対象ですか")
-	var archiveReply bytes.Buffer
-	if err := runTopLevelAgentCommandForTest(ctx, []string{"reply", serverURL, archivedThread.ID, "--actor", "codex", "--archive", "--body-file", "-"}, &archiveReply, strings.NewReader("対象外なので archive します。\n")); err != nil {
-		t.Fatalf("archive reply failed: %v", err)
-	}
-	assertTopLevelWriteOutput(t, archiveReply.String(), "reply", archivedThread.ID, "codex", "archived")
-}
-
-func TestTopLevelReplyUsesViviActorAndExplicitFlagWins(t *testing.T) {
-	ctx := context.Background()
-	serverURL := newTopLevelAgentTestServer(t)
-
-	t.Setenv("VIVI_ACTOR", "codex")
-	envThread := createTopLevelAgentThread(t, ctx, serverURL, "README.md", "環境変数を使ってください")
-	var envReply bytes.Buffer
-	if err := runTopLevelAgentCommand(ctx, []string{"reply", serverURL, envThread.ID, "--body", "VIVI_ACTOR を使いました。"}, &envReply); err != nil {
-		t.Fatalf("reply with VIVI_ACTOR failed: %v", err)
-	}
-	assertTopLevelWriteOutput(t, envReply.String(), "reply", envThread.ID, "codex", "open")
-
-	overrideThread := createTopLevelAgentThread(t, ctx, serverURL, "docs/intro.md", "明示指定を優先してください")
-	var overrideReply bytes.Buffer
-	if err := runTopLevelAgentCommand(ctx, []string{"reply", serverURL, overrideThread.ID, "--actor", "claude", "--body", "明示指定を使いました。"}, &overrideReply); err != nil {
-		t.Fatalf("reply with explicit actor failed: %v", err)
-	}
-	assertTopLevelWriteOutput(t, overrideReply.String(), "reply", overrideThread.ID, "claude", "open")
-}
-
 func TestTopLevelClaimAndReleaseAreRemovedWithResidentInbox(t *testing.T) {
 	for _, command := range []string{"claim", "release"} {
 		var stdout bytes.Buffer
 		err := runTopLevelAgentCommand(context.Background(), []string{command}, &stdout)
-		want := "error: vivi " + command + " was removed with the resident inbox workflow; use one-shot inbox and reply"
+		want := "error: vivi " + command + " was removed with the resident inbox workflow; use one-shot inbox"
 		if err == nil || err.Error() != want {
 			t.Fatalf("%s error = %v, want %q", command, err, want)
 		}
-	}
-}
-
-func TestTopLevelReplyValidationIsNonInteractiveAndActorScoped(t *testing.T) {
-	t.Setenv("VIVI_ACTOR", "")
-	ctx := context.Background()
-	serverURL := newTopLevelAgentTestServer(t)
-	thread := createTopLevelAgentThread(t, ctx, serverURL, "README.md", "お願いします")
-
-	cases := []struct {
-		name string
-		args []string
-		want string
-	}{
-		{
-			name: "unsupported actor",
-			args: []string{"reply", serverURL, thread.ID, "--actor", "cursor", "--body", "Fixed."},
-			want: `error: unsupported actor "cursor"; expected one of: codex, claude`,
-		},
-		{
-			name: "missing body",
-			args: []string{"reply", serverURL, thread.ID, "--actor", "codex"},
-			want: "error: missing reply body; pass --body <text> or --body-file <path|->",
-		},
-		{
-			name: "missing actor",
-			args: []string{"reply", serverURL, thread.ID, "--body", "Fixed."},
-			want: "error: missing actor; pass --actor or set VIVI_ACTOR (expected one of: codex, claude)",
-		},
-	}
-
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			var stdout bytes.Buffer
-			err := runTopLevelAgentCommand(ctx, tt.args, &stdout)
-			if err == nil || err.Error() != tt.want {
-				t.Fatalf("error = %v, want %q", err, tt.want)
-			}
-			if stdout.Len() != 0 {
-				t.Fatalf("validation should not write stdout, got %q", stdout.String())
-			}
-		})
 	}
 }
 
@@ -548,40 +453,4 @@ func decodeSingleJSONLine(t *testing.T, line string) map[string]any {
 		t.Fatalf("decode JSON line: %v\n%s", err, line)
 	}
 	return decoded
-}
-
-func assertTopLevelWriteOutput(t *testing.T, raw string, kind string, id string, actor string, status string) {
-	t.Helper()
-	decoded := decodeSingleJSONLine(t, raw)
-	if decoded["type"] != kind || decoded["id"] != id || decoded["actor"] != actor || decoded["status"] != status {
-		t.Fatalf("write output = %#v, want type=%s id=%s actor=%s status=%s", decoded, kind, id, actor, status)
-	}
-}
-
-func runTopLevelAgentCommandForTest(ctx context.Context, args []string, stdout io.Writer, stdin io.Reader) error {
-	if stdin == nil {
-		return runTopLevelAgentCommand(ctx, args, stdout)
-	}
-	previous := os.Stdin
-	readFile, writeFile, err := os.Pipe()
-	if err != nil {
-		return err
-	}
-	done := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(writeFile, stdin)
-		closeErr := writeFile.Close()
-		if copyErr != nil {
-			done <- copyErr
-			return
-		}
-		done <- closeErr
-	}()
-	os.Stdin = readFile
-	defer func() {
-		os.Stdin = previous
-		_ = readFile.Close()
-		<-done
-	}()
-	return runTopLevelAgentCommand(ctx, args, stdout)
 }

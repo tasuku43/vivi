@@ -24,14 +24,9 @@ type simpleAgentActor struct {
 }
 
 type topLevelAgentOptions struct {
-	URL      string
-	ThreadID string
-	Actor    simpleAgentActor
-	ReadAs   simpleAgentActor
-	Body     string
-	Resolve  bool
-	Archive  bool
-	JSON     bool
+	URL    string
+	ReadAs simpleAgentActor
+	JSON   bool
 }
 
 type topLevelInboxItem struct {
@@ -43,16 +38,9 @@ type topLevelInboxItem struct {
 	ReadBy string `json:"readBy,omitempty"`
 }
 
-type topLevelWriteOutput struct {
-	Type   string `json:"type"`
-	ID     string `json:"id"`
-	Actor  string `json:"actor"`
-	Status string `json:"status"`
-}
-
 func isTopLevelAgentCommand(command string) bool {
 	switch command {
-	case "servers", "inbox", "claim", "release", "reply":
+	case "servers", "inbox", "claim", "release":
 		return true
 	default:
 		return false
@@ -69,9 +57,7 @@ func runTopLevelAgentCommand(ctx context.Context, args []string, stdout io.Write
 	case "inbox":
 		return runTopLevelInbox(ctx, args[1:], stdout)
 	case "claim", "release":
-		return fmt.Errorf("error: vivi %s was removed with the resident inbox workflow; use one-shot inbox and reply", args[0])
-	case "reply":
-		return runTopLevelReply(ctx, args[1:], stdout)
+		return fmt.Errorf("error: vivi %s was removed with the resident inbox workflow; use one-shot inbox", args[0])
 	default:
 		return fmt.Errorf("error: unknown command %q", args[0])
 	}
@@ -131,105 +117,6 @@ func runTopLevelInbox(ctx context.Context, args []string, stdout io.Writer) erro
 	return topLevelInbox(ctx, stdout, options)
 }
 
-func runTopLevelReply(ctx context.Context, args []string, stdout io.Writer) error {
-	if hasHelpFlag(args) {
-		_, err := fmt.Fprintln(stdout, topLevelReplyHelpText())
-		return err
-	}
-	options, err := parseTopLevelThreadCommand("reply", args, true)
-	if err != nil {
-		return err
-	}
-	if options.Actor.Name == "" {
-		return missingActorError()
-	}
-	if strings.TrimSpace(options.Body) == "" {
-		return errors.New("error: missing reply body; pass --body <text> or --body-file <path|->")
-	}
-	if options.Resolve && options.Archive {
-		return errors.New("error: pass only one of --resolve or --archive")
-	}
-	commentsOptions := topLevelCommentsOptions(options, options.Actor)
-	if _, err := addCommentToThread(ctx, commentsOptions, options.ThreadID, options.Body); err != nil {
-		return err
-	}
-	status := "open"
-	if options.Resolve {
-		thread, err := updateCommentThreadLifecycle(ctx, commentsOptions, options.ThreadID, "resolve")
-		if err != nil {
-			return err
-		}
-		status = thread.Status
-	}
-	if options.Archive {
-		thread, err := updateCommentThreadLifecycle(ctx, commentsOptions, options.ThreadID, "archive")
-		if err != nil {
-			return err
-		}
-		status = thread.Status
-	}
-	return writeCompactJSON(stdout, topLevelWriteOutput{Type: "reply", ID: options.ThreadID, Actor: options.Actor.Name, Status: status})
-}
-
-func parseTopLevelThreadCommand(command string, args []string, allowBody bool) (topLevelAgentOptions, error) {
-	flags := flag.NewFlagSet("vivi "+command, flag.ContinueOnError)
-	flags.SetOutput(io.Discard)
-	actorValue := flags.String("actor", "", "reply actor: codex or claude")
-	body := flags.String("body", "", "reply body")
-	bodyFile := flags.String("body-file", "", "path to read reply body from")
-	resolve := flags.Bool("resolve", false, "resolve after replying")
-	archive := flags.Bool("archive", false, "archive after replying")
-	flagArgs, positional := splitTopLevelAgentFlagsAndPositionals(args)
-	if err := flags.Parse(flagArgs); err != nil {
-		return topLevelAgentOptions{}, err
-	}
-	positional = append(positional, flags.Args()...)
-	if len(positional) != 2 {
-		return topLevelAgentOptions{}, fmt.Errorf("error: %s requires <url> <thread-id>", command)
-	}
-	options := topLevelAgentOptions{
-		URL:      strings.TrimRight(positional[0], "/"),
-		ThreadID: strings.TrimSpace(positional[1]),
-		Resolve:  *resolve,
-		Archive:  *archive,
-	}
-	if err := validateTopLevelURL(options.URL); err != nil {
-		return topLevelAgentOptions{}, err
-	}
-	if options.ThreadID == "" {
-		return topLevelAgentOptions{}, fmt.Errorf("error: %s requires <thread-id>", command)
-	}
-	if strings.TrimSpace(*actorValue) != "" {
-		actor, err := parseSimpleAgentActor(*actorValue)
-		if err != nil {
-			return topLevelAgentOptions{}, err
-		}
-		options.Actor = actor
-	} else if actorValue := strings.TrimSpace(os.Getenv("VIVI_ACTOR")); actorValue != "" {
-		actor, err := parseSimpleAgentActor(actorValue)
-		if err != nil {
-			return topLevelAgentOptions{}, err
-		}
-		options.Actor = actor
-	}
-	if !allowBody && (strings.TrimSpace(*body) != "" || strings.TrimSpace(*bodyFile) != "" || *resolve || *archive) {
-		return topLevelAgentOptions{}, fmt.Errorf("error: %s does not accept reply body or lifecycle flags", command)
-	}
-	if strings.TrimSpace(*body) != "" && strings.TrimSpace(*bodyFile) != "" {
-		return topLevelAgentOptions{}, errors.New("error: --body and --body-file are mutually exclusive")
-	}
-	if strings.TrimSpace(*bodyFile) != "" {
-		bodyBytes, err := readCommentBodyFile(*bodyFile)
-		if err != nil {
-			return topLevelAgentOptions{}, fmt.Errorf("error: read --body-file: %w", err)
-		}
-		options.Body = string(bodyBytes)
-	} else {
-		options.Body = *body
-	}
-	return options, nil
-}
-
 func topLevelInbox(ctx context.Context, stdout io.Writer, options topLevelAgentOptions) error {
 	threads, _, err := fetchCommentThreads(ctx, topLevelInboxCommentsOptions(options, ""), "open")
 	if err != nil {
@@ -261,7 +148,7 @@ func writeTopLevelInboxItems(stdout io.Writer, options topLevelAgentOptions, thr
 
 func writeTopLevelInboxJSONItems(stdout io.Writer, options topLevelAgentOptions, threads []commentThreadOutput) error {
 	for _, thread := range threads {
-		item := topLevelInboxItem{Type: "comment", ID: thread.ID, File: thread.Path, Body: latestThreadBody(thread), Action: "reply"}
+		item := topLevelInboxItem{Type: "comment", ID: thread.ID, File: thread.Path, Body: latestThreadBody(thread), Action: "review"}
 		if options.ReadAs.Name != "" {
 			item.ReadBy = options.ReadAs.Name
 		}
@@ -490,17 +377,6 @@ func isTopLevelThreadRefStart(character byte) bool {
 	return character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z' || character >= '0' && character <= '9'
 }
 
-func topLevelCommentsOptions(options topLevelAgentOptions, actor simpleAgentActor) commentsCommandOptions {
-	return commentsCommandOptions{
-		URL:       options.URL,
-		JSON:      true,
-		ActorID:   actor.ID,
-		ActorKind: actor.Kind,
-		ActorName: actor.Name,
-		Body:      options.Body,
-	}
-}
-
 func latestThreadBody(thread commentThreadOutput) string {
 	if human := latestHumanComment(thread); human != nil {
 		return human.Body
@@ -520,10 +396,6 @@ func parseSimpleAgentActor(value string) (simpleAgentActor, error) {
 	default:
 		return simpleAgentActor{}, fmt.Errorf("error: unsupported actor %q; expected one of: %s", strings.TrimSpace(value), supportedSimpleActors)
 	}
-}
-
-func missingActorError() error {
-	return fmt.Errorf("error: missing actor; pass --actor or set VIVI_ACTOR (expected one of: %s)", supportedSimpleActors)
 }
 
 func topLevelInboxHelpText() string {
@@ -550,22 +422,6 @@ func topLevelServersHelpText() string {
 		"Lists validated running servers and prunes stale registrations.",
 		"* means the root contains the current directory.",
 		"Text output: servers count=<n> matches=<n>, followed by <marker> <quoted-root> <url> records.",
-	}, "\n")
-}
-
-func topLevelReplyHelpText() string {
-	return strings.Join([]string{
-		"vivi reply - reply to published feedback",
-		"",
-		"Usage:",
-		"  vivi reply <url> <thread-id>",
-		"             (--body <text> | --body-file <path|->)",
-		"             [--resolve | --archive]",
-		"             [--actor codex|claude]",
-		"",
-		"Actor:",
-		"  VIVI_ACTOR sets the default actor; --actor overrides it.",
-		"  export VIVI_ACTOR=codex",
 	}, "\n")
 }
 

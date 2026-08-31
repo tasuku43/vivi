@@ -1,11 +1,14 @@
-import type { GitChangeReviewState } from "./git-review.js";
+import {
+  gitPartialTimeoutReason,
+  type GitChangeReviewState,
+} from "./git-review.js";
+
+export { gitPartialTimeoutReason };
 
 export const gitReviewPollMs = 3_000;
 export const gitReviewTimeoutRetryMs = 30_000;
 export const gitTimeoutReason =
   "Git command timed out while reading this workspace.";
-export const gitPartialTimeoutReason =
-  "Git untracked scan timed out; showing tracked changes only.";
 export const gitReviewTimeoutGuidance =
   "Vivi will retry; for large workspaces, restart with --git-review-timeout 10s.";
 

@@ -23,7 +23,7 @@ import (
 	"github.com/tasuku43/vivi/server/workspace"
 )
 
-func TestCommentsCLIReadsRepliesAndMovesThreadLifecycle(t *testing.T) {
+func TestCommentsCLIReadsFeedbackAndMovesThreadLifecycle(t *testing.T) {
 	server := newCommentsCLITestServer(t)
 	defer server.Close()
 	threadID := createCommentThreadForCLI(t, server.URL)
@@ -58,16 +58,6 @@ func TestCommentsCLIReadsRepliesAndMovesThreadLifecycle(t *testing.T) {
 
 	events, unsubscribe := server.service.SubscribeCommentThreadActivities()
 	defer unsubscribe()
-
-	reply := runCommentsCLIForTest(t, "reply", threadID, "--url", server.URL, "--actor", "codex:run-1", "--actor-kind", "codex", "--body", "Implemented in this branch", "--json")
-	var replyPayload struct {
-		Comment commentOutput `json:"comment"`
-	}
-	decodeCLIJSON(t, reply, &replyPayload)
-	if replyPayload.Comment.ThreadID != threadID || replyPayload.Comment.Body != "Implemented in this branch" || replyPayload.Comment.CreatedBy.Kind != "codex" {
-		t.Fatalf("reply payload = %s", reply.String())
-	}
-	expectActivityEvent(t, events, "comment_added", threadID)
 
 	resolved := runCommentsCLIForTest(t, "resolve", threadID, "--url", server.URL, "--actor", "codex:run-1", "--actor-kind", "codex", "--json")
 	var lifecyclePayload struct {
@@ -930,40 +920,6 @@ func TestCommentsCLIClientEventIDMakesAgentWritesRetrySafe(t *testing.T) {
 	server := newCommentsCLITestServer(t)
 	defer server.Close()
 
-	replyThreadID := createCommentThreadForCLIWithBody(t, server.URL, "README.md", "Please investigate this")
-	firstReply := runCommentsCLIForTest(t, "reply", replyThreadID, "--url", server.URL, "--actor", "codex:retry-safe", "--actor-kind", "codex", "--client-event-id", "reply-retry-1", "--body", "Initial retry-safe reply", "--json")
-	var replyPayload struct {
-		Comment commentOutput       `json:"comment"`
-		Receipt commentWriteReceipt `json:"receipt"`
-	}
-	decodeCLIJSON(t, firstReply, &replyPayload)
-	firstReplyID := replyPayload.Comment.ID
-	if replyPayload.Comment.Body != "Initial retry-safe reply" {
-		t.Fatalf("first reply payload = %s", firstReply.String())
-	}
-	if replyPayload.Receipt.ReceiptSchema != "commentWriteReceipt" || !containsString(replyPayload.Receipt.ReceiptSchemaCommand, "commentWriteReceipt") || replyPayload.Receipt.VerificationSchema != "commentWriteReceiptVerification" || !containsString(replyPayload.Receipt.VerificationCommand, "verify-receipt") || !containsString(replyPayload.Receipt.VerificationCommand, "--url") || !containsString(replyPayload.Receipt.VerificationCommand, server.URL) || replyPayload.Receipt.Command != "comments reply" || replyPayload.Receipt.ThreadID != replyThreadID || replyPayload.Receipt.ActorID != "codex:retry-safe" || replyPayload.Receipt.ClientEventID != "reply-retry-1" || replyPayload.Receipt.CommentID != firstReplyID || !containsReceiptEffect(replyPayload.Receipt.Effects, "comment_added", "reply-retry-1") {
-		t.Fatalf("reply receipt = %#v", replyPayload.Receipt)
-	}
-
-	secondReply := runCommentsCLIForTest(t, "reply", replyThreadID, "--url", server.URL, "--actor", "codex:retry-safe", "--actor-kind", "codex", "--client-event-id", "reply-retry-1", "--body", "Retry body that should not create a second comment", "--json")
-	decodeCLIJSON(t, secondReply, &replyPayload)
-	if replyPayload.Comment.ID != firstReplyID || replyPayload.Comment.Body != "Initial retry-safe reply" {
-		t.Fatalf("reply retry should return original comment: %s", secondReply.String())
-	}
-	if replyPayload.Receipt.CommentID != firstReplyID || !containsReceiptEffect(replyPayload.Receipt.Effects, "comment_added", "reply-retry-1") {
-		t.Fatalf("reply retry receipt = %#v", replyPayload.Receipt)
-	}
-
-	replyShow := runCommentsCLIForTest(t, "show", replyThreadID, "--url", server.URL, "--json")
-	var showPayload struct {
-		Thread     commentThreadOutput     `json:"thread"`
-		Activities []commentActivityOutput `json:"activities"`
-	}
-	decodeCLIJSON(t, replyShow, &showPayload)
-	if len(showPayload.Thread.Comments) != 2 || countActivity(showPayload.Activities, "comment_added", "reply-retry-1") != 1 {
-		t.Fatalf("reply retry duplicated comment or activity: %s", replyShow.String())
-	}
-
 	doneThreadID := createCommentThreadForCLIWithBody(t, server.URL, "README.md", "Please finish this")
 	done := runCommentsCLIForTest(t, "done", doneThreadID, "--url", server.URL, "--actor", "codex:retry-safe", "--actor-kind", "codex", "--client-event-id", "done-retry-1", "--body", "Fixed and verified under a retry key", "--json")
 	var donePayload struct {
@@ -1007,6 +963,10 @@ func TestCommentsCLIClientEventIDMakesAgentWritesRetrySafe(t *testing.T) {
 	}
 
 	doneShow := runCommentsCLIForTest(t, "show", doneThreadID, "--url", server.URL, "--json")
+	var showPayload struct {
+		Thread     commentThreadOutput     `json:"thread"`
+		Activities []commentActivityOutput `json:"activities"`
+	}
 	decodeCLIJSON(t, doneShow, &showPayload)
 	if len(showPayload.Thread.Comments) != 2 || countActivity(showPayload.Activities, "comment_added", "done-retry-1") != 1 || countActivity(showPayload.Activities, "thread_status_changed", "done-retry-1") != 1 {
 		t.Fatalf("done retry activities = %s", doneShow.String())
@@ -1018,13 +978,6 @@ func TestCommentsCLIReceiptLogAppendsAgentWriteLedger(t *testing.T) {
 	defer server.Close()
 
 	receiptLog := filepath.Join(t.TempDir(), "agent", "receipts.jsonl")
-	replyThreadID := createCommentThreadForCLIWithBody(t, server.URL, "README.md", "Please acknowledge this")
-	reply := runCommentsCLIForTest(t, "reply", replyThreadID, "--url", server.URL, "--actor", "codex:ledger", "--actor-kind", "codex", "--client-event-id", "ledger-reply-1", "--body", "Acknowledged from the agent loop", "--receipt-log", receiptLog, "--json")
-	var replyPayload struct {
-		Receipt commentWriteReceipt `json:"receipt"`
-	}
-	decodeCLIJSON(t, reply, &replyPayload)
-
 	doneThreadID := createCommentThreadForCLIWithBody(t, server.URL, "README.md", "Please close this")
 	done := runCommentsCLIForTest(t, "done", doneThreadID, "--url", server.URL, "--actor", "codex:ledger", "--actor-kind", "codex", "--client-event-id", "ledger-done-1", "--body", "Fixed with receipt logging", "--receipt-log", receiptLog, "--json")
 	var donePayload struct {
@@ -1037,24 +990,17 @@ func TestCommentsCLIReceiptLogAppendsAgentWriteLedger(t *testing.T) {
 		t.Fatal(err)
 	}
 	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
-	if len(lines) != 2 {
+	if len(lines) != 1 {
 		t.Fatalf("receipt log lines = %d: %s", len(lines), string(raw))
 	}
-	var loggedReply commentWriteReceipt
 	var loggedDone commentWriteReceipt
-	if err := json.Unmarshal([]byte(lines[0]), &loggedReply); err != nil {
+	if err := json.Unmarshal([]byte(lines[0]), &loggedDone); err != nil {
 		t.Fatal(err)
-	}
-	if err := json.Unmarshal([]byte(lines[1]), &loggedDone); err != nil {
-		t.Fatal(err)
-	}
-	if loggedReply.Command != "comments reply" || loggedReply.ClientEventID != "ledger-reply-1" || loggedReply.CommentID != replyPayload.Receipt.CommentID || !containsString(loggedReply.VerificationCommand, "verify-receipt") || !containsString(loggedReply.VerificationCommand, server.URL) || !containsReceiptEffect(loggedReply.Effects, "comment_added", "ledger-reply-1") {
-		t.Fatalf("logged reply receipt = %#v", loggedReply)
 	}
 	if loggedDone.Command != "comments done" || loggedDone.ClientEventID != "ledger-done-1" || loggedDone.Status != "resolved" || loggedDone.CommentID != donePayload.Receipt.CommentID || !containsReceiptEffect(loggedDone.Effects, "thread_status_changed", "ledger-done-1") {
 		t.Fatalf("logged done receipt = %#v", loggedDone)
 	}
-	verified := runCommentsCLIWithStdinForTest(t, lines[1], "verify-receipt", "--url", server.URL, "--receipt-file", "-", "--json")
+	verified := runCommentsCLIWithStdinForTest(t, lines[0], "verify-receipt", "--url", server.URL, "--receipt-file", "-", "--json")
 	var verification commentWriteReceiptVerification
 	decodeCLIJSON(t, verified, &verification)
 	if !verification.OK || verification.Receipt.ClientEventID != "ledger-done-1" || len(verification.MissingEffects) != 0 {
@@ -1063,7 +1009,7 @@ func TestCommentsCLIReceiptLogAppendsAgentWriteLedger(t *testing.T) {
 	ledgerVerified := runCommentsCLIForTest(t, "verify-receipts", "--url", server.URL, "--receipt-log", receiptLog, "--json")
 	var ledgerVerification commentWriteReceiptLedgerVerification
 	decodeCLIJSON(t, ledgerVerified, &ledgerVerification)
-	if !ledgerVerification.OK || ledgerVerification.Count != 2 || ledgerVerification.Verified != 2 || ledgerVerification.Failed != 0 || len(ledgerVerification.Verifications) != 2 || ledgerVerification.Verifications[1].Receipt.ClientEventID != "ledger-done-1" {
+	if !ledgerVerification.OK || ledgerVerification.Count != 1 || ledgerVerification.Verified != 1 || ledgerVerification.Failed != 0 || len(ledgerVerification.Verifications) != 1 || ledgerVerification.Verifications[0].Receipt.ClientEventID != "ledger-done-1" {
 		t.Fatalf("ledger verification = %s", ledgerVerified.String())
 	}
 	brokenReceipt := loggedDone
@@ -1753,8 +1699,8 @@ func TestCommentsCLIDoctorVerifiesReceiptLedgerForRestart(t *testing.T) {
 	defer server.Close()
 
 	receiptLog := filepath.Join(t.TempDir(), "agent-receipts.jsonl")
-	threadID := createCommentThreadForCLIWithBody(t, server.URL, "README.md", "Please acknowledge this")
-	runCommentsCLIForTest(t, "reply", threadID, "--url", server.URL, "--actor", "codex:doctor-ledger", "--actor-kind", "codex", "--client-event-id", "doctor-ledger-reply-1", "--body", "Acknowledged with a receipt ledger", "--receipt-log", receiptLog, "--json")
+	threadID := createCommentThreadForCLIWithBody(t, server.URL, "README.md", "Please verify this")
+	runCommentsCLIForTest(t, "done", threadID, "--url", server.URL, "--actor", "codex:doctor-ledger", "--actor-kind", "codex", "--client-event-id", "doctor-ledger-done-1", "--body", "Verified with a receipt ledger", "--receipt-log", receiptLog, "--json")
 
 	out := runCommentsCLIForTest(t, "doctor", "--url", server.URL, "--actor", "codex:doctor-ledger", "--client-event-id", "doctor-ledger-start-1", "--receipt-log", receiptLog, "--json")
 	var payload struct {
@@ -1763,7 +1709,7 @@ func TestCommentsCLIDoctorVerifiesReceiptLedgerForRestart(t *testing.T) {
 		SuggestedCommands []commentSuggestedCommand             `json:"suggestedCommands"`
 	}
 	decodeCLIJSON(t, out, &payload)
-	if payload.RecommendedAction != "fetch_published_review" || !payload.ReceiptLedger.OK || payload.ReceiptLedger.Count != 1 || payload.ReceiptLedger.Verified != 1 || payload.ReceiptLedger.Failed != 0 {
+	if payload.RecommendedAction != "await_publish_or_fetch_later" || !payload.ReceiptLedger.OK || payload.ReceiptLedger.Count != 1 || payload.ReceiptLedger.Verified != 1 || payload.ReceiptLedger.Failed != 0 {
 		t.Fatalf("doctor ledger payload = %s", out.String())
 	}
 	if len(payload.SuggestedCommands) != 2 || payload.SuggestedCommands[0].Command != "inbox" || !payload.SuggestedCommands[0].Primary || containsString(payload.SuggestedCommands[0].Args, receiptLog) || !containsString(payload.SuggestedCommands[0].Args, server.URL) || payload.SuggestedCommands[1].Command != "comments protocol" || !containsString(payload.SuggestedCommands[1].Args, receiptLog) || !containsString(payload.SuggestedCommands[1].Args, server.URL) {
@@ -1796,7 +1742,7 @@ func TestCommentsCLIDoctorVerifiesReceiptLedgerForRestart(t *testing.T) {
 	missingLog := filepath.Join(t.TempDir(), "missing", "receipts.jsonl")
 	missingOut := runCommentsCLIForTest(t, "doctor", "--url", server.URL, "--actor", "codex:doctor-ledger", "--client-event-id", "doctor-ledger-start-3", "--receipt-log", missingLog, "--json")
 	decodeCLIJSON(t, missingOut, &payload)
-	if payload.RecommendedAction != "fetch_published_review" || !payload.ReceiptLedger.OK || payload.ReceiptLedger.Count != 0 || payload.ReceiptLedger.Verified != 0 || payload.ReceiptLedger.Failed != 0 {
+	if payload.RecommendedAction != "await_publish_or_fetch_later" || !payload.ReceiptLedger.OK || payload.ReceiptLedger.Count != 0 || payload.ReceiptLedger.Verified != 0 || payload.ReceiptLedger.Failed != 0 {
 		t.Fatalf("doctor missing ledger payload = %s", missingOut.String())
 	}
 }
@@ -1957,12 +1903,12 @@ func TestCommentsCLISchemaSurfacesStructuredStdinContracts(t *testing.T) {
 	checkProperties := checkPayload.Schema["properties"].(map[string]any)
 	writePreflight := checkProperties["write"].(map[string]any)
 	writePreflightProperties := writePreflight["properties"].(map[string]any)
-	if !containsAnyString(writePreflightProperties["reason"].(map[string]any)["enum"].([]any), "owned_live_claim") || !containsAnyString(writePreflightProperties["recommendedAction"].(map[string]any)["enum"].([]any), "write_guarded_reply") || len(checkPayload.AcceptedBy) != 2 {
+	if !containsAnyString(writePreflightProperties["reason"].(map[string]any)["enum"].([]any), "owned_live_claim") || !containsAnyString(writePreflightProperties["recommendedAction"].(map[string]any)["enum"].([]any), "complete_or_handoff") || len(checkPayload.AcceptedBy) != 2 {
 		t.Fatalf("check schema properties = %#v", checkPayload)
 	}
 	checkExampleWrite := checkPayload.Example["write"].(map[string]any)
 	checkExampleSuggestions := checkExampleWrite["suggestedCommands"].([]any)
-	if checkExampleWrite["recommendedAction"] != "write_guarded_reply" || len(checkExampleSuggestions) != 1 || checkExampleSuggestions[0].(map[string]any)["stdinSchema"] != "commentTriageFileInput" {
+	if checkExampleWrite["recommendedAction"] != "complete_or_handoff" || len(checkExampleSuggestions) != 1 || checkExampleSuggestions[0].(map[string]any)["stdinSchema"] != "commentTriageFileInput" {
 		t.Fatalf("check schema example = %#v", checkPayload.Example)
 	}
 
@@ -2057,7 +2003,7 @@ func TestCommentsCLISchemaSurfacesStructuredStdinContracts(t *testing.T) {
 	if _, ok := writeReceiptProperties["verificationCommand"]; !ok {
 		t.Fatalf("write receipt schema missing verificationCommand = %#v", writeReceiptPayload)
 	}
-	if writeReceiptPayload.Example["command"] != "comments done" || writeReceiptPayload.Example["clientEventId"] == "" || writeReceiptPayload.Example["receiptSchema"] != "commentWriteReceipt" || writeReceiptPayload.Example["verificationSchema"] != "commentWriteReceiptVerification" || len(writeReceiptPayload.AcceptedBy) != 5 {
+	if writeReceiptPayload.Example["command"] != "comments done" || writeReceiptPayload.Example["clientEventId"] == "" || writeReceiptPayload.Example["receiptSchema"] != "commentWriteReceipt" || writeReceiptPayload.Example["verificationSchema"] != "commentWriteReceiptVerification" || len(writeReceiptPayload.AcceptedBy) != 4 {
 		t.Fatalf("write receipt schema example = %#v", writeReceiptPayload)
 	}
 	receiptVerification := runCommentsCLIForTest(t, "schema", "receiptVerification", "--json")
@@ -2340,7 +2286,7 @@ func TestCommentsCLIRequireClaimGuardsAgentWrites(t *testing.T) {
 	}
 
 	runCommentsCLIForTest(t, "claim", threadID, "--url", server.URL, "--actor", "claude-code:guard-other", "--actor-kind", "claude_code", "--client-event-id", "guard-other-claim", "--json")
-	structuredOtherErr := run([]string{"comments", "reply", threadID, "--url", server.URL, "--actor", "codex:guard", "--actor-kind", "codex", "--body", "Reply from stale agent", "--require-claim", "--receipt-log", receiptLog, "--json"})
+	structuredOtherErr := run([]string{"comments", "done", threadID, "--url", server.URL, "--actor", "codex:guard", "--actor-kind", "codex", "--body", "Result from stale agent", "--require-claim", "--receipt-log", receiptLog, "--json"})
 	if structuredOtherErr == nil {
 		t.Fatal("expected structured claimed-by-other error")
 	}
@@ -2355,9 +2301,9 @@ func TestCommentsCLIRequireClaimGuardsAgentWrites(t *testing.T) {
 	if envelope.Error.SuggestedCommands[0].Intent != "inspect_thread" || !containsString(envelope.Error.SuggestedCommands[0].Args, server.URL) || !containsString(envelope.Error.SuggestedCommands[0].Args, "--actor-kind") || !containsString(envelope.Error.SuggestedCommands[0].Args, "codex") || envelope.Error.SuggestedCommands[1].Intent != "follow_until_released" || !containsString(envelope.Error.SuggestedCommands[1].Args, server.URL) || !containsString(envelope.Error.SuggestedCommands[1].Args, receiptLog) || !containsString(envelope.Error.SuggestedCommands[1].Args, "--actor") || !containsString(envelope.Error.SuggestedCommands[1].Args, "codex:guard") || !containsString(envelope.Error.SuggestedCommands[1].Args, "--actor-kind") || !containsString(envelope.Error.SuggestedCommands[1].Args, "codex") {
 		t.Fatalf("claimed-by-other error suggestions = %#v", envelope.Error.SuggestedCommands)
 	}
-	err = runCommentsCLIErrorForTest("reply", threadID, "--url", server.URL, "--actor", "codex:guard", "--actor-kind", "codex", "--body", "Reply from stale agent", "--require-claim", "--json")
+	err = runCommentsCLIErrorForTest("done", threadID, "--url", server.URL, "--actor", "codex:guard", "--actor-kind", "codex", "--body", "Result from stale agent", "--require-claim", "--json")
 	if err == nil || !strings.Contains(err.Error(), "claimed by \"claude-code:guard-other\"") {
-		t.Fatalf("reply while claimed by another actor error = %v", err)
+		t.Fatalf("done while claimed by another actor error = %v", err)
 	}
 	err = runCommentsCLIErrorForTest("release", threadID, "--url", server.URL, "--actor", "codex:guard", "--actor-kind", "codex", "--body", "I cannot take this one", "--json")
 	if err == nil || !strings.Contains(err.Error(), "claimed by \"claude-code:guard-other\"") {
@@ -2437,12 +2383,11 @@ func TestCommentsCLICheckReportsWritePreflight(t *testing.T) {
 	}
 	ownClaimSuggestions := payload.Write["suggestedCommands"].([]any)
 	renewSuggestion := ownClaimSuggestions[0].(map[string]any)
-	replySuggestion := ownClaimSuggestions[1].(map[string]any)
-	triageSuggestion := ownClaimSuggestions[2].(map[string]any)
-	releaseSuggestion := ownClaimSuggestions[3].(map[string]any)
-	doneSuggestion := ownClaimSuggestions[4].(map[string]any)
-	dismissSuggestion := ownClaimSuggestions[5].(map[string]any)
-	if payload.Write["recommendedAction"] != "write_guarded_reply" || len(ownClaimSuggestions) != 6 || renewSuggestion["intent"] != "renew_current_claim" || renewSuggestion["clientEventId"] == "" || !containsAnyString(renewSuggestion["args"].([]any), "--client-event-id") || !containsAnyString(renewSuggestion["args"].([]any), renewSuggestion["clientEventId"].(string)) || !containsAnyString(renewSuggestion["args"].([]any), server.URL) || !containsAnyString(renewSuggestion["args"].([]any), "--actor-kind") || !containsAnyString(renewSuggestion["args"].([]any), "codex") || replySuggestion["clientEventId"] == "" || !containsAnyString(replySuggestion["args"].([]any), replySuggestion["clientEventId"].(string)) || !containsAnyString(replySuggestion["args"].([]any), server.URL) || !containsAnyString(replySuggestion["args"].([]any), receiptLog) || !containsAnyString(replySuggestion["args"].([]any), "--actor-kind") || !containsAnyString(replySuggestion["args"].([]any), "codex") || triageSuggestion["stdinSchema"] != "commentTriageFileInput" || triageSuggestion["clientEventId"] == "" || !containsAnyString(triageSuggestion["args"].([]any), triageSuggestion["clientEventId"].(string)) || !containsAnyString(triageSuggestion["args"].([]any), server.URL) || !containsAnyString(triageSuggestion["args"].([]any), receiptLog) || !containsAnyString(triageSuggestion["args"].([]any), "--actor-kind") || !containsAnyString(triageSuggestion["args"].([]any), "codex") || releaseSuggestion["command"] != "comments release" || releaseSuggestion["stdinSchema"] != "commentTriageFileInput" || releaseSuggestion["clientEventId"] == "" || !containsAnyString(releaseSuggestion["args"].([]any), releaseSuggestion["clientEventId"].(string)) || !containsAnyString(releaseSuggestion["args"].([]any), server.URL) || !containsAnyString(releaseSuggestion["args"].([]any), receiptLog) || doneSuggestion["command"] != "comments done" || doneSuggestion["clientEventId"] == "" || !containsAnyString(doneSuggestion["args"].([]any), doneSuggestion["clientEventId"].(string)) || !containsAnyString(doneSuggestion["args"].([]any), server.URL) || !containsAnyString(doneSuggestion["args"].([]any), receiptLog) || dismissSuggestion["command"] != "comments dismiss" || dismissSuggestion["clientEventId"] == "" || !containsAnyString(dismissSuggestion["args"].([]any), dismissSuggestion["clientEventId"].(string)) || !containsAnyString(dismissSuggestion["args"].([]any), server.URL) || !containsAnyString(dismissSuggestion["args"].([]any), receiptLog) {
+	triageSuggestion := ownClaimSuggestions[1].(map[string]any)
+	releaseSuggestion := ownClaimSuggestions[2].(map[string]any)
+	doneSuggestion := ownClaimSuggestions[3].(map[string]any)
+	dismissSuggestion := ownClaimSuggestions[4].(map[string]any)
+	if payload.Write["recommendedAction"] != "complete_or_handoff" || len(ownClaimSuggestions) != 5 || renewSuggestion["intent"] != "renew_current_claim" || renewSuggestion["clientEventId"] == "" || !containsAnyString(renewSuggestion["args"].([]any), "--client-event-id") || !containsAnyString(renewSuggestion["args"].([]any), renewSuggestion["clientEventId"].(string)) || !containsAnyString(renewSuggestion["args"].([]any), server.URL) || !containsAnyString(renewSuggestion["args"].([]any), "--actor-kind") || !containsAnyString(renewSuggestion["args"].([]any), "codex") || triageSuggestion["stdinSchema"] != "commentTriageFileInput" || triageSuggestion["clientEventId"] == "" || !containsAnyString(triageSuggestion["args"].([]any), triageSuggestion["clientEventId"].(string)) || !containsAnyString(triageSuggestion["args"].([]any), server.URL) || !containsAnyString(triageSuggestion["args"].([]any), receiptLog) || !containsAnyString(triageSuggestion["args"].([]any), "--actor-kind") || !containsAnyString(triageSuggestion["args"].([]any), "codex") || releaseSuggestion["command"] != "comments release" || releaseSuggestion["stdinSchema"] != "commentTriageFileInput" || releaseSuggestion["clientEventId"] == "" || !containsAnyString(releaseSuggestion["args"].([]any), releaseSuggestion["clientEventId"].(string)) || !containsAnyString(releaseSuggestion["args"].([]any), server.URL) || !containsAnyString(releaseSuggestion["args"].([]any), receiptLog) || doneSuggestion["command"] != "comments done" || doneSuggestion["clientEventId"] == "" || !containsAnyString(doneSuggestion["args"].([]any), doneSuggestion["clientEventId"].(string)) || !containsAnyString(doneSuggestion["args"].([]any), server.URL) || !containsAnyString(doneSuggestion["args"].([]any), receiptLog) || dismissSuggestion["command"] != "comments dismiss" || dismissSuggestion["clientEventId"] == "" || !containsAnyString(dismissSuggestion["args"].([]any), dismissSuggestion["clientEventId"].(string)) || !containsAnyString(dismissSuggestion["args"].([]any), server.URL) || !containsAnyString(dismissSuggestion["args"].([]any), receiptLog) {
 		t.Fatalf("check own claim suggestions = %#v", payload.Write)
 	}
 	if triageSuggestion["stdinExample"].(map[string]any)["decision"] != "accepted" || !strings.Contains(triageSuggestion["stdinExample"].(map[string]any)["summary"].(string), "understand") {
@@ -2498,33 +2443,17 @@ func TestCommentsCLIReceiptLogPropagatesThroughAgentSuggestions(t *testing.T) {
 	decodeCLIJSON(t, check, &checkPayload)
 	suggestions := checkPayload.Write["suggestedCommands"].([]any)
 	renewSuggestion := suggestions[0].(map[string]any)
-	replySuggestion := suggestions[1].(map[string]any)
-	doneSuggestion := suggestions[4].(map[string]any)
-	if !containsAnyString(renewSuggestion["args"].([]any), "--receipt-log") || !containsAnyString(renewSuggestion["args"].([]any), receiptLog) || !containsAnyString(renewSuggestion["args"].([]any), server.URL) || !containsAnyString(replySuggestion["args"].([]any), "--receipt-log") || !containsAnyString(replySuggestion["args"].([]any), receiptLog) || !containsAnyString(replySuggestion["args"].([]any), server.URL) || !containsAnyString(doneSuggestion["args"].([]any), "--receipt-log") || !containsAnyString(doneSuggestion["args"].([]any), receiptLog) || !containsAnyString(doneSuggestion["args"].([]any), server.URL) {
+	triageSuggestion := suggestions[1].(map[string]any)
+	doneSuggestion := suggestions[3].(map[string]any)
+	if !containsAnyString(renewSuggestion["args"].([]any), "--receipt-log") || !containsAnyString(renewSuggestion["args"].([]any), receiptLog) || !containsAnyString(renewSuggestion["args"].([]any), server.URL) || !containsAnyString(triageSuggestion["args"].([]any), "--receipt-log") || !containsAnyString(triageSuggestion["args"].([]any), receiptLog) || !containsAnyString(triageSuggestion["args"].([]any), server.URL) || !containsAnyString(doneSuggestion["args"].([]any), "--receipt-log") || !containsAnyString(doneSuggestion["args"].([]any), receiptLog) || !containsAnyString(doneSuggestion["args"].([]any), server.URL) {
 		t.Fatalf("check runtime suggestions = %#v", suggestions)
 	}
 }
 
-func TestCommentsCLIBodyFileFeedsRepliesAndTerminalShortcuts(t *testing.T) {
+func TestCommentsCLIBodyFileFeedsTerminalShortcuts(t *testing.T) {
 	server := newCommentsCLITestServer(t)
 	defer server.Close()
-	threadID := createCommentThreadForCLI(t, server.URL)
 	tempDir := t.TempDir()
-	replyBody := "Implemented triage:\n\n- Reproduced the feedback\n- Added a focused fix\n"
-	replyFile := filepath.Join(tempDir, "reply.md")
-	if err := os.WriteFile(replyFile, []byte(replyBody), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	reply := runCommentsCLIForTest(t, "reply", threadID, "--url", server.URL, "--actor", "codex:body-file-test", "--actor-kind", "codex", "--body-file", replyFile, "--json")
-	var replyPayload struct {
-		Comment commentOutput `json:"comment"`
-	}
-	decodeCLIJSON(t, reply, &replyPayload)
-	if replyPayload.Comment.ThreadID != threadID || replyPayload.Comment.Body != strings.TrimSpace(replyBody) {
-		t.Fatalf("reply body-file payload = %s", reply.String())
-	}
-
 	doneThreadID := createCommentThreadForCLIWithBody(t, server.URL, "README.md", "Please verify with task check")
 	doneBody := "Fixed via file:\n\n- npm run test:go -- ./cli passed\n- task check passed"
 	doneFile := filepath.Join(tempDir, "done.md")
@@ -2553,7 +2482,7 @@ func TestCommentsCLIBodyFileFeedsRepliesAndTerminalShortcuts(t *testing.T) {
 		t.Fatalf("dismiss body-file stdin payload = %s", dismissed.String())
 	}
 
-	err := runCommentsCLIErrorForTest("reply", threadID, "--url", server.URL, "--body", "inline", "--body-file", replyFile, "--json")
+	err := runCommentsCLIErrorForTest("done", doneThreadID, "--url", server.URL, "--body", "inline", "--body-file", doneFile, "--json")
 	if err == nil || !strings.Contains(err.Error(), "--body and --body-file are mutually exclusive") {
 		t.Fatalf("body/body-file conflict error = %v", err)
 	}
@@ -2610,7 +2539,7 @@ func TestCommentsCLIResultFileFeedsTerminalShortcuts(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "--result-file cannot be combined") {
 		t.Fatalf("result-file conflict error = %v", err)
 	}
-	err = runCommentsCLIErrorForTest("reply", doneThreadID, "--url", server.URL, "--actor", "codex:result-file", "--result-file", resultPath, "--json")
+	err = runCommentsCLIErrorForTest("resolve", doneThreadID, "--url", server.URL, "--actor", "codex:result-file", "--result-file", resultPath, "--json")
 	if err == nil || !strings.Contains(err.Error(), "--result-file is only supported") {
 		t.Fatalf("result-file command error = %v", err)
 	}
@@ -2856,13 +2785,13 @@ func TestCommentsCLIWatchStreamsOpenWorklistSnapshots(t *testing.T) {
 		t.Fatalf("initial watch worklist = %#v", initial.Threads)
 	}
 
-	runCommentsCLIForTest(t, "reply", threadID, "--url", server.URL, "--actor", "codex:watch-test", "--actor-kind", "codex", "--body", "Taking this one", "--json")
+	runCommentsCLIForTest(t, "triage", threadID, "--url", server.URL, "--actor", "codex:watch-test", "--actor-kind", "codex", "--decision", "accepted", "--summary", "Taking this one", "--json")
 	updated := receiveWatchEvent(t, events)
 	if updated.Count != 1 || updated.Threads[0].ID != threadID || len(updated.Threads[0].Comments) != 2 || !containsString(updated.Changes, "open_thread_updated") {
 		t.Fatalf("updated watch event = %#v", updated)
 	}
 	if updated.Cursor == initial.Cursor {
-		t.Fatalf("cursor did not change after reply: %s", updated.Cursor)
+		t.Fatalf("cursor did not change after triage: %s", updated.Cursor)
 	}
 
 	runCommentsCLIForTest(t, "resolve", threadID, "--url", server.URL, "--actor", "codex:watch-test", "--actor-kind", "codex", "--json")
@@ -2953,7 +2882,7 @@ func TestCommentsCLIWatchCursorSuppressesDuplicateResume(t *testing.T) {
 		t.Fatalf("expected one idempotent watch read receipt, got %d in %#v", readReceipts, activities)
 	}
 
-	runCommentsCLIForTest(t, "reply", threadID, "--url", server.URL, "--actor", "codex:watch-test", "--actor-kind", "codex", "--body", "Cursor should advance", "--json")
+	runCommentsCLIForTest(t, "triage", threadID, "--url", server.URL, "--actor", "codex:watch-test", "--actor-kind", "codex", "--decision", "accepted", "--summary", "Cursor should advance", "--json")
 	resumed := runCommentsCLIForTest(t, "watch", "--url", server.URL, "--actor", "claude-code", "--client-event-id", "resume-test", "--once", "--cursor", firstEvent.Cursor, "--json")
 	resumedEvent := decodeSingleWatchEvent(t, resumed)
 	if resumedEvent.Reason != "resumed" || resumedEvent.Cursor == firstEvent.Cursor || !containsString(resumedEvent.Changes, "open_worklist_changed") {

@@ -349,7 +349,7 @@ export const DraftOnlyThreadAllowsAnotherPendingNote: Story = {
 };
 
 export const SourcePublishedFeedbackHasNoResponseComposer: Story = {
-  name: "Published source feedback has no response composer",
+  name: "Published source feedback starts separate feedback",
   tags: ["interaction"],
   args: {
     selectedRange: null,
@@ -391,11 +391,12 @@ export const SourcePublishedFeedbackHasNoResponseComposer: Story = {
         "Existing thread should stay separate from the next note.",
       ),
     ).toBeVisible();
-    await expect(
-      canvas.queryByRole("button", { name: "Start separate thread" }),
-    ).not.toBeInTheDocument();
     await expect(canvas.queryByLabelText("New line comment")).toBeNull();
     await expect(canvas.queryByRole("textbox")).not.toBeInTheDocument();
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Add new feedback" }),
+    );
+    await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
   },
 };
 

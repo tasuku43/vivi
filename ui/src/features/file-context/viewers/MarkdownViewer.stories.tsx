@@ -1,6 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
-import { expect, fireEvent, fn, userEvent, waitFor, within } from "storybook/test";
+import {
+  expect,
+  fireEvent,
+  fn,
+  userEvent,
+  waitFor,
+  within,
+} from "storybook/test";
 import type { ViviComment } from "../../../domain/comments.js";
 import {
   draftReviewCommentAsViviComment,
@@ -163,7 +170,7 @@ export const RenderedCommentMarkerOpensFeedback: Story = {
 };
 
 export const RenderedPublishedFeedbackHasNoResponseComposer: Story = {
-  name: "Rendered Markdown published feedback has no response composer",
+  name: "Rendered Markdown published feedback starts separate feedback",
   tags: ["interaction"],
   args: {
     mode: "rendered",
@@ -188,13 +195,14 @@ export const RenderedPublishedFeedbackHasNoResponseComposer: Story = {
         name: "Comment thread for line 7",
       }),
     ).toHaveLength(1);
-    await expect(
-      within(existingThread).queryByRole("button", {
-        name: "Start separate thread",
-      }),
-    ).not.toBeInTheDocument();
     await expect(canvas.queryByLabelText("New line comment")).toBeNull();
     await expect(canvas.queryByRole("textbox")).not.toBeInTheDocument();
+    await userEvent.click(
+      within(existingThread).getByRole("button", {
+        name: "Add new feedback",
+      }),
+    );
+    await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
   },
 };
 

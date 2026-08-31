@@ -109,6 +109,37 @@
   overflow-y: auto;
 }
 
+:global(.code-comment-thread-new-feedback) {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--vivi-color-border-soft);
+  padding: 8px 10px;
+}
+
+:global(.code-comment-thread-new-feedback button) {
+  border: 1px solid var(--vivi-color-comment-border);
+  border-radius: 6px;
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-comment-surface) 68%,
+    transparent
+  );
+  color: var(--vivi-color-comment-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  padding: 6px 10px;
+}
+
+:global(.code-comment-thread-new-feedback button:hover),
+:global(.code-comment-thread-new-feedback button:focus-visible) {
+  outline: none;
+  background: var(--vivi-color-comment-surface);
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--vivi-color-comment-border) 35%, transparent);
+}
+
 :global(.code-thread-comment) {
   border-bottom: 1px solid var(--vivi-color-border-soft);
   padding: 10px 12px 11px;

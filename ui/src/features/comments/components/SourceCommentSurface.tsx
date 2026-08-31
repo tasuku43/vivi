@@ -692,6 +692,15 @@ export function SourceCommentSurface({
                   activeCommentId={activeCommentId}
                   currentActorId={currentActorId}
                   onCreateComment={onCreateComment}
+                  onStartNewFeedback={() =>
+                    startRangeComment(
+                      {
+                        start: entry.thread.lineStart,
+                        end: entry.thread.lineEnd,
+                      },
+                      entry.draft.anchor.canonical.quote,
+                    )
+                  }
                   onClose={() =>
                     closeCommentThread(entry.thread.key, entry.thread)
                   }

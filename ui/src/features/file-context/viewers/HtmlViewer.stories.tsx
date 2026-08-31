@@ -209,7 +209,7 @@ export const PreviewRenderedHtmlThread: Story = {
 };
 
 export const PreviewPublishedFeedbackHasNoResponseComposer: Story = {
-  name: "HTML preview published feedback has no response composer",
+  name: "HTML preview published feedback starts separate feedback",
   tags: ["interaction"],
   args: {
     mode: "preview",
@@ -231,14 +231,13 @@ export const PreviewPublishedFeedbackHasNoResponseComposer: Story = {
       within(thread).getByText(/HTML rendered comments should be visible/),
     ).toBeVisible();
 
-    await expect(
-      within(thread).queryByRole("button", { name: "Start separate thread" }),
-    ).not.toBeInTheDocument();
     await expect(canvas.queryByLabelText("New line comment")).toBeNull();
     await expect(canvas.queryByRole("textbox")).not.toBeInTheDocument();
-    await expect(
-      within(thread).getByText(/HTML rendered comments should be visible/),
-    ).toBeVisible();
+    await userEvent.click(
+      within(thread).getByRole("button", { name: "Add new feedback" }),
+    );
+    await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
+    await expect(frame).toBeInTheDocument();
   },
 };
 

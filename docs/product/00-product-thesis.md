@@ -68,7 +68,7 @@ The agent-side interface should optimize for:
 - recording read activity without creating noisy human work,
 - staying deterministic enough to test without a real model.
 
-Agent conversation belongs in the terminal or agent workbench where the human is already directing the work. Vivi does not need an agent-reply inbox or a parallel conversation that asks the human to read the same work twice. Existing reply- and terminal-status-capable transports may remain for compatibility, but replies, resolved, and archived are not product-level attention states.
+Agent conversation belongs in the terminal or agent workbench where the human is already directing the work. Vivi does not need an agent-response inbox or a parallel conversation that asks the human to read the same work twice. Vivi's CLI has no standalone response command; read receipts provide the browser-side observation signal, while any legacy agent-authored records remain readable only for stored-data compatibility. Resolved and archived are not product-level attention states.
 
 The CLI should not become a second human UI. It should be shaped around the needs of coding agents and automation.
 

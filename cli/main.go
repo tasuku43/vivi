@@ -48,6 +48,9 @@ func invokedViviExecutable(args []string) string {
 }
 
 func run(args []string) error {
+	if len(args) > 0 && args[0] == "reply" {
+		return fmt.Errorf("unknown command %q", args[0])
+	}
 	if len(args) > 0 && isTopLevelAgentCommand(args[0]) {
 		return runTopLevelAgentCommand(context.Background(), args, os.Stdout)
 	}
@@ -235,23 +238,8 @@ func helpText() string {
 		"  vivi [root] [options]",
 		"  vivi servers",
 		"  vivi inbox <url>",
-		"  vivi reply <url> <thread-id>",
-		"             (--body <text> | --body-file <path|->)",
-		"             [--resolve | --archive]",
-		"             [--actor codex|claude]",
 		"",
-		"Agent setup:",
-		"  export VIVI_ACTOR=codex",
-		"",
-		"  vivi servers",
-		"  vivi inbox <url>",
-		"  vivi reply <url> <thread-id> --body-file -",
-		"  vivi reply <url> <thread-id> --resolve --body-file -",
-		"",
-		"Environment:",
-		"  VIVI_ACTOR                  Default actor for reply; --actor overrides it.",
-		"",
-		"Run 'vivi servers --help', 'vivi inbox --help', or 'vivi reply --help' for details.",
+		"Run 'vivi servers --help' or 'vivi inbox --help' for details.",
 		"",
 		"Launch options:",
 		"  --host <host>              Host to bind (default: 127.0.0.1)",

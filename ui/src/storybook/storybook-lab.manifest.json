@@ -103,7 +103,7 @@
         "draft comments read as private until publish",
         "pending drafts can be deleted before publish",
         "agent reads are visible as Seen while agent-authored messages stay out of the browser",
-        "published feedback exposes the read receipt without browser response controls"
+        "published feedback exposes its read receipt and an explicit Add new feedback action that creates a separate note rather than a response"
       ],
       "requiredStories": [
         "Review/Inline Comment States/UnseenPublishedFeedback",

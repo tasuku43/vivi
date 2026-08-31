@@ -11,6 +11,7 @@ import {
 import {
   commentAnchorThreadKey,
   codeCommentThreads,
+  draftForNewComment,
   lineRangeForQuote,
   isDraftThreadComment,
   matchingDraftPreviewThread,
@@ -524,6 +525,16 @@ export function HtmlViewer({
     onCloseComment?.();
   };
 
+  const startNewRenderedFeedback = (
+    target: HtmlRenderedThreadTarget,
+    currentDraft: CommentDraft,
+  ) => {
+    const draft = draftForNewComment(target.reanchorDraft ?? currentDraft);
+    commentInputs.start(draft, target.rect);
+    setRenderedThreadTargets([{ ...target, draft, reanchorDraft: undefined }]);
+    onCloseComment?.();
+  };
+
   const renderedThreadEntries = renderedThreadTargets.map((target) => {
     const threadComments = commentsForRenderedHtmlTarget(
       target,
@@ -667,6 +678,9 @@ export function HtmlViewer({
               activeCommentId={activeCommentId}
               currentActorId={currentActorId}
               onCreateComment={onCreateComment}
+              onStartNewFeedback={() =>
+                startNewRenderedFeedback(entry.target, entry.draft)
+              }
               keepOpenAfterCreate
               focusRevision={
                 resumeFocus?.sessionId === commentInputSessionId(entry.draft)

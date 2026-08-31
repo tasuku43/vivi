@@ -43,12 +43,7 @@ it(
     expect(result.stdout).toContain("vivi [root] [options]");
     expect(result.stdout).toContain("vivi servers");
     expect(result.stdout).toContain("vivi inbox <url>");
-    expect(result.stdout).toContain("vivi reply <url> <thread-id>");
-    expect(result.stdout).toContain("export VIVI_ACTOR=codex");
-    expect(result.stdout).toContain("VIVI_ACTOR");
-    expect(result.stdout).toContain(
-      "Default actor for reply; --actor overrides it.",
-    );
+    expect(result.stdout).not.toContain("vivi reply");
     expect(result.stdout).not.toContain("vivi inbox <url> --watch");
     expect(result.stdout).not.toContain("vivi review <queue|bases|diff>");
     expect(result.stdout).not.toContain("vivi comments <work|doctor");
@@ -268,12 +263,12 @@ it("documents npm as a local Go CLI delegate, not a TypeScript CLI path", () => 
   for (const text of [readme, install]) {
     expect(text).toContain("canonical Go CLI");
     expect(text).toContain("vivi inbox");
-    expect(text).toContain("vivi reply");
+    expect(text).not.toContain("vivi reply");
   }
   expect(cliContract).toContain("Go CLI/backend");
   expect(cliContract).toContain("vivi inbox <url>");
   expect(cliContract).toContain("one-shot top-level `inbox <url>`");
-  expect(cliContract).toContain("vivi reply <url> <thread-id>");
+  expect(cliContract).not.toContain("vivi reply");
   expect(cliContract).toContain(
     "`comments work` is a legacy integrated intake loop",
   );

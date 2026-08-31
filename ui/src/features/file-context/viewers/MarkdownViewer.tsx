@@ -18,6 +18,7 @@ import { renderedCommentBlockAttribute } from "../../../domain/rendered-comment-
 import {
   codeCommentThreads,
   commentAnchorThreadKey,
+  draftForNewComment,
   renderedCommentDraft,
   sourceTextForLineRange,
   isDraftThreadComment,
@@ -479,6 +480,13 @@ export function MarkdownViewer({
     onCloseComment?.();
   };
 
+  const startNewRenderedFeedback = (target: MarkdownRenderedThreadTarget) => {
+    const draft = draftForNewComment(target.reanchorDraft ?? target.draft);
+    commentInputs.start(draft, target.rect);
+    setRenderedThreadTargets([{ ...target, draft, reanchorDraft: undefined }]);
+    onCloseComment?.();
+  };
+
   useEffect(() => {
     if (
       mode !== "rendered" ||
@@ -692,6 +700,7 @@ export function MarkdownViewer({
               activeCommentId={activeCommentId}
               currentActorId={currentActorId}
               onCreateComment={onCreateComment}
+              onStartNewFeedback={() => startNewRenderedFeedback(entry.target)}
               keepOpenAfterCreate
               focusRevision={
                 resumeFocus?.sessionId ===

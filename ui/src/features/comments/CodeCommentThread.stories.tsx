@@ -6,6 +6,7 @@ import type {
   ViviComment,
 } from "../../domain/comments.js";
 import { summarizeThreadActivity } from "../../state/comment-activity.js";
+import { draftForNewComment } from "../../state/comments.js";
 import { CodeCommentThread } from "./components/CodeCommentThread.js";
 import { useCommentInputSessions } from "./CommentInputSessionProvider.js";
 import { sampleFiles } from "../../storybook/fixtures/review-lab.js";
@@ -97,15 +98,52 @@ type Story = StoryObj<typeof meta>;
 
 export const UnseenPublishedFeedback: Story = {
   tags: ["interaction"],
-  play: async ({ canvasElement }) => {
+  render: (args) => <PublishedFeedbackHarness {...args} />,
+  play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getAllByText("Published")[0]).toBeVisible();
     await expect(canvas.getByText("Unseen")).toBeVisible();
     await expect(canvas.queryByRole("button", { name: "Resolve" })).toBeNull();
     await expect(canvas.queryByRole("button", { name: "Archive" })).toBeNull();
     await expect(canvas.queryByRole("textbox")).toBeNull();
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Add new feedback" }),
+    );
+    const input = canvas.getByLabelText("New line comment");
+    await userEvent.type(input, "A separate follow-up on the same lines.");
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Save pending draft comment" }),
+    );
+    await expect(args.onCreateComment).toHaveBeenCalledWith(
+      expect.not.objectContaining({ threadId }),
+      "A separate follow-up on the same lines.",
+    );
   },
 };
+
+function PublishedFeedbackHarness(
+  storyArgs: ComponentProps<typeof CodeCommentThread>,
+) {
+  const [newFeedbackDraft, setNewFeedbackDraft] = useState(false);
+  const draft = newFeedbackDraft
+    ? draftForNewComment(storyArgs.draft)
+    : storyArgs.draft;
+  const thread = newFeedbackDraft
+    ? {
+        ...storyArgs.thread,
+        key: "new-feedback-on-same-anchor",
+        comments: [],
+      }
+    : storyArgs.thread;
+  return (
+    <CodeCommentThread
+      {...storyArgs}
+      thread={thread}
+      draft={draft}
+      onStartNewFeedback={() => setNewFeedbackDraft(true)}
+    />
+  );
+}
 
 export const SeenByAgent: Story = {
   args: {

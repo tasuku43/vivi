@@ -1186,6 +1186,7 @@ it("renders published document feedback with the code-thread width contract", ()
       }}
       draft={draft}
       onCreateComment={() => undefined}
+      onStartNewFeedback={() => undefined}
       onClose={() => undefined}
     />,
   );
@@ -1195,6 +1196,7 @@ it("renders published document feedback with the code-thread width contract", ()
   );
   expect(html).toContain("Lines 3-4");
   expect(html).not.toContain("<textarea");
+  expect(html).toContain("Add new feedback");
   expect(html).toContain("Published");
   expect(html).toContain("Unseen");
   expect(html).toContain("Check this return");

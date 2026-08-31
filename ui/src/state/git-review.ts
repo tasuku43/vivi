@@ -1,6 +1,9 @@
 import type { GitChange, TextDiff } from "../domain/change-review.js";
 import type { FileReviewState } from "./review-events.js";
 
+export const gitPartialTimeoutReason =
+  "Git untracked scan timed out; showing tracked changes only.";
+
 export interface GitChangeReviewState {
   available: boolean;
   reason?: string;
@@ -43,12 +46,28 @@ export function mergeReviewChanges(
   watcherState: FileReviewState,
   gitState: GitChangeReviewState | null,
 ): ReviewChangeItem[] {
+  const watcherChanges = watcherReviewChanges(watcherState);
   if (gitState?.available) {
-    return gitState.changes
-      .map((change) => ({ ...change, source: "git" as const }))
-      .sort(compareReviewChanges);
+    const byPath = new Map<string, ReviewChangeItem>(
+      gitState.changes.map((change) => [
+        change.path,
+        { ...change, source: "git" as const },
+      ]),
+    );
+    if (gitState.reason === gitPartialTimeoutReason) {
+      for (const change of watcherChanges) {
+        if (!byPath.has(change.path)) byPath.set(change.path, change);
+      }
+    }
+    return [...byPath.values()].sort(compareReviewChanges);
   }
 
+  return watcherChanges;
+}
+
+function watcherReviewChanges(
+  watcherState: FileReviewState,
+): ReviewChangeItem[] {
   const byPath = new Map<string, ReviewChangeItem>();
 
   for (const pair of watcherState.renamePairs) {

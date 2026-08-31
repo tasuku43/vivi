@@ -105,7 +105,7 @@ Thread metadata is projected from messages and an append-only
 ```
 
 Agent writes use `clientEventId` as the operation id for retry safety. For the
-same actor and thread, replaying `reply`, `triage`, `done`, or `dismiss` with
+same actor and thread, replaying `triage`, `done`, or `dismiss` with
 the same `--client-event-id` reuses the matching `comment.added` event instead
 of appending another agent message. Terminal shortcuts also store the same id
 on the lifecycle event, so a retried `done` or `dismiss` can be correlated
@@ -180,8 +180,6 @@ vivi comments follow <thread-id> --no-initial --json
 vivi comments show <thread-id> --json
 vivi comments check <thread-id> --actor codex --json
 vivi comments context <thread-id> --full --context-lines 6 --json
-vivi comments reply <thread-id> --body "Implemented in this branch" --actor codex --json
-vivi comments reply <thread-id> --body-file /tmp/vivi-reply.md --actor codex --json
 vivi comments triage <thread-id> --decision accepted --summary "Actionable feedback" --actor codex --json
 vivi comments triage <thread-id> --triage-file /tmp/vivi-triage.json --actor codex --json
 vivi comments schema commentTriageFileInput --json
@@ -300,13 +298,13 @@ Snapshot, intake, and structured acknowledgement payloads are described by
 `commentReleaseOutput`, and `commentResultOutput`, exposed through the protocol
 manifest's `outputSchemas`, so adapters can validate `claim`, `inbox`, `mine`,
 `batch`, guarded-write `check`, triage writes, handoff releases, and terminal
-`done`/`dismiss` replies without relying on stream events. The reusable
+`done`/`dismiss` results without relying on stream events. The reusable
 `commentSuggestedCommand` component schema is
 also exposed through `componentSchemas`, covering each `suggestedCommands`
 entry embedded in startup, snapshot, stream, preflight, and error payloads.
 The reusable `commentWriteReceipt` component schema is exposed in the same
-`componentSchemas` map; it covers the `receipt` object returned by `reply`,
-`triage`, `release`, `done`, and `dismiss` after an agent write. Those same
+`componentSchemas` map; it covers the `receipt` object returned by `triage`,
+`release`, `done`, and `dismiss` after an agent write. Those same
 write commands accept `--receipt-log <path>` to append each successful receipt
 as JSONL for adapter restart recovery.
 Suggested commands that need JSON stdin set `stdinRequired: true` and carry an
@@ -448,11 +446,11 @@ context and wants only one extra dimension.
 activity history without recording a read receipt and returns `liveClaim` plus
 `write.canWrite` and `write.reason`. Reason values are `owned_live_claim`,
 `no_live_claim`, `claimed_by_other_actor`, and `thread_not_open`. Use it before
-`done`, `dismiss`, `reply`, `resolve`, or `archive --require-claim` when the
+`done`, `dismiss`, `resolve`, or `archive --require-claim` when the
 agent wants to branch on ownership in JSON instead of relying on a terminal
 error. The same `write` object also includes `recommendedAction` and
 `suggestedCommands`: claim the thread when no live claim exists, renew or write
-guarded replies when the actor owns the claim, inspect/follow when another
+structured results or handoffs when the actor owns the claim, inspect/follow when another
 actor owns it, and reopen before writing to a terminal thread. The payload is
 described by `commentCheckOutput`, including the nested write preflight schema
 for `reason`, `recommendedAction`, and the guarded-write suggestions.
@@ -524,9 +522,9 @@ Adapters that validate or record the stream protocol can also fetch
 long-running `follow`/`work` NDJSON events that carry human feedback, claim
 metadata, source context, and suggested next commands.
 Background agents that claimed work should pass `--require-claim` to
-`reply`, `triage`, `done`, `dismiss`, `resolve`, or `archive`. The CLI validates the
+`triage`, `done`, `dismiss`, `resolve`, or `archive`. The CLI validates the
 latest live `thread_claimed` activity before writing, so a stale process cannot
-reply or close a thread after another actor has taken over. If verification ran
+write or close a thread after another actor has taken over. If verification ran
 longer than the lease, call `comments renew` first or keep
 `comments hold` running during the long work.
 Agents should also reuse the suggested `clientEventId` for one logical write

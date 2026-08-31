@@ -1,10 +1,9 @@
 # CLI and API contract
 
-> Product-attention note: reply, resolved, and archived commands remain
-> supported compatibility transports. The browser does not require those
-> states to clear review attention; unseen published feedback stays pinned, and
-> an agent read receipt starts the same inactivity window used by watcher events
-> and user opens.
+> Product-attention note: the standalone agent response command has been
+> removed. The browser uses read receipts, drafts, and recent activity for
+> attention; legacy agent-authored records remain readable only as stored-data
+> compatibility.
 
 ## CLI contract
 
@@ -29,10 +28,6 @@ vivi [root] --allow-html-scripts
 vivi servers
 vivi inbox http://127.0.0.1:4317
 vivi inbox http://127.0.0.1:4317 --read-as codex
-export VIVI_ACTOR=codex
-vivi reply http://127.0.0.1:4317 <thread-id> --body "Implemented"
-vivi reply http://127.0.0.1:4317 <thread-id> --resolve --body-file /tmp/vivi-reply.md
-vivi reply http://127.0.0.1:4317 <thread-id> --archive --body-file -
 vivi comments work --actor codex --loop --json
 vivi comments work --once --actor codex --full --json
 vivi comments mine --actor codex --json
@@ -84,9 +79,6 @@ vivi comments context <thread-id> --full --context-lines 6 --json
 vivi comments check <thread-id> --actor codex --json
 vivi comments verify-receipt --receipt-file /tmp/vivi-receipt.json --json
 vivi comments verify-receipts --receipt-log /tmp/vivi-agent-receipts.jsonl --json
-vivi comments reply <thread-id> --body "Implemented" --actor codex --json
-vivi comments reply <thread-id> --body-file - --actor codex --receipt-log /tmp/vivi-agent-receipts.jsonl --json
-vivi comments reply <thread-id> --body-file /tmp/vivi-reply.md --actor codex --json
 vivi comments triage <thread-id> --actor codex --decision accepted --summary "Investigating" --json
 vivi comments triage <thread-id> --actor codex --triage-file /tmp/vivi-triage.json --json
 vivi comments schema triage --json
@@ -161,8 +153,8 @@ refresh. This inbox command is the only startup suggestion. `review` and
 `comments` remain directly addressable compatibility, adapter, and recovery
 surfaces, but the root help and normal startup handoff do not advertise them.
 The top-level `vivi --help` presents the product as local workspace review and
-shows only launch, running-server discovery, synchronous inbox/reply, actor
-setup, and launch options.
+shows only launch, running-server discovery, synchronous inbox, and launch
+options.
 
 ### Running-server discovery
 
@@ -201,9 +193,9 @@ agent must apply these branches:
 - `count=0`: only then consider launching Vivi, and only when the intended
   workspace root is unambiguous.
 
-Once selected, the exact URL must be reused for `inbox`, every requested
-refresh, and `reply`. Discovery does not make the URL argument optional and
-does not silently start a server.
+Once selected, the exact URL must be reused for `inbox` and every requested
+refresh. Discovery does not make the URL argument optional and does not
+silently start a server.
 
 ### Top-level agent comment pipe
 
@@ -213,29 +205,18 @@ The first user-facing agent surface is intentionally small:
 vivi servers
 vivi inbox <url>
 vivi inbox <url> --read-as codex
-export VIVI_ACTOR=codex
-vivi reply <url> <thread-id> (--body <text>|--body-file <path|->) [--resolve|--archive] [--actor codex|claude]
 ```
 
 `inbox` requires the URL selected through discovery because multiple Vivi
 servers may run at the same time. Plain `inbox <url>` is passive, returns the
 current published open snapshot, and does not send actor headers or create read
-receipts. It exits after that snapshot. Agent replies do not cause another inbox emission by
-themselves.
+receipts. It exits after that snapshot.
 Use `--read-as codex` or `--read-as claude` only when the browser should show
 that a named agent read the thread.
 
-`reply` is the write surface. Its actor resolves in the order explicit
-`--actor`, inherited `VIVI_ACTOR`, then usage error. The accepted facade actors
-are `codex` and `claude`; `claude` maps internally to the existing
-`claude_code` actor kind. Set `VIVI_ACTOR` in the shell that launches the coding
-agent, or in a shell profile, to reuse the actor across replies. The environment
-variable does not affect `inbox`; only `--read-as` creates a read receipt.
-Unsupported actors are CLI usage errors. `reply` is non-interactive: pass
-`--body <text>` or `--body-file <path|->`; it never waits for terminal input
-unless stdin is explicitly requested with `--body-file -`. Without a lifecycle
-flag the thread remains open. `--resolve` posts the reply and resolves the
-thread. `--archive` posts the reply and archives the thread.
+There is no top-level agent write-back command. The agent reports its result in
+the terminal or workbench where the human is already directing it. Only
+`--read-as` creates a browser-visible read receipt.
 
 The default inbox result is a compact typed projection rather than JSON:
 
@@ -251,8 +232,7 @@ inbox count=2 complete=true external-text=untrusted escaped
 
 Each unindented record is `<thread-id> <quoted-path> <anchor>` with optional
 `base=`, `selector=`, and `quote=` facts. Indented records are the complete
-conversation in order as `<actor> <quoted-body>`. The thread ID remains an
-exact canonical value for `reply`. Open status, `action=reply`, timestamps, and
+conversation in order as `<actor> <quoted-body>`. Open status, timestamps, and
 comment IDs are omitted because they are redundant for this task. Source,
 rendered kind, source line/column range, diff side/range, and diff base are
 preserved when available. External path, base, selector, quote, and body values
@@ -344,8 +324,6 @@ vivi comments list --status resolved --json
 vivi comments show <thread-id> --json
 vivi comments check <thread-id> --actor codex --json
 vivi comments context <thread-id> --full --context-lines 6 --json
-vivi comments reply <thread-id> --body "Fixed in this branch" --actor codex --json
-vivi comments reply <thread-id> --body-file /tmp/vivi-reply.md --actor codex --json
 vivi comments triage <thread-id> --actor codex --decision accepted --summary "Actionable feedback" --next-action "Patch and verify" --json
 vivi comments triage <thread-id> --actor codex --triage-file - --require-claim --json
 vivi comments schema commentProtocolManifest --json
@@ -376,9 +354,9 @@ vivi comments reopen <thread-id> --actor codex --json
 those reads include `X-Vivi-Actor-Id`, inferred or explicit
 `X-Vivi-Actor-Kind`, optional `X-Vivi-Actor-Name`, and optional
 `X-Vivi-Client-Event-Id`, so the existing read-side observer records
-`thread_read` activity. There is no public read-receipt mutation. `reply`,
-`resolve`, `archive`, and `reopen` use the GraphQL comment lifecycle mutations
-and include an actor input when `--actor` is set.
+`thread_read` activity. There is no public read-receipt mutation. `resolve`,
+`archive`, and `reopen` use the GraphQL comment lifecycle mutations and include
+an actor input when `--actor` is set.
 
 All `vivi comments` commands currently emit JSON. List-like commands return:
 
@@ -927,7 +905,7 @@ matches the server's thread, comment, status, and activity history. Agents can
 execute the receipt's own `verificationCommand` directly; it carries the same
 resolved `--url` used by the write so verification returns to the same Vivi
 server even when the adapter is not using the default port.
-Agents can also pass `--receipt-log <path>` to `reply`, `triage`, `release`, `done`, or
+Agents can also pass `--receipt-log <path>` to `triage`, `release`, `done`, or
 `dismiss`; the CLI appends each successful write receipt as one JSONL line so a
 resident adapter has a restart ledger independent of stdout handling. Use
 `comments verify-receipts --receipt-log <path|-> --json` to validate every
@@ -1010,7 +988,7 @@ readiness, routing, watch, work, follow, or preflight command receives
 `--url <server>`, its runtime `suggestedCommands` carry the same resolved URL;
 when it receives `--receipt-log <path>`, write-oriented suggestions also carry
 the same ledger argument so adapters can execute suggested `triage`, `release`,
-`done`, `dismiss`, or `reply` commands as-is and still persist receipts. The protocol
+`done`, or `dismiss` commands as-is and still persist receipts. The protocol
 manifest exposes
 `startupSchemas.commentDoctorOutput`, and
 `comments schema commentDoctorOutput --json` validates the readiness payload.
@@ -1018,12 +996,12 @@ Protocol commands that start a durable read/claim loop and the generic
 structured write recipes include a `<client-event-id>` placeholder. Replace it
 with a stable id for one logical attempt and reuse that id only for retries of
 that attempt.
-The same retry key is honored by agent write commands: `reply`, `triage`,
+The same retry key is honored by agent write commands: `triage`,
 `done`, and `dismiss` send `--client-event-id` as an idempotency header, and
 the server stores it on the resulting `comment_added` and
 `thread_status_changed` activities. Replaying the same write with the same
 actor, thread, and client event id returns the existing comment or lifecycle
-effect instead of appending a second agent reply.
+effect instead of appending a second agent-authored record.
 Use `comments schema <name> --json` to fetch machine-readable JSON Schema,
 accepted command flags, and a minimal example for adapter-facing contracts.
 Use `comments schema list --json` first when an agent only needs a compact
@@ -1525,11 +1503,11 @@ stable reason code:
 
 `write.reason` is `owned_live_claim`, `no_live_claim`,
 `claimed_by_other_actor`, or `thread_not_open`. Use it immediately before a
-terminal reply when an agent wants to decide whether to proceed, renew, release,
+terminal result when an agent wants to decide whether to proceed, renew, release,
 or refetch the work item. `write.recommendedAction` and
 `write.suggestedCommands` are the higher-level adapter path: no-claim checks
 suggest `comments claim <thread-id> --full`, owned-claim checks suggest
-`renew`, guarded `reply`, structured `triage`, `done`, and `dismiss`,
+`renew`, structured `triage`, `done`, and `dismiss`,
 other-owner checks suggest `show` plus `follow`, and terminal threads suggest
 `show` plus `reopen`. Suggestions preserve the check command's resolved
 `--url`, and write suggestions also preserve `--receipt-log`. The output is
@@ -1674,8 +1652,7 @@ The robust agent pattern is to read the current thread activity cursor after
 `claim` or `renew`, start `follow --cursor <activity-id>`, and then keep that
 stream beside long edits so human GUI follow-up is not lost.
 
-Single-thread lifecycle commands return `{ "thread": ... }`; `reply` returns
-`{ "comment": ... }`; `triage` returns
+Single-thread lifecycle commands return `{ "thread": ... }`; `triage` returns
 `{ "triage": ..., "comment": ..., "thread": ... }`; `done` and `dismiss` return
 `{ "comment": ..., "thread": ... }`, plus `{ "result": ... }` when
 `--result-file` is used;
@@ -1724,9 +1701,9 @@ blocked or needs-info handoff with structured JSON and release the claim
 without resolving or archiving it. Use `release <thread-id> --body-file <path>`
 for a free-form handoff.
 
-`reply`, `done`, and `dismiss` accept exactly one of `--body <text>` or
+`done` and `dismiss` accept exactly one of `--body <text>` or
 `--body-file <path|->`. `--body-file` is the general Markdown path for coding
-agents when the reply contains verification output or multi-line detail,
+agents when the result contains verification output or multi-line detail,
 because it avoids shell quoting and sends the file or stdin content through
 the normal comment body validation. For terminal agent adapters, prefer
 `done`/`dismiss --result-file <path|->` so completion data stays structured
@@ -1819,7 +1796,7 @@ alongside `comment` and `thread`:
 `--triage-file`; pass `--result-file -` to read the JSON from stdin. At least
 one of `summary`, `verification`, or `details` must be non-empty.
 
-Pass `--require-claim` to `reply`, `triage`, `done`, `dismiss`, `resolve`, or `archive`
+Pass `--require-claim` to `triage`, `done`, `dismiss`, `resolve`, or `archive`
 when the command is part of a background-agent loop that previously used
 `claim`. The CLI fetches the latest activity history without creating a read
 receipt and refuses to write unless the current `--actor` owns the latest live
@@ -1828,19 +1805,19 @@ closing feedback after another actor has claimed the same thread. Use `renew`
 before the terminal command if a long edit or test run may have let the lease
 expire.
 
-`done` is the shortest terminal path for coding agents. It adds the supplied
-reply to an open thread and then resolves that thread, using the same actor
-input as `reply` and `resolve`. If the same actor has already posted the same
-completion reply and the thread is already resolved, `done` returns the
-existing comment and resolved thread instead of adding a duplicate reply.
-When `--client-event-id` is supplied, the underlying reply and resolve
+`done` is the shortest terminal path for advanced adapters. It adds the supplied
+result to an open thread and then resolves that thread, using the same actor
+input as `resolve`. If the same actor has already posted the same completion
+result and the thread is already resolved, `done` returns the existing comment
+and resolved thread instead of adding a duplicate record. When
+`--client-event-id` is supplied, the underlying comment and resolve
 activities also become retry-safe for that logical attempt.
 
 `dismiss` is the archived counterpart for triage decisions where the agent is
 intentionally not making a code change. It adds the supplied explanation to an
 open thread and then archives that thread. If the same actor has already posted
 the same explanation and the thread is already archived, `dismiss` returns the
-existing comment and archived thread instead of adding a duplicate reply.
+existing comment and archived thread instead of adding a duplicate record.
 When `--client-event-id` is supplied, the underlying explanation and archive
 activities also become retry-safe for that logical attempt.
 

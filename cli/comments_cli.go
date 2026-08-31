@@ -714,21 +714,6 @@ func runCommentsCommand(ctx context.Context, args []string, stdout io.Writer) er
 			return errors.New("context requires a non-negative --context-lines")
 		}
 		return commentsContext(ctx, stdout, options, positional[0])
-	case "reply":
-		options, positional, err := parseCommentsFlags(command, args[1:])
-		if err != nil {
-			return err
-		}
-		if len(positional) != 1 {
-			return errors.New("reply requires exactly one thread id")
-		}
-		if strings.TrimSpace(options.Body) == "" {
-			return errors.New("reply requires --body or --body-file")
-		}
-		if options.RequireClaim && strings.TrimSpace(options.ActorID) == "" {
-			return errors.New("reply --require-claim requires --actor")
-		}
-		return commentsReply(ctx, stdout, options, positional[0])
 	case "triage":
 		options, positional, err := parseCommentsFlags(command, args[1:])
 		if err != nil {
@@ -809,8 +794,8 @@ func parseCommentsFlags(command string, args []string) (commentsCommandOptions, 
 	flags.StringVar(&options.ActorKind, "actor-kind", "", "actor kind: human, claude_code, codex, or unknown")
 	flags.StringVar(&options.ActorName, "actor-name", "", "actor display name")
 	flags.StringVar(&options.ClientEventID, "client-event-id", "", "idempotency key for read activity")
-	flags.StringVar(&options.Body, "body", "", "reply body")
-	flags.StringVar(&options.BodyFile, "body-file", "", "path to read reply body from")
+	flags.StringVar(&options.Body, "body", "", "completion, dismissal, or handoff details")
+	flags.StringVar(&options.BodyFile, "body-file", "", "path to read completion, dismissal, or handoff details from")
 	flags.StringVar(&options.TriageFile, "triage-file", "", "path to read structured triage JSON from")
 	flags.StringVar(&options.ResultFile, "result-file", "", "path to read structured terminal result JSON from")
 	flags.StringVar(&options.ReceiptFile, "receipt-file", "", "path to read a write receipt JSON object or command payload from")
@@ -855,7 +840,7 @@ func parseCommentsFlags(command string, args []string) (commentsCommandOptions, 
 		}
 	}
 	if strings.TrimSpace(options.ReceiptLog) != "" && !commentsCommandWritesReceipt(command) && !commentsCommandVerifiesReceiptLog(command) && !commentsCommandPropagatesReceiptLog(command) && command != "doctor" {
-		return options, nil, fmt.Errorf("--receipt-log is only supported with comments reply, triage, release, done, dismiss, verify-receipts, doctor, claim, work, watch, follow, check, mine, inbox, batch, or next")
+		return options, nil, fmt.Errorf("--receipt-log is only supported with comments triage, release, done, dismiss, verify-receipts, doctor, claim, work, watch, follow, check, mine, inbox, batch, or next")
 	}
 	if strings.TrimSpace(options.ReceiptLog) != "" && (commentsCommandVerifiesReceiptLog(command) || command == "doctor") {
 		if strings.TrimSpace(options.Body) != "" || strings.TrimSpace(options.BodyFile) != "" || strings.TrimSpace(options.TriageFile) != "" || strings.TrimSpace(options.ResultFile) != "" || strings.TrimSpace(options.ReceiptFile) != "" {
@@ -1179,7 +1164,7 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 				"command": "comments follow",
 				"args":    withRuntimeArgs([]string{"comments", "follow", thread, "--actor", actor, "--full", "--json"}, serverURL, receiptLog),
 				"events":  []string{"commentActivityBatchEvent"},
-				"reason":  "Watch human follow-up, own replies, status changes, and releases for a thread already in progress.",
+				"reason":  "Watch human follow-up, own structured writes, status changes, and releases for a thread already in progress.",
 			},
 			{
 				"intent":  "preflight_guarded_write",
@@ -2084,7 +2069,7 @@ func commentReleaseWriteOutputSchema() commentSchemaOutput {
 func commentResultWriteOutputSchema() commentSchemaOutput {
 	return commentSchemaOutput{
 		Name:        "commentResultOutput",
-		Description: "Structured terminal reply output emitted by comments done/dismiss <thread-id> --json after posting or reusing the agent completion or archival comment.",
+		Description: "Structured terminal result output emitted by comments done/dismiss <thread-id> --json after posting or reusing the agent completion or archival comment.",
 		Schema: map[string]any{
 			"$schema":              "https://json-schema.org/draft/2020-12/schema",
 			"$id":                  "vivi://comments/schemas/commentResultOutput",
@@ -2161,7 +2146,6 @@ func commentWriteReceiptOutputSchema() commentSchemaOutput {
 			"allOf":   []map[string]any{commentWriteReceiptSchema()},
 		},
 		AcceptedBy: []commentSchemaCommand{
-			{Command: "comments reply --json", Flag: "receipt"},
 			{Command: "comments triage --json", Flag: "receipt"},
 			{Command: "comments release --json", Flag: "receipt"},
 			{Command: "comments done --json", Flag: "receipt"},
@@ -2518,7 +2502,7 @@ func commentCheckOutputExample() map[string]any {
 			"actor":             map[string]any{"id": "codex:agent", "kind": "codex"},
 			"canWrite":          true,
 			"reason":            "owned_live_claim",
-			"recommendedAction": "write_guarded_reply",
+			"recommendedAction": "complete_or_handoff",
 			"leaseExpiresAt":    "2026-01-01T00:10:00Z",
 			"suggestedCommands": []map[string]any{
 				{
@@ -2622,8 +2606,8 @@ func commentResultOutputExample() map[string]any {
 		"outcome":      "resolved",
 		"summary":      "Implemented the requested behavior.",
 		"verification": []string{"go test ./cli passed", "task check passed"},
-		"details":      "- Completion reply is retry-safe",
-		"body":         "Result: resolved\n\nSummary: Implemented the requested behavior.\n\nVerification:\n- go test ./cli passed\n- task check passed\n\nDetails:\n- Completion reply is retry-safe",
+		"details":      "- Completion result is retry-safe",
+		"body":         "Result: resolved\n\nSummary: Implemented the requested behavior.\n\nVerification:\n- go test ./cli passed\n- task check passed\n\nDetails:\n- Completion result is retry-safe",
 	}
 	comment := map[string]any{
 		"id":         "comment-2",
@@ -2800,7 +2784,7 @@ func commentResultFileSchema() commentSchemaOutput {
 		Example: map[string]any{
 			"summary":      "Implemented the requested behavior.",
 			"verification": []string{"go test ./cli passed", "task check passed"},
-			"details":      "- Completion reply is retry-safe",
+			"details":      "- Completion result is retry-safe",
 		},
 	}
 }
@@ -3391,7 +3375,7 @@ func commentWritePreflightSchema() map[string]any {
 			"actor":             commentActorSchema(),
 			"canWrite":          map[string]any{"type": "boolean"},
 			"reason":            map[string]any{"type": "string", "enum": []string{"owned_live_claim", "no_live_claim", "claimed_by_other_actor", "thread_not_open"}},
-			"recommendedAction": map[string]any{"type": "string", "enum": []string{"write_guarded_reply", "claim_before_writing", "inspect_or_wait", "reopen_before_writing", "inspect_thread"}},
+			"recommendedAction": map[string]any{"type": "string", "enum": []string{"complete_or_handoff", "claim_before_writing", "inspect_or_wait", "reopen_before_writing", "inspect_thread"}},
 			"status":            map[string]any{"type": "string"},
 			"claimedBy":         commentActorSchema(),
 			"leaseExpiresAt":    map[string]any{"type": "string", "format": "date-time"},
@@ -3693,7 +3677,7 @@ func commentsFlagRequiresValue(arg string) bool {
 
 func commentsCommandWritesReceipt(command string) bool {
 	switch command {
-	case "reply", "triage", "release", "done", "dismiss":
+	case "triage", "release", "done", "dismiss":
 		return true
 	default:
 		return false
@@ -4386,7 +4370,7 @@ func suggestedCommandsForActivityBatchWithLiveClaim(summary commentActivityBatch
 	case "start_work":
 		if actorID == "" {
 			return []commentSuggestedCommand{
-				suggestedCommentsCommand("inspect_thread", "comments show", withURLArg([]string{"comments", "show", threadID, "--json"}, serverURL), "", "Inspect the claimed thread before replying."),
+				suggestedCommentsCommand("inspect_thread", "comments show", withURLArg([]string{"comments", "show", threadID, "--json"}, serverURL), "", "Inspect the claimed thread before continuing work."),
 			}
 		}
 		if suggestions := guardedWriteSuggestionsForActivityBatchWithActorKind(threadID, actorID, actorKind, serverURL, receiptLog, liveClaim, knowsLiveClaim); suggestions != nil {
@@ -4401,7 +4385,7 @@ func suggestedCommandsForActivityBatchWithLiveClaim(summary commentActivityBatch
 	case "reconsider_work":
 		if actorID == "" {
 			return []commentSuggestedCommand{
-				suggestedCommentsCommand("inspect_thread", "comments show", withURLArg([]string{"comments", "show", threadID, "--json"}, serverURL), "", "Inspect the latest thread before replying."),
+				suggestedCommentsCommand("inspect_thread", "comments show", withURLArg([]string{"comments", "show", threadID, "--json"}, serverURL), "", "Inspect the latest thread before continuing work."),
 			}
 		}
 		if suggestions := guardedWriteSuggestionsForActivityBatchWithActorKind(threadID, actorID, actorKind, serverURL, receiptLog, liveClaim, knowsLiveClaim); suggestions != nil {
@@ -5128,7 +5112,7 @@ func suggestedCommandsForOwnedRoutingWork(group commentInboxGroupOutput, actorID
 	return []commentSuggestedCommand{
 		suggestedCommentsCommandWithClientEventID("renew_owned_claim", "comments renew", withRuntimeArgs(actorCommand([]string{"comments", "renew", threadID}, actorID, actorKind, "--json"), serverURL, receiptLog), "", "Refresh the recovered live claim before continuing work after an adapter restart.", commentSuggestedClientEventID(clientEventScope, threadID, "renew")),
 		suggestedCommentsCommand("follow_owned_thread", "comments follow", withRuntimeArgs(actorCommand([]string{"comments", "follow", threadID}, actorID, actorKind, "--full", "--json"), serverURL, receiptLog), "", "Resume watching human follow-up and lifecycle activity for the recovered owned thread."),
-		suggestedCommentsCommand("check_owned_thread", "comments check", withRuntimeArgs(actorCommand([]string{"comments", "check", threadID}, actorID, actorKind, "--full", "--json"), serverURL, receiptLog), "", "Inspect live ownership and guarded-write suggestions before replying or closing the recovered thread."),
+		suggestedCommentsCommand("check_owned_thread", "comments check", withRuntimeArgs(actorCommand([]string{"comments", "check", threadID}, actorID, actorKind, "--full", "--json"), serverURL, receiptLog), "", "Inspect live ownership and guarded-write suggestions before completing or handing off the recovered thread."),
 	}
 }
 
@@ -6399,7 +6383,7 @@ func addCommentWritePreflightGuidance(result map[string]any, thread commentThrea
 func commentWritePreflightRecommendedAction(reason string) string {
 	switch reason {
 	case "owned_live_claim":
-		return "write_guarded_reply"
+		return "complete_or_handoff"
 	case "no_live_claim":
 		return "claim_before_writing"
 	case "claimed_by_other_actor":
@@ -6434,7 +6418,6 @@ func suggestedCommandsForWritePreflight(reason string, thread commentThreadOutpu
 		}
 		return []commentSuggestedCommand{
 			suggestedCommentsCommandWithClientEventID("renew_current_claim", "comments renew", withRuntimeArgs(actorCommand([]string{"comments", "renew", threadID}, actorID, actorKind, "--json"), serverURL, receiptLog), "", "Extend the current claim before a longer edit or verification pass.", renewClientEventID),
-			suggestedCommentsCommandWithClientEventID("reply_with_claim", "comments reply", withRuntimeArgs(actorCommand([]string{"comments", "reply", threadID}, actorID, actorKind, "--body-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "", "Post a guarded non-terminal reply while this actor owns the live claim.", suggestedWriteClientEventID("check", threadID, "reply", claimSeed)),
 			suggestedCommentsCommandWithClientEventID("acknowledge_or_request_clarification", "comments triage", withRuntimeArgs(actorCommand([]string{"comments", "triage", threadID}, actorID, actorKind, "--triage-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentTriageFileInput", "Post a structured acknowledgement, clarification request, or blocked status while keeping the thread open.", suggestedWriteClientEventID("check", threadID, "triage", claimSeed)),
 			suggestedCommentsCommandWithClientEventID("handoff_after_blocked_or_needs_info", "comments release", withRuntimeArgs(actorCommand([]string{"comments", "release", threadID}, actorID, actorKind, "--triage-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentTriageFileInput", "Post a structured blocked or needs-info handoff comment, then release the live claim for another attempt.", suggestedWriteClientEventID("check", threadID, "release", claimSeed)),
 			suggestedCommentsCommandWithClientEventID("complete_after_verification", "comments done", withRuntimeArgs(actorCommand([]string{"comments", "done", threadID}, actorID, actorKind, "--result-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentResultFileInput", "Resolve the thread with structured verification after the fix is complete.", suggestedWriteClientEventID("check", threadID, "done", claimSeed)),
@@ -6468,7 +6451,7 @@ func suggestedCommandsForWritePreflight(reason string, thread commentThreadOutpu
 			suggestedCommentsCommand("inspect_terminal_thread", "comments show", withURLArg(args, serverURL), "", "Inspect the terminal thread before reopening or leaving it closed."),
 		}
 		if actorID != "" {
-			suggestions = append(suggestions, suggestedCommentsCommandWithClientEventID("reopen_before_writing", "comments reopen", withURLArg(actorCommand([]string{"comments", "reopen", threadID}, actorID, actorKind, "--json"), serverURL), "", "Reopen the thread before posting a new guarded reply or result.", commentSuggestedClientEventID("check", threadID, "reopen", thread.Status)))
+			suggestions = append(suggestions, suggestedCommentsCommandWithClientEventID("reopen_before_writing", "comments reopen", withURLArg(actorCommand([]string{"comments", "reopen", threadID}, actorID, actorKind, "--json"), serverURL), "", "Reopen the thread before posting a structured result or handoff.", commentSuggestedClientEventID("check", threadID, "reopen", thread.Status)))
 		}
 		return suggestions
 	default:
@@ -6778,24 +6761,6 @@ func jsonInt(value any) (int, bool) {
 	}
 }
 
-func commentsReply(ctx context.Context, stdout io.Writer, options commentsCommandOptions, threadID string) error {
-	if err := ensureActorHasLiveClaim(ctx, options, threadID); err != nil {
-		return err
-	}
-	reply, err := addCommentToThread(ctx, options, threadID, options.Body)
-	if err != nil {
-		return err
-	}
-	receipt, err := commentWriteReceiptFor(ctx, options, "comments reply", threadID, &reply, "")
-	if err != nil {
-		return err
-	}
-	if err := appendCommentWriteReceiptLog(options.ReceiptLog, receipt); err != nil {
-		return fmt.Errorf("append --receipt-log: %w", err)
-	}
-	return writeJSON(stdout, map[string]any{"comment": reply, "receipt": receipt})
-}
-
 func commentsTriage(ctx context.Context, stdout io.Writer, options commentsCommandOptions, threadID string) error {
 	triage, err := commentTriagePayload(options)
 	if err != nil {
@@ -6953,14 +6918,14 @@ func trimmedNonEmptyStrings(values []string) []string {
 }
 
 func commentsDone(ctx context.Context, stdout io.Writer, options commentsCommandOptions, threadID string) error {
-	return commentsCompleteWithReply(ctx, stdout, options, threadID, "resolve", "resolved", "done")
+	return commentsCompleteWithResult(ctx, stdout, options, threadID, "resolve", "resolved", "done")
 }
 
 func commentsDismiss(ctx context.Context, stdout io.Writer, options commentsCommandOptions, threadID string) error {
-	return commentsCompleteWithReply(ctx, stdout, options, threadID, "archive", "archived", "dismiss")
+	return commentsCompleteWithResult(ctx, stdout, options, threadID, "archive", "archived", "dismiss")
 }
 
-func commentsCompleteWithReply(ctx context.Context, stdout io.Writer, options commentsCommandOptions, threadID, action, terminalStatus, commandName string) error {
+func commentsCompleteWithResult(ctx context.Context, stdout io.Writer, options commentsCommandOptions, threadID, action, terminalStatus, commandName string) error {
 	body := strings.TrimSpace(options.Body)
 	thread, err := fetchCommentThreadByID(ctx, withoutReadHeaders(options), threadID)
 	if err != nil {
@@ -6970,7 +6935,7 @@ func commentsCompleteWithReply(ctx context.Context, stdout io.Writer, options co
 	switch thread.Status {
 	case terminalStatus:
 		if comment == nil {
-			return fmt.Errorf("comment thread %q is already %s without this completion reply", threadID, terminalStatus)
+			return fmt.Errorf("comment thread %q is already %s without this completion result", threadID, terminalStatus)
 		}
 		receipt, err := commentWriteReceiptFor(ctx, options, "comments "+commandName, threadID, comment, terminalStatus)
 		if err != nil {
@@ -7085,7 +7050,7 @@ func effectFromActivity(activity commentActivityOutput) commentWriteReceiptEffec
 }
 
 func addCommentToThread(ctx context.Context, options commentsCommandOptions, threadID, body string) (commentOutput, error) {
-	var reply commentOutput
+	var comment commentOutput
 	input := map[string]any{"body": body}
 	if actor := actorInput(options); actor != nil {
 		input["actor"] = actor
@@ -7109,10 +7074,10 @@ func addCommentToThread(ctx context.Context, options commentsCommandOptions, thr
 			}
 		}`,
 		Variables: map[string]any{"threadId": threadID, "input": input},
-	}, "addComment", &reply); err != nil {
+	}, "addComment", &comment); err != nil {
 		return commentOutput{}, err
 	}
-	return reply, nil
+	return comment, nil
 }
 
 func commentsLifecycle(ctx context.Context, stdout io.Writer, options commentsCommandOptions, threadID, action string) error {
@@ -7466,7 +7431,7 @@ func commentsHelpText() string {
 		"  1. Start Vivi: vivi <root> --port 0 --ready-json",
 		"  2. Fetch the currently published review once: vivi inbox <url>",
 		"  3. Return control to the coding agent; fetch again only when a refresh is useful.",
-		"  4. Reply with: vivi reply <url> <thread-id> --actor codex --body <text>",
+		"  4. Return the implementation result in the terminal where the agent is running.",
 		"  5. Use comments work --help only for an explicitly opted-in resident adapter.",
 		"",
 		"Recovery and adapter discovery:",
@@ -7483,12 +7448,11 @@ func commentsHelpText() string {
 		"  - Use --require-claim for triage, release, done, and dismiss in background loops",
 		"  - Reuse a stable --client-event-id only for retries of the same logical write",
 		"  - Run comments check <thread-id> --actor <actor> --full --json before writing when ownership may be stale",
-		"  - Prefer done/dismiss --result-file - for terminal replies and release --triage-file - for blocked handoffs",
+		"  - Prefer done/dismiss --result-file - for terminal results and release --triage-file - for blocked handoffs",
 		"",
 		"Common commands:",
 		"  vivi inbox <url>",
 		"  vivi inbox <url> --read-as codex",
-		"  vivi reply <url> <thread-id> --actor codex --body <text>",
 		"  vivi comments mine --actor claude-code --json",
 		"  vivi comments check <thread-id> --actor claude-code --full --json",
 		"  vivi comments triage <thread-id> --actor claude-code --triage-file - --require-claim --json",
@@ -7510,7 +7474,7 @@ func commentsHelpText() string {
 		"  vivi comments claim <thread-id> --actor claude-code --lease 10m --json",
 		"  vivi comments renew <thread-id> --actor claude-code --lease 10m --json",
 		"  vivi comments hold <thread-id> --actor claude-code --interval 2m --lease 10m --json",
-		"  vivi comments active|next|list|show|context|reply|resolve|archive|reopen ... --json",
+		"  vivi comments active|next|list|show|context|resolve|archive|reopen ... --json",
 		"",
 		"Options:",
 		"  --url <url>                Vivi server URL (default: VIVI_URL or http://127.0.0.1:4317)",
@@ -7523,14 +7487,14 @@ func commentsHelpText() string {
 		"  --actor-name <name>        Actor display name",
 		"  --client-event-id <id>     Idempotency key for read receipts",
 		"  --lease <duration>         Claim or renewal lease duration (default 10m)",
-		"  --body <text>              Reply body",
-		"  --body-file <path|->       Read reply body from a file or stdin",
+		"  --body <text>              Completion, dismissal, or handoff details",
+		"  --body-file <path|->       Read completion, dismissal, or handoff details from a file or stdin",
 		"  --triage-file <path|->     Read structured triage JSON from a file or stdin",
 		"  --result-file <path|->     Read structured terminal result JSON from a file or stdin",
 		"  --receipt-file <path|->    Read a write receipt JSON object or command payload",
 		"  --decision <value>         Triage decision: accepted, fixing, needs-info, blocked, or not-applicable",
 		"  --summary <text>           Human-readable triage summary",
-		"  --next-action <text>       Next agent action for a triage reply",
+		"  --next-action <text>       Next agent action for triage",
 		"  --full                     Include source context, current diff, and activity history",
 		"  --with-context             Include source context with rich agent commands",
 		"  --with-diff                Include current Git diff with rich agent commands",
@@ -7586,7 +7550,7 @@ func commentsWorkHelpText() string {
 		"  Read stdinSchemaCommand before commands that require --triage-file - or --result-file -.",
 		"",
 		"Options most agents need:",
-		"  --actor <id>               Actor id for claims, reads, and replies",
+		"  --actor <id>               Actor id for claims, reads, and structured writes",
 		"  --url <url>                Vivi server URL from ready JSON",
 		"  --loop                     Keep waiting after terminal status",
 		"  --once                     Poll once and exit after at most one event",

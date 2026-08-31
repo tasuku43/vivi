@@ -23,6 +23,7 @@ import {
   changeStatusLabel,
   diffStatusLabel,
   filterRecentReviewChanges,
+  gitPartialTimeoutReason,
   latestUnreadReviewPath,
   mergeReviewChanges,
   nextReviewQueuePath,
@@ -1491,6 +1492,37 @@ it("uses Git evidence for recently observed or previously opened Review Queue ch
       content: "diff",
     }),
   ).toBe("HEAD -> working tree");
+});
+
+it("keeps watcher-only file additions when Git returns tracked changes only", () => {
+  const watcherState = summarizeReviewEvents([
+    {
+      id: "new-file",
+      event: {
+        type: "add",
+        path: "docs/new.md",
+        kind: "file",
+        version: 2,
+      },
+      receivedAt: 700,
+    },
+    {
+      id: "tracked-change",
+      event: { type: "change", path: "README.md", version: 1 },
+      receivedAt: 600,
+    },
+  ]);
+
+  expect(
+    mergeReviewChanges(watcherState, {
+      available: true,
+      reason: gitPartialTimeoutReason,
+      changes: [{ path: "README.md", status: "modified" }],
+    }),
+  ).toEqual([
+    { path: "docs/new.md", status: "added", source: "watcher" },
+    { path: "README.md", status: "modified", source: "git" },
+  ]);
 });
 
 it("expires old Review Queue activity on schedule", () => {

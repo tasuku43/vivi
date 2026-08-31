@@ -196,6 +196,92 @@ it("restores Source input after reload and clears its composer after publish", a
     .toBe(0);
 }, 40_000);
 
+it("starts separate feedback after the agent reads published feedback", async () => {
+  server = await startViviServer({
+    rootDir: fixture.rootDir,
+    gitReviewTimeoutMs: 1_000,
+  });
+  browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  page.setDefaultTimeout(8_000);
+  await page.goto(server.url);
+
+  await page.locator('[data-tree-path="README.md"]').click();
+  await page.getByRole("tab", { name: "Document" }).click();
+  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await page.getByRole("button", { name: "Add comment on line 1" }).click();
+  await page
+    .getByRole("textbox", { name: "New line comment" })
+    .fill("Published feedback that the agent will read");
+  await page
+    .getByRole("button", { name: "Save pending draft comment" })
+    .click();
+  await page.getByRole("tab", { name: /Review queue/ }).click();
+  await page
+    .getByRole("button", { name: "Publish 1 draft for README.md" })
+    .click();
+  await page.getByRole("tab", { name: "Document" }).click();
+
+  const readResponse = await fetch(`${server.url}/graphql`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "X-Vivi-Actor-Id": "codex:e2e-read",
+      "X-Vivi-Actor-Kind": "codex",
+      "X-Vivi-Client-Event-Id": "e2e-read-published-feedback",
+    },
+    body: JSON.stringify({
+      operationName: "ViviCommentThreads",
+      query:
+        'query ViviCommentThreads { commentThreads(path: "README.md") { id } }',
+    }),
+  });
+  expect(readResponse.ok).toBe(true);
+  const readPayload = (await readResponse.json()) as {
+    data?: { commentThreads?: Array<{ id: string }> };
+    errors?: unknown[];
+  };
+  expect(readPayload.errors).toBeUndefined();
+  expect(readPayload.data?.commentThreads).toHaveLength(1);
+
+  await page.reload();
+  await page.locator('[data-tree-path="index.html"]').click();
+  await page.locator('[data-tree-path="README.md"]').click();
+  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: "Open comment thread on line 1 with 1 message",
+    })
+    .click();
+
+  const thread = page.getByRole("article", {
+    name: "Comment thread for line 1",
+  });
+  await expect
+    .poll(() => thread.getByText("Seen", { exact: true }).count())
+    .toBe(1);
+  await thread.getByRole("button", { name: "Add new feedback" }).click();
+  const newFeedback = thread.getByRole("textbox", {
+    name: "New line comment",
+  });
+  await expect
+    .poll(() => newFeedback.evaluate((node) => node === document.activeElement))
+    .toBe(true);
+  await newFeedback.fill("A new, separate follow-up after the read receipt");
+  await thread
+    .getByRole("button", { name: "Save pending draft comment" })
+    .click();
+
+  await page.getByRole("tab", { name: /Review queue/ }).click();
+  await expect
+    .poll(() =>
+      page
+        .getByRole("button", { name: "Publish 1 draft for README.md" })
+        .count(),
+    )
+    .toBe(1);
+}, 40_000);
+
 it("reanchors an out-of-range stale Source input to the current file", async () => {
   server = await startViviServer({
     rootDir: fixture.rootDir,
@@ -234,7 +320,9 @@ it("reanchors an out-of-range stale Source input to the current file", async () 
     .poll(() => reanchor.evaluate((node) => node === document.activeElement))
     .toBe(true);
   await expect
-    .poll(() => page.getByRole("textbox", { name: "New line comment" }).inputValue())
+    .poll(() =>
+      page.getByRole("textbox", { name: "New line comment" }).inputValue(),
+    )
     .toBe(body);
   await reanchor.click();
   const input = page.getByRole("textbox", { name: "New line comment" });

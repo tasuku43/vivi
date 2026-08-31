@@ -17,16 +17,7 @@ func TestHelpTextSurfacesOneShotAgentReview(t *testing.T) {
 		"vivi [root] [options]",
 		"vivi servers",
 		"vivi inbox <url>",
-		"vivi reply <url> <thread-id>",
-		"(--body <text> | --body-file <path|->)",
-		"[--resolve | --archive]",
-		"[--actor codex|claude]",
-		"Agent setup:",
-		"export VIVI_ACTOR=codex",
-		"Environment:",
-		"VIVI_ACTOR",
-		"Default actor for reply; --actor overrides it.",
-		"Run 'vivi servers --help', 'vivi inbox --help', or 'vivi reply --help' for details.",
+		"Run 'vivi servers --help' or 'vivi inbox --help' for details.",
 		"--ready-json",
 		"--exclude <glob>",
 		"Document extension allow-list (default: md,markdown,mdown,html,htm)",
@@ -44,6 +35,7 @@ func TestHelpTextSurfacesOneShotAgentReview(t *testing.T) {
 		"vivi inbox <url> --watch",
 		"vivi claim <url>",
 		"vivi release <url>",
+		"vivi reply",
 		"vivi review <queue|bases|diff>",
 		"vivi comments <work|doctor",
 		"Changed-file context:",
@@ -54,6 +46,15 @@ func TestHelpTextSurfacesOneShotAgentReview(t *testing.T) {
 	} {
 		if strings.Contains(help, hiddenCommand) {
 			t.Fatalf("common help should not expose non-core command %q\n%s", hiddenCommand, help)
+		}
+	}
+}
+
+func TestRemovedReplyCommandsAreRejected(t *testing.T) {
+	for _, args := range [][]string{{"reply"}, {"comments", "reply"}} {
+		err := run(args)
+		if err == nil || !strings.Contains(err.Error(), "unknown") {
+			t.Fatalf("run(%q) error = %v, want unknown command", args, err)
 		}
 	}
 }
@@ -144,7 +145,7 @@ func TestCommentsHelpTextSurfacesWorkSession(t *testing.T) {
 		"Use --require-claim for triage, release, done, and dismiss in background loops",
 		"Reuse a stable --client-event-id only for retries of the same logical write",
 		"Run comments check <thread-id> --actor <actor> --full --json before writing when ownership may be stale",
-		"Prefer done/dismiss --result-file - for terminal replies and release --triage-file - for blocked handoffs",
+		"Prefer done/dismiss --result-file - for terminal results and release --triage-file - for blocked handoffs",
 		"vivi comments protocol --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"vivi comments schema <list|protocol|doctor|triage|result|claim|inbox|mine|batch|check|commentTriageOutput|commentReleaseOutput|commentResultOutput|suggestedCommand|writeReceipt|receiptVerification|receiptLedgerVerification|activityBatch|workClaimed|workIdle|openWorklist|error|all> [--summary] --json",
 		"vivi comments work --once --actor claude-code --full --json",
