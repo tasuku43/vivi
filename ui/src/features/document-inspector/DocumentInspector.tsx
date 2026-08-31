@@ -201,7 +201,7 @@ export function DocumentInspector({
                 <ReadyToPublishPanel
                   scope="document"
                   items={documentReadyItems}
-                  localInput={visibleResumableInputs[0] ?? null}
+                  localInputs={visibleResumableInputs}
                   excludedInputCount={unsavedInputCount}
                   onOpenItem={(item) => {
                     const draft = documentReadyDraftGroups.find(
@@ -209,9 +209,8 @@ export function DocumentInspector({
                     )?.[1][0];
                     if (draft) onOpenDraft?.(draft);
                   }}
-                  onResumeInput={() => {
-                    const input = visibleResumableInputs[0];
-                    if (input) onResumeInput?.(input.id);
+                  onResumeInput={(input) => {
+                    if (input.id) onResumeInput?.(input.id);
                   }}
                   onReview={() => {
                     if (documentDrafts[0]) onOpenDraft?.(documentDrafts[0]);

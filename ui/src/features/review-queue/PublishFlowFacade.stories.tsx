@@ -77,7 +77,9 @@ export const UnifiedPublishInteraction: Story = {
       panel.getByText("Workspace · private until published"),
     ).toBeVisible();
     await userEvent.click(
-      panel.getByRole("button", { name: /index\.html · L5/ }),
+      panel.getByRole("button", {
+        name: "Resume input in docs/index.html, L5",
+      }),
     );
     await expect(args.onResumeInput).toHaveBeenCalledOnce();
 

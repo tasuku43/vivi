@@ -475,7 +475,11 @@ function reviewQueueItemDescription(
   },
 ): string {
   return [
-    item.unread ? "not yet seen by an agent" : "seen by an agent",
+    item.commentCount > 0
+      ? item.unread
+        ? "not yet seen by an agent"
+        : "seen by an agent"
+      : "",
     item.pendingDraftCount ? "not agent-visible until publish" : "",
     reviewStop
       ? `${reviewQueueStopTitle(active)} ${reviewStop.label}: ${reviewStop.preview}`

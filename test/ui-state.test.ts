@@ -724,6 +724,33 @@ it("summarizes workspace status as a human-facing bottom bar", () => {
   expect(summary.detail).toBe("1 review refresh · last review 18ms");
 });
 
+it("does not repeat preview when an HTML preview is in a preview tab", () => {
+  const summary = summarizeWorkspaceStatus({
+    tree: null,
+    openTabCount: 1,
+    reviewFileCount: 0,
+    feedbackCount: 0,
+    draftCount: 0,
+    connectionStatus: "connected",
+    activeFile: {
+      path: "index.html",
+      isPreview: true,
+      viewerMode: "preview",
+    },
+    metrics: {
+      fsEventsReceived: 0,
+      gitRefreshes: 0,
+      diffRefreshes: 0,
+      lastGitRefreshMs: null,
+      lastDiffRefreshMs: null,
+      pendingGitRefresh: false,
+      pendingDiffPaths: 0,
+    },
+  });
+
+  expect(summary.activeFile).toBe("index.html · preview");
+});
+
 it("keeps feedback independent while change evidence is loading", () => {
   const summary = summarizeWorkspaceStatus({
     tree: {
@@ -759,6 +786,30 @@ it("keeps feedback independent while change evidence is loading", () => {
   expect(summary.review).not.toContain("review");
   expect(summary.server).toBe("Live · waiting for file changes");
   expect(summary.serverTone).toBe("live");
+});
+
+it("reports feedback whose source file is unavailable", () => {
+  const summary = summarizeWorkspaceStatus({
+    tree: null,
+    openTabCount: 1,
+    reviewFileCount: 0,
+    feedbackCount: 0,
+    unavailableFeedbackCount: 1,
+    draftCount: 0,
+    connectionStatus: "connected",
+    activeFile: null,
+    metrics: {
+      fsEventsReceived: 0,
+      gitRefreshes: 0,
+      diffRefreshes: 0,
+      lastGitRefreshMs: null,
+      lastDiffRefreshMs: null,
+      pendingGitRefresh: false,
+      pendingDiffPaths: 0,
+    },
+  });
+
+  expect(summary.review).toBe("1 unavailable file");
 });
 
 it("builds a compact file location model for the central viewer", () => {

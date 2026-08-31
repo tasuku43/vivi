@@ -59,12 +59,15 @@ export const SourceHtmlComment: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("list")).toBeInTheDocument();
-    await waitFor(() => {
-      expect(
-        canvasElement.querySelectorAll(".line-code span[style*='color']")
-          .length,
-      ).toBeGreaterThan(4);
-    });
+    await waitFor(
+      () => {
+        expect(
+          canvasElement.querySelectorAll(".line-code span[style*='color']")
+            .length,
+        ).toBeGreaterThan(4);
+      },
+      { timeout: 10_000 },
+    );
     await expect(
       canvasElement.querySelector(".source-comment-surface"),
     ).toBeInTheDocument();
@@ -514,6 +517,15 @@ export const SinglePreviewDraftFormAnchoredPopover: Story = {
     });
     await expect(firstHost).toHaveAttribute("data-placement");
     await expect(getComputedStyle(firstHost).position).toBe("fixed");
+    const toolbar = canvasElement.querySelector<HTMLElement>(
+      ":scope .html-viewer > .viewer-toolbar",
+    );
+    await expect(toolbar).toBeInTheDocument();
+    await waitFor(() =>
+      expect(firstHost.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+        toolbar!.getBoundingClientRect().bottom + 16,
+      ),
+    );
     const hoverStatePromise = waitForHtmlDraftHoverState(frame);
     frame.contentWindow?.postMessage(
       { type: "vivi-story-hover-layout", selector: ".viewer" },

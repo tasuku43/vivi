@@ -309,7 +309,7 @@ export const Statusbar: Story = {
         status={{
           workspace: "5 watched files · 3 open tabs",
           activeFile: "README.md · rendered",
-          review: "6 review files · 7 comments · 3 drafts",
+          review: "7 feedback items · 1 unavailable file · 3 drafts",
           server: "Server live · waiting for changes",
           serverTone: "live",
           detail: "",

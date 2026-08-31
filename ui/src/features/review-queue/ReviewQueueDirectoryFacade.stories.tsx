@@ -273,6 +273,9 @@ export const WiredInspectorFilterInteraction: Story = {
       name: /Review queue item, modified docs\/product\/01-product-brief\.md/u,
     });
     await expect(changedRow).toBeVisible();
+    await expect(changedRow).not.toHaveAccessibleDescription(
+      /seen by an agent|not yet seen by an agent/u,
+    );
     await userEvent.click(changedRow);
     await expect(args.onSelectPath).toHaveBeenCalledWith(changedPath);
   },

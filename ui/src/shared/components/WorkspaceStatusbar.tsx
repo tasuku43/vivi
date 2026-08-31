@@ -17,14 +17,14 @@ export function WorkspaceStatusbar({ status }: WorkspaceStatusbarProps) {
       >
         <span className={styles.label}>Workspace</span>
         <span className={`${styles.dot} ${styles.live}`} aria-hidden="true" />
-        {status.workspace}
+        <span className={styles.value}>{status.workspace}</span>
       </span>
       <span
         className={styles.group}
         aria-label={`Current file: ${status.activeFile}`}
       >
         <span className={styles.label}>Current</span>
-        {status.activeFile}
+        <span className={styles.value}>{status.activeFile}</span>
       </span>
       <span
         className={styles.group}
@@ -32,7 +32,7 @@ export function WorkspaceStatusbar({ status }: WorkspaceStatusbarProps) {
         aria-live="polite"
       >
         <span className={styles.label}>Feedback</span>
-        {status.review}
+        <span className={styles.value}>{status.review}</span>
       </span>
       <span
         className={styles.group}
@@ -45,7 +45,7 @@ export function WorkspaceStatusbar({ status }: WorkspaceStatusbarProps) {
           className={`${styles.dot} ${styles[status.serverTone]}`}
           aria-hidden="true"
         />
-        {status.server}
+        <span className={styles.value}>{status.server}</span>
       </span>
     </footer>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   isHumanFeedback,
   type CommentActivitySummary,
@@ -76,6 +76,7 @@ export function CodeCommentThread({
   const threadRef = useRef<HTMLElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const refocusAfterSubmitRef = useRef(false);
+  const refocusAfterReanchorRef = useRef(false);
   const latestBodyRef = useRef(body);
   latestBodyRef.current = body;
   const lineLabel =
@@ -123,6 +124,16 @@ export function CodeCommentThread({
     });
     return () => window.cancelAnimationFrame(frame);
   }, [body, canContinuePendingDraft, saving, thread.comments.length]);
+
+  useLayoutEffect(() => {
+    if (!refocusAfterReanchorRef.current || stale || !showComposer) return;
+    textareaRef.current?.focus({ preventScroll: true });
+    textareaRef.current?.scrollIntoView({
+      block: "center",
+      inline: "nearest",
+    });
+    refocusAfterReanchorRef.current = false;
+  }, [activeDraft, showComposer, stale]);
 
   async function submit() {
     const trimmed = body.trim();
@@ -329,6 +340,7 @@ export function CodeCommentThread({
                   data-stale-reanchor
                   onClick={() => {
                     const nextDraft = reanchorDraft ?? draft;
+                    refocusAfterReanchorRef.current = true;
                     setAdoptedDraft(nextDraft);
                     input.reanchor(input.id, nextDraft);
                   }}

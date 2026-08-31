@@ -10,7 +10,26 @@ export interface RenderedCommentThreadPosition {
   top: number;
   width: number;
   maxHeight: number;
-  placement: "left" | "right" | "above" | "below";
+  placement: "left" | "right" | "above" | "below" | "overlay";
+}
+
+export function renderedCommentContentBounds(
+  container: RectLike,
+  topOcclusion?: RectLike,
+): RectLike {
+  const bottom = container.top + container.height;
+  const contentTop = topOcclusion
+    ? Math.min(
+        bottom,
+        Math.max(container.top, topOcclusion.top + topOcclusion.height),
+      )
+    : container.top;
+  return {
+    left: container.left,
+    top: contentTop,
+    width: container.width,
+    height: Math.max(0, bottom - contentTop),
+  };
 }
 
 export function sameRenderedCommentThreadPosition(
@@ -90,7 +109,22 @@ export function positionRenderedCommentThread(
   );
   const roomBelow = boundsBottom - margin - (anchorBottom + gap);
   const roomAbove = anchor.top - gap - (bounds.top + margin);
-  if (roomBelow >= Math.min(180, maxHeight) || roomBelow >= roomAbove) {
+  const minimumUsableHeight = Math.min(180, maxHeight);
+  if (Math.max(roomBelow, roomAbove) < minimumUsableHeight) {
+    const anchorMiddle = anchor.top + anchor.height / 2;
+    const boundsMiddle = bounds.top + bounds.height / 2;
+    return {
+      left,
+      top:
+        anchorMiddle <= boundsMiddle
+          ? boundsBottom - margin - maxHeight
+          : bounds.top + margin,
+      width: verticalWidth,
+      maxHeight,
+      placement: "overlay",
+    };
+  }
+  if (roomBelow >= minimumUsableHeight || roomBelow >= roomAbove) {
     const belowHeight = Math.max(0, Math.min(maxHeight, roomBelow));
     return {
       left,

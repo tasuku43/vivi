@@ -240,6 +240,9 @@ it("reanchors an out-of-range stale Source input to the current file", async () 
   const input = page.getByRole("textbox", { name: "New line comment" });
   await expect.poll(() => input.isEnabled()).toBe(true);
   await expect.poll(() => input.inputValue()).toBe(body);
+  await expect
+    .poll(() => input.evaluate((node) => node === document.activeElement))
+    .toBe(true);
   const updatedBody = `${body} — checked on the current line`;
   await input.fill(updatedBody);
 

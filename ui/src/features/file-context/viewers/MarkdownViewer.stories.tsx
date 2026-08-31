@@ -1,13 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
-import {
-  expect,
-  fireEvent,
-  fn,
-  userEvent,
-  waitFor,
-  within,
-} from "storybook/test";
+import { expect, fireEvent, fn, userEvent, waitFor, within } from "storybook/test";
 import type { ViviComment } from "../../../domain/comments.js";
 import {
   draftReviewCommentAsViviComment,
@@ -580,13 +573,19 @@ export const RenderedResumeChoosesExactInput: Story = {
     await doubleClickRenderedBlock(
       canvas.getByRole("heading", { name: "Review Surface" }),
     );
-    await userEvent.type(canvas.getByLabelText("New line comment"), "Heading thought");
+    await userEvent.type(
+      canvas.getByLabelText("New line comment"),
+      "Heading thought",
+    );
     await doubleClickRenderedBlock(
       canvas.getByText(
         "Vivi keeps the human review surface close to the files that changed.",
       ),
     );
-    await userEvent.type(canvas.getByLabelText("New line comment"), "Paragraph thought");
+    await userEvent.type(
+      canvas.getByLabelText("New line comment"),
+      "Paragraph thought",
+    );
 
     await userEvent.click(
       canvas.getByRole("button", { name: "Resume Heading thought" }),
@@ -1077,7 +1076,9 @@ function ExactResumeHarness() {
   const inputs = useCommentInputSessions();
   return (
     <>
-      <div style={{ position: "fixed", left: 12, bottom: 12, zIndex: 2147483647 }}>
+      <div
+        style={{ position: "fixed", left: 12, bottom: 12, zIndex: 2147483647 }}
+      >
         {inputs.sessions
           .filter((session) => session.body.trim())
           .map((session) => (

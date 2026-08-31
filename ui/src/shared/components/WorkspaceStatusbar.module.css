@@ -23,6 +23,13 @@
   white-space: nowrap;
 }
 
+.value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .group:nth-child(2) {
   justify-content: center;
 }
@@ -63,4 +70,20 @@
   background: var(--vivi-color-danger);
   box-shadow: 0 0 0 3px
     color-mix(in srgb, var(--vivi-color-danger) 18%, transparent);
+}
+
+@media (max-width: 1000px) {
+  .statusbar {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .group:first-child,
+  .group:last-child {
+    display: none;
+  }
+
+  .group:nth-child(2) {
+    justify-content: flex-start;
+  }
 }

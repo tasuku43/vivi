@@ -102,8 +102,8 @@
   grid-column: 1 / -1;
 }
 
-.typingItem {
-  opacity: 0.82;
+.typingItem small {
+  color: var(--vivi-color-content-primary);
 }
 
 .actions {

@@ -200,7 +200,10 @@ export const StaleInputRequiresDecision: Story = {
     await userEvent.click(
       canvas.getByRole("button", { name: "Re-anchor here" }),
     );
-    await expect(canvas.getByLabelText("New line comment")).toBeEnabled();
+    const input = canvas.getByLabelText("New line comment");
+    await expect(input).toBeEnabled();
+    await expect(input).toHaveFocus();
+    await expect(input).toHaveValue("Check this after refresh");
   },
 };
 

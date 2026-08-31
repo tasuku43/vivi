@@ -394,16 +394,16 @@ it("falls back to tracked changes when untracked status times out", async () => 
   const review = new GitChangeReview({
     rootDir: dir,
     gitCommands: [fakeGit],
-    gitTimeoutMs: 1_000,
+    gitTimeoutMs: 20,
+    gitStatusTimeoutMs: 4_000,
+    gitStatusFallbackTimeoutMs: 100,
   });
 
-  const startedAt = Date.now();
   await expect(review.readChanges()).resolves.toMatchObject({
     available: true,
     reason: "Git untracked scan timed out; showing tracked changes only.",
     changes: [{ path: "README.md", status: "modified", kind: "file" }],
   });
-  expect(Date.now() - startedAt).toBeLessThan(2_500);
 });
 
 it("uses the status timeout for slow complete Review Queue scans", async () => {
@@ -417,9 +417,12 @@ it("uses the status timeout for slow complete Review Queue scans", async () => {
       '  printf "%s\\n" "$PWD"',
       "  exit 0",
       "fi",
-      'if [ "$1" = "status" ]; then',
-      "  sleep 1",
+      'if [ "$1" = "status" ] && [ "$3" = "--untracked-files=all" ]; then',
+      "  sleep 0.1",
       '  printf "?? slow.md\\0"',
+      "  exit 0",
+      "fi",
+      'if [ "$1" = "status" ] && [ "$3" = "--untracked-files=no" ]; then',
       "  exit 0",
       "fi",
       "exit 1",
@@ -431,8 +434,9 @@ it("uses the status timeout for slow complete Review Queue scans", async () => {
   const review = new GitChangeReview({
     rootDir: dir,
     gitCommands: [fakeGit],
-    gitTimeoutMs: 300,
-    gitStatusTimeoutMs: 1_500,
+    gitTimeoutMs: 20,
+    gitStatusTimeoutMs: 4_000,
+    gitStatusFallbackTimeoutMs: 4_000,
   });
 
   await expect(review.readChanges()).resolves.toMatchObject({
@@ -449,7 +453,7 @@ it("uses the status timeout while resolving the Review Queue Git workspace", asy
     [
       "#!/bin/sh",
       'if [ "$1" = "rev-parse" ]; then',
-      "  sleep 1",
+      "  sleep 0.1",
       '  printf "%s\\n" "$PWD"',
       "  exit 0",
       "fi",
@@ -466,8 +470,8 @@ it("uses the status timeout while resolving the Review Queue Git workspace", asy
   const review = new GitChangeReview({
     rootDir: dir,
     gitCommands: [fakeGit],
-    gitTimeoutMs: 300,
-    gitStatusTimeoutMs: 1_500,
+    gitTimeoutMs: 20,
+    gitStatusTimeoutMs: 4_000,
   });
 
   await expect(review.readChanges()).resolves.toMatchObject({

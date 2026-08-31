@@ -181,8 +181,8 @@ export function FileViewer({
           </p>
           <h2>{file.path}</h2>
           <p>
-            This tab is showing the last loaded content for a file that no
-            longer exists in the watched directory.
+            Vivi stopped displaying this file because it no longer exists in the
+            watched directory.
           </p>
           <div className={`${styles.removedActions} removed-actions`}>
             <button type="button" onClick={onCloseRemoved}>

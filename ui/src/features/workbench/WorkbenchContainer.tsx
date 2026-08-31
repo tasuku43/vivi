@@ -659,10 +659,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     }));
     const payload = await loadFile(session.draft.path, paneId, "normal");
     if (resumeInputRequestVersion.current !== requestVersion) return payload;
-    if (
-      session.draft.anchor.surface === "diff" &&
-      supportsDiffMode(payload)
-    ) {
+    if (session.draft.anchor.surface === "diff" && supportsDiffMode(payload)) {
       await loadHeadDiff(session.draft.path);
       if (resumeInputRequestVersion.current !== requestVersion) return payload;
     }
@@ -981,6 +978,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         reviewFileCount: reviewItems.length,
         reviewLoading: gitReviewLoading || gitReview === null,
         feedbackCount: feedbackTargets.length,
+        unavailableFeedbackCount: unavailableFeedbackItems.length,
         draftCount: draftComments.length,
         connectionStatus: workspaceConnectionStatus,
         activeFile: selectedPath
@@ -1010,6 +1008,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       gitReviewLoading,
       liveMetrics,
       feedbackTargets.length,
+      unavailableFeedbackItems.length,
       openTabs.length,
       reviewItems.length,
       selectedPath,
@@ -2752,100 +2751,100 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                 <CommentInputResumePaneProvider paneId={pane.id}>
                   <FileViewer
                     key={paneFile?.path ?? "empty"}
-                  file={paneFile}
-                  removed={Boolean(paneActiveTab?.removed)}
-                  allowHtmlScripts={config?.allowHtmlScripts ?? false}
-                  theme={resolvedTheme}
-                  selectedCodeRange={
-                    paneFile?.path
-                      ? (codeSelections[paneFile.path] ?? null)
-                      : null
-                  }
-                  focusLineNumber={
-                    paneFile &&
-                    sourceFocusTarget?.paneId === pane.id &&
-                    sourceFocusTarget.path === paneFile.path
-                      ? sourceFocusTarget.lineNumber
-                      : null
-                  }
-                  focusRevision={
-                    paneFile &&
-                    sourceFocusTarget?.paneId === pane.id &&
-                    sourceFocusTarget.path === paneFile.path
-                      ? sourceFocusTarget.revision
-                      : 0
-                  }
-                  viewerMode={
-                    paneFile
-                      ? (viewerModes[paneFile.path] ??
-                        defaultViewerMode(paneFile))
-                      : undefined
-                  }
-                  diff={paneFile?.path ? (diffs[paneFile.path] ?? null) : null}
-                  diffLoading={
-                    paneFile?.path
-                      ? Boolean(loadingDiffs[paneFile.path])
-                      : false
-                  }
-                  diffEnabled={
-                    paneFile ? diffEnabled && supportsDiffMode(paneFile) : false
-                  }
-                  currentActorId={reviewActorForConfig(config)?.id}
-                  outline={outlineForFile(paneFile)}
-                  refreshedAt={
-                    paneFile?.path ? refreshedFiles[paneFile.path] : undefined
-                  }
-                  onOutlineSelect={(id) => jumpToOutline(id, pane.id)}
-                  onCreateComment={(draft, body, rect) =>
-                    createComment(draft, body, rect).catch((err) =>
-                      setError(String(err)),
-                    )
-                  }
-                  comments={
-                    paneFile?.path
-                      ? combinePublishedAndDraftComments(
-                          comments,
-                          draftComments,
-                          paneFile.path,
-                        )
-                      : []
-                  }
-                  activeCommentId={activeCommentId}
-                  expandActiveCommentThread
-                  onOpenComment={openInlineComment}
-                  onCloseComment={closeInlineComment}
-                  threadActivities={commentActivitySummaries}
-                  onFocusActiveComment={focusCurrentInlineThread}
-                  onCodeSelectionChange={(range) => {
-                    if (!paneFile?.path) return;
-                    setCodeSelections((items) => ({
-                      ...items,
-                      [paneFile.path]: range,
-                    }));
-                  }}
-                  onViewerModeChange={(mode) => {
-                    if (!paneFile?.path) return;
-                    setViewerModes((items) => ({
-                      ...items,
-                      [paneFile.path]: mode,
-                    }));
-                  }}
-                  onDiffToggle={() => {
-                    if (!paneFile?.path) return;
-                    toggleHeadDiff(paneFile.path);
-                  }}
-                  onRevealInTree={(path) => revealActiveFileInTree(path)}
-                  onOpenPath={(path) => {
-                    const mode = paneActiveTab?.isPreview
-                      ? "preview"
-                      : "normal";
-                    void loadFile(path, pane.id, mode).catch((err) =>
-                      setError(String(err)),
-                    );
-                  }}
-                  onCloseRemoved={() => {
-                    if (pane.activePath) closeTab(pane.activePath, pane.id);
-                  }}
+                    file={paneFile}
+                    removed={Boolean(paneActiveTab?.removed)}
+                    allowHtmlScripts={config?.allowHtmlScripts ?? false}
+                    theme={resolvedTheme}
+                    selectedCodeRange={
+                      paneFile?.path
+                        ? (codeSelections[paneFile.path] ?? null)
+                        : null
+                    }
+                    focusLineNumber={
+                      paneFile &&
+                      sourceFocusTarget?.paneId === pane.id &&
+                      sourceFocusTarget.path === paneFile.path
+                        ? sourceFocusTarget.lineNumber
+                        : null
+                    }
+                    focusRevision={
+                      paneFile &&
+                      sourceFocusTarget?.paneId === pane.id &&
+                      sourceFocusTarget.path === paneFile.path
+                        ? sourceFocusTarget.revision
+                        : 0
+                    }
+                    viewerMode={
+                      paneFile
+                        ? (viewerModes[paneFile.path] ??
+                          defaultViewerMode(paneFile))
+                        : undefined
+                    }
+                    diff={
+                      paneFile?.path ? (diffs[paneFile.path] ?? null) : null
+                    }
+                    diffLoading={
+                      paneFile?.path
+                        ? Boolean(loadingDiffs[paneFile.path])
+                        : false
+                    }
+                    diffEnabled={
+                      paneFile
+                        ? diffEnabled && supportsDiffMode(paneFile)
+                        : false
+                    }
+                    currentActorId={reviewActorForConfig(config)?.id}
+                    outline={outlineForFile(paneFile)}
+                    refreshedAt={
+                      paneFile?.path ? refreshedFiles[paneFile.path] : undefined
+                    }
+                    onOutlineSelect={(id) => jumpToOutline(id, pane.id)}
+                    onCreateComment={createComment}
+                    comments={
+                      paneFile?.path
+                        ? combinePublishedAndDraftComments(
+                            comments,
+                            draftComments,
+                            paneFile.path,
+                          )
+                        : []
+                    }
+                    activeCommentId={activeCommentId}
+                    expandActiveCommentThread
+                    onOpenComment={openInlineComment}
+                    onCloseComment={closeInlineComment}
+                    threadActivities={commentActivitySummaries}
+                    onFocusActiveComment={focusCurrentInlineThread}
+                    onCodeSelectionChange={(range) => {
+                      if (!paneFile?.path) return;
+                      setCodeSelections((items) => ({
+                        ...items,
+                        [paneFile.path]: range,
+                      }));
+                    }}
+                    onViewerModeChange={(mode) => {
+                      if (!paneFile?.path) return;
+                      setViewerModes((items) => ({
+                        ...items,
+                        [paneFile.path]: mode,
+                      }));
+                    }}
+                    onDiffToggle={() => {
+                      if (!paneFile?.path) return;
+                      toggleHeadDiff(paneFile.path);
+                    }}
+                    onRevealInTree={(path) => revealActiveFileInTree(path)}
+                    onOpenPath={(path) => {
+                      const mode = paneActiveTab?.isPreview
+                        ? "preview"
+                        : "normal";
+                      void loadFile(path, pane.id, mode).catch((err) =>
+                        setError(String(err)),
+                      );
+                    }}
+                    onCloseRemoved={() => {
+                      if (pane.activePath) closeTab(pane.activePath, pane.id);
+                    }}
                   />
                 </CommentInputResumePaneProvider>
               )}

@@ -214,6 +214,75 @@ it("dismisses the compact inspector when file navigation needs the reader", asyn
     .toBe(true);
 });
 
+it("keeps the compact status bar readable without overlapping groups", async () => {
+  await page!.setViewportSize({ width: 900, height: 700 });
+  await explorerTree().locator('[data-tree-path="README.md"]').click();
+
+  const visibleGroups = await page!
+    .locator('footer[aria-label^="Workspace status"] > span')
+    .evaluateAll((groups) =>
+      groups
+        .filter((group) => getComputedStyle(group).display !== "none")
+        .map((group) => {
+          const rect = group.getBoundingClientRect();
+          return {
+            left: rect.left,
+            right: rect.right,
+            text: group.textContent ?? "",
+          };
+        }),
+    );
+
+  expect(visibleGroups).toHaveLength(2);
+  expect(visibleGroups[0]?.text).toContain("Current");
+  expect(visibleGroups[1]?.text).toContain("Feedback");
+  expect(visibleGroups[0]!.right).toBeLessThanOrEqual(visibleGroups[1]!.left);
+});
+
+it("keeps a narrow HTML feedback popover below the sticky viewer toolbar", async () => {
+  await page!.setViewportSize({ width: 700, height: 700 });
+  await writeFile(
+    path.join(fixture.rootDir, "index.html"),
+    [
+      "<!doctype html>",
+      "<html><body>",
+      "<h1>HTML Toolbar Boundary</h1>",
+      '<div style="height: 760px">Scrollable preview</div>',
+      "<p>Bottom HTML comment target</p>",
+      "</body></html>",
+      "",
+    ].join("\n"),
+  );
+  await explorerTree().locator('[data-tree-path="index.html"]').click();
+
+  const previewFrame = page!.frameLocator('iframe[title="index.html"]');
+  const target = previewFrame.getByText("Bottom HTML comment target", {
+    exact: true,
+  });
+  await target.scrollIntoViewIfNeeded();
+  await target.dblclick({ position: { x: 8, y: 8 } });
+
+  const host = page!.locator(".html-rendered-comment-thread-host");
+  const toolbar = page!.locator(".html-viewer > .viewer-toolbar");
+  await expect.poll(() => host.count()).toBe(1);
+  await expect
+    .poll(async () => {
+      const [hostBounds, toolbarBounds] = await Promise.all([
+        host.boundingBox(),
+        toolbar.boundingBox(),
+      ]);
+      return Boolean(
+        hostBounds &&
+        toolbarBounds &&
+        hostBounds.y >= toolbarBounds.y + toolbarBounds.height + 16,
+      );
+    })
+    .toBe(true);
+
+  await page!.getByRole("button", { name: "Source", exact: true }).click();
+  await expect.poll(() => host.count()).toBe(0);
+}, 20_000);
+
 it("keeps typed feedback through outside clicks and comment close controls", async () => {
   // Keep README open while another preview is inspected. Inputs belonging to a
   // replaced preview tab are intentionally omitted from the inspector.
@@ -256,6 +325,57 @@ it("keeps typed feedback through outside clicks and comment close controls", asy
       page!.getByRole("textbox", { name: "New line comment" }).count(),
     )
     .toBe(0);
+}, 20_000);
+
+it("keeps a failed pending draft visible and retryable", async () => {
+  await explorerTree().locator('[data-tree-path="README.md"]').click();
+  await page!.getByRole("button", { name: "Source", exact: true }).click();
+  await page!.getByRole("button", { name: "Add comment on line 1" }).click();
+
+  const input = page!.getByRole("textbox", { name: "New line comment" });
+  await input.fill("Keep this input after the failed save");
+  await page!.route("**/graphql", async (route) => {
+    const requestBody = route.request().postData() ?? "";
+    if (!requestBody.includes("CreateDraftReviewComment")) {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        errors: [{ message: "Monkey draft save failed" }],
+      }),
+    });
+  });
+  await page!
+    .getByRole("button", { name: "Save pending draft comment" })
+    .click();
+
+  await expect
+    .poll(() =>
+      page!
+        .getByRole("alert")
+        .getByText(/Monkey draft save failed/)
+        .count(),
+    )
+    .toBe(1);
+  await expect
+    .poll(() => input.inputValue())
+    .toBe("Keep this input after the failed save");
+  await expect.poll(() => input.isEnabled()).toBe(true);
+  await page!.unroute("**/graphql");
+  await page!
+    .getByRole("button", { name: "Save pending draft comment" })
+    .click();
+  await expect.poll(() => input.count()).toBe(0);
+  await expect
+    .poll(() =>
+      page!
+        .locator("#root")
+        .evaluate((root) => root.childElementCount),
+    )
+    .toBeGreaterThan(0);
 }, 20_000);
 
 it("keeps a saved Markdown follow-up focused while the next block stays targetable", async () => {

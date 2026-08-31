@@ -331,6 +331,7 @@ func (server *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
 	if requested == "" {
 		requested = "index.html"
 	}
+	assetRequest := requested == "assets" || strings.HasPrefix(requested, "assets/")
 	filePath := path.Clean(requested)
 	if strings.HasPrefix(filePath, "../") || filePath == ".." {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "static path escapes root"})
@@ -338,6 +339,10 @@ func (server *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
 	}
 	content, err := fs.ReadFile(uiassets.StaticFiles, path.Join(uiassets.StaticRoot, filePath))
 	if err != nil {
+		if assetRequest {
+			http.NotFound(w, r)
+			return
+		}
 		content, err = fs.ReadFile(uiassets.StaticFiles, path.Join(uiassets.StaticRoot, "index.html"))
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)

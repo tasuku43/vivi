@@ -8,6 +8,7 @@ export interface ReadyToPublishItem {
 }
 
 export interface ReadyToPublishLocalInput {
+  id?: string;
   path: string;
   location: string;
 }
@@ -16,9 +17,10 @@ export interface ReadyToPublishPanelProps {
   scope: "workspace" | "document";
   items: ReadyToPublishItem[];
   localInput?: ReadyToPublishLocalInput | null;
+  localInputs?: readonly ReadyToPublishLocalInput[];
   excludedInputCount?: number;
   onOpenItem?: (item: ReadyToPublishItem) => void;
-  onResumeInput?: () => void;
+  onResumeInput?: (input: ReadyToPublishLocalInput, index: number) => void;
   onReview: () => void;
   onPublish: () => void;
   publishDisabled?: boolean;
@@ -28,6 +30,7 @@ export function ReadyToPublishPanel({
   scope,
   items,
   localInput = null,
+  localInputs,
   excludedInputCount = 0,
   onOpenItem,
   onResumeInput,
@@ -37,7 +40,11 @@ export function ReadyToPublishPanel({
 }: ReadyToPublishPanelProps) {
   const readyCount = items.reduce((total, item) => total + item.count, 0);
   const scopeLabel = scope === "workspace" ? "Workspace" : "Current document";
-  const excludedCount = Math.max(excludedInputCount, localInput ? 1 : 0);
+  const visibleLocalInputs = localInputs ?? (localInput ? [localInput] : []);
+  const excludedCount = Math.max(
+    excludedInputCount,
+    visibleLocalInputs.length,
+  );
 
   return (
     <section
@@ -66,23 +73,25 @@ export function ReadyToPublishPanel({
           </button>
         ))}
 
-        {localInput ? (
+        {visibleLocalInputs.map((input, index) => (
           <button
             className={`${styles.item} ${styles.typingItem}`}
+            key={input.id ?? `${input.path}:${input.location}:${index}`}
             type="button"
-            onClick={onResumeInput}
+            aria-label={`Resume input in ${input.path}, ${input.location}`}
+            onClick={() => onResumeInput?.(input, index)}
           >
             <strong>
-              {basename(localInput.path)} · {localInput.location}
+              {basename(input.path)} · {input.location}
             </strong>
             <span className={styles.typingBadge}>1 typing</span>
             <small>Excluded from Publish · Resume input</small>
           </button>
-        ) : null}
+        ))}
       </div>
 
       <footer className={styles.actions}>
-        {!localInput && excludedCount ? (
+        {!visibleLocalInputs.length && excludedCount ? (
           <span className={styles.scopeNote}>
             {excludedCount} workspace {excludedCount === 1 ? "input" : "inputs"}{" "}
             stays local

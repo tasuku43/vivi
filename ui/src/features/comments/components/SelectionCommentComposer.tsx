@@ -50,12 +50,14 @@ export function SelectionCommentComposer({
       : undefined;
   const restoredSession =
     requestedSession ??
-    [...inputs.sessions].reverse().find(
-      (session) =>
-        session.draft.path === restorePath &&
-        session.rect &&
-        !commentInputSessionIsCollapsed(session),
-    );
+    [...inputs.sessions]
+      .reverse()
+      .find(
+        (session) =>
+          session.draft.path === restorePath &&
+          session.rect &&
+          !commentInputSessionIsCollapsed(session),
+      );
   const effectiveDraft =
     requestedSession?.draft ?? draft ?? restoredSession?.draft ?? null;
   const effectiveRect =
@@ -66,6 +68,9 @@ export function SelectionCommentComposer({
     : undefined;
   const body = inputSession?.body ?? "";
   const stale = inputSession?.status === "stale";
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [position, setPosition] = useState<{
     left: number;
     top: number;
@@ -107,7 +112,10 @@ export function SelectionCommentComposer({
             )
           : composerRef.current?.querySelector<HTMLTextAreaElement>("textarea");
       target?.focus({ preventScroll: true });
-      composerRef.current?.scrollIntoView({ block: "center", inline: "nearest" });
+      composerRef.current?.scrollIntoView({
+        block: "center",
+        inline: "nearest",
+      });
       inputs.acknowledgeResume(intent.revision, resumePaneId);
     });
     return () => window.cancelAnimationFrame(frame);
@@ -182,15 +190,22 @@ export function SelectionCommentComposer({
   if (!effectiveDraft || !effectiveRect || !onSave || !inputId) return null;
   const placement = position?.placement ?? "below";
 
-  const save = () => {
+  const save = async () => {
     const trimmed = body.trim();
-    if (!trimmed || stale) return;
-    void Promise.resolve(onSave(effectiveDraft, trimmed, effectiveRect)).then(
-      () => {
-        inputs.discard(inputId);
-        onDismiss();
-      },
-    );
+    if (!trimmed || stale || savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await onSave(effectiveDraft, trimmed, effectiveRect);
+      inputs.discard(inputId);
+      onDismiss();
+    } catch (cause) {
+      setSaveError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
   };
 
   const collapse = () => {
@@ -213,7 +228,7 @@ export function SelectionCommentComposer({
       }
       onSubmit={(event) => {
         event.preventDefault();
-        save();
+        void save();
       }}
       onKeyDown={(event) => {
         if (event.key !== "Escape") return;
@@ -262,10 +277,16 @@ export function SelectionCommentComposer({
           </div>
         </div>
       ) : null}
+      {saveError ? (
+        <div className={styles.stale} role="alert">
+          <strong>Could not save this pending draft.</strong>
+          <span>{saveError}</span>
+        </div>
+      ) : null}
       <textarea
         autoFocus
         value={body}
-        disabled={stale}
+        disabled={stale || saving}
         placeholder="Draft a review comment"
         onChange={(event) =>
           inputs.change(
@@ -280,19 +301,20 @@ export function SelectionCommentComposer({
             (event.shiftKey || event.metaKey || event.ctrlKey)
           ) {
             event.preventDefault();
-            save();
+            void save();
           }
         }}
       />
       <div className={`${styles.footer} selection-comment-footer`}>
         <span>Shift+Enter to save draft</span>
         <div>
-          <button type="button" onClick={collapse}>
+          <button type="button" disabled={saving} onClick={collapse}>
             Collapse
           </button>
           {inputSession && !stale ? (
             <button
               type="button"
+              disabled={saving}
               onClick={() => {
                 inputs.discard(inputId);
                 onDismiss();
@@ -301,8 +323,8 @@ export function SelectionCommentComposer({
               Discard
             </button>
           ) : null}
-          <button disabled={!body.trim() || stale} type="submit">
-            Save draft
+          <button disabled={!body.trim() || stale || saving} type="submit">
+            {saving ? "Saving…" : "Save draft"}
           </button>
         </div>
       </div>

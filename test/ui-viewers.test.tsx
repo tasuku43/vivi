@@ -224,6 +224,19 @@ it("renders workspace status as a readable local-review instrument", () => {
   expect(html).toContain('title="3 review refreshes · last review 12ms"');
 });
 
+it("keeps an offline live-update warning in the compact status accessible name", () => {
+  expect(
+    workspaceStatusbarLabel({
+      workspace: "Watching 42 files · 1 tab open",
+      activeFile: "brief.md · preview",
+      review: "No feedback",
+      server: "Disconnected · live updates paused",
+      serverTone: "offline",
+      detail: "",
+    }),
+  ).toContain("Live updates: Disconnected · live updates paused");
+});
+
 it("summarizes workspace paths for compact topbar display", () => {
   expect(workspaceDisplayName("/Users/tasuku/work/vivi/")).toBe("vivi");
   expect(workspaceParentPath("/Users/tasuku/work/vivi/")).toBe(
@@ -1317,7 +1330,9 @@ it("shows an explicit removed-file state instead of stale content", () => {
 
   expect(html).toContain("Removed from disk");
   expect(html).toContain("docs/deleted.md");
+  expect(html).toContain("Vivi stopped displaying this file");
   expect(html).toContain("Close tab");
+  expect(html).not.toContain("last loaded content");
   expect(html).not.toContain("export function start");
 });
 

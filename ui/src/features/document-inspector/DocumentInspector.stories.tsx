@@ -41,6 +41,7 @@ const meta = {
     onOpenComment: fn(),
     onOpenDraft: fn(),
     onPublishDrafts: fn(),
+    onResumeInput: fn(),
     onToggleChanges: fn(),
     onOpenReviewQueue: fn(),
     reviewQueueCount: 4,
@@ -106,5 +107,45 @@ export const DocumentNavigationInteraction: Story = {
 export const ChangesVisible: Story = {
   args: {
     changesVisible: true,
+  },
+};
+
+export const MultipleInputsRemainIndividuallyResumable: Story = {
+  tags: ["interaction"],
+  args: {
+    unsavedInputCount: 2,
+    resumableInputs: [
+      {
+        id: "input-review-surface",
+        path: sampleFiles.markdown.path,
+        location: "line 12",
+      },
+      {
+        id: "input-publish-boundary",
+        path: sampleFiles.markdown.path,
+        location: "line 28",
+      },
+    ],
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await userEvent.click(
+      canvas.getByRole("button", {
+        name: `Resume input in ${sampleFiles.markdown.path}, line 12`,
+      }),
+    );
+    await expect(args.onResumeInput).toHaveBeenCalledWith(
+      "input-review-surface",
+    );
+
+    await userEvent.click(
+      canvas.getByRole("button", {
+        name: `Resume input in ${sampleFiles.markdown.path}, line 28`,
+      }),
+    );
+    await expect(args.onResumeInput).toHaveBeenCalledWith(
+      "input-publish-boundary",
+    );
   },
 };

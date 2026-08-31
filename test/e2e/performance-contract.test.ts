@@ -16,6 +16,10 @@ let largeFixture: LargeFixture | null = null;
 let server: StartedServer | null = null;
 let fakeGitDir: string | null = null;
 
+// The runner deadline also covers creating 1,576 fixture files and starting
+// the server. API performance remains governed by the explicit assertions.
+const mediumWorkspaceTestTimeoutMs = 15_000;
+
 beforeEach(async () => {
   fixture = await createContractFixture();
 });
@@ -69,46 +73,53 @@ it("returns the tree before slow Git review completes", async () => {
   expect(reviewMs).toBeLessThan(2_500);
 });
 
-it("renders the initial tree contract for a generated medium workspace", async () => {
-  largeFixture = await createLargeFixture({
-    directories: 35,
-    filesPerDirectory: 45,
-  });
-  server = await startViviServer({
-    rootDir: largeFixture.rootDir,
-    gitReviewTimeoutMs: 500,
-  });
+it(
+  "renders the initial tree contract for a generated medium workspace",
+  async () => {
+    largeFixture = await createLargeFixture({
+      directories: 35,
+      filesPerDirectory: 45,
+    });
+    server = await startViviServer({
+      rootDir: largeFixture.rootDir,
+      gitReviewTimeoutMs: 500,
+    });
 
-  const treeStarted = performance.now();
-  const tree = await fetchJson<{
-    nodes: Array<{ path: string; kind: string; childrenLoaded?: boolean }>;
-    stats: { returnedNodes: number; scannedDirectories: number };
-  }>("/api/tree?depth=1");
-  const treeMs = performance.now() - treeStarted;
+    const treeStarted = performance.now();
+    const tree = await fetchJson<{
+      nodes: Array<{ path: string; kind: string; childrenLoaded?: boolean }>;
+      stats: { returnedNodes: number; scannedDirectories: number };
+    }>("/api/tree?depth=1");
+    const treeMs = performance.now() - treeStarted;
 
-  expect(tree.nodes).toContainEqual(
-    expect.objectContaining({ path: "README.md", kind: "file" }),
-  );
-  expect(tree.nodes).toContainEqual(
-    expect.objectContaining({
-      path: "pkg-000",
-      kind: "directory",
-      childrenLoaded: false,
-    }),
-  );
-  expect(tree.stats.returnedNodes).toBeLessThan(largeFixture.fileCount);
-  expect(treeMs).toBeLessThan(1_500);
+    expect(tree.nodes).toContainEqual(
+      expect.objectContaining({ path: "README.md", kind: "file" }),
+    );
+    expect(tree.nodes).toContainEqual(
+      expect.objectContaining({
+        path: "pkg-000",
+        kind: "directory",
+        childrenLoaded: false,
+      }),
+    );
+    expect(tree.stats.returnedNodes).toBeLessThan(largeFixture.fileCount);
+    expect(treeMs).toBeLessThan(1_500);
 
-  const nestedStarted = performance.now();
-  const nested = await fetchJson<{
-    nodes: Array<{ path: string; kind: string }>;
-  }>("/api/tree?path=pkg-000&depth=1");
-  const nestedMs = performance.now() - nestedStarted;
-  expect(nested.nodes).toContainEqual(
-    expect.objectContaining({ path: "pkg-000/file-000.ts", kind: "file" }),
-  );
-  expect(nestedMs).toBeLessThan(1_500);
-});
+    const nestedStarted = performance.now();
+    const nested = await fetchJson<{
+      nodes: Array<{ path: string; kind: string }>;
+    }>("/api/tree?path=pkg-000&depth=1");
+    const nestedMs = performance.now() - nestedStarted;
+    expect(nested.nodes).toContainEqual(
+      expect.objectContaining({
+        path: "pkg-000/file-000.ts",
+        kind: "file",
+      }),
+    );
+    expect(nestedMs).toBeLessThan(1_500);
+  },
+  mediumWorkspaceTestTimeoutMs,
+);
 
 async function fetchJson<T>(route: string): Promise<T> {
   if (!server) throw new Error("server is not running");

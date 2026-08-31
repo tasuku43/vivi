@@ -35,6 +35,7 @@ import type { ResolvedTheme } from "../../../state/theme.js";
 import type { ViewerMode } from "../../../state/viewer-mode.js";
 import {
   positionRenderedCommentThread,
+  renderedCommentContentBounds,
   sameRenderedCommentThreadPosition,
   type RenderedCommentThreadPosition,
 } from "../../../state/rendered-comment-position.js";
@@ -322,25 +323,38 @@ export function HtmlViewer({
     }
     const update = () => {
       const viewerRect = viewerRef.current?.getBoundingClientRect();
+      const toolbarRect = viewerRef.current
+        ?.querySelector<HTMLElement>(":scope > .viewer-toolbar")
+        ?.getBoundingClientRect();
       const nextPosition = positionRenderedCommentThread(
-          renderedThreadTargets[0]!.rect,
-          {
-            width: window.innerWidth,
-            height: window.innerHeight,
-          },
-          viewerRect
-            ? {
+        renderedThreadTargets[0]!.rect,
+        {
+          width: window.innerWidth,
+          height: window.innerHeight,
+        },
+        viewerRect
+          ? renderedCommentContentBounds(
+              {
                 left: viewerRect.left,
                 top: viewerRect.top,
                 width: viewerRect.width,
                 height: viewerRect.height,
-              }
-            : undefined,
-          {
-            width: 520,
-            height: 430,
-          },
-        );
+              },
+              toolbarRect
+                ? {
+                    left: toolbarRect.left,
+                    top: toolbarRect.top,
+                    width: toolbarRect.width,
+                    height: toolbarRect.height,
+                  }
+                : undefined,
+            )
+          : undefined,
+        {
+          width: 520,
+          height: 430,
+        },
+      );
       setRenderedThreadPosition((current) =>
         sameRenderedCommentThreadPosition(current, nextPosition)
           ? current
@@ -353,6 +367,10 @@ export function HtmlViewer({
         ? null
         : new ResizeObserver(() => update());
     if (viewerRef.current) observer?.observe(viewerRef.current);
+    const toolbar = viewerRef.current?.querySelector<HTMLElement>(
+      ":scope > .viewer-toolbar",
+    );
+    if (toolbar) observer?.observe(toolbar);
     window.addEventListener("resize", update);
     return () => {
       observer?.disconnect();
@@ -406,11 +424,13 @@ export function HtmlViewer({
     const requestedSession =
       commentInputs.resumeIntent &&
       commentInputs.resumeIntent.paneId === resumePaneId &&
-      commentInputs.resumeIntent.revision > lastProcessedResumeRevisionRef.current
-      ? commentInputs.sessions.find(
-          (candidate) => candidate.id === commentInputs.resumeIntent?.sessionId,
-        )
-      : undefined;
+      commentInputs.resumeIntent.revision >
+        lastProcessedResumeRevisionRef.current
+        ? commentInputs.sessions.find(
+            (candidate) =>
+              candidate.id === commentInputs.resumeIntent?.sessionId,
+          )
+        : undefined;
     const requestedForViewer =
       requestedSession?.draft.path === file.path &&
       requestedSession.draft.anchor.surface === "rendered" &&
@@ -420,14 +440,16 @@ export function HtmlViewer({
     if (renderedThreadTargets.length && !requestedForViewer) return;
     const session =
       requestedForViewer ??
-      [...commentInputs.sessions].reverse().find(
-        (candidate) =>
-          candidate.draft.path === file.path &&
-          !commentInputSessionIsCollapsed(candidate) &&
-          candidate.rect &&
-          candidate.draft.anchor.surface === "rendered" &&
-          candidate.draft.anchor.rendered?.kind === "html",
-      );
+      [...commentInputs.sessions]
+        .reverse()
+        .find(
+          (candidate) =>
+            candidate.draft.path === file.path &&
+            !commentInputSessionIsCollapsed(candidate) &&
+            candidate.rect &&
+            candidate.draft.anchor.surface === "rendered" &&
+            candidate.draft.anchor.rendered?.kind === "html",
+        );
     const rendered = session?.draft.anchor.rendered;
     if (!session?.rect || !rendered) return;
     if (requestedForViewer) {
@@ -647,8 +669,7 @@ export function HtmlViewer({
               onCreateComment={onCreateComment}
               keepOpenAfterCreate
               focusRevision={
-                resumeFocus?.sessionId ===
-                commentInputSessionId(entry.draft)
+                resumeFocus?.sessionId === commentInputSessionId(entry.draft)
                   ? resumeFocus.revision
                   : 0
               }

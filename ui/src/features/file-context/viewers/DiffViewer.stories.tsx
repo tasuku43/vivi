@@ -485,6 +485,82 @@ export const RenderedMarkdownRemovedComment: Story = {
   },
 };
 
+export const SelectionDraftSaveIsSingleFlight: Story = {
+  tags: ["interaction"],
+  args: {
+    path: sampleFiles.markdown.path,
+    renderKind: "markdown",
+    file: sampleFiles.markdown,
+    diff: removedMarkdownDiff,
+    comments: [],
+    onCreateComment: fn(() => new Promise<void>(() => undefined)),
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const removedCard = canvas.getByRole("article", {
+      name: "Removed rendered block 8-9",
+    });
+    await userEvent.click(
+      within(removedCard).getByRole("button", {
+        name: "Add comment to Removed rendered block line 8-9",
+      }),
+    );
+    await userEvent.type(
+      canvas.getByPlaceholderText("Draft a review comment"),
+      "Do not create this pending draft twice.",
+    );
+
+    const save = canvas.getByRole("button", { name: "Save draft" });
+    await userEvent.dblClick(save);
+
+    await expect(args.onCreateComment).toHaveBeenCalledTimes(1);
+    await expect(save).toBeDisabled();
+  },
+};
+
+export const SelectionDraftSaveFailureIsRetryable: Story = {
+  tags: ["interaction"],
+  args: {
+    path: sampleFiles.markdown.path,
+    renderKind: "markdown",
+    file: sampleFiles.markdown,
+    diff: removedMarkdownDiff,
+    comments: [],
+    onCreateComment: fn(async () => {
+      throw new Error("Could not persist this draft");
+    }),
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const removedCard = canvas.getByRole("article", {
+      name: "Removed rendered block 8-9",
+    });
+    await userEvent.click(
+      within(removedCard).getByRole("button", {
+        name: "Add comment to Removed rendered block line 8-9",
+      }),
+    );
+    const input = canvas.getByPlaceholderText("Draft a review comment");
+    await userEvent.type(input, "Keep this pending draft available to retry.");
+    const save = canvas.getByRole("button", { name: "Save draft" });
+    await userEvent.click(save);
+
+    await expect(canvas.getByRole("alert")).toHaveTextContent(
+      "Could not persist this draft",
+    );
+    await expect(input).toHaveValue(
+      "Keep this pending draft available to retry.",
+    );
+    await expect(input).toBeEnabled();
+    await expect(save).toBeEnabled();
+
+    await userEvent.click(save);
+    await waitFor(() =>
+      expect(args.onCreateComment).toHaveBeenCalledTimes(2),
+    );
+  },
+};
+
 export const RenderedHtmlComment: Story = {
   tags: ["interaction"],
   args: {

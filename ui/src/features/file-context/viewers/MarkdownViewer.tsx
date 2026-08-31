@@ -43,6 +43,7 @@ import type { ResolvedTheme } from "../../../state/theme.js";
 import type { ViewerMode } from "../../../state/viewer-mode.js";
 import {
   positionRenderedCommentThread,
+  renderedCommentContentBounds,
   sameRenderedCommentThreadPosition,
   type RenderedCommentThreadPosition,
 } from "../../../state/rendered-comment-position.js";
@@ -225,19 +226,32 @@ export function MarkdownViewer({
         ? rectLikeForElements(blocks)
         : target.rect;
       const viewerRect = viewerRef.current?.getBoundingClientRect();
+      const toolbarRect = viewerRef.current
+        ?.querySelector<HTMLElement>(":scope > .viewer-toolbar")
+        ?.getBoundingClientRect();
       const nextPosition = positionRenderedCommentThread(
-          anchorRect,
-          { width: window.innerWidth, height: window.innerHeight },
-          viewerRect
-            ? {
+        anchorRect,
+        { width: window.innerWidth, height: window.innerHeight },
+        viewerRect
+          ? renderedCommentContentBounds(
+              {
                 left: viewerRect.left,
                 top: viewerRect.top,
                 width: viewerRect.width,
                 height: viewerRect.height,
-              }
-            : undefined,
-          { width: 520, height: 430 },
-        );
+              },
+              toolbarRect
+                ? {
+                    left: toolbarRect.left,
+                    top: toolbarRect.top,
+                    width: toolbarRect.width,
+                    height: toolbarRect.height,
+                  }
+                : undefined,
+            )
+          : undefined,
+        { width: 520, height: 430 },
+      );
       setRenderedThreadPosition((current) =>
         sameRenderedCommentThreadPosition(current, nextPosition)
           ? current
@@ -250,6 +264,10 @@ export function MarkdownViewer({
         ? null
         : new ResizeObserver(() => update());
     if (markdownRef.current) observer?.observe(markdownRef.current);
+    const toolbar = viewerRef.current?.querySelector<HTMLElement>(
+      ":scope > .viewer-toolbar",
+    );
+    if (toolbar) observer?.observe(toolbar);
     window.addEventListener("resize", update);
     window.addEventListener("scroll", update, true);
     return () => {
@@ -295,9 +313,7 @@ export function MarkdownViewer({
       // Resume must keep the exact persisted draft identity. Rebuilding the
       // anchor from the latest DOM would create a second empty session when the
       // file hash changed, hiding the body the reviewer asked to resume.
-      draft:
-        draftOverride ??
-        currentDraft,
+      draft: draftOverride ?? currentDraft,
       reanchorDraft: draftOverride ? currentDraft : undefined,
     };
     if (!comment && persistInput) {
@@ -317,11 +333,12 @@ export function MarkdownViewer({
     const requestedSession =
       commentInputs.resumeIntent &&
       commentInputs.resumeIntent.paneId === resumePaneId &&
-      commentInputs.resumeIntent.revision > lastProcessedResumeRevisionRef.current
-      ? commentInputs.sessions.find(
-          (session) => session.id === commentInputs.resumeIntent?.sessionId,
-        )
-      : undefined;
+      commentInputs.resumeIntent.revision >
+        lastProcessedResumeRevisionRef.current
+        ? commentInputs.sessions.find(
+            (session) => session.id === commentInputs.resumeIntent?.sessionId,
+          )
+        : undefined;
     const candidates =
       requestedSession?.draft.path === file.path &&
       requestedSession.draft.anchor.surface === "rendered" &&

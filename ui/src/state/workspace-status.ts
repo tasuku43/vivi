@@ -27,6 +27,7 @@ export interface WorkspaceStatusInput {
   reviewFileCount: number;
   reviewLoading?: boolean;
   feedbackCount: number;
+  unavailableFeedbackCount?: number;
   draftCount: number;
   connectionStatus: WorkspaceConnectionStatus;
   activeFile?: ActiveFileStatusInput | null;
@@ -46,6 +47,7 @@ export function summarizeWorkspaceStatus({
   tree,
   openTabCount,
   feedbackCount,
+  unavailableFeedbackCount = 0,
   draftCount,
   connectionStatus,
   activeFile,
@@ -63,6 +65,9 @@ export function summarizeWorkspaceStatus({
     [
       feedbackCount
         ? `${feedbackCount} feedback ${feedbackCount === 1 ? "item" : "items"}`
+        : null,
+      unavailableFeedbackCount
+        ? `${unavailableFeedbackCount} unavailable ${unavailableFeedbackCount === 1 ? "file" : "files"}`
         : null,
       draftCount ? `${draftCount} draft${draftCount === 1 ? "" : "s"}` : null,
     ]
@@ -126,16 +131,15 @@ function activeFileStatusLabel(
       .filter(Boolean)
       .join(" · ");
   }
-  return [
+  const labels = [
     basenameForPath(activeFile.path),
     activeFile.isPreview ? "preview" : "kept",
     activeFile.viewerMode,
     activeFile.diffEnabled ? "HEAD diff" : null,
     activeFile.changed ? "changed" : null,
     activeFile.removed ? "removed" : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  ].filter((label): label is string => Boolean(label));
+  return [...new Set(labels)].join(" · ");
 }
 
 function basenameForPath(path: string): string {

@@ -2,13 +2,16 @@ package server
 
 import (
 	"bytes"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"path"
 	"strings"
 	"testing"
 
 	"github.com/tasuku43/vivi/server/application"
 	"github.com/tasuku43/vivi/server/reviewledger"
+	uiassets "github.com/tasuku43/vivi/ui"
 )
 
 func TestLegacyDataRoutesAreNotServed(t *testing.T) {
@@ -26,6 +29,69 @@ func TestLegacyDataRoutesAreNotServed(t *testing.T) {
 				t.Fatalf("status = %d, want %d", response.Code, http.StatusNotFound)
 			}
 		})
+	}
+}
+
+func TestMissingStaticAssetsDoNotUseSPAFallback(t *testing.T) {
+	server := &Server{}
+	for _, target := range []string{
+		"/assets/index-OLDHASH.js",
+		"/assets",
+		"/assets/../index-OLDHASH.js",
+		"/assets/%2e%2e/index-OLDHASH.js",
+		"/assets%2findex-OLDHASH.js",
+	} {
+		t.Run(target, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			server.route(response, httptest.NewRequest(http.MethodGet, target, nil))
+
+			if response.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, want %d", response.Code, http.StatusNotFound)
+			}
+			if strings.Contains(response.Body.String(), "<html") {
+				t.Fatalf("missing asset returned the SPA shell: %s", response.Body.String())
+			}
+		})
+	}
+}
+
+func TestStaticRoutesKeepSPAFallbackAndAssetContentType(t *testing.T) {
+	server := &Server{}
+
+	spa := httptest.NewRecorder()
+	server.route(spa, httptest.NewRequest(http.MethodGet, "/workspace/deep-link", nil))
+	if spa.Code != http.StatusOK {
+		t.Fatalf("SPA status = %d, want %d", spa.Code, http.StatusOK)
+	}
+	if contentType := spa.Header().Get("content-type"); !strings.Contains(contentType, "text/html") {
+		t.Fatalf("SPA content-type = %q, want text/html", contentType)
+	}
+	if !strings.Contains(spa.Body.String(), `id="root"`) {
+		t.Fatalf("SPA fallback did not return index.html: %s", spa.Body.String())
+	}
+
+	entries, err := fs.ReadDir(uiassets.StaticFiles, path.Join(uiassets.StaticRoot, "assets"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var javascriptAsset string
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".js") {
+			javascriptAsset = "/assets/" + entry.Name()
+			break
+		}
+	}
+	if javascriptAsset == "" {
+		t.Fatal("embedded UI has no JavaScript asset")
+	}
+
+	asset := httptest.NewRecorder()
+	server.route(asset, httptest.NewRequest(http.MethodGet, javascriptAsset, nil))
+	if asset.Code != http.StatusOK {
+		t.Fatalf("asset status = %d, want %d", asset.Code, http.StatusOK)
+	}
+	if contentType := asset.Header().Get("content-type"); !strings.Contains(contentType, "javascript") {
+		t.Fatalf("asset content-type = %q, want JavaScript", contentType)
 	}
 }
 

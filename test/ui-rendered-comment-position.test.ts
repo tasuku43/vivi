@@ -1,5 +1,8 @@
 import { expect, it } from "vitest";
-import { positionRenderedCommentThread } from "../ui/src/state/rendered-comment-position.js";
+import {
+  positionRenderedCommentThread,
+  renderedCommentContentBounds,
+} from "../ui/src/state/rendered-comment-position.js";
 
 const viewport = { width: 1200, height: 800 };
 const viewer = { left: 200, top: 80, width: 800, height: 680 };
@@ -13,6 +16,15 @@ it("places rendered feedback beside its anchor without covering it", () => {
 
   expect(position.placement).toBe("right");
   expect(position.left).toBeGreaterThanOrEqual(anchor.left + anchor.width);
+});
+
+it("excludes the sticky viewer toolbar from popover positioning bounds", () => {
+  expect(
+    renderedCommentContentBounds(
+      { left: 20, top: 40, width: 660, height: 620 },
+      { left: 20, top: 40, width: 660, height: 54 },
+    ),
+  ).toEqual({ left: 20, top: 94, width: 660, height: 566 });
 });
 
 it("moves rendered feedback below a wide anchor instead of obscuring it", () => {
@@ -79,12 +91,10 @@ it("never intersects the selected content across viewer edges", () => {
   ];
 
   for (const anchor of anchors) {
-    const position = positionRenderedCommentThread(
-      anchor,
-      viewport,
-      viewer,
-      { width: 520, height: 430 },
-    );
+    const position = positionRenderedCommentThread(anchor, viewport, viewer, {
+      width: 520,
+      height: 430,
+    });
     expect(
       rectanglesOverlap(anchor, {
         left: position.left,
@@ -94,6 +104,25 @@ it("never intersects the selected content across viewer edges", () => {
       }),
     ).toBe(false);
   }
+});
+
+it("keeps feedback usable when a tall target consumes all vertical room", () => {
+  const compactViewer = { left: 80, top: 40, width: 360, height: 320 };
+  const tallTarget = { left: 104, top: 52, width: 312, height: 296 };
+  const position = positionRenderedCommentThread(
+    tallTarget,
+    { width: 900, height: 700 },
+    compactViewer,
+    { width: 520, height: 430 },
+  );
+
+  expect(position.placement).toBe("overlay");
+  expect(position.maxHeight).toBeGreaterThanOrEqual(180);
+  expect(position.top).toBeGreaterThanOrEqual(compactViewer.top + 16);
+  expect(position.top + position.maxHeight).toBeLessThanOrEqual(
+    compactViewer.top + compactViewer.height - 16,
+  );
+  expect(position.width).toBeLessThan(compactViewer.width - 32);
 });
 
 function rectanglesOverlap(
