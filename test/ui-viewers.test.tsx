@@ -23,7 +23,7 @@ import {
   ViewerToolbarLocation,
 } from "../ui/src/features/file-context/components/ViewerControlButton.js";
 import {
-  Inspector,
+  InspectorContent as Inspector,
   reviewQueueKeyboardTarget,
 } from "../ui/src/features/review-queue/Inspector.js";
 import {
@@ -1768,9 +1768,7 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
   expect(html).not.toContain("Reviewed");
   expect(html).not.toContain('class="review-state-section reviewed"');
   expect(html).toContain('class="review-queue" role="group"');
-  expect(html).toContain(
-    'aria-label="Review queue signal ledger, 3 active files, 1 unseen, 0 with drafts, 3 changed"',
-  );
+  expect(html).toContain('aria-label="For you, 3 documents"');
   expect(html).toContain(
     'aria-describedby="review-queue-interaction-help review-queue-keyboard-help"',
   );
@@ -1778,26 +1776,19 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
   expect(html).toContain(
     "Use Down Arrow, Up Arrow, Home, and End to move between review",
   );
-  expect(html).toContain('aria-label="Filter review queue by signal"');
-  expect(html).toContain('for="review-signal-filter-all">All</label>');
-  expect(html).toContain(
-    'for="review-signal-filter-unread">Unseen <span>1</span>',
-  );
-  expect(html).toContain(
-    'for="review-signal-filter-changed">Changed <span>3</span>',
-  );
+  expect(html).not.toContain('aria-label="Filter review queue by signal"');
   expect(html).toContain('data-review-path="src/app.ts"');
   expect(html).toContain(
     'aria-label="Review queue item, modified src/app.ts, current review file"',
   );
-  expect(html).toContain('<span class="change-path-text">src</span>');
+  expect(html).toContain('title="src/app.ts">src</small>');
   expect(html).not.toContain('role="tree"');
   expect(html).toContain("Click or press Enter to preview a review file.");
   expect(html).toContain("Double-click to keep it open as a tab.");
   expect(html).not.toContain("src/app.ts:2");
-  expect(html).toContain("+100");
-  expect(html).toContain("-32");
-  expect(html).toContain("metadata");
+  expect(html).not.toContain("+100");
+  expect(html).not.toContain("-32");
+  expect(html).not.toContain("metadata");
   expect(html).not.toContain("+0");
   expect(html).not.toContain("-0");
   expect(html).toContain("app.ts");
@@ -2063,9 +2054,7 @@ it("keeps the review queue usable when no review file is selected", () => {
 
   const html = renderToStaticMarkup(inspector);
 
-  expect(html).toContain(
-    'aria-label="Review queue signal ledger, 1 active file, 1 unseen, 0 with drafts, 1 changed"',
-  );
+  expect(html).toContain('aria-label="For you, 1 document"');
   expect(html).toContain('data-review-path="src/app.ts"');
   expect(html).not.toContain('data-testid="review-open-comments-panel"');
   expect(html).not.toContain("Open in Comments panel");
@@ -2440,16 +2429,10 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
   );
 
   expect(html).toContain("agent-handoff.md");
-  expect(html).toContain(
-    'aria-label="Review queue signal ledger, 2 active files, 1 unseen, 0 with drafts, 1 changed"',
-  );
+  expect(html).toContain('aria-label="For you, 2 documents"');
   expect(html).not.toContain("Reviewed");
-  expect(html).toContain('for="review-signal-filter-all">All</label>');
-  expect(html).toContain(
-    'for="review-signal-filter-unread">Unseen <span>1</span>',
-  );
   const queueHtml = html.slice(html.indexOf('class="review-queue"'));
-  expect(queueHtml.indexOf('data-review-path="src/app.ts"')).toBeLessThan(
+  expect(queueHtml.indexOf('data-review-path="src/app.ts"')).toBeGreaterThan(
     queueHtml.indexOf('data-review-path="docs/agent-handoff.md"'),
   );
   expect(html).not.toContain('class="review-stop-summary"');
@@ -2595,9 +2578,7 @@ it("ignores legacy resolved status when choosing Review Queue guidance", () => {
   expect(html).toContain("Resolved after the DSCP paths were checked.");
   expect(html).toContain("Queue stop");
   expect(html).not.toContain("Next queue stop");
-  expect(html).toContain(
-    'aria-label="Review queue signal ledger, 1 active file, 0 unseen, 0 with drafts, 1 changed"',
-  );
+  expect(html).toContain('aria-label="For you, 1 document"');
   expect(html).toContain('data-review-path="src/app.ts"');
   expect(html).toContain(
     'aria-label="Review queue item, modified src/app.ts, current review file"',
@@ -3159,9 +3140,9 @@ it("explains an empty Review Queue as active review work being clear", () => {
   );
 
   expect(html).toContain('aria-label="Review queue empty"');
-  expect(html).toContain("Active queue clear");
+  expect(html).toContain("Nothing to look at right now");
   expect(html).toContain(
-    "No recent document edits, unseen feedback, or pending drafts need attention right now.",
+    "Updated and opened documents will appear here for a while.",
   );
   expect(html).not.toContain("Resolved threads");
   expect(html).not.toContain("No files to review.");
@@ -3189,7 +3170,7 @@ it("keeps the Review Queue in a loading state while Git review is loading", () =
 
   expect(html).toContain("Loading Git review");
   expect(html).toContain("unseen feedback may appear before changed files");
-  expect(html).not.toContain("Active queue clear");
+  expect(html).not.toContain("Nothing to look at right now");
 });
 
 it("does not mark comment-only Review Queue results complete while Git review is loading", () => {
@@ -3221,10 +3202,7 @@ it("does not mark comment-only Review Queue results complete while Git review is
     />,
   );
 
-  expect(html).toContain(
-    'aria-label="Review queue signal ledger, 1 active file, 0 unseen, 0 with drafts, 0 changed"',
-  );
-  expect(html).toContain('for="review-signal-filter-all">All</label>');
+  expect(html).toContain('aria-label="For you, 1 document"');
   expect(html).toContain("Loading Git review");
   expect(html).toContain("unseen feedback may appear before changed files");
   expect(html).not.toContain("all seen");

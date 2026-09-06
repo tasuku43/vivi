@@ -1548,7 +1548,7 @@ it("expires old Review Queue activity on schedule", () => {
       touchReviewAttention(state, event.event.path, event.receivedAt),
     {},
   );
-  expect(nextReviewAttentionExpiryDelay(clock, 500, 300)).toBe(151);
+  expect(nextReviewAttentionExpiryDelay(clock, 500, 300)).toBe(150);
   expect(nextReviewAttentionExpiryDelay(clock, 651, 300)).toBeNull();
 });
 
@@ -1573,7 +1573,7 @@ it("keeps every producer in one path-based thirty-minute activity clock", () => 
   ).toEqual([]);
   expect(
     recentReviewAttentionPaths(clock, 2_000 + reviewActivityWindowMs),
-  ).toEqual(new Set(["docs/opened.md"]));
+  ).toEqual(new Set());
   expect(
     recentReviewAttentionPaths(clock, 2_000 + reviewActivityWindowMs + 1),
   ).toEqual(new Set());
@@ -2027,8 +2027,8 @@ it("keeps feedback and drafts for every browser-commentable file kind", () => {
   );
 
   expect(items.map((item) => item.path)).toEqual([
-    "docs/review.html",
     "ui/src/review.ts",
+    "docs/review.html",
     "ui/styles/review.css",
   ]);
 });
@@ -2606,7 +2606,7 @@ it("does not let legacy terminal thread state suppress recent activity", () => {
   ];
   expect(
     buildReviewQueueItems(changes, [], {}, new Set()).map((item) => item.path),
-  ).toEqual(["docs/resolved.md", "docs/candidate.md"]);
+  ).toEqual(["docs/candidate.md", "docs/resolved.md"]);
 
   const itemsWithReopenedThread = buildReviewQueueItems(
     changes,
@@ -3983,4 +3983,19 @@ it("resolves embedded workspace images through the confined raw-preview route", 
   expect(
     workspaceImageUrl("README.md", "data:image/png;base64,abc"),
   ).toBeNull();
+});
+
+it("keeps in-progress input above recency and uses a stable timestamp/path order", () => {
+  const items = buildReviewQueueItems([], [], {}, new Set(), {
+    inputPaths: ["draft.md", "draft.md", "ignored.css"],
+    knownMissingPaths: new Set(["ignored.css"]),
+    recentActivityByPath: { "z.md": 100, "a.md": 100, "new.md": 200 },
+  });
+  expect(items.map((item) => item.path)).toEqual([
+    "draft.md",
+    "new.md",
+    "a.md",
+    "z.md",
+  ]);
+  expect(items[0]?.pendingInputCount).toBe(2);
 });

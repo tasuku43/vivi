@@ -13,8 +13,8 @@
 
 :global(.review-panel-title) {
   position: static;
-  min-height: 60px;
-  flex-basis: 60px;
+  min-height: 42px;
+  flex-basis: 42px;
   align-items: center;
   padding: 10px 14px;
   letter-spacing: 0;
@@ -1115,4 +1115,63 @@
     var(--vivi-color-warning) 23%,
     var(--vivi-color-surface-panel)
   );
+}
+
+.inspectorRoot :global(.now-list) {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.inspectorRoot :global(.now-group-heading) {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 12px;
+  color: var(--vivi-color-content-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+.inspectorRoot :global(.now-group-heading small) {
+  font-size: 10px;
+  font-weight: 400;
+}
+.inspectorRoot :global(.now-document-heading) {
+  display: block;
+  font-size: 11px;
+  color: var(--vivi-color-content-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inspectorRoot :global(.now-reason) {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  margin-top: 7px;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--vivi-color-content-muted);
+}
+.inspectorRoot :global(.now-reason time) {
+  white-space: nowrap;
+}
+.inspectorRoot :global(.now-dismiss) {
+  position: absolute;
+  top: 6px;
+  right: 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 3px 6px;
+  opacity: 0;
+  cursor: pointer;
+}
+.inspectorRoot :global(.review-queue-item:hover .now-dismiss),
+.inspectorRoot :global(.review-queue-item:focus-within .now-dismiss) {
+  opacity: 1;
+}
+.inspectorRoot :global(.now-list .review-queue-item) {
+  position: relative;
+}
+.inspectorRoot :global(.now-list .change-open) {
+  padding: 11px 26px 11px 12px;
 }

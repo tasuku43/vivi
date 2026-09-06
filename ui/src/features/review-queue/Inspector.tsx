@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   buildCommentThreads,
   type DraftReviewComment,
@@ -17,15 +18,12 @@ import {
 } from "../../state/comments.js";
 import {
   changeStatusLabel,
-  reviewQueueSourceLabel,
   type DiffStat,
   type ReviewChangeItem,
 } from "../../state/git-review.js";
-import { languageForPath } from "../../state/file-icons.js";
 import {
   isReviewQueueItemOpenable,
   reviewQueuePosition,
-  reviewQueueSignalCounts,
   type ReviewQueueItem,
   type UnavailableFeedbackItem,
 } from "../../state/review-queue.js";
@@ -35,6 +33,9 @@ import { InspectorSurfaceTabs } from "../../shared/components/InspectorSurfaceTa
 import sharedUiStyles from "../../shared/styles/SharedUi.module.css";
 
 interface Props {
+  onDismissRecent?: (path: string) => void;
+  documentHeadings?: Record<string, string>;
+  now?: number;
   file: FilePayload | null;
   fileRemoved?: boolean;
   reviewChanges: ReviewChangeItem[];
@@ -81,15 +82,29 @@ interface Props {
   onResumeInput?: (id: string) => void;
 }
 
-export function Inspector({
+export function Inspector(props: Props) {
+  const [heldItems, setHeldItems] = useState<ReviewQueueItem[] | null>(null);
+  return (
+    <InspectorContent
+      {...props}
+      heldItems={heldItems}
+      setHeldItems={setHeldItems}
+    />
+  );
+}
+
+export function InspectorContent({
+  heldItems = null,
+  setHeldItems = () => undefined,
   file,
+  onDismissRecent,
+  documentHeadings = {},
+  now = Date.now(),
   reviewChanges,
   reviewItems,
   unavailableFeedbackItems = [],
   reviewLoading = false,
   reviewUnavailableReason = null,
-  reviewDiffStats,
-  loadingReviewDiffs,
   unreadReviewPaths,
   comments = [],
   reviewComments = comments,
@@ -100,16 +115,18 @@ export function Inspector({
   activePath = file?.path ?? null,
   onOpenEventPath,
   onConfirmEventPath,
-  onOpenNextChanged,
   onPublishDrafts,
   publishDisabled = false,
   onOpenDocument,
   onResumeInput,
-}: Props) {
+}: Props & {
+  heldItems?: ReviewQueueItem[] | null;
+  setHeldItems?: (items: ReviewQueueItem[] | null) => void;
+}) {
   const visibleResumableInputs =
     resumableInputs ??
     (resumableInput ? [{ id: "resumable-input", ...resumableInput }] : []);
-  const queueItems: ReviewQueueItem[] =
+  const incomingItems: ReviewQueueItem[] =
     reviewItems ??
     reviewChanges.map((change) => ({
       path: change.path,
@@ -117,9 +134,15 @@ export function Inspector({
       commentCount: 0,
       unread: unreadReviewPaths.has(change.path),
     }));
+  const queueItems = heldItems ?? incomingItems;
+  const feedbackItems = queueItems.filter(
+    (item) => item.unread || item.pendingDraftCount || item.pendingInputCount,
+  );
+  const recentItems = queueItems.filter(
+    (item) => !feedbackItems.includes(item),
+  );
   const reviewQueueCount = queueItems.filter(isReviewQueueItemOpenable).length;
   const queuePosition = reviewQueuePosition(queueItems, activePath);
-  const signalCounts = reviewQueueSignalCounts(queueItems);
   const gitReviewGuidance = gitReviewUnavailableGuidance(
     reviewUnavailableReason,
   );
@@ -138,10 +161,24 @@ export function Inspector({
     const itemStatusLabel = change
       ? changeStatusLabel(change.status, change.kind)
       : "comment";
-    const directoryLabel = change
-      ? reviewDirectoryLabel(change)
-      : directoryForPath(item.path);
-    const kindLabel = reviewQueueFileKindLabel(item.path);
+    const heading = documentHeadings[item.path];
+    const collidingName = queueItems.some(
+      (other) =>
+        other.path !== item.path &&
+        basenameForPath(other.path) === basenameForPath(item.path),
+    );
+    const reason =
+      [
+        itemPendingCount
+          ? `${itemPendingCount} ${itemPendingCount === 1 ? "draft" : "drafts"}`
+          : "",
+        item.pendingInputCount ? "Input in progress" : "",
+        item.unread ? "Unread by agent" : "",
+      ]
+        .filter(Boolean)
+        .join(" · ") ||
+      item.activityReason ||
+      (item.change ? "Updated" : "Opened");
     return (
       <div
         className={[
@@ -192,38 +229,40 @@ export function Inspector({
           </span>
           <span className="change-main">
             <span className="change-heading">
-              <span className="change-kind">{kindLabel}</span>
               <b>{basenameForPath(item.path)}</b>
             </span>
-            <small
-              className="change-path-line"
-              title={change ? reviewPathLabel(change) : item.path}
-            >
-              <span className="change-path-text">{directoryLabel}</span>
-              <span className="review-signal-badges" aria-hidden="true">
-                {item.unread ? <span className="unread">Unseen</span> : null}
-                {itemDraftIds.length ? (
-                  <span className="draft">
-                    {itemDraftIds.length}{" "}
-                    {itemDraftIds.length === 1 ? "draft" : "drafts"}
-                  </span>
-                ) : null}
-                {change ? <span>Changed</span> : null}
-              </span>
-              {change ? (
-                <span className="change-source">
-                  {reviewQueueSourceLabel(change.source)}
-                </span>
-              ) : null}
+            <small className="now-document-heading" title={item.path}>
+              {heading || directoryForPath(item.path)}
             </small>
+            {heading && collidingName ? (
+              <small className="now-document-heading">
+                {directoryForPath(item.path)}
+              </small>
+            ) : null}
+            <span className="now-reason">
+              <span>{reason}</span>
+              <time>
+                {item.lastActivityAt
+                  ? relativeNowTime(item.lastActivityAt, now)
+                  : ""}
+              </time>
+            </span>
           </span>
-          {change ? (
-            <DiffStatBadge
-              loading={Boolean(loadingReviewDiffs[item.path])}
-              stat={reviewDiffStats[item.path] ?? null}
-            />
-          ) : null}
         </button>
+        {!item.unread &&
+        !itemPendingCount &&
+        !item.pendingInputCount &&
+        onDismissRecent ? (
+          <button
+            type="button"
+            className="now-dismiss"
+            aria-label={`Hide ${item.path} for now`}
+            title="Hide for now"
+            onClick={() => onDismissRecent(item.path)}
+          >
+            ×
+          </button>
+        ) : null}
         {itemDraftIds.length && onPublishDrafts ? (
           <button
             className="review-signal-publish"
@@ -253,18 +292,8 @@ export function Inspector({
         className={`${sharedUiStyles.panelTitle} panel-title review-panel-title`}
       >
         <span className="review-panel-heading">
-          {reviewLoading ? "Updating review…" : "Sorted by attention"}
+          {reviewLoading ? "Updating…" : "Worth a look now"}
         </span>
-        {queueItems.length ? (
-          <button
-            className={`${sharedUiStyles.commandButton} ${sharedUiStyles.commandButtonSecondary} command-button command-button-secondary review-next-action`}
-            type="button"
-            aria-label="Open next review queue item"
-            onClick={onOpenNextChanged}
-          >
-            Next queued
-          </button>
-        ) : null}
       </div>
       <div className="inspect-body">
         <div className="inspector-review-mode">
@@ -293,7 +322,7 @@ export function Inspector({
             <div
               className="review-queue"
               role="group"
-              aria-label={`Review queue signal ledger, ${reviewQueueCount} active ${reviewQueueCount === 1 ? "file" : "files"}, ${signalCounts.unread} unseen, ${signalCounts.drafts} with drafts, ${signalCounts.changed} changed`}
+              aria-label={`For you, ${reviewQueueCount} ${reviewQueueCount === 1 ? "document" : "documents"}`}
               aria-describedby="review-queue-interaction-help review-queue-keyboard-help"
             >
               <p
@@ -310,53 +339,50 @@ export function Inspector({
                 Use Down Arrow, Up Arrow, Home, and End to move between review
                 files.
               </p>
-              <div className="review-signal-filter-shell">
-                {reviewSignalFilters(signalCounts).map((filter) => (
-                  <input
-                    className={`${sharedUiStyles.srOnly} sr-only review-signal-filter-input review-signal-filter-${filter.id}`}
-                    defaultChecked={filter.id === "all"}
-                    disabled={filter.count === 0 && filter.id !== "all"}
-                    id={`review-signal-filter-${filter.id}`}
-                    key={filter.id}
-                    name="review-signal-filter"
-                    type="radio"
-                    value={filter.id}
-                  />
-                ))}
-                <div
-                  className="review-signal-filter-controls"
-                  role="radiogroup"
-                  aria-label="Filter review queue by signal"
-                >
-                  {reviewSignalFilters(signalCounts).map((filter) => (
-                    <label
-                      className={
-                        filter.count === 0 && filter.id !== "all"
-                          ? "disabled"
-                          : ""
-                      }
-                      htmlFor={`review-signal-filter-${filter.id}`}
-                      key={filter.id}
-                    >
-                      {filter.label}
-                      {filter.id !== "all" && (
-                        <>
-                          {" "}
-                          <span>{filter.count}</span>
-                        </>
-                      )}
-                    </label>
-                  ))}
-                </div>
-                <section
-                  className="review-signal-ledger-list"
-                  aria-label="Active review files sorted by attention"
-                >
-                  {queueItems.map((item, index) =>
-                    renderReviewQueueItem(item, index),
-                  )}
-                </section>
-              </div>
+              <section
+                className="review-signal-ledger-list now-list"
+                aria-label="Documents worth a look now"
+                onMouseEnter={() => {
+                  if (!heldItems) setHeldItems(incomingItems);
+                }}
+                onMouseLeave={(event) => {
+                  if (!event.currentTarget.contains(document.activeElement))
+                    setHeldItems(null);
+                }}
+                onFocusCapture={() => {
+                  if (!heldItems) setHeldItems(incomingItems);
+                }}
+                onBlurCapture={(event) => {
+                  if (
+                    !event.currentTarget.contains(event.relatedTarget) &&
+                    !event.currentTarget.matches(":hover")
+                  )
+                    setHeldItems(null);
+                }}
+              >
+                {feedbackItems.length ? (
+                  <section aria-label="Feedback">
+                    <header className="now-group-heading">
+                      <span>Feedback</span>
+                      <small>Awaiting handoff</small>
+                    </header>
+                    {feedbackItems.map((item) =>
+                      renderReviewQueueItem(item, queueItems.indexOf(item)),
+                    )}
+                  </section>
+                ) : null}
+                {recentItems.length ? (
+                  <section aria-label="Recent">
+                    <header className="now-group-heading">
+                      <span>Recent</span>
+                      <small>Last 30 minutes</small>
+                    </header>
+                    {recentItems.map((item) =>
+                      renderReviewQueueItem(item, queueItems.indexOf(item)),
+                    )}
+                  </section>
+                ) : null}
+              </section>
             </div>
           ) : null}
           {queueItems.length && reviewUnavailableReason ? (
@@ -389,10 +415,9 @@ export function Inspector({
           ) : null}
           {!queueItems.length && !reviewUnavailableReason && !reviewLoading ? (
             <div className="review-empty-state" aria-label="Review queue empty">
-              <strong>Active queue clear</strong>
+              <strong>Nothing to look at right now</strong>
               <span>
-                No recent document edits, unseen feedback, or pending drafts
-                need attention right now.
+                Updated and opened documents will appear here for a while.
               </span>
             </div>
           ) : null}
@@ -402,8 +427,8 @@ export function Inspector({
                 Unavailable feedback · {unavailableFeedbackItems.length}
               </summary>
               <p>
-                Source files were moved or deleted. Excluded from active
-                navigation.
+                These files are missing or outside the document scope. Feedback
+                is preserved.
               </p>
               <ul>
                 {unavailableFeedbackItems.map((item) => (
@@ -426,17 +451,6 @@ export function Inspector({
       </div>
     </aside>
   );
-}
-
-function reviewSignalFilters(
-  counts: ReturnType<typeof reviewQueueSignalCounts>,
-) {
-  return [
-    { id: "all", label: "All", count: counts.all },
-    { id: "unread", label: "Unseen", count: counts.unread },
-    { id: "drafts", label: "Drafts", count: counts.drafts },
-    { id: "changed", label: "Changed", count: counts.changed },
-  ] as const;
 }
 
 function reviewQueueItemAriaLabel(
@@ -478,7 +492,6 @@ function reviewQueueItemDescription(
     reviewStop
       ? `${reviewQueueStopTitle(active)} ${reviewStop.label}: ${reviewStop.preview}`
       : "",
-    item.change ? `from ${reviewQueueSourceLabel(item.change.source)}` : "",
     item.latestActivity ? activityLabel(item.latestActivity) : "",
   ]
     .filter(Boolean)
@@ -557,53 +570,8 @@ function surfaceLabel(comment: ViviComment): string {
   return "source";
 }
 
-function DiffStatBadge({
-  loading,
-  stat,
-}: {
-  loading: boolean;
-  stat: DiffStat | null;
-}) {
-  if (loading && !stat)
-    return (
-      <span className={`${sharedUiStyles.muted} diff-stat muted`}>...</span>
-    );
-  if (!stat)
-    return <span className={`${sharedUiStyles.muted} diff-stat muted`}>-</span>;
-  if (stat.metadataOnly) {
-    return (
-      <span
-        className={`${sharedUiStyles.muted} diff-stat muted`}
-        aria-label="Metadata-only change"
-      >
-        metadata
-      </span>
-    );
-  }
-  return (
-    <span className="diff-stat" aria-label="Diff line changes">
-      <span className="diff-add">+{stat.additions}</span>
-      <span className="diff-remove">-{stat.deletions}</span>
-    </span>
-  );
-}
-
 function basenameForPath(path: string): string {
   return path.split("/").filter(Boolean).at(-1) ?? path;
-}
-
-function reviewPathLabel(change: ReviewChangeItem): string {
-  if (change.status === "renamed" && change.originalPath) {
-    return `${change.originalPath} -> ${change.path}`;
-  }
-  return change.path;
-}
-
-function reviewDirectoryLabel(change: ReviewChangeItem): string {
-  if (change.status === "renamed" && change.originalPath) {
-    return `${directoryForPath(change.originalPath)} -> ${directoryForPath(change.path)}`;
-  }
-  return directoryForPath(change.path);
 }
 
 function directoryForPath(path: string): string {
@@ -612,12 +580,11 @@ function directoryForPath(path: string): string {
   return parts.slice(0, -1).join("/");
 }
 
-function reviewQueueFileKindLabel(path: string): string {
-  const language = languageForPath(path).toUpperCase();
-  if (language === "TYPESCRIPT") return "TS";
-  if (language === "JAVASCRIPT") return "JS";
-  if (language === "MARKDOWN") return "MD";
-  if (language === "MAKEFILE") return "MAKE";
-  if (language === "DOCKERFILE") return "DOCK";
-  return language;
+function relativeNowTime(at: number, now: number): string {
+  const minutes = Math.max(0, Math.floor((now - at) / 60000));
+  return minutes === 0
+    ? "Just now"
+    : minutes < 60
+      ? `${minutes}m ago`
+      : `${Math.floor(minutes / 60)}h ago`;
 }

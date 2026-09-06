@@ -16,6 +16,16 @@ import (
 	"github.com/tasuku43/vivi/server/workspace"
 )
 
+// ObserveDocument is the resolver for the observeDocument field.
+func (r *mutationResolver) ObserveDocument(ctx context.Context, path string, reason string) (map[string]any, error) {
+	event, err := r.service.Attention.Observe(ctx, path, reason)
+	if err != nil {
+		return nil, err
+	}
+	r.service.PublishWorkspaceEvent(application.WorkspaceEvent{Type: "attention", Path: path})
+	return map[string]any{"path": event.Path, "at": event.At, "reason": event.Reason}, nil
+}
+
 // CreateThread is the resolver for the createThread field.
 func (r *mutationResolver) CreateThread(ctx context.Context, input model.CommentInput) (*model.CommentThread, error) {
 	thread, err := r.service.CreateCommentThread(commentInputMap(input))
@@ -100,6 +110,12 @@ func (r *mutationResolver) UpdateComment(ctx context.Context, id string, input m
 		return nil, err
 	}
 	return commentFromMap(comment), nil
+}
+
+// Attention is the resolver for the attention field.
+func (r *queryResolver) Attention(ctx context.Context, paths []string) (map[string]any, error) {
+	snapshot, err := r.service.Attention.Snapshot(ctx, paths)
+	return map[string]any{"events": snapshot.Events, "eligiblePaths": snapshot.EligiblePaths, "headings": snapshot.Headings}, err
 }
 
 // Workspace is the resolver for the workspace field.

@@ -1,3 +1,4 @@
+import type { DocumentAttentionSnapshot } from "../../domain/attention.js";
 import type {
   ChangeReviewSummary,
   TextDiff,
@@ -35,6 +36,13 @@ export interface WorkspaceEventSubscriptionOptions {
 }
 
 export interface ViviClient {
+  getDocumentAttention?(
+    paths: string[],
+  ): Promise<DocumentAttentionSnapshot | null>;
+  observeDocument?(
+    path: string,
+    reason: "Opened" | "Presented by agent" | "hidden",
+  ): Promise<void>;
   getWorkspace(): Promise<WorkspaceSnapshot>;
   getTree(input?: { path?: string; depth?: number }): Promise<TreeSnapshot>;
   getConfig(): Promise<ViewerConfig>;

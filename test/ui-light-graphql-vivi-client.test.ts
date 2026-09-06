@@ -161,3 +161,69 @@ it("loads comment thread activity through GraphQL", async () => {
   ).resolves.toEqual([activity]);
   expect(request.mock.calls.map(([url]) => String(url))).toEqual(["/graphql"]);
 });
+
+it("negotiates attention once for legacy servers without hiding permission failures", async () => {
+  const request = vi.fn(
+    async () =>
+      new Response(
+        JSON.stringify({
+          errors: [{ message: "unsupported GraphQL operation" }],
+        }),
+        { status: 200 },
+      ),
+  );
+  const client = new LightGraphqlViviClient({ fetch: request });
+  expect(await client.getDocumentAttention([])).toBeNull();
+  await client.observeDocument("README.md", "Opened");
+  expect(await client.getDocumentAttention([])).toBeNull();
+  expect(request).toHaveBeenCalledTimes(1);
+  const denied = new LightGraphqlViviClient({
+    fetch: async () =>
+      new Response(
+        JSON.stringify({ errors: [{ message: "permission denied" }] }),
+        { status: 200 },
+      ),
+  });
+  await expect(denied.getDocumentAttention([])).rejects.toThrow(
+    "permission denied",
+  );
+});
+
+it("maps shared attention and sends explicit document intent", async () => {
+  const snapshot = {
+    events: [{ path: "README.md", at: 1000, reason: "Opened" }],
+    eligiblePaths: ["README.md"],
+    headings: { "README.md": "Vivi" },
+  };
+  const requests: Array<{ operationName: string; variables: unknown }> = [];
+  const client = new LightGraphqlViviClient({
+    fetch: async (_url, init) => {
+      const body = JSON.parse(String(init?.body));
+      requests.push(body);
+      return new Response(
+        JSON.stringify({
+          data:
+            body.operationName === "DocumentAttention"
+              ? { attention: snapshot }
+              : {
+                  observeDocument: {
+                    path: "README.md",
+                    at: 1000,
+                    reason: "Opened",
+                  },
+                },
+        }),
+        { status: 200 },
+      );
+    },
+  });
+  expect(await client.getDocumentAttention(["README.md"])).toEqual(snapshot);
+  await client.observeDocument("README.md", "Opened");
+  expect(requests).toMatchObject([
+    { operationName: "DocumentAttention", variables: { paths: ["README.md"] } },
+    {
+      operationName: "ObserveDocument",
+      variables: { path: "README.md", reason: "Opened" },
+    },
+  ]);
+});

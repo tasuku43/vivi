@@ -1,3 +1,4 @@
+import type { DocumentAttentionSnapshot } from "../../domain/attention.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import type { TextDiff } from "../../domain/change-review.js";
@@ -242,6 +243,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const [openTabs, setOpenTabs] = useState<OpenTab[]>([]);
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [recentEvents, setRecentEvents] = useState<ReviewEvent[]>([]);
+  const [sharedAttention, setSharedAttention] = useState<
+    (DocumentAttentionSnapshot & { requestedPaths: string[] }) | null
+  >(null);
+  const attentionPathsRef = useRef<string[]>([]);
+  const attentionRequestVersion = useRef(0);
   const [reviewAttention, setReviewAttention] = useState<ReviewAttentionClock>(
     emptyReviewAttentionClock,
   );
@@ -482,7 +488,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   ): Promise<ViviComment[]> {
     setCommentsLoading(true);
     try {
-      const loaded = await client.getComments(path ? { path } : undefined);
+      const loaded = await client.getComments(
+        path ? { path, status: "open" } : { status: "open" },
+      );
       setComments((items) => mergeComments(items, loaded, path));
       return loaded;
     } finally {
@@ -523,6 +531,22 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     }
   }
 
+  async function refreshDocumentAttention() {
+    if (!client.getDocumentAttention) return;
+    const version = ++attentionRequestVersion.current;
+    const requestedPaths = attentionPathsRef.current;
+    const snapshot = await client.getDocumentAttention(requestedPaths);
+    if (!snapshot) return;
+    if (version === attentionRequestVersion.current) {
+      setSharedAttention({ ...snapshot, requestedPaths });
+      setReviewActivityNow(Date.now());
+    }
+  }
+  async function dismissRecentDocument(path: string) {
+    if (!client.observeDocument) return;
+    await client.observeDocument(path, "hidden");
+    await refreshDocumentAttention();
+  }
   function touchReviewPath(path: string, observedAt = Date.now()) {
     const receivedAt = Date.now();
     setReviewAttention((clock) =>
@@ -817,8 +841,14 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     [reviewActivityNow, reviewAttention, reviewState.renamePairs],
   );
   const effectiveReviewActivity = useMemo(() => {
-    let clock = recentReviewActivity;
-    for (const events of Object.values(commentActivity.byThreadId)) {
+    let clock = sharedAttention
+      ? Object.fromEntries(
+          sharedAttention.events.map((event) => [event.path, event.at]),
+        )
+      : recentReviewActivity;
+    for (const events of sharedAttention
+      ? []
+      : Object.values(commentActivity.byThreadId)) {
       for (const event of events) {
         const observation = agentReadReviewObservation(event, comments);
         if (!observation) continue;
@@ -832,6 +862,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     }
     return compactReviewAttention(clock, reviewActivityNow);
   }, [
+    sharedAttention,
     commentActivity.byThreadId,
     comments,
     recentReviewActivity,
@@ -843,12 +874,16 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   );
   const reviewChanges = useMemo(
     () =>
-      filterRecentReviewChanges(
-        allReviewChanges,
-        reviewState,
-        effectiveReviewPathSet,
-      ),
-    [allReviewChanges, effectiveReviewPathSet, reviewState],
+      sharedAttention
+        ? allReviewChanges.filter((change) =>
+            effectiveReviewPathSet.has(change.path),
+          )
+        : filterRecentReviewChanges(
+            allReviewChanges,
+            reviewState,
+            effectiveReviewPathSet,
+          ),
+    [allReviewChanges, effectiveReviewPathSet, reviewState, sharedAttention],
   );
   const reviewDiffStats = useMemo(
     () =>
@@ -869,10 +904,19 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       new Set([
         ...comments.filter(isHumanFeedback).map((comment) => comment.path),
         ...draftComments.map((draft) => draft.path),
+        ...commentInputs.sessions
+          .filter((session) => session.body.trim())
+          .map((session) => session.draft.path),
         ...allReviewChanges.map((change) => change.path),
         ...Object.keys(effectiveReviewActivity),
       ]),
-    [allReviewChanges, comments, draftComments, effectiveReviewActivity],
+    [
+      allReviewChanges,
+      comments,
+      draftComments,
+      effectiveReviewActivity,
+      commentInputs.sessions,
+    ],
   );
   useEffect(() => {
     setConfirmedMissingPaths((items) =>
@@ -884,6 +928,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }, [reviewEvidencePathSet]);
   const knownMissingCommentPathSet = useMemo(() => {
     const paths = new Set(confirmedMissingPaths);
+    if (sharedAttention) {
+      const eligible = new Set(sharedAttention.eligiblePaths);
+      for (const path of sharedAttention.requestedPaths)
+        if (!eligible.has(path)) paths.add(path);
+    }
     if (!tree) return paths;
     for (const path of reviewEvidencePathSet) {
       if (
@@ -895,6 +944,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     }
     return paths;
   }, [
+    sharedAttention,
     allReviewChanges,
     comments,
     confirmedMissingPaths,
@@ -913,6 +963,12 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       ),
     [comments, draftComments, knownMissingCommentPathSet],
   );
+  const attentionPathKey = JSON.stringify([...reviewEvidencePathSet].sort());
+  useEffect(() => {
+    attentionPathsRef.current = JSON.parse(attentionPathKey) as string[];
+    void refreshDocumentAttention().catch((err) => setError(String(err)));
+  }, [client, attentionPathKey]);
+
   const selectedPathSourceMissing = selectedPath
     ? knownMissingCommentPathSet.has(selectedPath)
     : false;
@@ -926,12 +982,16 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         {
           knownMissingPaths: knownMissingCommentPathSet,
           draftComments,
+          inputPaths: commentInputs.sessions
+            .filter((session) => session.body.trim())
+            .map((session) => session.draft.path),
           recentActivityByPath: effectiveReviewActivity,
           unseenFeedbackPaths: unreadReviewPathSet,
         },
       ),
     [
       commentActivitySummaries,
+      commentInputs.sessions,
       comments,
       knownMissingCommentPathSet,
       draftComments,
@@ -1116,7 +1176,14 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       setFiles((items) => ({ ...items, [payload.path]: payload }));
       setOpenTabs((tabs) => upsertOpenTab(tabs, payload, paneId, mode));
       setRecentFiles((items) => recordRecentFile(items, payload));
-      touchReviewPath(payload.path);
+      if (mode !== "preserve") {
+        touchReviewPath(payload.path);
+        if (client.observeDocument)
+          void client
+            .observeDocument(payload.path, "Opened")
+            .then(refreshDocumentAttention)
+            .catch((err) => setError(String(err)));
+      }
       void loadComments(payload.path).catch((err) => setError(String(err)));
       if (diffEnabled && supportsDiffMode(payload)) {
         void loadHeadDiff(payload.path).catch((err) => setError(String(err)));
@@ -1888,7 +1955,16 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     const paneId = layout.activePaneId;
     const open = deepLink.diff
       ? openHeadDiff(deepLink.path, paneId)
-      : loadFile(deepLink.path, paneId, "preview");
+      : loadFile(
+          deepLink.path,
+          paneId,
+          (
+            performance.getEntriesByType("navigation")[0] as
+              PerformanceNavigationTiming | undefined
+          )?.type === "reload"
+            ? "preserve"
+            : "preview",
+        );
     void open.catch((err) => setError(String(err)));
   }, [workspaceSessionReady, pendingRestoreSession, client]);
 
@@ -2025,16 +2101,16 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
 
   useEffect(() => {
     const delay = nextReviewAttentionExpiryDelay(
-      reviewAttention,
+      effectiveReviewActivity,
       reviewActivityNow,
     );
-    if (delay === null) return;
+    if (delay === null && reviewItems.length === 0) return;
     const timeout = window.setTimeout(
       () => setReviewActivityNow(Date.now()),
-      delay,
+      Math.min(delay ?? 60_000, 60_000),
     );
     return () => window.clearTimeout(timeout);
-  }, [reviewActivityNow, reviewAttention]);
+  }, [reviewActivityNow, effectiveReviewActivity, reviewItems.length]);
 
   useEffect(() => {
     for (const change of reviewChanges.slice(0, 12)) {
@@ -2196,6 +2272,19 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     let reconnectPending = false;
     const unsubscribe = client.subscribeWorkspaceEvents(
       (event) => {
+        if (event.type === "attention") {
+          void refreshDocumentAttention().catch((err) => setError(String(err)));
+          loadedActivityThreadIds.current.clear();
+          void loadComments(null)
+            .then((loaded) =>
+              loadThreadActivities([
+                ...new Set(loaded.map((c) => c.threadId ?? c.id)),
+              ]),
+            )
+            .catch((err) => setError(String(err)));
+          return;
+        }
+        void refreshDocumentAttention().catch((err) => setError(String(err)));
         const decision = decideLiveRefresh(event, activeFilePaths.current);
         setLiveMetrics((metrics) => ({
           ...metrics,
@@ -2272,6 +2361,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
           setError(null);
           loadedActivityThreadIds.current.clear();
           void Promise.all([
+            refreshDocumentAttention(),
             loadConfig(),
             loadTree(),
             loadDraftReviewComments(),
@@ -2428,7 +2518,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                 >
                   {compactInspectorOpen
                     ? "Close inspector"
-                    : `Review queue · ${reviewQueueProgress.total}`}
+                    : `For you · ${reviewQueueProgress.total}`}
                 </button>
               </div>
             ) : null}
@@ -2547,7 +2637,23 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                   file={file}
                   fileRemoved={activeFileRemoved}
                   reviewChanges={reviewChanges}
-                  reviewItems={reviewItems}
+                  reviewItems={reviewItems.map((item) => ({
+                    ...item,
+                    activityReason: sharedAttention?.events.find(
+                      (event) => event.path === item.path,
+                    )?.reason,
+                  }))}
+                  documentHeadings={sharedAttention?.headings}
+                  now={reviewActivityNow}
+                  onDismissRecent={
+                    sharedAttention && client.observeDocument
+                      ? (path) => {
+                          void dismissRecentDocument(path).catch((err) =>
+                            setError(String(err)),
+                          );
+                        }
+                      : undefined
+                  }
                   unavailableFeedbackItems={unavailableFeedbackItems}
                   reviewLoading={gitReviewLoading && gitReview === null}
                   reviewUnavailableReason={gitReview?.reason ?? null}

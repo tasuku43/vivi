@@ -221,69 +221,27 @@ export const WiredInspectorFilterInteraction: Story = {
   tags: ["interaction"],
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    const draftPath = wiredDraft.path;
-    await expect(canvas.getByRole("radio", { name: "All" })).toBeChecked();
+    await expect(canvas.getByRole("tab", { name: /For you/ })).toBeVisible();
     await expect(
-      canvasElement.querySelector(".change-open .unread-dot"),
-    ).toBeNull();
-    await expect(
-      canvasElement.querySelector(".review-panel-heading strong"),
-    ).toBeNull();
-    const changedPath = "docs/product/01-product-brief.md";
-    const draftsFilter = canvas.getByRole("radio", { name: "Drafts 1" });
-    const draftBadge = canvasElement.querySelector<HTMLElement>(
-      ".review-signal-badges > .draft",
-    );
-    const publishButton = canvas.getByRole("button", {
-      name: `Publish 1 draft for ${draftPath}`,
-    });
-
-    await expect(draftBadge).toBeVisible();
-    await expect(window.getComputedStyle(draftBadge!).fontSize).toBe("9px");
-    await expect(window.getComputedStyle(draftBadge!).lineHeight).toBe("12px");
-    await expect(Math.round(draftBadge!.getBoundingClientRect().height)).toBe(
-      18,
-    );
-    await expect(
-      canvasElement.querySelector(".review-next"),
+      canvas.queryByRole("radio", { name: "All" }),
     ).not.toBeInTheDocument();
     await expect(
-      canvasElement.querySelector(".review-thread-count-toggle"),
-    ).not.toBeInTheDocument();
-    const resumeButtons = canvas.getAllByRole("button", {
-      name: /Resume input in/,
-    });
-    await expect(resumeButtons).toHaveLength(2);
-    await userEvent.click(resumeButtons[1]!);
-    await expect(args.onSelectPath).toHaveBeenCalledWith(
-      "input-product-review",
-    );
-    const unavailable = canvas.getByText("Unavailable feedback · 1");
-    await expect(unavailable).toBeVisible();
-    await userEvent.click(unavailable);
-    await expect(canvas.getByText("moved-review.md")).toBeVisible();
-
-    await userEvent.click(draftsFilter);
-    await expect(draftsFilter).toBeChecked();
-    await expect(
-      canvasElement.querySelector(`[data-review-path="${draftPath}"]`),
+      canvas.getByRole("region", { name: "Feedback" }),
     ).toBeVisible();
-    await expect(
-      canvasElement.querySelector(`[data-review-path="${changedPath}"]`),
-    ).not.toBeVisible();
-
-    await userEvent.click(publishButton);
-    await expect(args.onPublishPath).toHaveBeenCalledWith(draftPath);
-
-    await userEvent.click(canvas.getByRole("radio", { name: "Changed 4" }));
-    const changedRow = canvas.getByRole("button", {
+    const row = canvas.getByRole("button", {
       name: /Review queue item, modified docs\/product\/01-product-brief\.md/u,
     });
-    await expect(changedRow).toBeVisible();
-    await expect(changedRow).not.toHaveAccessibleDescription(
-      /seen by an agent|not yet seen by an agent/u,
+    await userEvent.click(row);
+    await expect(args.onSelectPath).toHaveBeenCalledWith(
+      "docs/product/01-product-brief.md",
     );
-    await userEvent.click(changedRow);
-    await expect(args.onSelectPath).toHaveBeenCalledWith(changedPath);
+    await userEvent.keyboard("{ArrowDown}");
+    await expect(row).not.toHaveFocus();
+    await userEvent.click(
+      canvas.getByRole("button", {
+        name: `Publish 1 draft for ${wiredDraft.path}`,
+      }),
+    );
+    await expect(args.onPublishPath).toHaveBeenCalledWith(wiredDraft.path);
   },
 };

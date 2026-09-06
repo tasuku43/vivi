@@ -148,7 +148,10 @@ export function unseenFeedbackPathSet(
 ): Set<string> {
   return new Set(
     buildCommentThreads([...comments])
-      .filter((thread) => thread.comments.some(isHumanFeedback))
+      .filter(
+        (thread) =>
+          thread.status === "open" && thread.comments.some(isHumanFeedback),
+      )
       .filter(
         (thread) =>
           commentThreadReviewReceipt(

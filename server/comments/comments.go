@@ -436,6 +436,21 @@ func (store *Store) AppendThreadReadActivity(threadID string, actor map[string]a
 	if !found {
 		return nil, errors.New("comment thread not found")
 	}
+	// A passive retry of the same feedback is the same receipt, not new activity.
+	if strings.TrimSpace(clientEventID) == "" {
+		revision := ""
+		for _, comment := range comments {
+			if stringValue(comment["threadId"]) != threadID && stringValue(comment["id"]) != threadID {
+				continue
+			}
+			if stringValue(comment["source"]) != "human" {
+				continue
+			}
+			revision += stringValue(comment["id"]) + ":" + stringValue(comment["updatedAt"]) + ":" + stringValue(comment["body"]) + "\n"
+		}
+		sum := sha256.Sum256([]byte(revision))
+		clientEventID = "read:" + hex.EncodeToString(sum[:])
+	}
 	normalizedActor := normalizeActor(actor)
 	if stringValue(normalizedActor["id"]) == "unknown" {
 		return nil, errors.New("activity actor id is required")

@@ -92,7 +92,7 @@ it("wires document and review inspector surfaces to the active workspace", async
     .toBe(0);
 
   const reviewTab = reviewInspector.getByRole("tab", {
-    name: /Review queue/,
+    name: /For you/,
   });
   await expect.poll(() => reviewTab.getAttribute("aria-selected")).toBe("true");
 
@@ -109,7 +109,7 @@ it("wires document and review inspector surfaces to the active workspace", async
     )
     .toBe("true");
   await expect
-    .poll(() => inspector.getByRole("tab", { name: /Review queue/ }).count())
+    .poll(() => inspector.getByRole("tab", { name: /For you/ }).count())
     .toBe(1);
   await expect
     .poll(() => inspector.getByText("README.md", { exact: true }).count())
@@ -118,7 +118,7 @@ it("wires document and review inspector surfaces to the active workspace", async
     .poll(() => inspector.getByRole("button", { name: "Vivi Fixture" }).count())
     .toBe(1);
 
-  await inspector.getByRole("tab", { name: /Review queue/ }).click();
+  await inspector.getByRole("tab", { name: /For you/ }).click();
   await expect.poll(() => reviewInspector.isVisible()).toBe(true);
   await reviewInspector.getByRole("tab", { name: "Document" }).click();
 

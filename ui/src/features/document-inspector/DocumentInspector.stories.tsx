@@ -71,7 +71,7 @@ export const DocumentNavigationInteraction: Story = {
     await expect(args.onToggleChanges).toHaveBeenCalled();
 
     const reviewTab = canvas.getByRole("tab", {
-      name: "Review queue 4 items",
+      name: "For you 4 items",
     });
     await expect(reviewTab).toHaveAttribute("aria-selected", "false");
     await expect(canvas.getByRole("tab", { name: "Document" })).toHaveAttribute(

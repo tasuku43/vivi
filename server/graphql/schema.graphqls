@@ -7,6 +7,7 @@ schema {
 }
 
 type Query {
+  attention(paths: [String!]): JSON!
   workspace(path: String, depth: Int): Workspace!
   config: ViewerConfig!
   tree(path: String, depth: Int): TreeSnapshot!
@@ -41,6 +42,7 @@ type Query {
 }
 
 type Mutation {
+  observeDocument(path: String!, reason: String!): JSON!
   createThread(input: CommentInput!): CommentThread!
   addComment(threadId: ID!, input: AddCommentInput!): Comment!
   createComment(input: CommentInput!): Comment!

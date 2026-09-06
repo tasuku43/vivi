@@ -31,6 +31,8 @@ wired into the application.
 
 ## Mockup roles
 
+- `52-now-reading.html`: proposed “いま見る” inspector with persistent feedback, a 30-minute recent section, simulated time, agent reads and presentation, temporary dismissal, and empty state. Specification: `docs/research/33-now-reading-spec.md`.
+
 - `48-document-titles-in-tree.html`: four sidebar H1 concepts using identical paths and ordering: H1 replacement, filename-first with H1 (recommended), H1-first with filename, and focused-title disclosure. Includes narrow/wide comparisons, a composed reader, duplicate/long/missing/unloaded headings, and a heading-update simulation. These are alternatives for review, not an approved title-extraction or tree-contract change.
 - `47-reader-ux-refinement.html`: UX refinement concepts based on a live walkthrough: quieter tab controls and reader proportions, contextual feedback entry, and explicit publication scope. Concept A is selected, with an interactive facade in Storybook under `Workspace/Quiet Reader`; application wiring awaits facade approval. Includes light/dark, narrow, empty, stale-input, and disconnected comparisons.
 - `01-classic-explorer.html`: baseline layout with sidebar tree, tabs, viewer, and status bar.

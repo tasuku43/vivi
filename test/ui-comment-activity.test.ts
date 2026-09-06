@@ -275,7 +275,7 @@ it("pins published feedback until an agent read newer than the latest human note
   ).toEqual(new Set(["docs/a.md"]));
 });
 
-it("ignores legacy status and agent-only threads when pinning human feedback", () => {
+it("excludes terminal and agent-only threads when pinning human feedback", () => {
   const terminal = {
     ...comment({
       id: "root-1",
@@ -293,7 +293,7 @@ it("ignores legacy status and agent-only threads when pinning human feedback", (
   });
 
   expect(unseenFeedbackPathSet([terminal], { "thread-1": [reply] })).toEqual(
-    new Set(["docs/a.md"]),
+    new Set(),
   );
   const agentOnly = {
     ...terminal,

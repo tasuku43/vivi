@@ -51,6 +51,7 @@ export interface FilePayload {
 }
 
 export type FsEvent =
+  | { type: "attention"; path: string; version: number; kind?: NodeKind }
   | { type: "add"; path: string; kind: NodeKind; version: number }
   | { type: "change"; path: string; version: number; hash?: string }
   | { type: "unlink"; path: string; kind: NodeKind; version: number };

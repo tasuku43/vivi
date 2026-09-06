@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/tasuku43/vivi/server/attention"
 	"github.com/tasuku43/vivi/server/comments"
 	"github.com/tasuku43/vivi/server/gitreview"
 	"github.com/tasuku43/vivi/server/reviewledger"
@@ -11,6 +12,7 @@ import (
 )
 
 type Service struct {
+	Attention     *AttentionService
 	Workspace     *WorkspaceService
 	File          *FileService
 	Comment       *CommentService
@@ -68,6 +70,9 @@ func NewService(options Options) *Service {
 		Event:         NewEventService(),
 		ActivityEvent: NewActivityEventService(),
 		ReviewActor:   options.ReviewActor,
+	}
+	if options.Workspace != nil {
+		service.Attention = &AttentionService{Store: attention.New(comments.WorkspaceDataDir(options.Workspace.Config().Root)), workspace: options.Workspace, git: options.Git, comments: options.Comments, hashes: map[string]string{}}
 	}
 	if len(options.ThreadActivityObserverFactories) > 0 {
 		service.ThreadActivityObserverFactories = options.ThreadActivityObserverFactories

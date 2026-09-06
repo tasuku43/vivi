@@ -35,7 +35,8 @@
     "ui/src/features/review-queue/ReviewQueueDirectoryFacade.stories.tsx",
     "ui/src/features/workbench/DocumentReaderFacade.stories.tsx",
     "ui/src/shared/components/Navigation.stories.tsx",
-    "ui/src/storybook/QuietReaderFacade.stories.tsx"
+    "ui/src/storybook/QuietReaderFacade.stories.tsx",
+    "ui/src/features/review-queue/ForYou.stories.tsx"
   ],
   "surfaces": [
     {
@@ -182,25 +183,25 @@
     },
     {
       "id": "review-queue-signal-ledger",
-      "label": "Review Queue signal ledger",
+      "label": "For you inspector",
       "stage": "wired-feature",
-      "intent": "Keep the right inspector compact by presenting one attention-ordered file ledger with signal filters instead of duplicating the Explorer directory tree.",
+      "intent": "Show persistent Feedback and Recent documents with a shared 30-minute attention window.",
       "reviewFocus": [
-        "the left Explorer remains the only directory hierarchy",
-        "All, Unseen, Drafts, and Changed filters expose their counts and preserve attention ordering",
-        "each row keeps the parent path as secondary metadata for disambiguation",
-        "draft publication stays available on the actionable file row",
-        "recent activity expires after 30 minutes while drafts and unseen feedback remain pinned",
-        "inputs are listed only for open files and every listed input resumes its exact session",
-        "missing sources leave active counts and navigation while their feedback remains inspectable in a collapsed unavailable section"
+        "For you and Document tabs use English copy",
+        "Feedback is retained until handoff; Recent expires after 30 minutes",
+        "File identity and the reason for attention remain legible",
+        "Old archived feedback and excluded files do not inflate active counts",
+        "Retain keyboard focus and row position during interaction"
       ],
       "requiredStories": [
-        "Review/Queue Signal Ledger/MixedSignals",
-        "Review/Queue Signal Ledger/EmptyLedger",
-        "Review/Queue Signal Ledger/WiredInspector"
+        "Workspace/For You/Mixed",
+        "Workspace/For You/Empty",
+        "Workspace/For You/RecentOnly",
+        "Workspace/For You/Loading",
+        "Workspace/For You/Unavailable"
       ],
       "interactionStories": [
-        "Review/Queue Signal Ledger/SignalFilterInteraction",
+        "Workspace/For You/Interaction",
         "Review/Queue Signal Ledger/WiredInspectorFilterInteraction"
       ]
     },

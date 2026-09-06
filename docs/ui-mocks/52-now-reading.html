@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vivi · いま見る</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0e171c;
+        --panel: #131f25;
+        --line: #293940;
+        --text: #e0e8e8;
+        --muted: #91a5ad;
+        --accent: #96c9c4;
+        --warm: #d4b98b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #091216;
+        color: var(--text);
+        font:
+          14px/1.6 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      button,
+      a {
+        touch-action: manipulation;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+      }
+      button:focus-visible,
+      a:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
+      }
+      button {
+        border: 1px solid var(--line);
+        background: transparent;
+        border-radius: 6px;
+        padding: 6px 12px;
+      }
+      button:hover {
+        background: #203038;
+      }
+      a {
+        color: var(--accent);
+      }
+      .intro {
+        max-width: 1440px;
+        margin: auto;
+        padding: 30px 34px 22px;
+      }
+      .eyebrow {
+        color: var(--accent);
+        font-size: 11px;
+        letter-spacing: 0.16em;
+      }
+      .intro h1 {
+        font-size: 27px;
+        font-weight: 580;
+        letter-spacing: -0.04em;
+        margin: 7px 0;
+      }
+      .intro p {
+        color: var(--muted);
+        margin: 0;
+        max-width: 850px;
+      }
+      .lab {
+        max-width: 1372px;
+        margin: 0 auto;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--bg);
+      }
+      .sim {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 18px;
+        border-bottom: 1px solid var(--line);
+        background: #172329;
+        font-size: 12px;
+      }
+      .sim b {
+        margin-right: 12px;
+      }
+      .sim button {
+        padding: 4px 9px;
+      }
+      .sim .clock {
+        margin-left: auto;
+        color: var(--accent);
+        font-variant-numeric: tabular-nums;
+      }
+      .apphead {
+        height: 53px;
+        display: flex;
+        align-items: center;
+        padding: 0 18px;
+        border-bottom: 1px solid var(--line);
+        gap: 22px;
+      }
+      .logo {
+        font-size: 18px;
+        letter-spacing: -0.05em;
+        font-weight: 650;
+      }
+      .root {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .search {
+        margin-left: auto;
+        color: var(--muted);
+        font-size: 12px;
+        padding: 5px 10px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 205px minmax(330px, 1fr) 320px;
+        min-height: 625px;
+      }
+      .tree {
+        padding: 20px 13px;
+        border-right: 1px solid var(--line);
+      }
+      .cap {
+        font-size: 10px;
+        color: var(--muted);
+        letter-spacing: 0.12em;
+        margin: 0 10px 14px;
+      }
+      .folder {
+        margin: 14px 9px 5px;
+        color: #bccacc;
+        font-size: 12px;
+      }
+      .treeitems {
+        border-left: 1px solid var(--line);
+        margin-left: 17px;
+      }
+      .tree button {
+        display: block;
+        width: calc(100% - 5px);
+        text-align: left;
+        border: 0;
+        margin-left: 5px;
+        padding: 7px 10px;
+        font-size: 12px;
+      }
+      .tree button span {
+        display: block;
+        font-size: 10px;
+        color: var(--muted);
+      }
+      .tree button.selected {
+        background: #213239;
+        color: #f1f6f5;
+      }
+      .reader {
+        min-width: 0;
+      }
+      .tabbar {
+        height: 42px;
+        display: flex;
+        align-items: end;
+        border-bottom: 1px solid var(--line);
+        font-size: 11px;
+      }
+      .tab {
+        padding: 8px 16px;
+        border-right: 1px solid var(--line);
+        background: #17242a;
+        border-top: 2px solid var(--accent);
+        max-width: 95%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .crumb {
+        padding: 14px 30px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      article {
+        padding: 20px 44px 45px;
+        max-width: 730px;
+        margin: auto;
+      }
+      article h1 {
+        font-size: 32px;
+        line-height: 1.3;
+        letter-spacing: -0.04em;
+        font-weight: 570;
+        margin: 12px 0 25px;
+      }
+      article p {
+        color: #bdcbcc;
+        line-height: 1.95;
+        margin: 17px 0;
+      }
+      article h2 {
+        font-size: 19px;
+        font-weight: 550;
+        margin-top: 32px;
+      }
+      .quote {
+        border-left: 2px solid var(--accent);
+        padding: 2px 18px;
+        margin: 28px 0;
+        color: #dce8e7;
+      }
+      .docnote {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 40px;
+      }
+      .inspector {
+        border-left: 1px solid var(--line);
+        background: var(--panel);
+        min-width: 0;
+      }
+      .itabs {
+        display: flex;
+        border-bottom: 1px solid var(--line);
+        height: 42px;
+      }
+      .itabs button {
+        border: 0;
+        border-radius: 0;
+        flex: 1;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .itabs button[aria-selected="true"] {
+        border-bottom: 2px solid var(--accent);
+        color: var(--text);
+      }
+      .listhead {
+        padding: 19px 18px 13px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .count {
+        font-variant-numeric: tabular-nums;
+      }
+      .group {
+        padding-bottom: 17px;
+      }
+      .grouphead {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 18px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .grouphead small {
+        font-size: 10px;
+        color: #738c95;
+      }
+      .row {
+        position: relative;
+        border-left: 2px solid transparent;
+      }
+      .row.active {
+        background: #203238;
+        border-left-color: var(--accent);
+      }
+      .row:hover {
+        background: #1b2b32;
+      }
+      .openrow {
+        display: block;
+        width: 100%;
+        border: 0;
+        text-align: left;
+        border-radius: 0;
+        padding: 11px 29px 11px 16px;
+        background: none !important;
+      }
+      .filename {
+        font-size: 12px;
+        font-weight: 550;
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .heading {
+        display: block;
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 1px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .meta {
+        display: flex;
+        gap: 7px;
+        align-items: center;
+        margin-top: 7px;
+        font-size: 10px;
+        color: var(--muted);
+      }
+      .meta time {
+        margin-left: auto;
+        white-space: nowrap;
+      }
+      .dot {
+        width: 5px;
+        height: 5px;
+        flex: none;
+        border-radius: 50%;
+        background: var(--accent);
+      }
+      .draft .dot {
+        background: var(--warm);
+      }
+      .dismiss {
+        position: absolute;
+        right: 7px;
+        top: 10px;
+        border: 0;
+        padding: 0 4px;
+        font-size: 15px;
+        color: var(--muted);
+        opacity: 0;
+      }
+      .row:hover .dismiss,
+      .row:focus-within .dismiss {
+        opacity: 1;
+      }
+      .sepline {
+        border-top: 1px solid var(--line);
+        margin: 0 18px;
+      }
+      .empty {
+        padding: 50px 26px;
+        color: var(--muted);
+        font-size: 12px;
+        text-align: center;
+      }
+      .empty b {
+        display: block;
+        color: #cedbda;
+        font-size: 14px;
+        font-weight: 500;
+        margin-bottom: 9px;
+      }
+      .bottomnote {
+        padding: 14px 18px;
+        font-size: 10px;
+        color: #829ba3;
+        border-top: 1px solid var(--line);
+        line-height: 1.8;
+      }
+      .foot {
+        border-top: 1px solid var(--line);
+        padding: 7px 16px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 10px;
+        color: var(--muted);
+      }
+      .live {
+        color: var(--accent);
+      }
+      .explain {
+        max-width: 1372px;
+        margin: 20px auto 60px;
+        padding: 0 5px;
+      }
+      .status {
+        min-height: 26px;
+        color: var(--accent);
+        font-size: 12px;
+      }
+      .decisions {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 28px;
+        margin-top: 20px;
+        border-top: 1px solid var(--line);
+        padding-top: 25px;
+      }
+      .decisions h2 {
+        font-size: 14px;
+        font-weight: 550;
+      }
+      .decisions p {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.9;
+      }
+      .document {
+        padding: 24px 18px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .document h3 {
+        color: var(--text);
+        font-size: 13px;
+      }
+      .document p {
+        padding: 8px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      @media (max-width: 1100px) {
+        .lab,
+        .explain {
+          margin-left: 18px;
+          margin-right: 18px;
+        }
+        .layout {
+          grid-template-columns: 155px minmax(280px, 1fr) 285px;
+        }
+        article {
+          padding: 18px 27px;
+        }
+        .tree {
+          padding-left: 5px;
+          padding-right: 5px;
+        }
+      }
+      @media (max-width: 780px) {
+        .tree {
+          display: none;
+        }
+        .layout {
+          grid-template-columns: minmax(240px, 1fr) 270px;
+        }
+        .intro {
+          padding: 24px 20px;
+        }
+        .decisions {
+          grid-template-columns: 1fr;
+          gap: 5px;
+        }
+        .search {
+          display: none;
+        }
+        article h1 {
+          font-size: 25px;
+        }
+      }
+      @media (max-width: 550px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        .reader {
+          display: none;
+        }
+        .inspector {
+          border-left: 0;
+          min-height: 540px;
+        }
+        .sim .clock {
+          width: 100%;
+          margin: 3px 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="intro">
+      <div class="eyebrow">VIVI / CONCEPT 52</div>
+      <h1>いま、確認する意味があるものだけ。</h1>
+      <p>
+        右側を「いま見る」に。受け渡し途中のフィードバックと、直近30分の動きを静かに置く。下の操作で、時間が進んだときの振る舞いを試せます。
+      </p>
+    </header>
+    <main class="lab">
+      <section class="sim" aria-label="モック操作">
+        <b>体験を試す</b><button id="read">エージェントが読む</button
+        ><button id="agent">エージェントが文書を提示</button
+        ><button id="advance">31分進める</button
+        ><button id="clear">何もない状態</button
+        ><button id="reset">リセット</button
+        ><span class="clock" id="clock"></span>
+      </section>
+      <div class="apphead">
+        <span class="logo">vivi</span
+        ><span class="root">WORKSPACE &nbsp; / product-notes</span
+        ><span class="search">文書を探す &nbsp; ⌘ K</span>
+      </div>
+      <div class="layout">
+        <nav class="tree" aria-label="文書ツリー">
+          <div class="cap">DOCUMENTS</div>
+          <div class="folder">⌄ ▱ docs</div>
+          <div class="treeitems" id="tree"></div>
+          <div class="folder">⌄ ▱ previews</div>
+          <div class="treeitems">
+            <button data-file="preview">
+              reader.html<span>読書面のプレビュー</span>
+            </button>
+          </div>
+        </nav>
+        <section class="reader">
+          <div class="tabbar"><div class="tab" id="tab"></div></div>
+          <div class="crumb" id="crumb"></div>
+          <article>
+            <h1 id="title"></h1>
+            <div id="body"></div>
+            <div class="docnote">Vivi · Local workspace review</div>
+          </article>
+        </section>
+        <aside class="inspector" aria-label="右インスペクター">
+          <div class="itabs" role="tablist">
+            <button role="tab" id="nowtab" aria-selected="true">いま見る</button
+            ><button role="tab" id="doctab" aria-selected="false">文書</button>
+          </div>
+          <div id="panel" role="tabpanel"></div>
+        </aside>
+      </div>
+      <footer class="foot">
+        <span class="live">● Live</span><span>ローカルワークスペース</span>
+      </footer>
+    </main>
+    <section class="explain">
+      <div id="status" class="status" role="status"></div>
+      <div class="decisions">
+        <div>
+          <h2>01 / 分類を選ばなくていい</h2>
+          <p>
+            上にフィードバック、下に最近の動き。一つのファイルは一度だけ表示し、ここにある理由を短い言葉で添えます。未読と下書きは、時間で隠しません。
+          </p>
+        </div>
+        <div>
+          <h2>02 / 起動前の作業も見える</h2>
+          <p>
+            Gitの差分と更新時刻、直近のコミットから、起動前30分の文書更新を復元。古い差分や、内容が変わらない読み込みでは時間を延ばしません。
+          </p>
+        </div>
+        <div>
+          <h2>03 / 見終えたら、静かに退く</h2>
+          <p>
+            最近の項目は30分で退きます。「×」で今だけ隠すことも可能。次の更新・明示的なオープンで戻ります。開いている文書と左のツリーはそのままです。
+          </p>
+        </div>
+      </div>
+      <p style="font-size: 12px; margin-top: 24px">
+        <a href="../research/33-now-reading-spec.md">詳細仕様と判断理由 →</a>
+        &nbsp;
+        <span style="color: var(--muted)"
+          >静的モック。実際のコメント・Git・サーバーは操作しません。</span
+        >
+      </p>
+    </section>
+    <script>
+      const files = {
+        design: {
+          name: "reading-experience.md",
+          title: "いま見たいものが、見える",
+          path: "docs/reading-experience.md",
+        },
+        draft: {
+          name: "feedback-handoff.md",
+          title: "フィードバックの受け渡し",
+          path: "docs/feedback-handoff.md",
+        },
+        changed: {
+          name: "navigation.md",
+          title: "迷わず戻れるナビゲーション",
+          path: "docs/navigation.md",
+        },
+        preview: {
+          name: "reader.html",
+          title: "読書面のプレビュー",
+          path: "previews/reader.html",
+        },
+        opened: {
+          name: "principles.md",
+          title: "Viviの設計原則",
+          path: "docs/principles.md",
+        },
+        old: {
+          name: "archive.md",
+          title: "以前の検討",
+          path: "docs/archive.md",
+        },
+      };
+      let now, events, active, empty, tabMode;
+      const $ = (id) => document.getElementById(id);
+      function reset() {
+        now = 0;
+        active = "design";
+        empty = false;
+        tabMode = "now";
+        events = [
+          {
+            id: "design",
+            at: -7,
+            kind: "unread",
+            reason: "エージェント未読 · 2件",
+          },
+          { id: "draft", at: -95, kind: "draft", reason: "下書き · 1件" },
+          {
+            id: "preview",
+            at: -2,
+            kind: "recent",
+            reason: "エージェントが提示",
+          },
+          { id: "changed", at: -12, kind: "recent", reason: "更新された" },
+          { id: "opened", at: -24, kind: "recent", reason: "開いた" },
+          { id: "old", at: -180, kind: "recent", reason: "更新された" },
+        ];
+        render();
+        say("起動時：12分前のGit更新も表示。3時間前の差分は表示しません。");
+      }
+      function say(text) {
+        $("status").textContent = text;
+      }
+      function time(at) {
+        const diff = now - at;
+        return diff === 0
+          ? "いま"
+          : diff < 60
+            ? diff + "分前"
+            : Math.floor(diff / 60) + "時間前";
+      }
+      function visible() {
+        return events
+          .filter(
+            (e) =>
+              !empty && !e.hidden && (e.kind !== "recent" || now - e.at < 30),
+          )
+          .sort((a, b) => b.at - a.at || a.id.localeCompare(b.id));
+      }
+      function openFile(id) {
+        active = id;
+        empty = false;
+        let e = events.find((e) => e.id === id);
+        if (e) {
+          e.hidden = false;
+          if (e.kind === "recent") {
+            e.at = now;
+            e.reason = "開いた";
+          }
+        } else events.push({ id, at: now, kind: "recent", reason: "開いた" });
+        render();
+        say(
+          "「" +
+            files[id].name +
+            "」を開きました。閲覧の時間を更新。フィードバックがある項目は、その理由を優先します。",
+        );
+      }
+      function row(e) {
+        const f = files[e.id];
+        return `<div class="row ${active === e.id ? "active" : ""} ${e.kind}" data-row="${e.id}"><button class="openrow" data-file="${e.id}" ${active === e.id ? 'aria-current="page"' : ""}><span class="filename">${f.name}</span><span class="heading">${f.title}</span><span class="meta">${e.kind !== "recent" ? '<i class="dot"></i>' : ""}<span>${e.reason}</span><time>${time(e.at)}</time></span></button>${e.kind === "recent" ? `<button class="dismiss" data-hide="${e.id}" aria-label="${f.name} を今は隠す" title="今は隠す">×</button>` : ""}</div>`;
+      }
+      function render() {
+        const f = files[active];
+        $("clock").textContent =
+          "シミュレーション " +
+          String(14 + Math.floor(now / 60)).padStart(2, "0") +
+          ":" +
+          String(now % 60).padStart(2, "0");
+        $("tree").innerHTML = Object.entries(files)
+          .filter(([id]) => id !== "preview")
+          .map(
+            ([id, f]) =>
+              `<button data-file="${id}" class="${active === id ? "selected" : ""}">${f.name}<span>${f.title}</span></button>`,
+          )
+          .join("");
+        $("tab").textContent = f.name + "　 ×";
+        $("crumb").textContent = f.path.replaceAll("/", "　/　");
+        $("title").textContent = f.title;
+        $("body").innerHTML =
+          active === "design"
+            ? '<p>文書を開くとき、まず欲しいのは考えるための余白だ。操作の一覧でも、処理すべき件数でもない。</p><h2>読むことを中心に置く</h2><p>エージェントが書き、人が読み、気づいた場所で方向を伝える。その往復を、できるだけ自然にする。</p><div class="quote">いま確認する意味があるファイルが、<br>しばらく置かれる場所。</div><h2>時間とともに、静かになる</h2><p>最近の動きは右側に置く。しばらく動きがなければ、自然に退く。必要になったら、左のツリーからいつでも戻れる。</p>'
+            : '<p>この文書は、Viviで読み返しながら検討するためのローカルな成果物です。</p><h2>確認したいこと</h2><p>人が次の判断に進めるだけの文脈を、必要な場所に残す。画面を埋める情報は、いま意味のあるものに絞る。</p><div class="quote">読む場所と、気づきを渡す場所がつながっている。</div>';
+        $("nowtab").setAttribute("aria-selected", tabMode === "now");
+        $("doctab").setAttribute("aria-selected", tabMode === "doc");
+        if (tabMode === "doc") {
+          $("panel").innerHTML =
+            `<div class="document"><h3>${f.title}</h3><p>${f.path}</p><p>文書の概要</p><p>確認したいこと</p></div>`;
+          return;
+        }
+        const list = visible(),
+          pending = list.filter((e) => e.kind !== "recent"),
+          recent = list.filter((e) => e.kind === "recent");
+        $("panel").innerHTML =
+          `<div class="listhead"><span>いま確認するための文書</span><span class="count">${list.length}件</span></div>` +
+          (pending.length
+            ? `<section class="group" aria-label="フィードバック"><div class="grouphead"><span>フィードバック</span><small>受け渡し途中</small></div>${pending.map(row).join("")}</section>`
+            : "") +
+          (pending.length && recent.length
+            ? '<div class="sepline"></div>'
+            : "") +
+          (recent.length
+            ? `<section class="group" aria-label="最近"><div class="grouphead"><span>最近</span><small>30分以内</small></div>${recent.map(row).join("")}</section>`
+            : "") +
+          (!list.length
+            ? '<div class="empty"><b>いま確認する文書はありません</b>更新された文書や、開いた文書が<br>ここにしばらく並びます。</div>'
+            : "") +
+          (!recent.length && pending.length
+            ? '<div class="bottomnote">最近30分の動きはありません。<br>受け渡し途中のフィードバックは残ります。</div>'
+            : "");
+      }
+      document.addEventListener("click", (e) => {
+        const hide = e.target.closest("[data-hide]");
+        if (hide) {
+          events.find((x) => x.id === hide.dataset.hide).hidden = true;
+          render();
+          say(
+            "今は隠しました。次の更新・明示的なオープンで戻ります。文書は閉じません。",
+          );
+          return;
+        }
+        const file = e.target.closest("[data-file]");
+        if (file) openFile(file.dataset.file);
+      });
+      $("advance").onclick = () => {
+        now += 31;
+        render();
+        say(
+          "31分経過：最近の項目は退きます。未読コメントと下書き、開いている文書は残ります。",
+        );
+      };
+      $("read").onclick = () => {
+        const unread = events.filter((e) => e.kind === "unread");
+        unread.forEach((e) => {
+          e.kind = "recent";
+          e.reason = "エージェントが読んだ";
+          e.at = now;
+        });
+        render();
+        say(
+          unread.length
+            ? "既読を記録。「最近」に移り、ここから30分残ります。修正完了という意味ではありません。"
+            : "現在、エージェント未読のコメントはありません。",
+        );
+      };
+      $("agent").onclick = () => {
+        empty = false;
+        let e = events.find((e) => e.id === "preview");
+        if (!e) {
+          e = { id: "preview", kind: "recent" };
+          events.push(e);
+        }
+        e.at = now;
+        e.reason = "エージェントが提示";
+        e.hidden = false;
+        render();
+        say(
+          "reader.html が右側に戻りました。別の文書を読んでいる人の画面は切り替えません。",
+        );
+      };
+      $("clear").onclick = () => {
+        empty = true;
+        render();
+        say(
+          "これは空状態のプレビューです。実際のフィードバックを時間で消す動作ではありません。",
+        );
+      };
+      $("reset").onclick = reset;
+      $("nowtab").onclick = () => {
+        tabMode = "now";
+        render();
+      };
+      $("doctab").onclick = () => {
+        tabMode = "doc";
+        render();
+      };
+      reset();
+    </script>
+  </body>
+</html>

@@ -37,6 +37,7 @@ export function recordReviewEvent(
   event: FsEvent,
   now = Date.now(),
 ): ReviewEvent[] {
+  if (event.type === "attention") return events;
   const recent = events.filter(
     (item) => now - item.receivedAt <= reviewActivityWindowMs,
   );
@@ -51,7 +52,10 @@ export function recordReviewEvent(
 }
 
 export function isFileReviewActivityEvent(event: FsEvent): boolean {
-  return event.type === "change" || event.kind === "file";
+  return (
+    event.type !== "attention" &&
+    (event.type === "change" || event.kind === "file")
+  );
 }
 
 export function fileReviewAttentionForQueue(

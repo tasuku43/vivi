@@ -44,6 +44,8 @@ it("keeps generated GraphQL document objects out of the initial UI bundle", () =
     /import\s+\{\s*GraphqlViviClient\s*\}\s+from\s+["']\.\/graphqlViviClient\.js["']/,
   );
   expect(lightGraphqlClientSource).not.toContain('from "graphql"');
-  expect(lightGraphqlClientSource).not.toContain("Document");
+  expect(lightGraphqlClientSource).not.toMatch(
+    /import(?! type\b)[^;]*from ["'][^"']*generated/,
+  );
   expect(lightGraphqlClientSource).toContain('this.url("/graphql")');
 });

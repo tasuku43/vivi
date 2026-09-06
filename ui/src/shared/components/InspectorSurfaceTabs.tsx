@@ -22,11 +22,11 @@ export function InspectorSurfaceTabs({
         aria-selected={activeSurface === "review"}
         onClick={onSelectReview}
       >
-        <span>Review queue</span>
+        <span>For you</span>
         {reviewQueueCount ? (
           <span
             className={styles.count}
-            aria-label={`${reviewQueueCount} items`}
+            aria-label={`${reviewQueueCount} ${reviewQueueCount === 1 ? "item" : "items"}`}
           >
             {reviewQueueCount}
           </span>

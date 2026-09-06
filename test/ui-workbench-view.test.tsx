@@ -86,7 +86,7 @@ it("keeps inspector header focused on status instead of duplicate collapse contr
     />,
   );
 
-  expect(html).toContain("clear");
+  expect(html).toContain("Nothing to look at right now");
   expect(html).not.toContain("Collapse inspector");
   expect(html).not.toContain("Inspector target");
 });

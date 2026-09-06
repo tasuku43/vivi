@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestStoreCreatesThreadMetadataWithoutChangingCommentsJSONLShape(t *testing.T) {
@@ -473,5 +474,63 @@ func TestNewCommentsCannotChangeThreadStatus(t *testing.T) {
 	threads, err := store.ListThreads(Filters{})
 	if err != nil || len(threads) != 0 {
 		t.Fatalf("rejected writes changed storage: %v %v", threads, err)
+	}
+}
+
+func TestRepeatedImplicitReadDoesNotBecomeNewActivity(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	created, err := store.Create(map[string]any{"path": "README.md", "body": "Review this", "source": "human"}, "sha256:file", "markdown")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := created["threadId"].(string)
+	actor := map[string]any{"id": "codex", "kind": "codex"}
+	first, err := store.AppendThreadReadActivity(id, actor, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := store.AppendThreadReadActivity(id, actor, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first["createdAt"] != second["createdAt"] || first["id"] != second["id"] {
+		t.Fatalf("repeat read extended activity: %v %v", first, second)
+	}
+}
+
+func TestReadReceiptProjectionUsesFirstReadOfCurrentHumanFeedback(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	created, err := store.Create(map[string]any{"path": "README.md", "body": "Review this", "source": "human"}, "sha256:file", "markdown")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := created["threadId"].(string)
+	actor := map[string]any{"id": "codex", "kind": "codex"}
+	if _, err = store.AppendThreadReadActivity(id, actor, "old-client-first"); err != nil {
+		t.Fatal(err)
+	}
+	first, err := store.RecentReadReceipts(time.Now().Add(-time.Hour))
+	if err != nil || len(first) != 1 {
+		t.Fatalf("receipts: %v %v", first, err)
+	}
+	if _, err = store.AppendThreadReadActivity(id, actor, "old-client-repeat"); err != nil {
+		t.Fatal(err)
+	}
+	second, err := store.RecentReadReceipts(time.Now().Add(-time.Hour))
+	if err != nil || len(second) != 1 || !second[0].At.Equal(first[0].At) {
+		t.Fatalf("repeat extended receipt: %v %v", second, err)
+	}
+	if _, err = store.Create(map[string]any{"path": "README.md", "threadId": id, "body": "One more point", "source": "human"}, "sha256:file", "markdown"); err != nil {
+		t.Fatal(err)
+	}
+	fresh, err := store.RecentReadReceipts(time.Now().Add(-time.Hour))
+	if err != nil || len(fresh) != 0 {
+		t.Fatalf("new unread message retained old receipt: %v %v", fresh, err)
 	}
 }

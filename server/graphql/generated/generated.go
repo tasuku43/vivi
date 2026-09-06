@@ -222,6 +222,7 @@ type ComplexityRoot struct {
 		CreateDraftReviewComment   func(childComplexity int, input model.DraftReviewCommentInput) int
 		CreateThread               func(childComplexity int, input model.CommentInput) int
 		DeleteDraftReviewComment   func(childComplexity int, id string) int
+		ObserveDocument            func(childComplexity int, path string, reason string) int
 		PublishDraftReviewComments func(childComplexity int, input *model.PublishDraftReviewCommentsInput) int
 		UpdateComment              func(childComplexity int, id string, input model.CommentUpdateInput) int
 		UpdateDraftReviewComment   func(childComplexity int, id string, input model.DraftReviewCommentUpdateInput) int
@@ -241,6 +242,7 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
+		Attention               func(childComplexity int, paths []string) int
 		CommentExport           func(childComplexity int, path *string, status *model.CommentStatus, format *model.CommentExportFormat) int
 		CommentThreadActivities func(childComplexity int, threadID string, after *string, first *int) int
 		CommentThreads          func(childComplexity int, path *string, status *model.CommentStatus, reviewBatchID *string) int
@@ -343,6 +345,7 @@ type ComplexityRoot struct {
 // region    ************************** generated!.gotpl **************************
 
 type MutationResolver interface {
+	ObserveDocument(ctx context.Context, path string, reason string) (map[string]any, error)
 	CreateThread(ctx context.Context, input model.CommentInput) (*model.CommentThread, error)
 	AddComment(ctx context.Context, threadID string, input model.AddCommentInput) (*model.Comment, error)
 	CreateComment(ctx context.Context, input model.CommentInput) (*model.Comment, error)
@@ -353,6 +356,7 @@ type MutationResolver interface {
 	UpdateComment(ctx context.Context, id string, input model.CommentUpdateInput) (*model.Comment, error)
 }
 type QueryResolver interface {
+	Attention(ctx context.Context, paths []string) (map[string]any, error)
 	Workspace(ctx context.Context, path *string, depth *int) (*model.Workspace, error)
 	Config(ctx context.Context) (*model.ViewerConfig, error)
 	Tree(ctx context.Context, path *string, depth *int) (*workspace.TreeSnapshot, error)
@@ -1203,6 +1207,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteDraftReviewComment(childComplexity, args["id"].(string)), true
+	case "Mutation.observeDocument":
+		if e.ComplexityRoot.Mutation.ObserveDocument == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_observeDocument_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ObserveDocument(childComplexity, args["path"].(string), args["reason"].(string)), true
 	case "Mutation.publishDraftReviewComments":
 		if e.ComplexityRoot.Mutation.PublishDraftReviewComments == nil {
 			break
@@ -1281,6 +1296,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.PublishedReviewBatch.Threads(childComplexity), true
 
+	case "Query.attention":
+		if e.ComplexityRoot.Query.Attention == nil {
+			break
+		}
+
+		args, err := ec.field_Query_attention_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Attention(childComplexity, args["paths"].([]string)), true
 	case "Query.commentExport":
 		if e.ComplexityRoot.Query.CommentExport == nil {
 			break
@@ -1868,6 +1894,7 @@ schema {
 }
 
 type Query {
+  attention(paths: [String!]): JSON!
   workspace(path: String, depth: Int): Workspace!
   config: ViewerConfig!
   tree(path: String, depth: Int): TreeSnapshot!
@@ -1902,6 +1929,7 @@ type Query {
 }
 
 type Mutation {
+  observeDocument(path: String!, reason: String!): JSON!
   createThread(input: CommentInput!): CommentThread!
   addComment(threadId: ID!, input: AddCommentInput!): Comment!
   createComment(input: CommentInput!): Comment!
@@ -2999,6 +3027,28 @@ func (ec *executionContext) field_Mutation_deleteDraftReviewComment_args(ctx con
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_observeDocument_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "path",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["path"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "reason",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["reason"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_publishDraftReviewComments_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -3068,6 +3118,20 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		return nil, err
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_attention_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "paths",
+		func(ctx context.Context, v any) ([]string, error) {
+			return ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["paths"] = arg0
 	return args, nil
 }
 
@@ -6428,6 +6492,50 @@ func (ec *executionContext) fieldContext_Meta_comments(_ context.Context, field 
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_observeDocument(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_observeDocument(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().ObserveDocument(ctx, fc.Args["path"].(string), fc.Args["reason"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v map[string]any) graphql.Marshaler {
+			return ec.marshalNJSON2map(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_observeDocument(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type JSON does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_observeDocument_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_createThread(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6946,6 +7054,50 @@ func (ec *executionContext) fieldContext_PublishedReviewBatch_threads(_ context.
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_CommentThread(ctx, field)
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_attention(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_attention(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().Attention(ctx, fc.Args["paths"].([]string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v map[string]any) graphql.Marshaler {
+			return ec.marshalNJSON2map(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_attention(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type JSON does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_attention_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -11569,6 +11721,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
+		case "observeDocument":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_observeDocument(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "createThread":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createThread(ctx, field)
@@ -11767,6 +11926,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Query")
+		case "attention":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_attention(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "workspace":
 			field := field
 
@@ -14394,6 +14575,41 @@ func (ec *executionContext) marshalOString2string(ctx context.Context, sel ast.S
 	_ = ctx
 	res := graphql.MarshalString(v)
 	return res
+}
+
+func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	vSlice := graphql.CoerceList(v)
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNString2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOString2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNString2string(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v any) (*string, error) {

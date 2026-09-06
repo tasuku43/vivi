@@ -1,8 +1,10 @@
+import type { DocumentAttentionSnapshot } from "../../domain/attention.js";
 import type {
   ViviClient,
   WorkspaceEventSubscriptionOptions,
 } from "../../application/ports/ViviClient.js";
 import {
+  isUnsupportedAttentionOperation,
   viviClientGraphqlError,
   viviClientHttpError,
 } from "./client-errors.js";
@@ -69,6 +71,47 @@ export class LightGraphqlViviClient implements ViviClient {
     this.request = options.fetch ?? globalThis.fetch.bind(globalThis);
     this.createEventSource =
       options.createEventSource ?? ((url) => new EventSource(url));
+  }
+
+  private attentionAvailable = true;
+
+  async getDocumentAttention(
+    paths: string[],
+  ): Promise<DocumentAttentionSnapshot | null> {
+    if (!this.attentionAvailable) return null;
+    try {
+      const data = await this.graphql<{ attention: DocumentAttentionSnapshot }>(
+        {
+          operationName: "DocumentAttention",
+          query:
+            "query DocumentAttention($paths: [String!]) { attention(paths: $paths) }",
+          variables: { paths },
+        },
+      );
+      return data.attention;
+    } catch (error) {
+      if (!isUnsupportedAttentionOperation(error)) throw error;
+      this.attentionAvailable = false;
+      return null;
+    }
+  }
+
+  async observeDocument(
+    path: string,
+    reason: "Opened" | "Presented by agent" | "hidden",
+  ): Promise<void> {
+    if (!this.attentionAvailable) return;
+    try {
+      await this.graphql({
+        operationName: "ObserveDocument",
+        query:
+          "mutation ObserveDocument($path: String!, $reason: String!) { observeDocument(path: $path, reason: $reason) }",
+        variables: { path, reason },
+      });
+    } catch (error) {
+      if (!isUnsupportedAttentionOperation(error)) throw error;
+      this.attentionAvailable = false;
+    }
   }
 
   async getWorkspace() {

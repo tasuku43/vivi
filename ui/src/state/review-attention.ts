@@ -31,7 +31,7 @@ export function recentReviewAttentionPaths(
   return new Set(
     Object.entries(clock)
       .filter(
-        ([, observedAt]) => observedAt <= now && now - observedAt <= windowMs,
+        ([, observedAt]) => observedAt <= now && now - observedAt < windowMs,
       )
       .map(([path]) => path),
   );
@@ -45,7 +45,7 @@ export function nextReviewAttentionExpiryDelay(
   const nextExpiry = Object.values(clock).reduce<number | null>(
     (earliest, observedAt) => {
       if (!Number.isFinite(observedAt) || observedAt > now) return earliest;
-      const expiresAt = observedAt + windowMs + 1;
+      const expiresAt = observedAt + windowMs;
       if (expiresAt <= now) return earliest;
       return earliest === null ? expiresAt : Math.min(earliest, expiresAt);
     },
@@ -67,7 +67,7 @@ export function compactReviewAttention(
         path.length > 0 &&
         Number.isFinite(observedAt) &&
         observedAt <= now &&
-        now - observedAt <= windowMs,
+        now - observedAt < windowMs,
     ),
   );
 }

@@ -64,6 +64,12 @@ func runOpen(ctx context.Context, args []string, stdout io.Writer, launch func(s
 			return errors.New("error: server did not confirm the requested document")
 		}
 		target.RawQuery = url.Values{"path": {clean}}.Encode()
+		if !*printOnly {
+			var observed any
+			if err := postGraphQL(ctx, options, graphqlRequest{OperationName: "PresentDocument", Query: `mutation PresentDocument($path: String!) { observeDocument(path: $path, reason: "Presented by agent") }`, Variables: map[string]any{"path": clean}}, "observeDocument", &observed); err != nil {
+				return fmt.Errorf("present document: %w", err)
+			}
+		}
 	} else {
 		var config *struct {
 			Root string `json:"root"`

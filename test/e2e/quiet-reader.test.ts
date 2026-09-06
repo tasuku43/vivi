@@ -131,7 +131,7 @@ it("keeps the inspector reachable at 800 and 520 px with Escape and preserved in
     ).toBe(true);
     const toggle = page.getByRole("button", { name: "Expand inspector" });
     await toggle.waitFor();
-    expect(await toggle.innerText()).toContain("Review queue");
+    expect(await toggle.innerText()).toContain("For you");
     await toggle.click();
     const documentTab = page.getByRole("tab", {
       name: "Document",
@@ -311,7 +311,7 @@ for (const kind of ["markdown", "html"] as const) {
     expect(passiveDraft.stdout).toContain("inbox count=0");
     await page.reload();
     await page.locator(`[data-tree-path="${filePath}"]`).click();
-    await page.getByRole("tab", { name: /Review queue/ }).click();
+    await page.getByRole("tab", { name: /For you/ }).click();
     await page
       .getByRole("button", { name: `Publish 1 draft for ${filePath}` })
       .click();
@@ -331,6 +331,14 @@ for (const kind of ["markdown", "html"] as const) {
     expect(
       await page.getByRole("textbox", { name: "New line comment" }).count(),
     ).toBe(0);
+    await expect
+      .poll(() =>
+        page
+          .getByLabel(/Comment thread for line/)
+          .getByText("Published", { exact: true })
+          .count(),
+      )
+      .toBeGreaterThan(0);
     const passive = await runBinary(path.resolve("vivi"), [
       "inbox",
       server.url,
@@ -521,4 +529,125 @@ it("opens an encoded nested document from the CLI in the reader", async () => {
   await page
     .getByRole("heading", { name: "Revised document", exact: true })
     .waitFor();
+});
+
+it("shares For you activity and receipts across servers without reopening or extending passive reads", async () => {
+  const peer = await startViviServer({
+    rootDir: fixture.rootDir,
+    useProductDefaults: true,
+    extraEnv: { VIVI_DATA_DIR: path.join(fixture.outsideDir, "quiet-data") },
+  });
+  const query = async (
+    url: string,
+    query: string,
+    variables: Record<string, unknown> = {},
+  ) => {
+    const response = await fetch(`${url}/graphql`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, variables }),
+    });
+    const payload = await response.json();
+    expect(payload.errors).toBeUndefined();
+    return payload.data;
+  };
+  const filePath = "docs/nested/deep.md";
+  const row = page.locator(
+    `[data-testid="review-queue-item"][data-review-path="${filePath}"]`,
+  );
+  try {
+    await page.getByRole("tab", { name: /For you/ }).click();
+    await row.waitFor();
+    await page
+      .getByRole("button", { name: `Hide ${filePath} for now`, exact: true })
+      .click();
+    await page.getByRole("tab", { name: /For you/ }).click();
+    await expect.poll(() => row.count()).toBe(0);
+    await query(
+      peer.url,
+      'mutation($path:String!){observeDocument(path:$path,reason:"Presented by agent")}',
+      { path: filePath },
+    );
+    await row.waitFor();
+    await expect.poll(() => row.innerText()).toContain("Presented by agent");
+    expect(await page.locator(`[data-tab-path="${filePath}"]`).count()).toBe(0);
+    await query(
+      peer.url,
+      "mutation($input:CommentInput!){createComment(input:$input){id}}",
+      {
+        input: {
+          path: filePath,
+          viewerKind: "markdown",
+          body: "Clarify this document",
+          source: "human",
+          anchor: {
+            surface: "source",
+            canonical: {
+              path: filePath,
+              start: { line: 1, column: 1 },
+              end: { line: 1, column: 5 },
+            },
+          },
+        },
+      },
+    );
+    await expect
+      .poll(() => page.getByRole("region", { name: "Feedback" }).innerText())
+      .toContain("deep.md");
+    await runBinary(path.resolve("vivi"), [
+      "inbox",
+      peer.url,
+      "--read-as",
+      "codex",
+    ]);
+    await expect.poll(() => row.innerText()).toContain("Read by agent");
+    await expect
+      .poll(() => page.getByRole("region", { name: "Feedback" }).count())
+      .toBe(0);
+    const snapshot = async () =>
+      (await query(peer.url, "query {attention}")).attention.events.find(
+        (event: { path: string }) => event.path === filePath,
+      );
+    const before = await snapshot();
+    await runBinary(path.resolve("vivi"), [
+      "inbox",
+      peer.url,
+      "--read-as",
+      "codex",
+    ]);
+    expect((await snapshot()).at).toBe(before.at);
+    await page.reload();
+    await row.waitFor();
+    expect((await snapshot()).at).toBe(before.at);
+    expect(await page.locator('[data-review-path$=".css"]').count()).toBe(0);
+  } finally {
+    await peer.close();
+  }
+}, 30000);
+
+it("expires recent activity at thirty minutes while keeping the document open", async () => {
+  await page.clock.install({ time: new Date() });
+  await page.reload();
+  await page.locator('[data-tree-path="README.md"]').waitFor();
+  await page.locator('[data-tree-path="README.md"]').dblclick();
+  await page.getByRole("tab", { name: /For you/ }).click();
+  const row = page.locator(
+    '[data-testid="review-queue-item"][data-review-path="README.md"]',
+  );
+  await expect.poll(() => row.innerText()).toContain("Opened");
+  await page
+    .getByRole("heading", { name: "Vivi Fixture", exact: true })
+    .waitFor({ state: "visible" });
+  // Timers were installed before reload so the expiry timer is controlled.
+  await page.clock.fastForward(29 * 60 * 1000);
+  await expect.poll(() => row.count()).toBe(1);
+  await expect.poll(() => row.innerText()).toContain("29m ago");
+  await page.clock.fastForward(61 * 1000);
+  await expect.poll(() => row.count()).toBe(0);
+  expect(await page.locator('[data-tab-path="README.md"]').count()).toBe(1);
+  expect(
+    await page
+      .getByRole("heading", { name: "Vivi Fixture", exact: true })
+      .isVisible(),
+  ).toBe(true);
 });

@@ -180,7 +180,7 @@ it("restores Source input after reload and clears its composer after publish", a
   await page
     .getByRole("button", { name: "Save pending draft comment" })
     .click();
-  await page.getByRole("tab", { name: /Review queue/ }).click();
+  await page.getByRole("tab", { name: /For you/ }).click();
   await page
     .getByRole("button", { name: "Publish 1 draft for README.md" })
     .click();
@@ -222,7 +222,7 @@ it("starts separate feedback after the agent reads published feedback", async ()
   await page
     .getByRole("button", { name: "Save pending draft comment" })
     .click();
-  await page.getByRole("tab", { name: /Review queue/ }).click();
+  await page.getByRole("tab", { name: /For you/ }).click();
   await page
     .getByRole("button", { name: "Publish 1 draft for README.md" })
     .click();
@@ -280,7 +280,7 @@ it("starts separate feedback after the agent reads published feedback", async ()
     .getByRole("button", { name: "Save pending draft comment" })
     .click();
 
-  await page.getByRole("tab", { name: /Review queue/ }).click();
+  await page.getByRole("tab", { name: /For you/ }).click();
   await expect
     .poll(() =>
       page
@@ -414,7 +414,7 @@ it("deletes a saved pending comment before publish", async () => {
   await expect
     .poll(() => page.getByRole("article", { name: /Comment thread/ }).count())
     .toBe(0);
-  await page.getByRole("tab", { name: /Review queue/ }).click();
+  await page.getByRole("tab", { name: /For you/ }).click();
   await expect
     .poll(() =>
       page
@@ -578,9 +578,9 @@ it("keeps a saved HTML thread open and focuses its follow-up", async () => {
   await expect
     .poll(() => followUp.evaluate((node) => node === document.activeElement))
     .toBe(true);
-  await page.getByRole("tab", { name: /Review queue/ }).click();
+  await page.getByRole("tab", { name: /For you/ }).click();
   const reviewQueueLedger = page.getByRole("group", {
-    name: /Review queue signal ledger/,
+    name: /For you,/,
   });
   await expect.poll(() => reviewQueueLedger.count()).toBe(1);
   await expect
@@ -591,9 +591,7 @@ it("keeps a saved HTML thread open and focuses its follow-up", async () => {
     )
     .toBe(1);
   await expect
-    .poll(() =>
-      reviewQueueLedger.getByText("2 drafts", { exact: true }).count(),
-    )
+    .poll(() => reviewQueueLedger.getByText(/^2 drafts(?: · .*)?$/).count())
     .toBeGreaterThan(0);
 
   await page.getByRole("tab", { name: "Document" }).click();

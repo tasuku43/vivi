@@ -43,16 +43,17 @@ type Options struct {
 }
 
 type Server struct {
-	httpServer  *http.Server
-	listener    net.Listener
-	url         string
-	options     Options
-	app         *application.Service
-	graphql     http.Handler
-	connections map[net.Conn]struct{}
-	connMu      sync.Mutex
-	watchReady  chan struct{}
-	watchOnce   sync.Once
+	stopAttention context.CancelFunc
+	httpServer    *http.Server
+	listener      net.Listener
+	url           string
+	options       Options
+	app           *application.Service
+	graphql       http.Handler
+	connections   map[net.Conn]struct{}
+	connMu        sync.Mutex
+	watchReady    chan struct{}
+	watchOnce     sync.Once
 }
 
 func Start(ctx context.Context, options Options) (*Server, error) {
@@ -93,6 +94,14 @@ func Start(ctx context.Context, options Options) (*Server, error) {
 			fmt.Fprintf(os.Stderr, "[vivi] server failed: %v\n", err)
 		}
 	}()
+	attentionCtx, stopAttention := context.WithCancel(ctx)
+	server.stopAttention = stopAttention
+	go server.watchAttention(attentionCtx)
+	if server.app.Attention != nil {
+		if _, err := server.app.Attention.Snapshot(ctx, nil); err != nil {
+			fmt.Fprintf(os.Stderr, "[vivi] attention initialization: %v\n", err)
+		}
+	}
 	go server.watch(ctx)
 	return server, nil
 }
@@ -102,6 +111,9 @@ func (server *Server) URL() string {
 }
 
 func (server *Server) Close(ctx context.Context) error {
+	if server.stopAttention != nil {
+		server.stopAttention()
+	}
 	done := make(chan error, 1)
 	go func() {
 		done <- server.httpServer.Shutdown(ctx)
@@ -365,6 +377,9 @@ func (server *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) publish(event application.WorkspaceEvent) {
+	if server.app.Attention != nil && (event.Type == "change" || event.Type == "add" && event.Kind == "file") {
+		_, _ = server.app.Attention.Observe(context.Background(), event.Path, "Updated")
+	}
 	if server.options.Workspace != nil {
 		server.options.Workspace.InvalidateDocumentHeading(event.Path)
 	}

@@ -82,3 +82,15 @@ func TestTreeHeadingsAreBoundedCachedAndRefreshWithoutRenaming(t *testing.T) {
 		t.Fatal("lazy directory heading missing")
 	}
 }
+
+func TestAttentionHeadingDoesNotInterpretSourceCodeAsMarkdown(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, root, "script.py", []byte("# A Python comment\n"))
+	fs, err := New(Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if heading := fs.DocumentHeading("script.py"); heading != nil {
+		t.Fatalf("code acquired a Markdown title: %v", *heading)
+	}
+}

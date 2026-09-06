@@ -183,3 +183,12 @@ func extractDocumentHeading(content []byte, kind string, truncated bool) *string
 	value := strings.Join(strings.Fields(heading.String()), " ")
 	return &value
 }
+
+// DocumentHeading returns bounded, cached metadata within the public file scope.
+func (fsys *FS) DocumentHeading(path string) *string {
+	kind := ClassifyViewer(path)
+	if kind != "markdown" && kind != "html" {
+		return nil
+	}
+	return fsys.readDocumentHeading(path, kind)
+}

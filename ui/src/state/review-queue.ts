@@ -10,6 +10,8 @@ import {
 import { isReviewChangeOpenable, type ReviewChangeItem } from "./git-review.js";
 
 export interface ReviewQueueItem {
+  activityReason?: string;
+  pendingInputCount?: number;
   path: string;
   change: ReviewChangeItem | null;
   commentCount: number;
@@ -42,6 +44,7 @@ export interface ReviewQueuePosition {
 
 export interface ReviewQueueBuildOptions {
   draftComments?: readonly DraftReviewComment[];
+  inputPaths?: readonly string[];
   knownMissingPaths?: ReadonlySet<string>;
   unseenFeedbackPaths?: ReadonlySet<string>;
   recentActivityByPath?: Readonly<Record<string, number>>;
@@ -115,10 +118,10 @@ export function buildReviewQueueItems(
     if (!options.knownMissingPaths?.has(path)) paths.add(path);
   }
 
+  for (const path of options.inputPaths ?? []) {
+    if (!options.knownMissingPaths?.has(path)) paths.add(path);
+  }
   const changeByPath = new Map(changes.map((change) => [change.path, change]));
-  const changeOrder = new Map(
-    changes.map((change, index) => [change.path, index]),
-  );
 
   return [...paths]
     .map((path): ReviewQueueItem => {
@@ -147,7 +150,19 @@ export function buildReviewQueueItems(
         path,
         change: changeByPath.get(path) ?? null,
         commentCount,
-        lastActivityAt: options.recentActivityByPath?.[path],
+        lastActivityAt: Math.max(
+          options.recentActivityByPath?.[path] ?? 0,
+          ...pathThreads.flatMap((thread) =>
+            thread.comments.map(
+              (comment) =>
+                Date.parse(comment.updatedAt ?? comment.createdAt) || 0,
+            ),
+          ),
+          ...pathDrafts.map((draft) => Date.parse(draft.updatedAt) || 0),
+        ),
+        pendingInputCount: options.inputPaths?.filter(
+          (inputPath) => inputPath === path,
+        ).length,
         latestActivity,
         unread: unreadPaths.has(path),
       };
@@ -157,7 +172,7 @@ export function buildReviewQueueItems(
       }
       return item;
     })
-    .sort((a, b) => compareReviewQueueItems(a, b, changeOrder));
+    .sort((a, b) => compareReviewQueueItems(a, b));
 }
 
 export function summarizeReviewQueue(
@@ -340,26 +355,14 @@ function collectDraftsByPath(drafts: readonly DraftReviewComment[]) {
   return byPath;
 }
 
-function compareReviewQueueItems(
-  a: ReviewQueueItem,
-  b: ReviewQueueItem,
-  changeOrder: Map<string, number>,
-) {
-  const unseenCompare = Number(b.unread) - Number(a.unread);
-  if (unseenCompare) return unseenCompare;
-  const pendingCompare =
-    Number((b.pendingDraftCount ?? 0) > 0) -
-    Number((a.pendingDraftCount ?? 0) > 0);
-  if (pendingCompare) return pendingCompare;
-  const activityCompare = (b.latestActivity?.createdAt ?? "").localeCompare(
-    a.latestActivity?.createdAt ?? "",
-  );
-  const clockCompare = (b.lastActivityAt ?? 0) - (a.lastActivityAt ?? 0);
-  if (clockCompare) return clockCompare;
-  if (activityCompare) return activityCompare;
+function compareReviewQueueItems(a: ReviewQueueItem, b: ReviewQueueItem) {
+  const pending = (item: ReviewQueueItem) =>
+    item.unread ||
+    (item.pendingDraftCount ?? 0) > 0 ||
+    (item.pendingInputCount ?? 0) > 0;
   return (
-    (changeOrder.get(a.path) ?? Number.MAX_SAFE_INTEGER) -
-      (changeOrder.get(b.path) ?? Number.MAX_SAFE_INTEGER) ||
+    Number(pending(b)) - Number(pending(a)) ||
+    (b.lastActivityAt ?? 0) - (a.lastActivityAt ?? 0) ||
     a.path.localeCompare(b.path)
   );
 }

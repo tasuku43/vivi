@@ -634,3 +634,27 @@ SSE stream of filesystem events.
 - Changes to API response shapes require tests and documentation updates.
 - Additive fields are acceptable when documented.
 - Removing fields or changing meanings requires an explicit contract-change note.
+
+
+### For you activity
+
+`attention(paths: [String!]): JSON!` returns `{ events, eligiblePaths, headings }`.
+Each event has a root-relative `path`, Unix-millisecond `at`, and English `reason`.
+The projection applies the public document scope and a strict 30-minute window.
+`observeDocument(path: String!, reason: String!): JSON!` accepts `Opened`,
+`Presented by agent`, `Updated`, or `hidden`, validates the path, and records a
+shared workspace event. `Updated` with an unchanged content hash is a no-op.
+The `attention` workspace SSE event asks clients to re-fetch this projection and
+active feedback; it does not navigate browser tabs. Reconnects re-fetch both.
+
+`vivi open <url> <path>` records `Presented by agent` before launching the reader.
+`--print` remains side-effect-free. Opening a URL in the reader records `Opened`;
+passive refresh and session restoration do not. Implicit repeated agent read
+receipts for unchanged human feedback reuse the original timestamp. Receipt
+observation and thread lifecycle remain separate.
+
+The right inspector is **For you**, with persistent **Feedback** (open unread
+human feedback, drafts, and input in progress) and expiring **Recent** activity.
+Archived/resolved records and files outside the document scope do not inflate
+active unread counts. Hiding a recent item suppresses old event replay; the next
+meaningful activity restores it. No stored feedback is deleted by this filter.

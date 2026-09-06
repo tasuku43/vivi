@@ -128,3 +128,40 @@ func TestOpenDoesNotPrintLinksForFailedOrMalformedServers(t *testing.T) {
 		t.Fatalf("unreachable server: %v", err)
 	}
 }
+
+func TestOpenRecordsPresentationButPrintDoesNot(t *testing.T) {
+	ctx := context.Background()
+	base := newTopLevelAgentTestServer(t)
+	var output bytes.Buffer
+	if err := runOpen(ctx, []string{base, "README.md", "--print"}, &output, nil); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := func() []struct {
+		Path   string
+		Reason string
+	} { t.Helper(); var result struct {
+		Events []struct {
+			Path   string
+			Reason string
+		}
+	}; if err := postGraphQL(ctx, inboxRequestOptions{URL: base}, graphqlRequest{Query: `query { attention }`}, "attention", &result); err != nil {
+		t.Fatal(err)
+	}; return result.Events }
+	for _, e := range snapshot() {
+		if e.Reason == "Presented by agent" {
+			t.Fatal("print recorded presentation")
+		}
+	}
+	if err := runOpen(ctx, []string{base, "docs/intro.md"}, &output, func(string) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, e := range snapshot() {
+		if e.Path == "docs/intro.md" && e.Reason == "Presented by agent" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("normal open did not record presentation")
+	}
+}
