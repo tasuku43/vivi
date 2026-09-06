@@ -51,6 +51,19 @@ describe("perf summary verifier", () => {
     );
   });
 
+  it("rejects a failed inbox command instead of treating its fast exit as success", () => {
+    const summary = perfSummary();
+    const inbox = summary.scenarios.find((entry) => entry.name === "cli_inbox");
+    inbox!.result = { durationMs: 12, exitCodes: { "1": 3 } };
+    const result = verifyPerfSummary(summary, {
+      thresholds: parsePerfThresholds({}),
+    });
+    expect(result.ok).toBe(false);
+    expect(result.failures).toContain(
+      'cli_inbox reported non-zero exit codes: {"1":3}',
+    );
+  });
+
   it("fails when front-end script time exceeds the configured budget", () => {
     const result = verifyPerfSummary(perfSummary(), {
       thresholds: parsePerfThresholds({
@@ -110,7 +123,7 @@ function perfSummary(overrides: Partial<Record<string, unknown>> = {}) {
           },
         },
       }),
-      scenario("cli_review_queue", {
+      scenario("cli_inbox", {
         durationMs: 300,
         exitCodes: { "0": 3 },
       }),
@@ -138,7 +151,7 @@ function perfSummary(overrides: Partial<Record<string, unknown>> = {}) {
   }
 
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     runName: "test",
     durationMs: 5_000,
     workspace: {

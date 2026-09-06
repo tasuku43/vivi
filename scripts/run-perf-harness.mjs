@@ -59,8 +59,8 @@ try {
     return runBrowserWorkspaceScenario(baseURL, workspace);
   }));
 
-  scenarios.push(await runScenario("cli_review_queue", async ({ baseURL }) => {
-    return runCliReviewQueueScenario(baseURL);
+  scenarios.push(await runScenario("cli_inbox", async ({ baseURL }) => {
+    return runCliInboxScenario(baseURL);
   }));
 
   scenarios.push(await runScenario("git_review", async ({ baseURL }) => {
@@ -223,7 +223,7 @@ try {
 
 const finishedAt = new Date();
 const summary = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   runName,
   startedAt: startedAt.toISOString(),
   finishedAt: finishedAt.toISOString(),
@@ -745,11 +745,11 @@ async function collectBrowserMetrics(page, client) {
   };
 }
 
-async function runCliReviewQueueScenario(baseURL) {
+async function runCliInboxScenario(baseURL) {
   const iterations = numberEnv("VIVI_PERF_CLI_ITERATIONS", 5);
   const results = [];
   for (let index = 0; index < iterations; index++) {
-    results.push(await runSampledCommand(binary, ["review", "queue", "--url", baseURL, "--json"], "cli"));
+    results.push(await runSampledCommand(binary, ["inbox", baseURL], "cli"));
   }
   return {
     iterations,

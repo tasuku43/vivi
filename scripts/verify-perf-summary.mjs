@@ -43,7 +43,7 @@ const thresholdDefinitions = [
     "VIVI_PERF_MAX_FRONT_INTERACTION_HEAP_BYTES",
     128 * 1024 * 1024,
   ],
-  ["maxCliReviewQueueDurationMs", "VIVI_PERF_MAX_CLI_REVIEW_QUEUE_MS", 10_000],
+  ["maxCliInboxDurationMs", "VIVI_PERF_MAX_CLI_INBOX_MS", 10_000],
   ["maxFileSearchDurationMs", "VIVI_PERF_MAX_FILE_SEARCH_MS", 10_000],
   ["maxContentSearchDurationMs", "VIVI_PERF_MAX_CONTENT_SEARCH_MS", 15_000],
   ["maxFileChangeLatencyMs", "VIVI_PERF_MAX_FILE_CHANGE_LATENCY_MS", 8_000],
@@ -62,7 +62,7 @@ const thresholdDefinitions = [
 const requiredScenarios = [
   "idle_watch",
   "front_workspace",
-  "cli_review_queue",
+  "cli_inbox",
   "git_review",
   "file_search",
   "content_search",
@@ -102,9 +102,9 @@ export function verifyPerfSummary(summary, options = {}) {
   const failures = [];
   const metrics = [];
 
-  if (summary.schemaVersion !== 3) {
+  if (summary.schemaVersion !== 4) {
     failures.push(
-      `Expected perf summary schemaVersion 3, got ${summary.schemaVersion ?? "missing"}.`,
+      `Expected perf summary schemaVersion 4, got ${summary.schemaVersion ?? "missing"}.`,
     );
   }
   checkMax(
@@ -200,13 +200,13 @@ export function verifyPerfSummary(summary, options = {}) {
     thresholds.maxFrontAfterInteractionHeapUsedBytes,
   );
 
-  const cli = scenarios.get("cli_review_queue");
+  const cli = scenarios.get("cli_inbox");
   checkMax(
     failures,
     metrics,
-    "cli_review_queue.durationMs",
+    "cli_inbox.durationMs",
     cli?.result?.durationMs,
-    thresholds.maxCliReviewQueueDurationMs,
+    thresholds.maxCliInboxDurationMs,
   );
   if (cli?.result) {
     const exitCodes = cli.result.exitCodes ?? {};
@@ -215,7 +215,7 @@ export function verifyPerfSummary(summary, options = {}) {
     );
     if (nonZeroExitCodes.length > 0) {
       failures.push(
-        `cli_review_queue reported non-zero exit codes: ${JSON.stringify(Object.fromEntries(nonZeroExitCodes))}`,
+        `cli_inbox reported non-zero exit codes: ${JSON.stringify(Object.fromEntries(nonZeroExitCodes))}`,
       );
     }
   }

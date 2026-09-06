@@ -147,12 +147,21 @@ Use `VIVI_PERF_RUN_NAME=<name>` to keep a named copy of the summary at:
 artifacts/perf/<name>.summary.json
 ```
 
+### Current CLI measurement
+
+The current harness uses schema version 4 and measures `cli_inbox` with
+`vivi inbox <url>`. Its budget is configured by `VIVI_PERF_MAX_CLI_INBOX_MS`.
+The synthetic workspace starts with an empty feedback inbox; published feedback
+and read receipts are covered by the agent-loop and browser E2E tests.
+Historical `cli_review_queue` measurements below belong to the removed command
+and are not directly comparable to inbox latency.
+
 ### GitHub Actions performance gate
 
 The `Performance` workflow runs the harness on GitHub Actions for pull requests
 and pushes to `main`. It uses a small synthetic workspace profile so the job is
 cheap enough for routine CI while still exercising the server watcher, browser
-workspace smoke path, review CLI, search paths, burst writes, and coding-agent
+workspace smoke path, passive inbox CLI, search paths, burst writes, and coding-agent
 storm scenario.
 
 The CI job runs:
@@ -511,7 +520,7 @@ MVP readiness targets:
 | Filename search | Warm filename search p95 under 100 ms; cold index build under 1.5s and not repeated after every small edit. |
 | Content search | First 20 results under 1.5s for common code tokens, with bounded total allocation under 250 MB per query. |
 | Git review refresh | `reviewQueue` p95 under 750 ms and no repeated timeout churn in the browser. |
-| CLI review path | `vivi review queue --json` p95 under 500 ms when the server is already running; CLI RSS under 25 MB. |
+| CLI intake path | `vivi inbox <url>` p95 under 500 ms when the server is already running; CLI RSS under 25 MB. |
 
 Stretch targets:
 
