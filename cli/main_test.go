@@ -14,7 +14,7 @@ func TestHelpTextSurfacesOneShotAgentReview(t *testing.T) {
 		"vivi [root] [options]",
 		"vivi servers",
 		"vivi inbox <url>",
-		"Run 'vivi servers --help' or 'vivi inbox --help' for details.",
+		"Run 'vivi servers --help', 'vivi open --help', or 'vivi inbox --help' for details.",
 		"--ready-json",
 		"--exclude <glob>",
 		"Document extension allow-list (default: md,markdown,mdown,html,htm)",

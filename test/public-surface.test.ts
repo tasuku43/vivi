@@ -146,7 +146,7 @@ it("publishes apply-feedback from the vivi plugin", () => {
       name: "vivi",
       displayName: "Vivi",
       source: "./agent-extensions/claude/vivi",
-      version: "0.1.1",
+      version: "0.2.0",
     }),
   );
   expect(codexManifest.name).toBe("vivi");
@@ -157,7 +157,7 @@ it("publishes apply-feedback from the vivi plugin", () => {
   expect(claudeManifest).toMatchObject({
     name: "vivi",
     displayName: "Vivi",
-    version: "0.1.1",
+    version: "0.2.0",
   });
 
   const codexSkill = readFileSync(
@@ -173,7 +173,7 @@ it("publishes apply-feedback from the vivi plugin", () => {
     "utf8",
   );
   expect(codexSkill).toMatch(/^name: apply-feedback$/m);
-  expect(claudeSkill).not.toMatch(/^name:/m);
+  expect(claudeSkill).toMatch(/^name: apply-feedback$/m);
   expect(readFileSync("agent-extensions/claude/README.md", "utf8")).toContain(
     "/vivi:apply-feedback",
   );
@@ -306,3 +306,15 @@ function section(
   if (start < 0 || end < 0) return "";
   return text.slice(start, end);
 }
+
+it("packages both review entry points for Codex and Claude", () => {
+  for (const platform of ["codex", "claude"]) {
+    const root = `agent-extensions/${platform}/vivi/skills`;
+    const open = readFileSync(`${root}/open/SKILL.md`, "utf8");
+    expect(open).toMatch(/^name: open$/m);
+    expect(open).toContain("vivi open <url> <path> --print");
+    const apply = readFileSync(`${root}/apply-feedback/SKILL.md`, "utf8");
+    expect(apply).toContain(`vivi inbox <url> --read-as ${platform}`);
+    expect(apply).not.toMatch(/^allowed-tools:/m);
+  }
+});

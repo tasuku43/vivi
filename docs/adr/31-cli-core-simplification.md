@@ -9,6 +9,7 @@ belong in the coding workbench.
 vivi
 ├── [root] [options]     launch the local reading surface
 ├── servers             discover the running workspace
+├── open <url> [path]   open an artifact on the selected server
 └── inbox <url>         retrieve published feedback once
     └── --read-as codex|claude
 ```
@@ -34,3 +35,7 @@ Verification covers removed command and GraphQL entry points, historical
 storage projection without rewriting, inbox context/escaping, passive reads,
 and real Go CLI handoffs for both Codex and Claude. The fixture harness now
 exercises draft privacy, publish, read, reread, and follow-up observation.
+
+The additive `open` command completes the artifact handoff: it validates an
+existing server target and opens a reader deep link, with `--print` for host
+browsers. It introduces no server lifecycle, task state, or navigation broadcast.

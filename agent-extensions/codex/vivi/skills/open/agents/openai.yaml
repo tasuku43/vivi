@@ -1,0 +1,4 @@
+interface:
+  display_name: "Open in Vivi"
+  short_description: "Open local work for human review."
+  default_prompt: "Use $open to open my document in Vivi for review."

@@ -1,6 +1,6 @@
 ---
+name: apply-feedback
 description: Find and reuse the applicable Vivi server, fetch published review feedback, apply the requested changes, and report the result in the coding conversation. Use when the user says they published Vivi feedback or review comments, asks Claude to check Vivi or apply review feedback, or wants Vivi feedback handled. Fetches one current snapshot on demand; it does not run a resident listener.
-allowed-tools: Bash Read Grep Glob
 ---
 
 # Apply Vivi Feedback
@@ -12,7 +12,8 @@ feedback.
 
 ## Identify the Vivi server
 
-Before fetching feedback, run:
+Honor an explicit or previously confirmed server URL for this workspace first.
+Otherwise, before fetching feedback, run:
 
 ```bash
 vivi servers
@@ -28,18 +29,25 @@ Choose the server from its `count` and `matches` header:
   `vivi <root> --ready-json` as a long-running process, capture its first ready
   event, and keep it alive. Otherwise ask for the root.
 
-Use a repository-local equivalent such as `npm exec -- vivi` when `vivi` is not
-on `PATH`. Keep the selected URL unchanged for the initial inbox, bounded
-refresh.
+Use an existing repository-local Vivi shim when `vivi` is not on `PATH`;
+otherwise follow the documented Vivi installation route, without downloading
+an unrelated npm package. Keep the selected URL unchanged for the initial
+inbox and bounded refresh.
 
 ## Fetch once
 
-1. Run `vivi inbox <url>` once with the selected URL. The command returns the
+1. Run `vivi inbox <url> --read-as claude` once with the selected URL. The command returns the
    current open snapshot and exits. Do not poll, watch, or delegate a listener.
-2. Use `--read-as claude` only when a visible browser read receipt is useful.
-   `VIVI_ACTOR` does not make an inbox read stateful.
+2. For an apply request, record Seen when retrieving the feedback. For an
+   inspection-only request, use passive `vivi inbox <url>` and do not edit files.
+   `VIVI_ACTOR` does not make an inbox read stateful. Seen means observed,
+   not implemented or approved.
 
-An empty snapshot is one line:
+For inspection-only requests, summarize the passive snapshot and stop here.
+Do not proceed to implementation or the completion refresh.
+
+Passive output examples follow. Identified reads additionally include
+`read-as=claude` in the header. An empty passive snapshot is one line:
 
 ```text
 inbox count=0
@@ -65,16 +73,21 @@ history.
 
 ## Apply every current thread
 
+Previously seen threads remain in the snapshot. Compare each request with the
+current files and conversation before acting. If already satisfied, verify it
+and report it as already reflected; do not repeat a change just because the
+thread was returned again.
+
 For each thread, inspect the referenced file and anchor, make the appropriate
 change, and verify it in proportion to risk. Preserve the thread ID exactly.
 If the path is missing or the anchor cannot be mapped to the current file,
 inspect the surrounding file before acting; ask a concrete question and leave
 the thread open when the target is still ambiguous. On a missing CLI,
 connection failure, or malformed snapshot, report the failure instead of
-falling into the advanced resident commands.
+attempting removed resident commands.
 
 After applying the fetched snapshot and before reporting completion, run
-`vivi inbox <url>` once more. If a record has a newer human message, apply it
+`vivi inbox <url> --read-as claude` once more. If a record has a newer human message, apply it
 before finishing. This is one bounded refresh, not per-thread polling.
 
 ## Report completion
@@ -83,3 +96,7 @@ Return the result, verification, and any remaining question in the coding
 conversation where the user is already directing Claude. Do not post an
 agent-authored response back into Vivi. The browser's `Seen` state comes only
 from an explicit `vivi inbox <url> --read-as claude` fetch.
+
+Include links to the changed artifacts for human re-review, obtained with
+`vivi open <url> <path> --print` on the same server. Do not automatically open
+multiple browser tabs or treat implementation as human acceptance.

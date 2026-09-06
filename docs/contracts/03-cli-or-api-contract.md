@@ -26,10 +26,30 @@ vivi [root] --exclude 'package-lock.json,snapshots/,**/generated/**'
 vivi [root] --max-file-size 1048576
 vivi [root] --allow-html-scripts
 vivi servers
+vivi open http://127.0.0.1:4317 docs/design.md
+vivi open http://127.0.0.1:4317 docs/design.md --print
 vivi inbox http://127.0.0.1:4317
 vivi inbox http://127.0.0.1:4317 --read-as codex
 
 ```
+
+### Open an existing workspace
+
+`vivi open <url> [path] [--print]` verifies a document through the selected
+server's GraphQL `file` query and opens its reader URL (`/?path=...`). The optional
+path is relative to the **server root**, independent of the caller's current
+directory. Omit it to validate `config` and open the workspace.
+
+The URL must be the server base URL without credentials, query, fragment, or
+path. File paths must be relative; missing, excluded, ignored, directory, and
+outside-root symlink targets fail before browser launch. Paths are URL-encoded.
+The command prints one browser URL on success. `--print` skips browser launch
+for links and host-provided browsers; it still validates the target. A browser
+launch failure returns nonzero and retains the URL for manual recovery.
+
+This is a one-shot CLI adapter over existing GraphQL and reader deep links. It
+does not start a server, broadcast navigation to connected tabs, or fetch/mark
+comments read. System-browser tab reuse is controlled by the browser.
 
 Default root: `.`
 

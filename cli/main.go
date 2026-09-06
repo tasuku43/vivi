@@ -45,6 +45,9 @@ func invokedViviExecutable(args []string) string {
 
 func run(args []string) error {
 	if len(args) > 0 {
+		if args[0] == "open" {
+			return runOpen(context.Background(), args[1:], os.Stdout, openBrowser)
+		}
 		switch args[0] {
 		case "comments", "review", "reply", "claim", "release":
 			return fmt.Errorf("command %q has been removed; use vivi servers and vivi inbox <url>", args[0])
@@ -193,9 +196,10 @@ func helpText() string {
 		"Usage:",
 		"  vivi [root] [options]",
 		"  vivi servers",
+		"  vivi open <url> [path] [--print]",
 		"  vivi inbox <url>",
 		"",
-		"Run 'vivi servers --help' or 'vivi inbox --help' for details.",
+		"Run 'vivi servers --help', 'vivi open --help', or 'vivi inbox --help' for details.",
 		"",
 		"Launch options:",
 		"  --host <host>              Host to bind (default: 127.0.0.1)",

@@ -3,14 +3,14 @@
   "owner": {
     "name": "Vivi"
   },
-  "description": "On-demand skills for applying published Vivi browser feedback while coding.",
+  "description": "Open local artifacts and apply published Vivi feedback on demand.",
   "plugins": [
     {
       "name": "vivi",
       "displayName": "Vivi",
       "source": "./agent-extensions/claude/vivi",
-      "description": "Fetch the current published Vivi review and apply its feedback on demand without a resident listener.",
-      "version": "0.1.1",
+      "description": "Open local artifacts and apply published Vivi feedback on demand.",
+      "version": "0.2.0",
       "author": {
         "name": "Vivi"
       },

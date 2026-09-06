@@ -1,19 +1,20 @@
 {
   "name": "vivi",
-  "version": "0.1.0",
-  "description": "Apply published Vivi browser review feedback on demand with Codex.",
+  "version": "0.2.0",
+  "description": "Open local artifacts for human review and apply published Vivi feedback on demand.",
   "author": {
     "name": "Vivi"
   },
   "skills": "./skills/",
   "interface": {
     "displayName": "Vivi",
-    "shortDescription": "Apply published browser review feedback.",
-    "longDescription": "Find and reuse the applicable Vivi server, fetch its published review once, apply the feedback to the workspace, reply safely, and refresh before resolving without running a resident listener.",
+    "shortDescription": "Open artifacts and apply review feedback.",
+    "longDescription": "Open local artifacts in the appropriate Vivi workspace, retrieve published feedback on demand, apply and verify changes, and return document links for human re-review.",
     "developerName": "Vivi",
     "category": "Productivity",
     "capabilities": [],
     "defaultPrompt": [
+      "Use $open to open my document in Vivi for review.",
       "Use $apply-feedback to apply my published Vivi feedback."
     ]
   }

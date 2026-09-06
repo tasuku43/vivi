@@ -1,8 +1,8 @@
 {
   "name": "vivi",
   "displayName": "Vivi",
-  "description": "Apply published Vivi browser review feedback on demand with Claude Code.",
-  "version": "0.1.1",
+  "description": "Open local artifacts for human review and apply published Vivi feedback on demand.",
+  "version": "0.2.0",
   "author": {
     "name": "Vivi"
   },

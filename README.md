@@ -65,8 +65,8 @@ running a downloaded binary.
 ## Usage
 
 The canonical `vivi` command is the Go CLI/backend. Its public workflow is the
-local server launcher, running-server discovery, and the synchronous `inbox`
-command:
+local server launcher, running-server discovery, document opening, and the
+synchronous `inbox` command:
 
 ```bash
 vivi .
@@ -74,6 +74,7 @@ vivi ./docs
 vivi ./docs --open
 vivi . --ready-json
 vivi servers
+vivi open http://127.0.0.1:4317 README.md
 vivi inbox http://127.0.0.1:4317
 vivi inbox http://127.0.0.1:4317 --read-as codex
 vivi . --exclude package-lock.json --exclude '**/generated/**'
@@ -167,7 +168,7 @@ once and exits. The human can keep
 drafting in the GUI and Publish when feedback should become agent-visible; the
 agent fetches when asked or when its workflow chooses to refresh. Add
 `--read-as codex` or `--read-as claude` only when the browser should show an
-explicit read receipt. Launch, `servers`, and `inbox` are the entire CLI.
+explicit read receipt. Launch, `servers`, `open`, and `inbox` are the entire CLI.
 Use the coding workbench's filesystem and Git tools to act on feedback; the
 browser keeps its Git Changes view. Ownership, resident loops, and task
 completion commands have been removed. The
@@ -274,3 +275,11 @@ drafts in this repository. Publishing steps are intentionally manual:
 - mise registry registration.
 
 Those actions should only happen after an explicit human release decision.
+
+### Open a document for human review
+
+Use `vivi open <server-url> [path]` to open a document on an existing server.
+The path is relative to that server's workspace root. `--print` validates and
+prints the reader link without launching a browser, for use in a coding host's
+browser or a review handoff. See [agent extensions](agent-extensions/README.md)
+for the Codex and Claude Code `open` and `apply-feedback` skills.

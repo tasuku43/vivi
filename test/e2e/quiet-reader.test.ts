@@ -279,7 +279,14 @@ for (const kind of ["markdown", "html"] as const) {
         ? '# Diagram review\n\n<p><img src="diagram.svg" alt="Workspace diagram"></p>\n'
         : '<!doctype html>\n<html><body>\n<p><img src="diagram.svg" alt="Workspace diagram"></p>\n</body></html>',
     );
-    await page.locator(`[data-tree-path="${filePath}"]`).click();
+    const opened = await runBinary(path.resolve("vivi"), [
+      "open",
+      server.url,
+      filePath,
+      "--print",
+    ]);
+    await page.goto(opened.stdout.trim());
+    await page.locator(`[data-tab-path="${filePath}"]`).waitFor();
     const surface =
       kind === "markdown"
         ? page
@@ -338,13 +345,16 @@ for (const kind of ["markdown", "html"] as const) {
       "inbox",
       server.url,
       "--read-as",
-      "codex",
+      kind === "markdown" ? "codex" : "claude",
     ]);
-    expect(read.stdout).toContain("read-as=codex");
+    const actor = kind === "markdown" ? "codex" : "claude";
+    expect(read.stdout).toContain(`read-as=${actor}`);
     await expect
       .poll(() => thread.getByText("Seen", { exact: true }).count())
       .toBe(1);
-    await expect.poll(() => thread.getByText(/codex read/).count()).toBe(1);
+    await expect
+      .poll(() => thread.getByText(new RegExp(`${actor} read`)).count())
+      .toBe(1);
   });
 }
 
@@ -484,3 +494,31 @@ it.each(["close", "save"] as const)(
   },
   20_000,
 );
+
+it("opens an encoded nested document from the CLI in the reader", async () => {
+  const filePath = "docs/nested/日本語 & # ? %.md";
+  await writeFile(
+    path.join(fixture.rootDir, filePath),
+    "# Exact document\n\nReady for review.\n",
+  );
+  const opened = await runBinary(path.resolve("vivi"), [
+    "open",
+    server.url,
+    filePath,
+    "--print",
+  ]);
+  const link = opened.stdout.trim();
+  expect(new URL(link).searchParams.get("path")).toBe(filePath);
+  await page.goto(link);
+  await page.locator(`[data-tab-path="${filePath}"]`).waitFor();
+  await page
+    .getByRole("heading", { name: "Exact document", exact: true })
+    .waitFor();
+  await writeFile(
+    path.join(fixture.rootDir, filePath),
+    "# Revised document\n\nFeedback applied.\n",
+  );
+  await page
+    .getByRole("heading", { name: "Revised document", exact: true })
+    .waitFor();
+});
