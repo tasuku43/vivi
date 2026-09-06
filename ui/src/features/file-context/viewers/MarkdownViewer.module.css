@@ -4,11 +4,10 @@
   max-width: 860px;
   margin: 4px auto 32px;
   padding: 30px 34px 38px;
-  border: 1px solid var(--vivi-color-border-default);
-  border-radius: 8px;
-  background: var(--vivi-color-surface-panel);
-  box-shadow: 0 18px 42px
-    color-mix(in srgb, var(--vivi-color-shadow) 42%, transparent);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .document
@@ -134,7 +133,11 @@
   }
 }
 
-:global(.markdown .vivi-rendered-comment-block:not(tr) > *) {
+:global(
+  .markdown
+    .vivi-rendered-comment-block:not(tr)
+    > :not(.rendered-comment-marker)
+) {
   position: relative;
   z-index: 1;
 }
@@ -158,29 +161,12 @@
   border-radius: 8px;
 }
 
-:global(.markdown .vivi-rendered-comment-block.has-rendered-comment:not(tr)),
-:global(
-  .markdown .vivi-rendered-comment-block.drafting-rendered-comment:not(tr)
-) {
-  background: transparent;
-  box-shadow: none;
-}
-
-:global(
-  .markdown .vivi-rendered-comment-block.has-rendered-comment:not(tr)::before
-),
 :global(
   .markdown
     .vivi-rendered-comment-block.drafting-rendered-comment:not(tr)::before
 ),
-:global(.markdown tr.vivi-rendered-comment-block.has-rendered-comment),
 :global(.markdown tr.vivi-rendered-comment-block.drafting-rendered-comment) {
-  background: linear-gradient(
-    90deg,
-    var(--vivi-color-comment-surface-active),
-    color-mix(in srgb, var(--vivi-color-comment-surface) 56%, transparent) 68%,
-    transparent
-  );
+  background: var(--vivi-color-comment-surface);
   box-shadow: inset 2px 0 0 var(--vivi-color-comment-border);
 }
 
@@ -233,33 +219,15 @@
   top: 100%;
   height: var(--rendered-comment-join-after, 0);
   pointer-events: none;
-  background: linear-gradient(
-    90deg,
-    var(--vivi-color-comment-surface-active),
-    color-mix(in srgb, var(--vivi-color-comment-surface) 56%, transparent) 68%,
-    transparent
-  );
-}
-
-:global(.markdown .vivi-rendered-comment-block.active-rendered-comment) {
   background: transparent;
-  box-shadow: none;
 }
 
 :global(
   .markdown .vivi-rendered-comment-block.active-rendered-comment:not(tr)::before
 ),
 :global(.markdown tr.vivi-rendered-comment-block.active-rendered-comment) {
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--vivi-color-comment-surface-active) 86%, white),
-    var(--vivi-color-comment-surface) 72%,
-    transparent
-  );
-  box-shadow:
-    inset 3px 0 0 var(--vivi-color-comment-text),
-    0 0 0 1px
-      color-mix(in srgb, var(--vivi-color-comment-border) 46%, transparent);
+  background: var(--vivi-color-comment-surface);
+  box-shadow: inset 2px 0 0 var(--vivi-color-comment-text);
 }
 
 :global(
@@ -267,20 +235,30 @@
     .vivi-rendered-comment-block.active-rendered-comment.rendered-comment-range-join-after:not(
       tr
     )::after
+),
+:global(
+  .markdown
+    .vivi-rendered-comment-block.drafting-rendered-comment.rendered-comment-range-join-after:not(
+      tr
+    )::after
 ) {
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--vivi-color-comment-surface-active) 86%, white),
-    var(--vivi-color-comment-surface) 72%,
-    transparent
-  );
+  background: var(--vivi-color-comment-surface);
+}
+
+:global(
+  .markdown
+    .vivi-rendered-comment-block.has-rendered-comment:not(
+      .active-rendered-comment
+    ):not(.drafting-rendered-comment):focus-within:not(tr)::before
+) {
+  background: var(--vivi-color-border-soft);
 }
 
 :global(.rendered-comment-marker) {
   position: absolute;
   z-index: 3;
   top: var(--rendered-comment-marker-top, calc(50% + 1px));
-  right: -12px;
+  right: -26px;
   width: 20px;
   height: 20px;
   border: 1px solid var(--vivi-color-comment-border);
@@ -371,4 +349,12 @@
     .rendered-comment-marker:focus-visible
 ) {
   transform: translateY(calc(-50% - 1px));
+}
+
+@container (max-width: 560px) {
+  .document:global(.markdown) {
+    width: calc(100% - 24px);
+    padding: 20px 16px;
+    overflow-wrap: anywhere;
+  }
 }

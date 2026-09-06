@@ -54,15 +54,7 @@ type Mutation {
     input: PublishDraftReviewCommentsInput
   ): PublishedReviewBatch!
   updateComment(id: ID!, input: CommentUpdateInput!): Comment!
-  claimThread(id: ID!, input: CommentThreadClaimInput!): CommentThreadClaim!
-  releaseThreadClaim(
-    id: ID!
-    input: CommentThreadClaimReleaseInput!
-  ): CommentThreadClaimRelease!
-  resolveThread(id: ID!, actor: CommentActorInput): CommentThread!
-  archiveThread(id: ID!, actor: CommentActorInput): CommentThread!
-  reopenThread(id: ID!, actor: CommentActorInput): CommentThread!
-  updateCommentThread(id: ID!, input: CommentThreadUpdateInput!): CommentThread!
+
 }
 
 type Subscription {
@@ -92,6 +84,8 @@ type TreeSnapshot {
 }
 
 type FsNode {
+  "First H1 text; empty when absent, null when unavailable."
+  documentHeading: String
   id: ID!
   path: String!
   name: String!
@@ -222,7 +216,6 @@ input CommentInput {
   actor: CommentActorInput
   author: String
   source: CommentSource
-  status: CommentStatus
 }
 
 input DraftReviewCommentInput {
@@ -254,34 +247,7 @@ input AddCommentInput {
 
 input CommentUpdateInput {
   body: String
-  status: CommentStatus
   actor: CommentActorInput
-}
-
-input CommentThreadUpdateInput {
-  status: CommentStatus!
-  actor: CommentActorInput
-}
-
-input CommentThreadClaimInput {
-  actor: CommentActorInput!
-  clientEventId: String
-  leaseSeconds: Int = 600
-}
-
-type CommentThreadClaim {
-  thread: CommentThread!
-  activity: CommentThreadActivityEvent!
-}
-
-input CommentThreadClaimReleaseInput {
-  actor: CommentActorInput!
-  clientEventId: String
-}
-
-type CommentThreadClaimRelease {
-  thread: CommentThread!
-  activity: CommentThreadActivityEvent!
 }
 
 type CommentActor {

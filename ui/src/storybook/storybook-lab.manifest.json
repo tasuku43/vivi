@@ -34,7 +34,8 @@
     "ui/src/features/review-queue/PublishFlowFacade.stories.tsx",
     "ui/src/features/review-queue/ReviewQueueDirectoryFacade.stories.tsx",
     "ui/src/features/workbench/DocumentReaderFacade.stories.tsx",
-    "ui/src/shared/components/Navigation.stories.tsx"
+    "ui/src/shared/components/Navigation.stories.tsx",
+    "ui/src/storybook/QuietReaderFacade.stories.tsx"
   ],
   "surfaces": [
     {
@@ -49,6 +50,45 @@
       ],
       "requiredStories": ["Design Review/Workflow/ThreeStageReviewPath"],
       "interactionStories": []
+    },
+    {
+      "id": "quiet-reader-refinement",
+      "label": "Quiet reader refinement",
+      "stage": "wired-feature",
+      "intent": "Wire approved Quiet Reader concept A and sidebar H1 concept B into the real workbench, preserving the reviewed facade as a visual contract. Sidebar structure follows mock 49 B: folder-only outline icons and subtle hierarchy guides.",
+      "reviewFocus": [
+        "tab management is available through one keyboard-accessible menu",
+        "duplicate, preview, and changed documents retain their identity",
+        "empty-state search opens a fixture document",
+        "narrow and split layouts preserve the directory map and document context",
+        "new workspaces start at 210 / 310 px and saved sizes are preserved",
+        "the real empty reader opens the document palette and explains the feedback loop",
+        "a labeled compact inspector disclosure keeps Review Queue and Document reachable",
+        "folder glyphs and hierarchy guides carry structure; document rows retain filename/H1 without a file icon"
+      ],
+      "requiredStories": [
+        "Workspace/Quiet Reader/SingleDocument",
+        "Workspace/Quiet Reader/DenseTabs",
+        "Workspace/Quiet Reader/EmptyWorkspace",
+        "Workspace/Quiet Reader/SplitDocuments",
+        "Workspace/Quiet Reader/NarrowReader",
+        "Workspace/Quiet Reader/LightReader",
+        "Workspace/Quiet Reader/CompactReader",
+        "Workspace/Navigation Chrome/QuietTabActions",
+        "Workspace/Navigation Chrome/ReaderFirstOpen",
+        "Files/Viewer Coverage States/NarrowMarkdownReader",
+        "Workspace/Navigation Chrome/SidebarStructure"
+      ],
+      "interactionStories": [
+        "Workspace/Quiet Reader/TabMenuKeyboard",
+        "Workspace/Quiet Reader/FindFirstDocument",
+        "Workspace/Quiet Reader/NarrowInspectorInteraction",
+        "Workspace/Quiet Reader/PreviewAndChangedTabs",
+        "Workspace/Navigation Chrome/QuietTabActions",
+        "Workspace/Navigation Chrome/ReaderFirstOpen",
+        "Files/Viewer Coverage States/NarrowMarkdownReader",
+        "Workspace/Navigation Chrome/SidebarStructure"
+      ]
     },
     {
       "id": "document-reader",
@@ -88,10 +128,16 @@
       ],
       "requiredStories": [
         "Documents/Inspector States/CurrentDocument",
-        "Documents/Inspector States/ChangesVisible"
+        "Documents/Inspector States/ChangesVisible",
+        "Documents/Inspector States/QuietEmptyDocument",
+        "Documents/Inspector States/LoadingEmptyDocument",
+        "Documents/Inspector States/UnavailableChanges"
       ],
       "interactionStories": [
-        "Documents/Inspector States/DocumentNavigationInteraction"
+        "Documents/Inspector States/DocumentNavigationInteraction",
+        "Documents/Inspector States/QuietEmptyDocument",
+        "Documents/Inspector States/LoadingEmptyDocument",
+        "Documents/Inspector States/UnavailableChanges"
       ]
     },
     {
@@ -168,7 +214,12 @@
         "rendered and source modes preserve document context",
         "Markdown and HTML use one anchored no-reflow rendered-feedback popover",
         "HTML preview remains sandboxed and common Mermaid markup renders as SVG",
-        "projected legacy HTML feedback is owned by the viewer without a duplicate global card"
+        "projected legacy HTML feedback is owned by the viewer without a duplicate global card",
+        "passive comments keep markers without persistent block fills; only the open/input target gets a bounded wash",
+        "comment markers are excluded from the text-layer positioning rule and Markdown markers occupy the right margin without reflow",
+        "one compact native view selector preserves source/rendered state, source-input return, and optional Changes",
+        "At intermediate pane widths, the path/current-comment row and viewer controls stack without overlapping the HTML sandbox state.",
+        "Relative embedded images resolve under the selected workspace; image-only blocks preserve source anchors and can open published feedback or a new input."
       ],
       "requiredStories": [
         "Files/Viewer Coverage States/MarkdownKnownViewer",
@@ -177,7 +228,9 @@
         "Files/Markdown Review States/RenderedMarkdownSyntaxGallery",
         "Files/Markdown Review States/RenderedMarkdownMultipleLineThreads",
         "Files/Markdown Review States/RenderedShowsSourceInputReturn",
-        "Files/HTML Preview States/PreviewHtmlPatternGallery"
+        "Files/HTML Preview States/PreviewHtmlPatternGallery",
+        "Files/Viewer Coverage States/CompactHtmlToolbar",
+        "Files/Markdown Review States/ImageOnlyFeedback"
       ],
       "interactionStories": [
         "Files/Markdown Review States/RenderedBlockClickDraft",
@@ -198,7 +251,9 @@
         "Files/HTML Preview States/SourceHtmlComment",
         "Files/Open File Surface States/HtmlSource",
         "Files/Viewer Coverage States/ViewerFailureContained",
-        "Files/Viewer Coverage States/ViewerToolbarStickyByExtension"
+        "Files/Viewer Coverage States/ViewerToolbarStickyByExtension",
+        "Files/Viewer Coverage States/CompactHtmlToolbar",
+        "Files/Markdown Review States/ImageOnlyFeedback"
       ]
     },
     {
@@ -260,7 +315,9 @@
       "reviewFocus": [
         "overlays feel modal rather than permanent layout",
         "keyboard focus and dismissal behavior are reviewable",
-        "search results make the next action obvious"
+        "search results make the next action obvious",
+        "Real file names remain primary; first H1 is secondary and updates without changing paths or order",
+        "Connection failures and unpublished drafts stay visible at compact widths; operational detail opens with pointer or keyboard and dismisses with Escape or outside focus."
       ],
       "requiredStories": [
         "Navigation/Search and Command States/QuickOpen",
@@ -269,11 +326,35 @@
         "Navigation/Search and Command States/Loading",
         "Navigation/Search and Command States/Empty",
         "Workspace/Navigation Chrome/TopbarStory",
-        "Workspace/Navigation Chrome/ShortcutHelpOverlay"
+        "Workspace/Navigation Chrome/ShortcutHelpOverlay",
+        "Workspace/Navigation Chrome/DocumentHeadings",
+        "Workspace/Navigation Chrome/Statusbar"
       ],
       "interactionStories": [
         "Navigation/Search and Command States/QuickOpen",
-        "Navigation/Search and Command States/Actions"
+        "Navigation/Search and Command States/Actions",
+        "Workspace/Navigation Chrome/DocumentHeadings",
+        "Workspace/Navigation Chrome/Statusbar",
+        "Workspace/Navigation Chrome/ReadingTipFirstVisit"
+      ]
+    },
+    {
+      "id": "sidebar-selection-a",
+      "label": "Quiet sidebar selection A",
+      "stage": "wired-feature",
+      "intent": "Wire accepted concept 50 A into TreeSidebar, retaining the facade and checking collapsed ancestry and independent keyboard focus in the integrated SidebarStructure story.",
+      "reviewFocus": [
+        "selection and keyboard focus remain independent",
+        "collapsed ancestry preserves the hidden current location",
+        "open state does not repeat OPEN labels or occupy a third line"
+      ],
+      "requiredStories": [
+        "Workspace/Navigation Chrome/QuietSelectionA",
+        "Workspace/Navigation Chrome/QuietSelectionALight"
+      ],
+      "interactionStories": [
+        "Workspace/Navigation Chrome/QuietSelectionA",
+        "Workspace/Navigation Chrome/SidebarStructure"
       ]
     }
   ],

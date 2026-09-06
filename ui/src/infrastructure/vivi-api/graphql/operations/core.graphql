@@ -16,6 +16,7 @@ fragment TreeFields on TreeSnapshot {
     kind
     parentPath
     viewerKind
+    documentHeading
     childrenLoaded
     size
     mtimeMs
@@ -27,6 +28,7 @@ fragment TreeFields on TreeSnapshot {
       kind
       parentPath
       viewerKind
+      documentHeading
       childrenLoaded
       size
       mtimeMs
@@ -333,31 +335,6 @@ mutation CreateThread($input: CommentInput!) {
 mutation AddComment($threadId: ID!, $input: AddCommentInput!) {
   addComment(threadId: $threadId, input: $input) {
     ...CommentFields
-  }
-}
-mutation ResolveThread($id: ID!) {
-  resolveThread(id: $id) {
-    ...ThreadFields
-  }
-}
-mutation ArchiveThread($id: ID!) {
-  archiveThread(id: $id) {
-    ...ThreadFields
-  }
-}
-mutation ReopenThread($id: ID!) {
-  reopenThread(id: $id) {
-    ...ThreadFields
-  }
-}
-mutation UpdateCommentStatus($id: ID!, $status: CommentStatus!) {
-  updateComment(id: $id, input: { status: $status }) {
-    ...CommentFields
-  }
-}
-mutation UpdateCommentThreadStatus($id: ID!, $status: CommentStatus!) {
-  updateCommentThread(id: $id, input: { status: $status }) {
-    ...ThreadFields
   }
 }
 subscription WorkspaceEvents {

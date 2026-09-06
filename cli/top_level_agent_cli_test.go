@@ -359,7 +359,7 @@ func newTopLevelAgentTestServer(t *testing.T) string {
 func createTopLevelAgentThread(t *testing.T, ctx context.Context, serverURL string, path string, body string) commentThreadOutput {
 	t.Helper()
 	var thread commentThreadOutput
-	if err := postGraphQL(ctx, commentsCommandOptions{URL: serverURL}, graphqlRequest{
+	if err := postGraphQL(ctx, inboxRequestOptions{URL: serverURL}, graphqlRequest{
 		OperationName: "CreateTopLevelAgentThread",
 		Query: `mutation CreateTopLevelAgentThread($input: CommentInput!) {
 			createThread(input: $input) {
@@ -420,7 +420,7 @@ func readActivityCount(t *testing.T, ctx context.Context, serverURL string, thre
 func fetchTopLevelAgentActivities(t *testing.T, ctx context.Context, serverURL string, threadID string) []commentActivityOutput {
 	t.Helper()
 	var activities []commentActivityOutput
-	if err := postGraphQL(ctx, commentsCommandOptions{URL: serverURL}, graphqlRequest{
+	if err := postGraphQL(ctx, inboxRequestOptions{URL: serverURL}, graphqlRequest{
 		OperationName: "TopLevelAgentActivities",
 		Query: `query TopLevelAgentActivities($threadId: ID!) {
 			commentThreadActivities(threadId: $threadId) {

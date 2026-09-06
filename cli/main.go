@@ -31,11 +31,7 @@ const defaultDocumentInclude = "md,markdown,mdown,html,htm"
 func main() {
 	viviExecutable = invokedViviExecutable(os.Args)
 	if err := run(os.Args[1:]); err != nil {
-		if payload, ok := cliErrorPayload(err); ok {
-			_ = writeJSON(os.Stdout, payload)
-		} else {
-			fmt.Fprintln(os.Stderr, err)
-		}
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
@@ -48,25 +44,14 @@ func invokedViviExecutable(args []string) string {
 }
 
 func run(args []string) error {
-	if len(args) > 0 && args[0] == "reply" {
-		return fmt.Errorf("unknown command %q", args[0])
-	}
-	if len(args) > 0 && isTopLevelAgentCommand(args[0]) {
-		return runTopLevelAgentCommand(context.Background(), args, os.Stdout)
-	}
-	if len(args) > 0 && args[0] == "comments" {
-		err := runCommentsCommand(context.Background(), args[1:], os.Stdout)
-		if err != nil && commentsWantsJSON(args[1:]) {
-			return newCommentsCommandError(args[1:], err)
+	if len(args) > 0 {
+		switch args[0] {
+		case "comments", "review", "reply", "claim", "release":
+			return fmt.Errorf("command %q has been removed; use vivi servers and vivi inbox <url>", args[0])
 		}
-		return err
-	}
-	if len(args) > 0 && args[0] == "review" {
-		err := runReviewCommand(context.Background(), args[1:], os.Stdout)
-		if err != nil && reviewWantsJSON(args[1:]) {
-			return newReviewCommandError(args[1:], err)
+		if isTopLevelAgentCommand(args[0]) {
+			return runTopLevelAgentCommand(context.Background(), args, os.Stdout)
 		}
-		return err
 	}
 	flags := flag.NewFlagSet("vivi", flag.ContinueOnError)
 	flags.SetOutput(os.Stdout)
@@ -189,18 +174,6 @@ func run(args []string) error {
 	return httpServer.Close(shutdownCtx)
 }
 
-type cliErrorPayloadProvider interface {
-	CLIPayload() any
-}
-
-func cliErrorPayload(err error) (any, bool) {
-	var provider cliErrorPayloadProvider
-	if errors.As(err, &provider) {
-		return provider.CLIPayload(), true
-	}
-	return nil, false
-}
-
 func hasHelpFlag(args []string) bool {
 	for _, arg := range args {
 		if arg == "--" {
@@ -211,23 +184,6 @@ func hasHelpFlag(args []string) bool {
 		}
 	}
 	return false
-}
-
-func looksLikeServerURL(arg string) bool {
-	return strings.HasPrefix(arg, "http://") || strings.HasPrefix(arg, "https://")
-}
-
-func removeFirstArg(args []string, target string) []string {
-	next := make([]string, 0, len(args))
-	removed := false
-	for _, arg := range args {
-		if !removed && arg == target {
-			removed = true
-			continue
-		}
-		next = append(next, arg)
-	}
-	return next
 }
 
 func helpText() string {
@@ -261,32 +217,30 @@ func helpText() string {
 	}, "\n")
 }
 
+type suggestedCommand struct {
+	Intent         string   `json:"intent"`
+	Command        string   `json:"command"`
+	Args           []string `json:"args"`
+	DisplayCommand string   `json:"displayCommand"`
+	Primary        bool     `json:"primary,omitempty"`
+	OutputMode     string   `json:"outputMode,omitempty"`
+	IdlePolicy     string   `json:"idlePolicy,omitempty"`
+	Reason         string   `json:"reason"`
+}
 type serverReadyPayload struct {
-	SchemaVersion     int                       `json:"schemaVersion"`
-	Event             string                    `json:"event"`
-	Root              string                    `json:"root"`
-	URL               string                    `json:"url"`
-	SuggestedCommands []commentSuggestedCommand `json:"suggestedCommands"`
+	SchemaVersion     int                `json:"schemaVersion"`
+	Event             string             `json:"event"`
+	Root              string             `json:"root"`
+	URL               string             `json:"url"`
+	SuggestedCommands []suggestedCommand `json:"suggestedCommands"`
 }
 
-func newServerReadyPayload(root string, serverURL string) serverReadyPayload {
-	inboxArgs := []string{"inbox", serverURL}
-	suggestions := []commentSuggestedCommand{
-		suggestedCommentsCommand(
-			"fetch_published_review",
-			"inbox",
-			inboxArgs,
-			"",
-			"Fetch the currently published open review comments once. Run it again when the human asks or when the agent chooses to refresh.",
-		).withPrimary().withOutput("agent_safe", "current_snapshot"),
-	}
-	return serverReadyPayload{
-		SchemaVersion:     1,
-		Event:             "vivi_server_ready",
-		Root:              root,
-		URL:               serverURL,
-		SuggestedCommands: suggestions,
-	}
+func newServerReadyPayload(root, serverURL string) serverReadyPayload {
+	args := []string{"inbox", serverURL}
+	return serverReadyPayload{SchemaVersion: 1, Event: "vivi_server_ready", Root: root, URL: serverURL,
+		SuggestedCommands: []suggestedCommand{{Intent: "fetch_published_review", Command: "inbox", Args: args,
+			DisplayCommand: formatViviCommand(args), Primary: true, OutputMode: "agent_safe", IdlePolicy: "current_snapshot",
+			Reason: "Fetch published feedback once; refresh when the human asks or the agent needs current context."}}}
 }
 
 func reviewActorFromFlag(actor string) *workspace.Actor {

@@ -1,3 +1,4 @@
+import { workspaceImageUrl } from "../ui/src/state/workspace-links.js";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { expect, it, vi } from "vitest";
 import type { FilePayload, FsNode } from "../ui/src/domain/fs-node.js";
@@ -3947,4 +3948,39 @@ it("models diff support by viewer kind and keeps unsupported extensions visible"
     false,
   );
   expect(diffUnsupportedViewerKinds).toEqual([]);
+});
+
+it("starts with quiet reader widths while preserving valid saved sizes", () => {
+  expect(defaultSidebarWidth).toBe(210);
+  expect(defaultInspectorWidth).toBe(310);
+  expect(clampSidebarWidth(defaultSidebarWidth)).toBe(210);
+  const stored = buildWorkspaceSession("/workspace", {
+    openTabs: [],
+    layout: initialEditorLayout,
+    recentFiles: [],
+    inspectorVisible: true,
+    sidebarWidth: 360,
+    inspectorWidth: 440,
+  });
+  expect(stored.sidebarWidth).toBe(360);
+  expect(stored.inspectorWidth).toBe(440);
+});
+
+it("resolves embedded workspace images through the confined raw-preview route", () => {
+  expect(workspaceImageUrl("README.md", "ui/public/brand.svg")).toBe(
+    "/preview/raw/ui/public/brand.svg",
+  );
+  expect(workspaceImageUrl("docs/guide.md", "../assets/a b.svg#logo")).toBe(
+    "/preview/raw/assets/a%20b.svg#logo",
+  );
+  expect(workspaceImageUrl("docs/guide.md", "/assets/logo.png")).toBe(
+    "/preview/raw/assets/logo.png",
+  );
+  expect(workspaceImageUrl("README.md", "../outside.png")).toBeNull();
+  expect(
+    workspaceImageUrl("README.md", "https://example.test/logo.png"),
+  ).toBeNull();
+  expect(
+    workspaceImageUrl("README.md", "data:image/png;base64,abc"),
+  ).toBeNull();
 });

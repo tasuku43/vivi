@@ -1,16 +1,14 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 import type { FsNode } from "../../domain/fs-node.js";
-import { iconForPath } from "../../state/file-icons.js";
+import { FolderIcon } from "./FolderIcon.js";
 import {
   boundedVisibleTreeRows,
-  countTreeNodes,
   ensureVisibleAncestors,
   initialExpandedPaths,
 } from "../../state/tree-expansion.js";
 import { treeKeyboardAction } from "../../state/tree-navigation.js";
 import { unloadedAncestorDirectoryPaths } from "../../state/files.js";
-import fileIconStyles from "./FileIcon.module.css";
 import sharedUiStyles from "../styles/SharedUi.module.css";
 import styles from "./TreeSidebar.module.css";
 
@@ -113,7 +111,6 @@ export function TreeSidebar({
     revealPath,
   ]);
 
-  const totalRows = useMemo(() => countTreeNodes(nodes), [nodes]);
   const treeSummary = useMemo(
     () =>
       workspaceTreeSummary(nodes, {
@@ -209,12 +206,6 @@ export function TreeSidebar({
 
   return (
     <>
-      {totalRows > boundedRows.totalVisibleRows ? (
-        <div className={styles.perfNote}>
-          Showing {boundedRows.totalVisibleRows} of {totalRows} rows. Expand
-          folders as needed.
-        </div>
-      ) : null}
       {boundedRows.omittedRows > 0 ? (
         <div className={styles.perfNote}>
           Rendering {boundedRows.rows.length} of {boundedRows.totalVisibleRows}{" "}
@@ -316,7 +307,18 @@ function TreeRow({
   onSelect: (path: string) => void;
   onOpen: (path: string) => void;
 }) {
-  const indent = { paddingLeft: `${8 + depth * 14}px` };
+  const indent = {
+    paddingLeft: `${8 + depth * 14 + (node.kind === "file" ? 17 : 0)}px`,
+  };
+  const guides = Array.from({ length: depth }, (_, level) => (
+    <span
+      key={level}
+      className={styles.guide}
+      data-tree-guide
+      aria-hidden="true"
+      style={{ left: `${14 + level * 14}px` }}
+    />
+  ));
   const active = node.path === activePath;
   const selected = node.path === selectedPath;
   const containsSelection = selectedAncestorPaths.has(node.path);
@@ -342,9 +344,6 @@ function TreeRow({
           styles.dir,
           summary.reviewFiles ? styles.hasReviewWork : "",
           summary.unreadFiles ? styles.hasUnreadWork : "",
-          summary.openFiles ? styles.openInTab : "",
-          containsSelection ? styles.containsSelection : "",
-          containsCurrentStop ? styles.containsCurrentStop : "",
         ]
           .filter(Boolean)
           .join(" ")}
@@ -368,8 +367,19 @@ function TreeRow({
         }}
         style={indent}
       >
-        <span className={styles.twisty}>{expanded ? "▾" : "▸"}</span>
-        <span className={`${fileIconStyles.icon} file-icon`}>📁</span>
+        {guides}
+        <svg
+          className={`${styles.twisty} ${expanded ? styles.expanded : ""}`}
+          viewBox="0 0 12 12"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="m4 2 4 4-4 4" />
+        </svg>
+        <FolderIcon className={styles.folderIcon} />
         <span className={styles.main}>
           <span className={styles.label}>{node.name}</span>
           {reviewReason ? (
@@ -378,11 +388,17 @@ function TreeRow({
             </span>
           ) : null}
         </span>
+        {containsSelection && !expanded ? (
+          <span
+            className={styles.currentLocation}
+            data-current-location
+            title="Contains the selected document"
+            aria-hidden="true"
+          />
+        ) : null}
         {showBadges ? (
           <TreeBadges
             loading={loadingDirectoryPaths.has(node.path)}
-            open={summary.openFiles > 0}
-            openFiles={summary.openFiles}
             reviewFiles={summary.reviewFiles}
             unreadFiles={summary.unreadFiles}
           />
@@ -397,11 +413,17 @@ function TreeRow({
   const open = activePaths.has(node.path);
   const removed = removedPaths.has(node.path);
   const fileEnd = renderFileEnd?.(node) ?? null;
+  const heading =
+    (node.viewerKind !== "markdown" && node.viewerKind !== "html") ||
+    node.documentHeading === undefined
+      ? null
+      : node.documentHeading === null
+        ? "Heading unavailable"
+        : node.documentHeading || "No H1";
   const reviewReason = fileTreeReviewReason({
     changed,
     comments: commentCount,
     currentStop,
-    open,
     removed,
     review,
     unread,
@@ -411,7 +433,7 @@ function TreeRow({
       data-tree-path={node.path}
       role="treeitem"
       aria-label={fileTreeRowAriaLabel({
-        name: node.name,
+        name: heading ? `${node.name} — ${heading}` : node.name,
         selected,
         changed,
         review,
@@ -422,7 +444,7 @@ function TreeRow({
         comments: commentCount,
       })}
       aria-describedby={interactionHelpId}
-      title="Click to preview; double-click to keep open as a tab"
+      title={`${node.path}${heading ? `\n${heading}` : ""}\nClick to preview; double-click to keep open as a tab`}
       aria-level={depth + 1}
       aria-selected={selected}
       tabIndex={active ? 0 : -1}
@@ -433,7 +455,7 @@ function TreeRow({
         changed ? styles.changed : "",
         review ? styles.hasReviewWork : "",
         unread ? styles.hasUnreadWork : "",
-        open ? styles.openInTab : "",
+        open && !selected ? styles.openInTab : "",
         removed ? styles.removed : "",
         currentStop ? styles.currentReviewStop : "",
       ]
@@ -444,14 +466,14 @@ function TreeRow({
       onFocus={() => onFocusPath(node.path)}
       style={indent}
     >
-      <span className={styles.twisty} />
-      <span className={`${fileIconStyles.icon} file-icon`}>
-        {iconForPath(node.path, node.viewerKind)}
-      </span>
+      {guides}
       <span className={styles.main}>
         <span className={styles.labelLine}>
           <span className={styles.label}>{node.name}</span>
         </span>
+        {heading ? (
+          <span className={styles.documentHeading}>{heading}</span>
+        ) : null}
         {reviewReason ? (
           <span className={styles.reason} aria-hidden="true">
             {reviewReason}
@@ -462,7 +484,6 @@ function TreeRow({
         <TreeBadges
           changed={changed}
           currentStop={currentStop}
-          open={open}
           reviewFiles={0}
           showChangedBadge={!fileEnd}
           unreadFiles={unread ? 1 : 0}
@@ -558,7 +579,6 @@ function directoryTreeReviewReason(
     ...treeReasonParts({
       comments: summary.comments,
       loading,
-      openFiles: summary.openFiles,
       reviewFiles: summary.reviewFiles,
       unreadFiles: summary.unreadFiles,
     }),
@@ -583,7 +603,6 @@ function fileTreeReviewReason({
   changed,
   comments,
   currentStop,
-  open,
   removed,
   review,
   unread,
@@ -591,7 +610,6 @@ function fileTreeReviewReason({
   changed: boolean;
   comments: number;
   currentStop: boolean;
-  open: boolean;
   removed: boolean;
   review: boolean;
   unread: boolean;
@@ -602,7 +620,6 @@ function fileTreeReviewReason({
     review ? "review" : "",
     comments ? countReason(comments, "comment") : "",
     changed ? "changed" : "",
-    open ? "open tab" : "",
     removed ? "removed" : "",
   ]
     .filter(Boolean)
@@ -613,7 +630,6 @@ function treeReasonParts({
   changed = false,
   comments = 0,
   loading = false,
-  openFiles = 0,
   removed = false,
   reviewFiles = 0,
   unreadFiles = 0,
@@ -621,7 +637,6 @@ function treeReasonParts({
   changed?: boolean;
   comments?: number;
   loading?: boolean;
-  openFiles?: number;
   removed?: boolean;
   reviewFiles?: number;
   unreadFiles?: number;
@@ -631,7 +646,6 @@ function treeReasonParts({
     reviewFiles ? countReason(reviewFiles, "review file") : "",
     comments ? countReason(comments, "comment") : "",
     changed ? "changed" : "",
-    openFiles ? countReason(openFiles, "open tab") : "",
     removed ? "removed" : "",
     loading ? "loading" : "",
   ].filter(Boolean);
@@ -676,8 +690,6 @@ function TreeBadges({
   changed = false,
   currentStop = false,
   loading = false,
-  open = false,
-  openFiles = 0,
   reviewFiles = 0,
   showChangedBadge = true,
   unreadFiles = 0,
@@ -685,20 +697,11 @@ function TreeBadges({
   changed?: boolean;
   currentStop?: boolean;
   loading?: boolean;
-  open?: boolean;
-  openFiles?: number;
   reviewFiles?: number;
   showChangedBadge?: boolean;
   unreadFiles?: number;
 }) {
-  if (
-    !changed &&
-    !currentStop &&
-    !loading &&
-    !open &&
-    !reviewFiles &&
-    !unreadFiles
-  )
+  if (!changed && !currentStop && !loading && !reviewFiles && !unreadFiles)
     return null;
   return (
     <span className={styles.badges}>
@@ -719,14 +722,6 @@ function TreeBadges({
           title="Current review stop"
         >
           now
-        </span>
-      ) : null}
-      {open ? (
-        <span
-          className={`${styles.badge} ${styles.open}`}
-          title={countPhrase(openFiles || 1, "open tab")}
-        >
-          open{openFiles > 1 ? ` ${openFiles}` : ""}
         </span>
       ) : null}
       {reviewFiles ? (

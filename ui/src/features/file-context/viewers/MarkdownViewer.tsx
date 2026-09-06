@@ -1,3 +1,4 @@
+import { workspaceImageUrl } from "../../../state/workspace-links.js";
 import {
   useCallback,
   useEffect,
@@ -64,7 +65,7 @@ import {
   DiffToggleButton,
   SourceInputReturnButton,
   ViewerToolbar,
-  ViewerModeButton,
+  ViewerModeSelect,
 } from "../components/ViewerControlButton.js";
 import {
   injectMermaidPreviewBlocks,
@@ -180,8 +181,13 @@ export function MarkdownViewer({
   useLayoutEffect(() => {
     if (mode !== "rendered" || diffEnabled || !markdownRef.current) return;
     markdownRef.current.innerHTML = html;
+    for (const image of markdownRef.current.querySelectorAll("img[src]")) {
+      const source = image.getAttribute("src") ?? "";
+      const url = workspaceImageUrl(file.path, source);
+      if (url) image.setAttribute("src", url);
+    }
     renderPendingMermaid();
-  }, [diffEnabled, html, mode, renderPendingMermaid]);
+  }, [diffEnabled, file.path, html, mode, renderPendingMermaid]);
 
   useEffect(() => {
     renderPendingMermaid();
@@ -599,27 +605,15 @@ export function MarkdownViewer({
         actionsOnly
         ariaLabel={`Markdown viewer controls for ${file.path}`}
       >
-        <div
-          className={`${surfaceStyles.segmentedControl} segmented-control`}
-          aria-label="Markdown view mode"
-        >
-          <ViewerModeButton
-            active={mode === "rendered"}
-            mode="rendered"
-            path={file.path}
-            onClick={() => setMode("rendered")}
-          >
-            Rendered
-          </ViewerModeButton>
-          <ViewerModeButton
-            active={mode === "source"}
-            mode="source"
-            path={file.path}
-            onClick={() => setMode("source")}
-          >
-            Source
-          </ViewerModeButton>
-        </div>
+        <ViewerModeSelect
+          label="Markdown view mode"
+          value={mode}
+          options={[
+            { value: "rendered", label: "Rendered" },
+            { value: "source", label: "Source" },
+          ]}
+          onChange={setMode}
+        />
         {mode === "rendered" ? (
           <SourceInputReturnButton
             count={sourceInputCount}

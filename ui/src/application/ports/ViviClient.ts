@@ -5,7 +5,6 @@ import type {
 import type {
   CommentListFilters,
   CommentExportFilters,
-  CommentStatus,
   CommentThreadActivityEvent,
   CommentThread,
   CreateDraftReviewCommentInput,
@@ -29,9 +28,7 @@ import type {
 import type { WorkspaceSnapshot } from "../../domain/workspace.js";
 
 export type WorkspaceConnectionStatus =
-  | "connecting"
-  | "connected"
-  | "disconnected";
+  "connecting" | "connected" | "disconnected";
 
 export interface WorkspaceEventSubscriptionOptions {
   onStatus?: (status: WorkspaceConnectionStatus) => void;
@@ -50,7 +47,9 @@ export interface ViviClient {
   getComments(input?: CommentListFilters): Promise<ViviComment[]>;
   getCommentThreads(input?: CommentListFilters): Promise<CommentThread[]>;
   exportComments(input?: CommentExportFilters): Promise<string>;
-  getDraftReviewComments(input?: { path?: string }): Promise<DraftReviewComment[]>;
+  getDraftReviewComments(input?: {
+    path?: string;
+  }): Promise<DraftReviewComment[]>;
   getReviewQueue(): Promise<ChangeReviewSummary>;
   getReviewLedger(): Promise<ReviewLedgerSnapshot>;
   saveReviewLedger(input: ReviewLedgerSnapshot): Promise<ReviewLedgerSnapshot>;
@@ -66,14 +65,6 @@ export interface ViviClient {
   publishDraftReviewComments(input?: {
     draftIds?: string[];
   }): Promise<PublishedReviewBatch>;
-  updateCommentStatus(input: {
-    id: string;
-    status: CommentStatus;
-  }): Promise<ViviComment>;
-  updateCommentThreadStatus(input: {
-    id: string;
-    status: CommentStatus;
-  }): Promise<CommentThread>;
   getCommentThreadActivities?(input: {
     threadId: string;
     after?: string;
@@ -122,6 +113,7 @@ export function isViviClientError(
   code?: ViviClientErrorCode,
 ): error is ViviClientError {
   return (
-    error instanceof ViviClientError && (code === undefined || error.code === code)
+    error instanceof ViviClientError &&
+    (code === undefined || error.code === code)
   );
 }

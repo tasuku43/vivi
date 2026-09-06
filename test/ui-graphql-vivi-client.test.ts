@@ -47,6 +47,7 @@ const tree = {
       id: "README.md",
       path: "README.md",
       name: "README.md",
+      documentHeading: "Vivi",
       kind: "file" as const,
       parentPath: null,
       viewerKind: "markdown" as const,
@@ -137,52 +138,23 @@ it("uses the review ledger REST endpoint beside GraphQL data APIs", async () => 
   ]);
 });
 
-it("uses GraphQL mutations for comment creation and status updates", async () => {
-  const request = vi.fn<typeof fetch>(async (_input, init) => {
-    const body = JSON.parse(String(init?.body));
-    if (body.operationName === "CreateComment") {
-      return Response.json({ data: { createComment: comment } });
-    }
-    if (body.operationName === "UpdateCommentThreadStatus") {
-      return Response.json({
-        data: {
-          updateCommentThread: {
-            ...commentThread,
-            status: body.variables.status,
-            comments: [{ ...comment, status: body.variables.status }],
-          },
-        },
-      });
-    }
-    return Response.json({
-      data: { updateComment: { ...comment, status: body.variables.status } },
-    });
-  });
+it("uses GraphQL mutations for comment creation", async () => {
+  const request = vi.fn<typeof fetch>(async () =>
+    Response.json({ data: { createComment: comment } }),
+  );
   const client = new GraphqlViviClient({ fetch: request });
-
   await client.createComment({
     path: comment.path,
     viewerKind: comment.viewerKind,
     anchor: comment.anchor,
     body: comment.body,
   });
-  await client.updateCommentStatus({ id: comment.id, status: "resolved" });
-  await client.updateCommentThreadStatus({ id: "t1", status: "archived" });
-
-  const firstBody = JSON.parse(String(request.mock.calls[0]?.[1]?.body));
-  expect(firstBody.operationName).toBe("CreateComment");
-  expect(firstBody.variables.input).toMatchObject({
+  const body = JSON.parse(String(request.mock.calls[0]?.[1]?.body));
+  expect(body.operationName).toBe("CreateComment");
+  expect(body.variables.input).toMatchObject({
     path: "README.md",
     body: comment.body,
   });
-
-  const secondBody = JSON.parse(String(request.mock.calls[1]?.[1]?.body));
-  expect(secondBody.operationName).toBe("UpdateCommentStatus");
-  expect(secondBody.variables).toEqual({ id: "c1", status: "resolved" });
-
-  const thirdBody = JSON.parse(String(request.mock.calls[2]?.[1]?.body));
-  expect(thirdBody.operationName).toBe("UpdateCommentThreadStatus");
-  expect(thirdBody.variables).toEqual({ id: "t1", status: "archived" });
 });
 
 it("uses GraphQL operations for draft review batches", async () => {
@@ -225,9 +197,7 @@ it("uses GraphQL operations for draft review batches", async () => {
                 {
                   ...commentThread,
                   reviewBatchId: "review-batch-1",
-                  comments: [
-                    { ...comment, reviewBatchId: "review-batch-1" },
-                  ],
+                  comments: [{ ...comment, reviewBatchId: "review-batch-1" }],
                 },
               ],
             },

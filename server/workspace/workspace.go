@@ -22,17 +22,18 @@ import (
 )
 
 type Node struct {
-	ID             string  `json:"id"`
-	Path           string  `json:"path"`
-	Name           string  `json:"name"`
-	Kind           string  `json:"kind"`
-	ParentPath     *string `json:"parentPath"`
-	ViewerKind     string  `json:"viewerKind,omitempty"`
-	Children       []Node  `json:"children,omitempty"`
-	ChildrenLoaded *bool   `json:"childrenLoaded,omitempty"`
-	Size           int64   `json:"size,omitempty"`
-	MtimeMs        float64 `json:"mtimeMs,omitempty"`
-	Version        int     `json:"version,omitempty"`
+	DocumentHeading *string `json:"documentHeading,omitempty"`
+	ID              string  `json:"id"`
+	Path            string  `json:"path"`
+	Name            string  `json:"name"`
+	Kind            string  `json:"kind"`
+	ParentPath      *string `json:"parentPath"`
+	ViewerKind      string  `json:"viewerKind,omitempty"`
+	Children        []Node  `json:"children,omitempty"`
+	ChildrenLoaded  *bool   `json:"childrenLoaded,omitempty"`
+	Size            int64   `json:"size,omitempty"`
+	MtimeMs         float64 `json:"mtimeMs,omitempty"`
+	Version         int     `json:"version,omitempty"`
 }
 
 type TreeStats struct {
@@ -136,6 +137,8 @@ type fileSearchIndex struct {
 }
 
 type FS struct {
+	headingMu        sync.Mutex
+	headingCache     map[string]headingCacheEntry
 	root             string
 	rootReal         string
 	ignored          map[string]bool
@@ -234,6 +237,7 @@ func (fsys *FS) readDirectory(relativePath string, depth int, bounded bool) (Tre
 	if bounded {
 		nodes = projectTreeDepth(allNodes, depth)
 	}
+	fsys.populateDocumentHeadings(nodes)
 	stats.ReturnedNodes = countTreeNodes(nodes)
 	stats.DurationMs = time.Since(started).Milliseconds()
 	operation.Record(context.Background(), "workspace.read_tree", telemetry.OperationStats{
@@ -256,7 +260,18 @@ func (fsys *FS) readDirectory(relativePath string, depth int, bounded bool) (Tre
 }
 
 func (fsys *FS) ReadFile(relativePath string) (FilePayload, error) {
-	resolved, err := fsys.resolveFile(relativePath)
+	return fsys.readFile(relativePath, false)
+}
+
+// ReadPreviewResource permits image dependencies outside the document include
+// filter. Explicit exclusions, ignored paths, root confinement and size limits
+// are identical to ordinary reads.
+func (fsys *FS) ReadPreviewResource(relativePath string) (FilePayload, error) {
+	return fsys.readFile(relativePath, true)
+}
+
+func (fsys *FS) readFile(relativePath string, previewImage bool) (FilePayload, error) {
+	resolved, err := fsys.resolveFile(relativePath, previewImage)
 	if err != nil {
 		return FilePayload{}, err
 	}
@@ -620,12 +635,12 @@ type resolvedPath struct {
 	relative string
 }
 
-func (fsys *FS) resolveFile(input string) (resolvedPath, error) {
+func (fsys *FS) resolveFile(input string, previewImage bool) (resolvedPath, error) {
 	resolved, err := fsys.resolvePath(input, true)
 	if err != nil {
 		return resolvedPath{}, err
 	}
-	if !fsys.isIncluded(resolved.relative) {
+	if !fsys.isIncluded(resolved.relative) && !(previewImage && ClassifyViewer(resolved.relative) == "image") {
 		return resolvedPath{}, requestError("path is excluded")
 	}
 	return resolved, nil

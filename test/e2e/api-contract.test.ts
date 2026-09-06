@@ -199,31 +199,33 @@ it("serves the language-independent workspace API contract", async () => {
     expect.objectContaining({ id: created.id, path: "README.md" }),
   );
 
-  const resolved = await patchJson<{
-    id: string;
-    status: string;
-    resolvedAt?: string;
-  }>(`/api/v1/comments/${created.id}`, { status: "resolved" });
-  expect(resolved).toMatchObject({ id: created.id, status: "resolved" });
-  expect(resolved.resolvedAt).toEqual(expect.any(String));
+  const rejected = await fetchRoute(`/api/v1/comments/${created.id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ status: "resolved" }),
+  });
+  expect(rejected.status).toBe(400);
+  await patchJson(`/api/v1/comments/${created.id}`, {
+    body: "Updated contract comment",
+  });
 
   const openComments = await fetchJson<Array<{ id: string }>>(
     "/api/v1/comments?status=open",
   );
-  expect(openComments.map((comment) => comment.id)).not.toContain(created.id);
+  expect(openComments.map((comment) => comment.id)).toContain(created.id);
 
   const exported = await fetchRoute(
-    "/api/v1/comments/export?status=resolved&format=jsonl",
+    "/api/v1/comments/export?status=open&format=jsonl",
   ).then((response) => response.text());
   const exportedLines = exported.trim().split("\n").filter(Boolean);
   expect(exportedLines.map((line) => JSON.parse(line))).toContainEqual(
     expect.objectContaining({
       id: created.id,
       path: "README.md",
-      status: "resolved",
+      status: "open",
       type: "commentThread",
       comments: expect.arrayContaining([
-        expect.objectContaining({ body: "Contract comment" }),
+        expect.objectContaining({ body: "Updated contract comment" }),
       ]),
     }),
   );

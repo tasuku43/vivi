@@ -55,7 +55,7 @@ it(
   goCliHelpTimeoutMs,
 );
 
-it("keeps review and comments help reachable through the default bin", () => {
+it("rejects removed review and comments commands through the default bin", () => {
   for (const args of [
     ["review", "--help"],
     ["comments", "--help"],
@@ -78,14 +78,9 @@ it("keeps review and comments help reachable through the default bin", () => {
       },
     );
 
-    expect(result.status).toBe(0);
-    expect(result.stdout).toContain(
-      args[0] === "review"
-        ? "vivi review - agent-oriented Git review CLI"
-        : args[1] === "work"
-          ? "vivi comments work - compact resident feedback loop"
-          : "vivi comments - agent-oriented comment thread CLI",
-    );
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("has been removed");
+    expect(result.stderr).toContain("vivi servers and vivi inbox <url>");
   }
 });
 
@@ -229,9 +224,7 @@ it("rejects the removed resident top-level inbox surface", () => {
       shared,
     );
     expect(removed.status).not.toBe(0);
-    expect(removed.stderr).toContain(
-      `vivi ${command} was removed with the resident inbox workflow`,
-    );
+    expect(removed.stderr).toContain(`command "${command}" has been removed`);
   }
 });
 
@@ -270,11 +263,10 @@ it("documents npm as a local Go CLI delegate, not a TypeScript CLI path", () => 
   expect(cliContract).toContain("one-shot top-level `inbox <url>`");
   expect(cliContract).not.toContain("vivi reply");
   expect(cliContract).toContain(
-    "`comments work` is a legacy integrated intake loop",
+    "Ownership, resident loops, and task lifecycle commands are removed",
   );
   expect(readme).toContain("npm exec -- vivi --help");
-  expect(cliContract).toContain("comments watch");
-  expect(cliContract).toContain("comments follow");
+
   expect(cliContract).not.toContain("dist/typescript/cli/typescript/main.js");
 });
 

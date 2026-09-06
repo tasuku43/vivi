@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="ja">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  />
+  <title>Vivi · サイドバーの構造表現</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0c151c;
+      --panel: #141f28;
+      --text: #e3ecf0;
+      --muted: #9aadb9;
+      --line: #293b46;
+      --accent: #8ed5df;
+      --selected: #203843;
+      --width: 260px;
+    }
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --bg: #fff;
+      --panel: #f2f6f8;
+      --text: #1b303e;
+      --muted: #576e7b;
+      --line: #cedce4;
+      --accent: #126780;
+      --selected: #dfedf3;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font:
+        14px/1.6 -apple-system,
+        BlinkMacSystemFont,
+        sans-serif;
+    }
+    main {
+      max-width: 1250px;
+      margin: auto;
+      padding: 32px;
+    }
+    h1 {
+      font-size: 30px;
+      letter-spacing: -0.04em;
+      margin: 8px 0;
+    }
+    p {
+      margin: 8px 0;
+      color: var(--muted);
+    }
+    .eyebrow {
+      color: var(--accent);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin: 24px 0;
+      font-size: 12px;
+      flex-wrap: wrap;
+    }
+    button,
+    select {
+      font: inherit;
+      color: inherit;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    button:focus-visible,
+    summary:focus-visible,
+    select:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    .scroll {
+      overflow: auto;
+      padding-bottom: 12px;
+    }
+    .compare {
+      display: grid;
+      grid-template-columns: repeat(3, var(--width));
+      gap: 22px;
+      width: max-content;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--panel);
+    }
+    header {
+      padding: 16px;
+      height: 172px;
+      border-bottom: 1px solid var(--line);
+    }
+    header h2 {
+      font-size: 18px;
+      line-height: 1.4;
+      margin: 5px 0 10px;
+    }
+    header p,
+    footer {
+      font-size: 12px;
+    }
+    header .tag {
+      font-size: 10px;
+      color: var(--accent);
+    }
+    .tree {
+      height: 585px;
+      overflow: auto;
+      padding: 10px 6px;
+    }
+    .root {
+      padding: 5px 7px 13px;
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+    }
+    .children {
+      margin-left: 12px;
+      padding-left: 0;
+    }
+    .b .children,
+    .c .children {
+      border-left: 1px solid var(--line);
+      margin-left: 13px;
+      padding-left: 0;
+    }
+    summary {
+      list-style: none;
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      cursor: pointer;
+      padding: 6px 4px;
+      font-size: 12px;
+      height: 32px;
+    }
+    summary::-webkit-details-marker {
+      display: none;
+    }
+    .chevron {
+      width: 12px;
+      height: 12px;
+      color: var(--muted);
+      flex: none;
+      transition: transform 0.1s;
+    }
+    details[open] > summary > .chevron {
+      transform: rotate(90deg);
+    }
+    .icon {
+      height: 15px;
+      width: 15px;
+      flex: none;
+      color: var(--muted);
+    }
+    .row {
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      text-align: left;
+      width: 100%;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      padding: 6px 5px 6px 21px;
+      min-height: 46px;
+      position: relative;
+    }
+    .row:hover,
+    summary:hover {
+      background: var(--selected);
+    }
+    .row[aria-current="true"] {
+      background: var(--selected);
+      box-shadow: inset 2px 0 var(--accent);
+    }
+    .row .icon {
+      margin-top: 3px;
+    }
+    .label {
+      display: block;
+      min-width: 0;
+      flex: 1;
+    }
+    .name {
+      display: block;
+      font-size: 12px;
+      line-height: 20px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .h1 {
+      display: block;
+      font-size: 10px;
+      line-height: 17px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .dot {
+      font-size: 8px;
+      color: #dcba83;
+      align-self: center;
+    }
+    .b .row,
+    .c .row {
+      padding-left: 17px;
+    }
+    .c summary {
+      font-weight: 600;
+    }
+    .c .children {
+      margin-left: 9px;
+    }
+    .c .row {
+      padding-left: 13px;
+    }
+    .b .folder-text {
+      font-weight: 500;
+    }
+    footer {
+      border-top: 1px solid var(--line);
+      padding: 14px 16px;
+      min-height: 120px;
+      color: var(--muted);
+    }
+    footer strong {
+      color: var(--text);
+    }
+    .detail {
+      border: 1px solid var(--line);
+      padding: 14px 18px;
+      margin-top: 20px;
+      font-size: 12px;
+      max-width: 824px;
+    }
+    .detail strong {
+      display: block;
+      font-size: 15px;
+    }
+    .detail code {
+      color: var(--muted);
+      overflow-wrap: anywhere;
+    }
+    .recommend {
+      max-width: 824px;
+      margin-top: 20px;
+    }
+    svg {
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+  </style>
+  <main>
+    <div class="eyebrow">VIVI / STRUCTURE STUDY · 49</div>
+    <h1>階層を、何で伝えるか。</h1>
+    <p>ファイル名＋H1の2段表示は共通。構造の手掛かりだけを変えた3案です。</p>
+    <div class="controls">
+      <label
+        >サイドバー幅
+        <select id="width">
+          <option value="210">210px · 本体の初期幅</option>
+          <option value="260" selected>260px · 比較用</option>
+          <option value="320">320px · 広め</option>
+        </select></label
+      ><button id="theme">ライトで比較</button
+      ><span>フォルダーは開閉可能。同じ文書の選択が3案に反映されます。</span>
+    </div>
+    <div class="scroll"><div class="compare" id="compare"></div></div>
+    <div class="detail">
+      <strong id="title">初回レビューを始める</strong
+      ><code id="path">docs/guides/01-start.md</code>
+    </div>
+    <p class="recommend">
+      推奨は
+      <strong>B</strong
+      >。フォルダーの形と薄い縦線で親子関係を伝え、文書行はファイル名とH1に集中させます。ファイル形式の見分けを優先するならAが合います。
+    </p>
+  </main>
+  <script>
+    const data = [
+      ["README.md", "Vivi — ローカル文書を読む"],
+      [
+        "docs",
+        [
+          ["README.md", "ドキュメントの読み方"],
+          [
+            "guides",
+            [
+              ["01-start.md", "初回レビューを始める"],
+              ["02-feedback.md", "下書きから公開まで"],
+              [
+                "advanced",
+                [
+                  ["01-team-review.md", "チームでレビューを引き継ぐ"],
+                  ["02-local-html.html", "ローカルHTMLを安全に読む"],
+                ],
+              ],
+            ],
+          ],
+          [
+            "product",
+            [
+              ["00-thesis.md", "読む・考える・伝える"],
+              ["01-brief.md", "プロダクトの範囲"],
+              ["notes.md", ""],
+            ],
+          ],
+          ["ui-mocks", [["48-document-titles.html", "ツリーに文書の名前を"]]],
+        ],
+      ],
+      ["archive", [["2025-review.md", "昨年のレビュー"]]],
+      ["CHANGELOG.md", "変更履歴"],
+    ];
+    const concepts = [
+      [
+        "a",
+        "A · 形式も形で伝える",
+        "全行アイコン＋字下げ",
+        "フォルダーと文書形式を線画で区別。階層はインデントで示します。",
+        "形式を探しやすい。",
+        "深い階層ではアイコンの分だけ名前の表示幅を使います。",
+      ],
+      [
+        "b",
+        "B · 構造だけを強調",
+        "フォルダー＋ガイド線",
+        "文書アイコンを省き、親フォルダーとのつながりを薄い縦線で示します。",
+        "親子関係と文書名を両立。",
+        "形式は拡張子で読み取ります。フォルダーの形は操作の手掛かりとして残ります。",
+      ],
+      [
+        "c",
+        "C · 文字を主役に",
+        "開閉記号＋ガイド線",
+        "アイコンをすべて省き、開閉記号・字下げ・縦線で構造を表します。",
+        "最も静かで名前が広く見える。",
+        "フォルダーとファイルの違いが小さく、一覧を読む慣れが必要です。",
+      ],
+    ];
+    function el(tag, cls, text) {
+      const e = document.createElement(tag);
+      e.className = cls || "";
+      if (text) e.textContent = text;
+      return e;
+    }
+    function svg(kind) {
+      const e = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      e.setAttribute("viewBox", "0 0 20 20");
+      e.setAttribute("aria-hidden", "true");
+      e.classList.add(kind === "chevron" ? "chevron" : "icon");
+      const paths = {
+        chevron: "m7 5 5 5-5 5",
+        folder: "M2 6V4h6l2 2h8v11H2Z",
+        md: "M5 2h7l4 4v12H5Z M12 2v5h4 M8 10h5 M8 13h5",
+        html: "M5 2h7l4 4v12H5Z M8 10l-2 2 2 2 M12 10l2 2-2 2",
+        file: "M5 2h7l4 4v12H5Z M12 2v5h4",
+        image: "M2 3h16v14H2Z M3 15l5-5 4 4 3-3 3 3 M6 7h.1",
+      };
+      const p = document.createElementNS(e.namespaceURI, "path");
+      p.setAttribute("d", paths[kind]);
+      e.append(p);
+      return e;
+    }
+    function tree(items, host, mode, prefix = "") {
+      for (const [name, value] of items) {
+        const path = prefix ? prefix + "/" + name : name;
+        if (Array.isArray(value)) {
+          const d = el("details");
+          d.open = name !== "archive";
+          const s = el("summary");
+          s.append(svg("chevron"));
+          if (mode !== "c") s.append(svg("folder"));
+          s.append(el("span", "folder-text", name));
+          const children = el("div", "children");
+          tree(value, children, mode, path);
+          d.append(s, children);
+          host.append(d);
+        } else {
+          const b = el("button", "row");
+          b.dataset.path = path;
+          b.setAttribute(
+            "aria-current",
+            String(path === "docs/guides/01-start.md"),
+          );
+          b.title = path + (value ? "\n" + value : "");
+          if (mode === "a")
+            b.append(
+              svg(
+                name.endsWith(".md")
+                  ? "md"
+                  : name.endsWith(".html")
+                    ? "html"
+                    : name.endsWith(".png")
+                      ? "image"
+                      : "file",
+              ),
+            );
+          const label = el("span", "label");
+          label.append(el("span", "name", name));
+          if (value) label.append(el("span", "h1", value));
+          b.append(label);
+          if (name === "02-feedback.md") {
+            const dot = el("span", "dot", "●");
+            dot.setAttribute("aria-label", "変更あり");
+            b.append(dot);
+          }
+          b.addEventListener("click", () => {
+            document
+              .querySelectorAll(".row")
+              .forEach((row) =>
+                row.setAttribute(
+                  "aria-current",
+                  String(row.dataset.path === path),
+                ),
+              );
+            document.getElementById("title").textContent = value || name;
+            document.getElementById("path").textContent = path;
+          });
+          host.append(b);
+        }
+      }
+    }
+    for (const [mode, tag, title, desc, benefit, trade] of concepts) {
+      const card = el("section", "card " + mode),
+        head = el("header");
+      head.append(
+        el("span", "tag", tag),
+        el("h2", "", title),
+        el("p", "", desc),
+      );
+      const t = el("nav", "tree");
+      t.setAttribute("aria-label", tag);
+      const root = el("div", "root");
+      root.append(el("span", "", "DOCUMENTS"), el("span", "", "vivi"));
+      t.append(root);
+      tree(data, t, mode);
+      const f = el("footer");
+      f.append(el("strong", "", benefit), el("p", "", trade));
+      card.append(head, t, f);
+      document.getElementById("compare").append(card);
+    }
+    document
+      .getElementById("width")
+      .addEventListener("change", (e) =>
+        document.documentElement.style.setProperty(
+          "--width",
+          e.target.value + "px",
+        ),
+      );
+    document.getElementById("theme").addEventListener("click", (e) => {
+      const light = document.documentElement.dataset.theme !== "light";
+      document.documentElement.dataset.theme = light ? "light" : "dark";
+      e.target.textContent = light ? "ダークで比較" : "ライトで比較";
+    });
+  </script>
+</html>

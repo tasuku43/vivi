@@ -152,7 +152,7 @@ func (server *Server) handleHTMLPreview(w http.ResponseWriter, r *http.Request) 
 
 func (server *Server) handleRawPreview(w http.ResponseWriter, r *http.Request) {
 	requestedPath := strings.TrimPrefix(r.URL.Path, "/preview/raw/")
-	file, err := server.options.Workspace.ReadFile(requestedPath)
+	file, err := server.app.Preview.ReadResource(requestedPath)
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -169,6 +169,9 @@ func (server *Server) handleRawPreview(w http.ResponseWriter, r *http.Request) {
 		contentType = "application/octet-stream"
 	}
 	w.Header().Set("content-type", contentType)
+	if contentType == "image/svg+xml" {
+		w.Header().Set("content-security-policy", "sandbox; default-src 'none'; style-src 'unsafe-inline'")
+	}
 	w.Header().Set("x-content-type-options", "nosniff")
 	w.Header().Set("cache-control", "no-store")
 	if file.Encoding == "base64" {
@@ -362,6 +365,9 @@ func (server *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) publish(event application.WorkspaceEvent) {
+	if server.options.Workspace != nil {
+		server.options.Workspace.InvalidateDocumentHeading(event.Path)
+	}
 	server.app.PublishWorkspaceEvent(event)
 }
 
@@ -1017,19 +1023,17 @@ pre{border:1px solid %s;border-radius:8px;padding:12px;overflow:auto;}
 	.vivi-rendered-comment-block{--rendered-comment-block-left:0px;--rendered-comment-block-right:0px;--soft-line:%s;--panel:%s;--palette:%s;--comment-tint:%s;--comment-tint-active:%s;--comment-line:%s;--comment-text:%s;isolation:isolate;position:relative;z-index:0;border-radius:8px;transition:background 140ms ease,box-shadow 140ms ease;}
 	li.vivi-rendered-comment-block{--rendered-comment-block-left:calc(-1.45em);}
 	.vivi-rendered-comment-block:not(tr)::before{content:"";position:absolute;z-index:0;top:0;right:var(--rendered-comment-block-right);bottom:0;left:var(--rendered-comment-block-left);border-radius:inherit;pointer-events:none;transition:background 140ms ease,box-shadow 140ms ease;}
-	.vivi-rendered-comment-block:not(tr)>*{position:relative;z-index:1;}
+	.vivi-rendered-comment-block:not(tr)>:not(.rendered-comment-marker){position:relative;z-index:1;}
 	.vivi-rendered-comment-block.hover-rendered-comment-block:not(tr)::before,tr.vivi-rendered-comment-block.hover-rendered-comment-block{background:var(--soft-line);}
+	.vivi-rendered-comment-block.has-rendered-comment:not(.active-rendered-comment):not(.drafting-rendered-comment):focus-within:not(tr)::before{background:var(--soft-line);}
 		.vivi-rendered-comment-block.has-rendered-comment,.vivi-rendered-comment-block.drafting-rendered-comment{border-radius:8px;}
-		.vivi-rendered-comment-block.has-rendered-comment:not(tr),.vivi-rendered-comment-block.drafting-rendered-comment:not(tr){background:transparent;box-shadow:none;}
-		blockquote.vivi-rendered-comment-block.has-rendered-comment,blockquote.vivi-rendered-comment-block.drafting-rendered-comment,blockquote.vivi-rendered-comment-block.active-rendered-comment{border-left-color:transparent!important;}
-		.vivi-rendered-comment-block.has-rendered-comment:not(tr)::before,.vivi-rendered-comment-block.drafting-rendered-comment:not(tr)::before,tr.vivi-rendered-comment-block.has-rendered-comment,tr.vivi-rendered-comment-block.drafting-rendered-comment{background:linear-gradient(90deg,var(--comment-tint-active),color-mix(in srgb,var(--comment-tint) 56%%,transparent) 68%%,transparent);box-shadow:inset 2px 0 0 var(--comment-line);}
-	.vivi-rendered-comment-block.active-rendered-comment{background:transparent;box-shadow:none;}
-	.vivi-rendered-comment-block.active-rendered-comment:not(tr)::before,tr.vivi-rendered-comment-block.active-rendered-comment{background:linear-gradient(90deg,color-mix(in srgb,var(--comment-tint-active) 86%%,white),var(--comment-tint) 72%%,transparent);box-shadow:inset 3px 0 0 var(--comment-text),0 0 0 1px color-mix(in srgb,var(--comment-line) 46%%,transparent);}
+	.vivi-rendered-comment-block.drafting-rendered-comment:not(tr)::before,tr.vivi-rendered-comment-block.drafting-rendered-comment{background:var(--comment-tint);box-shadow:inset 2px 0 0 var(--comment-line);}
+	.vivi-rendered-comment-block.active-rendered-comment:not(tr)::before,tr.vivi-rendered-comment-block.active-rendered-comment{background:var(--comment-tint);box-shadow:inset 2px 0 0 var(--comment-text);}
 	.vivi-rendered-comment-block.rendered-comment-range-start.has-rendered-comment,.vivi-rendered-comment-block.rendered-comment-range-start.drafting-rendered-comment{border-bottom-left-radius:0;border-bottom-right-radius:0;}
 	.vivi-rendered-comment-block.rendered-comment-range-middle.has-rendered-comment,.vivi-rendered-comment-block.rendered-comment-range-middle.drafting-rendered-comment{border-radius:0;}
 	.vivi-rendered-comment-block.rendered-comment-range-end.has-rendered-comment,.vivi-rendered-comment-block.rendered-comment-range-end.drafting-rendered-comment{border-top-left-radius:0;border-top-right-radius:0;}
-	.vivi-rendered-comment-block.rendered-comment-range-join-after:not(tr)::after{content:"";position:absolute;z-index:1;left:var(--rendered-comment-block-left);right:var(--rendered-comment-block-right);top:100%%;height:var(--rendered-comment-join-after,0);pointer-events:none;background:linear-gradient(90deg,var(--comment-tint-active),color-mix(in srgb,var(--comment-tint) 56%%,transparent) 68%%,transparent);}
-	.vivi-rendered-comment-block.active-rendered-comment.rendered-comment-range-join-after:not(tr)::after{background:linear-gradient(90deg,color-mix(in srgb,var(--comment-tint-active) 86%%,white),var(--comment-tint) 72%%,transparent);}
+	.vivi-rendered-comment-block.rendered-comment-range-join-after:not(tr)::after{content:"";position:absolute;z-index:1;left:var(--rendered-comment-block-left);right:var(--rendered-comment-block-right);top:100%%;height:var(--rendered-comment-join-after,0);pointer-events:none;background:transparent;}
+	.vivi-rendered-comment-block.active-rendered-comment.rendered-comment-range-join-after:not(tr)::after,.vivi-rendered-comment-block.drafting-rendered-comment.rendered-comment-range-join-after:not(tr)::after{background:var(--comment-tint);}
 	.rendered-comment-marker{position:absolute;z-index:2147483646;top:calc(50%% + 1px);right:8px;width:20px;height:20px;border:1px solid var(--comment-line);border-radius:6px;background:var(--panel);color:var(--comment-text);box-shadow:0 5px 14px rgba(0,0,0,.22);cursor:pointer;padding:0;transform:translateY(-50%%);transition:background 140ms ease,border-color 140ms ease,transform 140ms ease;}
 	.rendered-comment-marker::before{content:"";position:absolute;left:5px;top:5px;width:7px;height:6px;border:1.25px solid currentColor;border-radius:3px;}
 	.rendered-comment-marker::after{content:"";position:absolute;left:7px;top:10px;width:3px;height:3px;border-left:1.25px solid currentColor;transform:skew(-22deg);}
@@ -1073,7 +1077,9 @@ pre{border:1px solid %s;border-radius:8px;padding:12px;overflow:auto;}
   const readableText = (element) => {
     const clone = element?.cloneNode(true);
     clone?.querySelectorAll?.(".rendered-comment-marker").forEach((item) => item.remove());
-    return (clone?.innerText || clone?.textContent || "").replace(/\s+/g, " ").trim();
+    const text = (clone?.innerText || clone?.textContent || "").replace(/\s+/g, " ").trim();
+    if (text) return text;
+    return Array.from(clone?.querySelectorAll?.("img") || []).map((image) => image.getAttribute("alt")?.trim() || "Image").join(" ");
   };
   const rectLikeForBlocks = (blocks) => {
     if (!blocks.length) return null;

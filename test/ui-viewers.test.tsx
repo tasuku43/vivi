@@ -148,7 +148,7 @@ it("renders the topbar as brand, workspace identity, and distinct actions", () =
   expect(html).toContain("Theme");
   expect(html).toContain("System");
   expect(html).toContain('aria-label="Open command palette"');
-  expect(html).toContain("Command");
+  expect(html).toContain("Find a document");
   expect(html).toContain("Cmd/Ctrl K");
   expect(html).toContain("Cmd/Ctrl Shift F");
   expect(html).toContain('aria-keyshortcuts="Meta+K Control+K"');
@@ -187,13 +187,14 @@ it("opens topbar overlays from native button clicks", () => {
   expect(renderToStaticMarkup(topbar)).not.toContain("Open Comments hub");
 });
 
-it("renders workspace status as a readable local-review instrument", () => {
+it("keeps operational detail in a collapsed disclosure while drafts stay visible", () => {
   const status = {
     workspace: "Watching 42 files · 3 tabs open",
     activeFile: "brief.md · preview · rendered",
     review: "4 files to review · 2 threads open · 1 draft",
     server: "Updating review + 2 diffs",
     serverTone: "pending" as const,
+    draftCount: 1,
     detail: "3 review refreshes · last review 12ms",
   };
   const html = renderToStaticMarkup(<WorkspaceStatusbar status={status} />);
@@ -204,6 +205,9 @@ it("renders workspace status as a readable local-review instrument", () => {
   expect(html).toContain(
     'aria-label="Workspace status · Workspace: Watching 42 files · 3 tabs open · Current file: brief.md · preview · rendered · Feedback: 4 files to review · 2 threads open · 1 draft · Live updates: Updating review + 2 diffs"',
   );
+  expect(html).toContain('aria-expanded="false"');
+  expect(html).toContain('hidden="" aria-label="Workspace details"');
+  expect(html).toContain("not published");
   expect(html).toContain("Workspace");
   expect(html).toContain("Current");
   expect(html).toContain("Feedback");
@@ -284,12 +288,10 @@ it("renders open files as an accessible tab set", () => {
   expect(html).toContain('tabindex="-1"');
   expect(html).toContain('data-tab-path="src/app.ts"');
   expect(html).toContain('aria-label="Tab management"');
-  expect(html).toContain("Keep tab");
-  expect(html).toContain("Close others");
-  expect(html).toContain("Close right");
-  expect(html).toContain("Close clean");
-  expect(html).toContain("Close previews");
-  expect(html).toContain("Keep this preview open as a normal tab");
+  expect(html).toContain('aria-label="Tab actions"');
+  expect(html).toContain('aria-haspopup="menu"');
+  expect(html).toContain('aria-expanded="false"');
+  expect(html).not.toContain('role="menuitem"');
   expect(html).toContain("preview");
   expect(html).toContain("changed");
 });
@@ -428,7 +430,7 @@ it("keeps the default command palette search-oriented", () => {
   );
 
   expect(html).toContain("Quick open");
-  expect(html).toContain("Command palette");
+  expect(html).toContain('aria-label="Search keyboard hints"');
   expect(html).toContain("Files");
   expect(html).toContain("Text");
   expect(html).toContain("README.md");
@@ -441,8 +443,8 @@ it("keeps the default command palette search-oriented", () => {
   expect(html).toContain('tabindex="0"');
   expect(html).toContain('tabindex="-1"');
   expect(html).toContain("Cmd/Ctrl Enter");
-  expect(html).toContain("Cmd/Ctrl K");
-  expect(html).toContain("Cmd/Ctrl Shift F");
+  expect(html).toContain("Navigate");
+  expect(html).toContain("Close");
   expect(html).not.toContain("Actions");
   expect(html).not.toContain("run action");
   expect(html).not.toContain("Run action");
@@ -642,7 +644,7 @@ it("renders command palette actions for review navigation", () => {
   expect(html).toContain("Next draft comment");
   expect(html).toContain("Show diff");
   expect(html).toContain("Run action");
-  expect(html).toContain("Filter actions");
+  expect(html).toContain("Type a command...");
   expect(html).toContain("Switch mode");
   expect(html).toMatch(/<kbd class="[^"]+">Tab<\/kbd>/);
   expect(html).not.toContain("Preview");
@@ -1777,7 +1779,7 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
     "Use Down Arrow, Up Arrow, Home, and End to move between review",
   );
   expect(html).toContain('aria-label="Filter review queue by signal"');
-  expect(html).toContain('for="review-signal-filter-all">All <span>3</span>');
+  expect(html).toContain('for="review-signal-filter-all">All</label>');
   expect(html).toContain(
     'for="review-signal-filter-unread">Unseen <span>1</span>',
   );
@@ -2169,7 +2171,7 @@ it("autofocuses new inline comments", () => {
     'aria-describedby="comment-composer-mode-src-app-ts-4-4 comment-input-hint-src-app-ts-4-4"',
   );
   expect(html).toMatch(
-    /<kbd class="[^"]+">Cmd\/Ctrl Enter<\/kbd> to save pending draft/,
+    /<kbd class="[^"]+">Cmd\/Ctrl Enter<\/kbd> to save draft/,
   );
   expect(html).toContain("autofocus");
 });
@@ -2442,7 +2444,7 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
     'aria-label="Review queue signal ledger, 2 active files, 1 unseen, 0 with drafts, 1 changed"',
   );
   expect(html).not.toContain("Reviewed");
-  expect(html).toContain('for="review-signal-filter-all">All <span>2</span>');
+  expect(html).toContain('for="review-signal-filter-all">All</label>');
   expect(html).toContain(
     'for="review-signal-filter-unread">Unseen <span>1</span>',
   );
@@ -3222,7 +3224,7 @@ it("does not mark comment-only Review Queue results complete while Git review is
   expect(html).toContain(
     'aria-label="Review queue signal ledger, 1 active file, 0 unseen, 0 with drafts, 0 changed"',
   );
-  expect(html).toContain('for="review-signal-filter-all">All <span>1</span>');
+  expect(html).toContain('for="review-signal-filter-all">All</label>');
   expect(html).toContain("Loading Git review");
   expect(html).toContain("unseen feedback may appear before changed files");
   expect(html).not.toContain("all seen");
@@ -4329,11 +4331,9 @@ it("surfaces review work, comments, unread state, and open tabs in the tree", ()
   expect(html).toContain('aria-level="2"');
   expect(html).toContain('aria-selected="true"');
   expect(html).toContain(
-    "current review.md · 2 attention · 2 review files · 3 comments · 2 open tabs",
+    "current review.md · 2 attention · 2 review files · 3 comments",
   );
-  expect(html).toContain(
-    "attention · review · 3 comments · changed · open tab",
-  );
+  expect(html).toContain("attention · review · 3 comments · changed");
   expect(html).toContain("attention · current stop · review");
   expect(html).toContain(
     'aria-label="docs, folder, expanded, contains selected file, contains current review stop review.md, 2 open files, 2 review files, 2 unseen feedback files, 3 comments"',
@@ -4345,7 +4345,7 @@ it("surfaces review work, comments, unread state, and open tabs in the tree", ()
     'aria-label="review.md, file, review file, unseen feedback, current review stop"',
   );
   expect(html).toContain(
-    'title="Click to preview; double-click to keep open as a tab"',
+    'title="docs/brief.md\nClick to preview; double-click to keep open as a tab"',
   );
   expect(html).toContain('tabindex="0"');
   expect(html).toContain(">now</span>");
@@ -4490,4 +4490,76 @@ it("renders Mermaid diagrams with the official Mermaid runtime", () => {
   expect(html).toContain("Rendering Mermaid diagram");
   expect(html).toContain("mermaid-render-target");
   expect(html).not.toContain("mermaid-svg");
+});
+
+it("keeps the filename primary and exposes plain-text H1 without treating it as markup", () => {
+  const html = renderToStaticMarkup(
+    <TreeSidebar
+      nodes={[
+        {
+          id: "guide.md",
+          path: "guide.md",
+          name: "guide.md",
+          kind: "file",
+          parentPath: null,
+          viewerKind: "markdown",
+          documentHeading: "Read <script> safely",
+        },
+      ]}
+      selectedPath="guide.md"
+      onSelect={() => undefined}
+      onOpen={() => undefined}
+    />,
+  );
+  expect(html).toContain('data-tree-path="guide.md"');
+  expect(html).toContain(
+    'title="guide.md\nRead &lt;script&gt; safely\nClick to preview; double-click to keep open as a tab"',
+  );
+  expect(html).toContain(
+    'aria-label="guide.md — Read &lt;script&gt; safely, file, selected"',
+  );
+  expect(html.indexOf(">guide.md</span>")).toBeLessThan(
+    html.indexOf(">Read &lt;script&gt; safely</span>"),
+  );
+  expect(html).not.toContain("<script>");
+});
+
+it("uses decorative folder icons and depth guides without document icons", () => {
+  const html = renderToStaticMarkup(
+    <TreeSidebar
+      nodes={[
+        {
+          id: "docs",
+          path: "docs",
+          name: "docs",
+          kind: "directory",
+          parentPath: null,
+          children: [
+            {
+              id: "docs/guide.md",
+              path: "docs/guide.md",
+              name: "guide.md",
+              kind: "file",
+              parentPath: "docs",
+              viewerKind: "markdown",
+              documentHeading: "Start reading",
+            },
+          ],
+        },
+      ]}
+      selectedPath="docs/guide.md"
+      onSelect={() => undefined}
+      onOpen={() => undefined}
+    />,
+  );
+  expect(html).toContain('data-folder-icon="true"');
+  expect(html).toContain('data-tree-guide="true"');
+  expect(html).toContain('aria-level="2"');
+  expect(html).toContain("Start reading");
+  expect(html).not.toContain("📁");
+  expect(html).not.toContain("📘");
+  const fileRow = html.slice(
+    html.indexOf('<button data-tree-path="docs/guide.md"'),
+  );
+  expect(fileRow).not.toContain("<svg");
 });

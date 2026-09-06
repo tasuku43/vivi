@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="ja">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  />
+  <title>Vivi · サイドバーの選択状態</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0c151c;
+      --panel: #111d24;
+      --card: #14212a;
+      --text: #e3edf1;
+      --muted: #9bb0ba;
+      --line: #2a3c45;
+      --accent: #78c5d2;
+      --selection: #25404b;
+      --hover: #1b2c36;
+      --width: 210px;
+    }
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --bg: #f6f8fa;
+      --panel: #f0f4f6;
+      --card: #fff;
+      --text: #233842;
+      --muted: #62747e;
+      --line: #d6e0e5;
+      --accent: #237b92;
+      --selection: #d6e8ef;
+      --hover: #e3ebef;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font:
+        14px/1.6 -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    }
+    main {
+      max-width: 1190px;
+      margin: 0 auto;
+      padding: 34px 32px 50px;
+    }
+    header small {
+      color: var(--accent);
+      letter-spacing: 0.1em;
+    }
+    h1 {
+      font-size: 27px;
+      letter-spacing: -0.03em;
+      margin: 8px 0;
+    }
+    p {
+      margin: 0;
+      color: var(--muted);
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+      margin: 22px 0 26px;
+    }
+    button,
+    select {
+      font: inherit;
+      color: inherit;
+    }
+    select,
+    .toggle {
+      padding: 6px 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--card);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 22px;
+    }
+    .concept {
+      min-width: 0;
+    }
+    .concept h2 {
+      font-size: 17px;
+      margin: 0 0 6px;
+    }
+    .tag {
+      font-size: 10px;
+      margin-left: 8px;
+      background: var(--selection);
+      color: var(--accent);
+      padding: 3px 6px;
+      border-radius: 4px;
+    }
+    .intro {
+      min-height: 65px;
+      font-size: 12px;
+    }
+    .stage {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      min-height: 450px;
+    }
+    .stagebar {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .sidebar {
+      width: var(--width);
+      max-width: 100%;
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+      min-height: 415px;
+      padding: 12px 6px;
+    }
+    .caption {
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      padding: 0 10px 10px;
+    }
+    .row {
+      border: 0;
+      position: relative;
+      display: flex;
+      width: 100%;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 8px 5px calc(8px + var(--depth) * 14px);
+      border-radius: 5px;
+      background: transparent;
+      text-align: left;
+      color: var(--muted);
+      cursor: pointer;
+      min-height: 30px;
+      line-height: 1.4;
+    }
+    .file {
+      padding-left: calc(25px + var(--depth) * 14px);
+      min-height: 45px;
+    }
+    .row:hover {
+      background: var(--hover);
+    }
+    .row:focus-visible {
+      outline: 1px solid var(--accent);
+      outline-offset: -1px;
+      z-index: 1;
+    }
+    .name {
+      display: block;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      font-size: 13px;
+      font-weight: 450;
+    }
+    .copy {
+      min-width: 0;
+      flex: 1;
+    }
+    .heading {
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 10.5px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .guide {
+      position: absolute;
+      left: var(--x);
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: var(--line);
+      pointer-events: none;
+    }
+    svg.folder {
+      width: 14px;
+      height: 14px;
+      flex: 0 0 14px;
+    }
+    .chevron {
+      width: 10px;
+      flex: 0 0 10px;
+      font-size: 13px;
+      transform: rotate(90deg);
+    }
+    .collapsed .chevron {
+      transform: none;
+    }
+    .other-open {
+      flex: 0 0 4px;
+      height: 4px;
+      background: var(--muted);
+      border-radius: 50%;
+      margin-right: 3px;
+    }
+    .row.selected .other-open {
+      display: none;
+    }
+    .selected .name {
+      font-weight: 600;
+      color: var(--text);
+    }
+    .selected .heading {
+      color: var(--text);
+      opacity: 0.78;
+    }
+    .a .selected {
+      background: var(--selection);
+    }
+    .b .selected {
+      background: color-mix(in srgb, var(--selection) 52%, transparent);
+    }
+    .b .selected:after {
+      content: "";
+      position: absolute;
+      left: 3px;
+      top: 9px;
+      bottom: 9px;
+      width: 2px;
+      border-radius: 2px;
+      background: var(--accent);
+    }
+    .c .selected {
+      background: transparent;
+    }
+    .c .selected .name {
+      color: var(--accent);
+    }
+    .c .selected:after {
+      content: "";
+      position: absolute;
+      left: var(--last-guide);
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--accent);
+    }
+    .c .selected .heading {
+      color: var(--muted);
+      opacity: 1;
+    }
+    .c .ancestor .folder {
+      color: var(--accent);
+    }
+    .c .ancestor .name {
+      color: var(--text);
+    }
+    .collapsed-hidden {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-right: 4px;
+    }
+    .notes {
+      font-size: 12px;
+      margin: 15px 2px 0;
+    }
+    .notes strong {
+      color: var(--text);
+      font-weight: 550;
+    }
+    .states {
+      margin-top: 30px;
+      padding: 20px 22px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    .states h3 {
+      font-size: 14px;
+      margin: 0 0 12px;
+    }
+    .rules {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 22px;
+      font-size: 12px;
+    }
+    .rules strong {
+      display: block;
+      margin-bottom: 3px;
+    }
+    .status {
+      font-size: 11px;
+      margin-top: 16px;
+      color: var(--muted);
+      overflow-wrap: anywhere;
+    }
+    .foot {
+      margin-top: 15px;
+      font-size: 11px;
+    }
+    @media (max-width: 850px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .intro {
+        min-height: 0;
+        margin-bottom: 12px;
+      }
+      .stage {
+        min-height: 0;
+      }
+      .rules {
+        grid-template-columns: 1fr;
+      }
+      main {
+        padding: 22px;
+      }
+    }
+  </style>
+  <main>
+    <header>
+      <small>VIVI / CONCEPT 50</small>
+      <h1>選択は、いま読んでいる1行に。</h1>
+      <p>親フォルダーの面強調と OPEN 表示を外し、文書名とH1に場所を戻す。</p>
+    </header>
+    <div class="controls">
+      <label
+        >幅
+        <select id="width">
+          <option value="210">210px · 現在のコンパクト幅</option>
+          <option value="280">280px · 少し広め</option>
+        </select></label
+      ><button class="toggle" id="theme">ライトで比較</button
+      ><span style="font-size: 12px; color: var(--muted)"
+        >ファイルをクリックして3案を同時に比較。Tabでフォーカスも確認。</span
+      >
+    </div>
+    <div class="grid">
+      <section class="concept a">
+        <h2>A · 1行の面 <span class="tag">おすすめ</span></h2>
+        <p class="intro">
+          選択したファイルだけ、穏やかな背景色で示す。<br />親フォルダーは通常表示に戻す。
+        </p>
+        <div class="stage">
+          <div class="stagebar">文書を探すための、静かなツリー</div>
+          <div class="sidebar" data-variant="a"></div>
+        </div>
+        <p class="notes">
+          <strong>読みやすさを優先。</strong
+          >選択範囲が一目で分かる。配色が淡いテーマでは、背景のコントラストが要になる。
+        </p>
+      </section>
+      <section class="concept b">
+        <h2>B · 短い左マーカー</h2>
+        <p class="intro">
+          薄い背景＋選択行だけに短いアクセント線。<br />現在の左線の文法を整理して残す。
+        </p>
+        <div class="stage">
+          <div class="stagebar">選択位置を、視線の端で見つける</div>
+          <div class="sidebar" data-variant="b"></div>
+        </div>
+        <p class="notes">
+          <strong>見つけやすさを優先。</strong
+          >長い一覧でも選択位置が目に入る。階層の縦線と選択マーカーの2種類の線が残る。
+        </p>
+      </section>
+      <section class="concept c">
+        <h2>C · 枝と文字</h2>
+        <p class="intro">
+          背景は付けず、ファイル名と直近の縦線を強調。<br />親はアイコンの色だけで経路を添える。
+        </p>
+        <div class="stage">
+          <div class="stagebar">階層の中の現在地を、軽く示す</div>
+          <div class="sidebar" data-variant="c"></div>
+        </div>
+        <p class="notes">
+          <strong>軽さと経路を優先。</strong
+          >最も静か。ただし色への依存が強く、行全体の選択範囲はA/Bより分かりにくい。
+        </p>
+      </section>
+    </div>
+    <div class="states">
+      <h3>3案に共通する整理</h3>
+      <div class="rules">
+        <div>
+          <strong>選択 ≠ 開いているタブ</strong>
+          <p>
+            選択は1行。別タブで開いているファイルには小さな中立色の点だけ。OPEN・open
+            tab の補足行は表示しない。
+          </p>
+        </div>
+        <div>
+          <strong>親フォルダー ≠ 選択</strong>
+          <p>
+            展開中の親に面強調は付けない。選択行を隠すまで折りたたんだ時だけ、フォルダー右端に小さな現在地の点を出す。
+          </p>
+        </div>
+        <div>
+          <strong>ホバー ≠ フォーカス</strong>
+          <p>
+            ホバーは薄い背景、キーボードフォーカスは細い輪郭線。選択やホバーによって行の高さを変えない。
+          </p>
+        </div>
+      </div>
+      <div class="status" id="status" aria-live="polite"></div>
+    </div>
+    <p class="foot">
+      HTMLコンセプト比較。フォルダーアイコン＋階層の縦線、ファイル名＋H1の順序は採用済みの方向を継続。レビュー・未読の表示体系は今回の比較対象外。
+    </p>
+  </main>
+  <script>
+    const rows = [
+      ["agent-extensions", 0, "folder", "agent-extensions"],
+      ["docs", 0, "folder", "docs"],
+      ["README.md", 1, "file", "docs/README.md", "Documentation"],
+      ["adr", 1, "folder", "docs/adr"],
+      ["architecture", 1, "folder", "docs/architecture"],
+      [
+        "14-architecture.md",
+        2,
+        "file",
+        "docs/architecture/14-architecture.md",
+        "Architecture",
+      ],
+      [
+        "15-security-model.md",
+        2,
+        "file",
+        "docs/architecture/15-security-model.md",
+        "Security model",
+      ],
+      [
+        "16-performance.md",
+        2,
+        "file",
+        "docs/architecture/16-performance.md",
+        "Performance",
+      ],
+      ["contracts", 1, "folder", "docs/contracts"],
+      ["product", 1, "folder", "docs/product"],
+      ["README.md", 0, "file", "README.md", "Vivi"],
+      ["SECURITY.md", 0, "file", "SECURITY.md", "Security policy"],
+    ];
+    let selected = "docs/architecture/15-security-model.md";
+    const collapsed = new Set([
+      "agent-extensions",
+      "docs/adr",
+      "docs/contracts",
+      "docs/product",
+    ]);
+    const open = new Set([
+      "docs/architecture/15-security-model.md",
+      "README.md",
+    ]);
+    const folder =
+      '<svg class="folder" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.1" aria-hidden="true"><path d="M1.5 4h5l1.4 1.5h6.6v7H1.5z"/></svg>';
+    function render() {
+      document.querySelectorAll(".sidebar").forEach((side) => {
+        side.innerHTML = '<div class="caption">DOCUMENTS</div>';
+        rows.forEach(([name, depth, kind, path, heading]) => {
+          if ([...collapsed].some((parent) => path.startsWith(parent + "/")))
+            return;
+          const ancestor = selected.startsWith(path + "/");
+          const hidden = ancestor && collapsed.has(path);
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = `row ${kind} ${path === selected ? "selected" : ""} ${ancestor ? "ancestor" : ""} ${collapsed.has(path) ? "collapsed" : ""}`;
+          button.style.setProperty("--depth", depth);
+          button.style.setProperty(
+            "--last-guide",
+            14 + (depth - 1) * 14 + "px",
+          );
+          button.title = path + (heading ? "\n" + heading : "");
+          button.setAttribute(
+            "aria-label",
+            path +
+              (kind === "folder" ? " フォルダー" : "") +
+              (path === selected ? " 選択中" : ""),
+          );
+          if (kind === "file")
+            button.setAttribute("aria-pressed", path === selected);
+          else button.setAttribute("aria-expanded", !collapsed.has(path));
+          let guides = "";
+          for (let n = 0; n < depth; n++)
+            guides += `<span class="guide" style="--x:${14 + n * 14}px"></span>`;
+          button.innerHTML =
+            guides +
+            (kind === "folder"
+              ? '<span class="chevron" aria-hidden="true">›</span>' + folder
+              : "") +
+            `<span class="copy"><span class="name">${name}</span>${heading ? `<span class="heading">${heading}</span>` : ""}</span>` +
+            (hidden
+              ? '<span class="collapsed-hidden" title="この中に選択中の文書" aria-hidden="true"></span>'
+              : kind === "file" && open.has(path)
+                ? '<span class="other-open" title="タブで開いている" aria-hidden="true"></span>'
+                : "");
+          button.onclick = () => {
+            if (kind === "folder") {
+              collapsed.has(path)
+                ? collapsed.delete(path)
+                : collapsed.add(path);
+            } else selected = path;
+            const variant = side.dataset.variant;
+            render();
+            const next = [
+              ...document
+                .querySelector(`[data-variant="${variant}"]`)
+                .querySelectorAll("button"),
+            ].find((b) => b.title.split("\n")[0] === path);
+            next?.focus({ preventScroll: true });
+          };
+          side.append(button);
+        });
+      });
+      document.getElementById("status").textContent =
+        "比較中の選択：" + selected;
+    }
+    document.getElementById("width").onchange = (e) =>
+      document.documentElement.style.setProperty(
+        "--width",
+        e.target.value + "px",
+      );
+    document.getElementById("theme").onclick = (e) => {
+      const light = document.documentElement.dataset.theme !== "light";
+      document.documentElement.dataset.theme = light ? "light" : "dark";
+      e.target.textContent = light ? "ダークで比較" : "ライトで比較";
+    };
+    render();
+  </script>
+</html>

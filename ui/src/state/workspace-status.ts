@@ -41,6 +41,9 @@ export interface WorkspaceStatusSummary {
   server: string;
   serverTone: "live" | "pending" | "offline";
   detail: string;
+  connectionLabel?: string;
+  draftCount?: number;
+  unavailableFeedbackCount?: number;
 }
 
 export function summarizeWorkspaceStatus({
@@ -114,6 +117,16 @@ export function summarizeWorkspaceStatus({
     .join(" · ");
   return {
     workspace,
+    draftCount,
+    connectionLabel:
+      connectionStatus === "disconnected"
+        ? "Disconnected · updates paused"
+        : connectionStatus === "connecting"
+          ? "Connecting"
+          : pending
+            ? "Updating"
+            : "Live",
+    unavailableFeedbackCount,
     activeFile: activeFileLabel,
     review,
     server,

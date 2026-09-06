@@ -1,83 +1,11 @@
 package comments
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
-
-func TestStoreProjectsLegacyCommentsAndPersistsThreadLifecycleEvents(t *testing.T) {
-	dataDir := t.TempDir()
-	legacy := `{"id":"legacy-1","path":"README.md","viewerKind":"markdown","anchor":{"surface":"source","canonical":{"path":"README.md","lineStart":1}},"body":"legacy body","status":"open","createdAt":"2026-01-01T00:00:00Z","updatedAt":"2026-01-01T00:00:00Z"}` + "\n"
-	commentPath := filepath.Join(dataDir, "comments.jsonl")
-	if err := os.WriteFile(commentPath, []byte(legacy), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	store, err := NewStore(dataDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	threads, err := store.ListThreads(Filters{Status: "open"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(threads) != 1 || threads[0]["id"] != "legacy-1" {
-		t.Fatalf("legacy projection = %#v", threads)
-	}
-	messages := threads[0]["comments"].([]map[string]any)
-	if messages[0]["threadId"] != "legacy-1" || messages[0]["source"] != "unknown" {
-		t.Fatalf("legacy message = %#v", messages[0])
-	}
-
-	if _, err := store.UpdateThreadStatus("legacy-1", "resolved"); err != nil {
-		t.Fatal(err)
-	}
-	after, err := os.ReadFile(commentPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(after) != legacy {
-		t.Fatalf("status transition rewrote legacy comments.jsonl:\n%s", after)
-	}
-	resolved, err := store.ListThreads(Filters{Status: "resolved"})
-	if err != nil || len(resolved) != 1 {
-		t.Fatalf("resolved threads = %#v, err = %v", resolved, err)
-	}
-	if _, err := store.UpdateThreadStatus("legacy-1", "archived"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := store.UpdateThreadStatus("legacy-1", "resolved"); err == nil {
-		t.Fatal("archived -> resolved must be rejected")
-	}
-	if _, err := store.UpdateThreadStatus("legacy-1", "open"); err != nil {
-		t.Fatal(err)
-	}
-
-	exported, err := store.ExportJSONL(Filters{Status: "open"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	var record map[string]any
-	if err := json.Unmarshal([]byte(exported), &record); err != nil {
-		t.Fatal(err)
-	}
-	if record["type"] != "commentThread" || record["schemaVersion"] != float64(2) {
-		t.Fatalf("export = %#v", record)
-	}
-	if len(record["comments"].([]any)) != 1 {
-		t.Fatalf("export comments = %#v", record["comments"])
-	}
-	events, err := os.ReadFile(filepath.Join(dataDir, "comment-threads.jsonl"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Count(strings.TrimSpace(string(events)), "\n") != 2 {
-		t.Fatalf("events = %s", events)
-	}
-}
 
 func TestStoreCreatesThreadMetadataWithoutChangingCommentsJSONLShape(t *testing.T) {
 	store, err := NewStore(t.TempDir())
@@ -185,74 +113,6 @@ func TestStoreAppendsIdempotentReadActivityWithoutChangingThreadStatus(t *testin
 	}
 	if threads[0]["status"] != "open" {
 		t.Fatalf("read changed status to %v", threads[0]["status"])
-	}
-}
-
-func TestStoreAppendsThreadClaimActivityAsLeaseWithoutChangingStatus(t *testing.T) {
-	store, err := NewStore(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	created, err := store.Create(map[string]any{"path": "README.md", "body": "please fix", "actor": map[string]any{"id": "human:tasuku", "kind": "human"}, "anchor": map[string]any{"surface": "source", "canonical": map[string]any{"path": "README.md"}}}, "sha256:file", "markdown")
-	if err != nil {
-		t.Fatal(err)
-	}
-	threadID := created["threadId"].(string)
-	actor := map[string]any{"id": "codex:session-1", "kind": "codex", "displayName": "Codex"}
-	first, err := store.AppendThreadClaimActivity(threadID, actor, "claim-request-1", 60)
-	if err != nil {
-		t.Fatal(err)
-	}
-	retried, err := store.AppendThreadClaimActivity(threadID, actor, "claim-request-1", 60)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if first["id"] != retried["id"] {
-		t.Fatalf("idempotent claim ids differ: %v != %v", first["id"], retried["id"])
-	}
-	if first["type"] != "thread_claimed" || first["leaseExpiresAt"] == "" {
-		t.Fatalf("claim activity = %#v", first)
-	}
-	if _, err := store.AppendThreadClaimActivity(threadID, map[string]any{"id": "claude-code:session-2", "kind": "claude_code"}, "claim-request-2", 60); err == nil || !strings.Contains(err.Error(), "already claimed") {
-		t.Fatalf("second actor claim err = %v", err)
-	}
-	released, err := store.AppendThreadClaimReleaseActivity(threadID, actor, "release-request-1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	retriedRelease, err := store.AppendThreadClaimReleaseActivity(threadID, actor, "release-request-1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if released["id"] != retriedRelease["id"] || released["type"] != "thread_claim_released" {
-		t.Fatalf("release activity = %#v, retried = %#v", released, retriedRelease)
-	}
-	if _, err := store.AppendThreadClaimActivity(threadID, map[string]any{"id": "claude-code:session-2", "kind": "claude_code"}, "claim-request-2", 60); err != nil {
-		t.Fatalf("claim after release failed: %v", err)
-	}
-	threads, err := store.ListThreads(Filters{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if threads[0]["status"] != "open" {
-		t.Fatalf("claim changed status to %v", threads[0]["status"])
-	}
-	activities, err := store.ListActivities(ActivityFilters{ThreadID: threadID, First: 100})
-	if err != nil {
-		t.Fatal(err)
-	}
-	claimCount := 0
-	releaseCount := 0
-	for _, event := range activities {
-		if event["type"] == "thread_claimed" {
-			claimCount++
-		}
-		if event["type"] == "thread_claim_released" {
-			releaseCount++
-		}
-	}
-	if claimCount != 2 || releaseCount != 1 {
-		t.Fatalf("claim activity count = %d, activities = %#v", claimCount, activities)
 	}
 }
 
@@ -571,5 +431,47 @@ func TestStoreKeepsDraftsWhenPublishFails(t *testing.T) {
 	}
 	if len(threads) != 0 {
 		t.Fatalf("failed publish leaked open threads = %#v", threads)
+	}
+}
+
+func TestLegacyLifecycleRecordsRemainReadableWithoutMutation(t *testing.T) {
+	dir := t.TempDir()
+	original := `{"id":"legacy-1","path":"README.md","body":"old feedback","status":"open","createdAt":"2026-01-01T00:00:00Z","updatedAt":"2026-01-01T00:00:00Z"}` + "\n"
+	events := `{"id":"event-1","threadId":"legacy-1","type":"thread.status_changed","status":"resolved","at":"2026-01-02T00:00:00Z"}` + "\n"
+	for name, content := range map[string]string{"comments.jsonl": original, "comment-threads.jsonl": events} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	store, err := NewStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	threads, err := store.ListThreads(Filters{Status: "resolved"})
+	if err != nil || len(threads) != 1 {
+		t.Fatalf("legacy threads: %#v %v", threads, err)
+	}
+	if _, err := store.Update("legacy-1", map[string]any{"status": "open"}); err == nil {
+		t.Fatal("lifecycle mutation accepted")
+	}
+	after, err := os.ReadFile(filepath.Join(dir, "comments.jsonl"))
+	if err != nil || string(after) != original {
+		t.Fatal("stored feedback changed")
+	}
+}
+
+func TestNewCommentsCannotChangeThreadStatus(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, status := range []string{"resolved", "archived"} {
+		if _, err := store.Create(map[string]any{"path": "README.md", "body": "feedback", "status": status}, "", "markdown"); err == nil {
+			t.Fatalf("accepted new %s comment", status)
+		}
+	}
+	threads, err := store.ListThreads(Filters{})
+	if err != nil || len(threads) != 0 {
+		t.Fatalf("rejected writes changed storage: %v %v", threads, err)
 	}
 }

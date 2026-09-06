@@ -31,6 +31,8 @@ wired into the application.
 
 ## Mockup roles
 
+- `48-document-titles-in-tree.html`: four sidebar H1 concepts using identical paths and ordering: H1 replacement, filename-first with H1 (recommended), H1-first with filename, and focused-title disclosure. Includes narrow/wide comparisons, a composed reader, duplicate/long/missing/unloaded headings, and a heading-update simulation. These are alternatives for review, not an approved title-extraction or tree-contract change.
+- `47-reader-ux-refinement.html`: UX refinement concepts based on a live walkthrough: quieter tab controls and reader proportions, contextual feedback entry, and explicit publication scope. Concept A is selected, with an interactive facade in Storybook under `Workspace/Quiet Reader`; application wiring awaits facade approval. Includes light/dark, narrow, empty, stale-input, and disconnected comparisons.
 - `01-classic-explorer.html`: baseline layout with sidebar tree, tabs, viewer, and status bar.
 - `02-doc-reader.html`: long-form Markdown reading model with right-side outline/inspector.
 - `03-preview-lab.html`: HTML preview and live event diagnostics exploration.
@@ -61,6 +63,8 @@ wired into the application.
 - `45-shared-attention-window.html`: the selected state model: unseen feedback stays pinned, an agent read starts the same 30-minute window as file changes and user opens, and quiet work recedes without Resolved, Archived, or Reviewed browser states.
 - `46-floating-rendered-feedback.html`: three no-reflow Markdown feedback concepts plus a shared policy that removes missing sources from active queue counts while keeping their feedback recoverable.
 
+- `49-sidebar-structure.html`: three sidebar structure concepts with the adopted filename/H1 rows held constant: all-row outline icons, folder-only icons with hierarchy guides, and icon-free hierarchy guides. Includes width and theme controls. Concept B selected: folder-only outline icons and hierarchy guides, with filename/H1 document rows.
+
 ## Implementation guidance
 
 Use the mockups as product intent, not as literal CSS requirements. Implement the React UI through components and state boundaries that preserve the architecture in `docs/architecture/14-architecture.md`.
@@ -75,3 +79,7 @@ Early implementation should prioritize:
 6. SSE-driven live updates without full page refresh.
 
 The React implementation now adds a more specific code inspection mode on top of this mock direction: line numbers, read-only line range selection, copyable local references, a sticky current-scope hint, and code metadata/symbols in the inspector. The static mock remains the layout reference rather than a complete inventory of newer viewer controls.
+
+- [50 · Sidebar selection](50-sidebar-selection.html): compare a single-row fill, a short selection marker, and branch/text emphasis at 210px and 280px in both themes. A is accepted and wired; the comparison is preserved as the design record.
+
+- [51 · Workspace detail review](51-workspace-detail-review.html): eight observed UX details across comments, navigation, status, review, reader chrome, search, tabs, and empty states; compare conservative, document-centered, and focus concepts. The document-centered direction is wired; see [implementation evidence](../research/32-workspace-detail-review.md).

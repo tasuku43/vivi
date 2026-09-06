@@ -1,5 +1,5 @@
 {
-  "name": "human comment to resolved agent reply",
+  "name": "published human feedback to observed agent input",
   "human": {
     "actor": {
       "id": "human:fixture",
@@ -19,13 +19,6 @@
     }
   },
   "agent": {
-    "actor": {
-      "id": "codex:fake-agent-loop",
-      "kind": "codex",
-      "displayName": "Fake Codex"
-    },
-    "clientEventId": "agent-loop-read-basic-v1",
-    "replyBody": "Verified the overview and completed the fixture task.",
-    "terminalAction": "resolve"
+    "readAs": "codex"
   }
 }

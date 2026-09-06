@@ -176,7 +176,7 @@
   width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: 10px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 3px 8px;
   min-height: 56px;

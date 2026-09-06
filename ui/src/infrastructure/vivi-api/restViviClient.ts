@@ -86,7 +86,12 @@ export class RestViviClient implements ViviClient {
       commentsPromise,
       diffPromise,
     ]);
-    return { file, comments, commentThreads: buildCommentThreads(comments), diff };
+    return {
+      file,
+      comments,
+      commentThreads: buildCommentThreads(comments),
+      diff,
+    };
   }
 
   async getComments(input: { path?: string; status?: string } = {}) {
@@ -111,7 +116,9 @@ export class RestViviClient implements ViviClient {
       this.url(`/api/v1/comments/export?${params}`),
     );
     if (!response.ok) {
-      throw new Error(`/api/v1/comments/export request failed: ${response.status}`);
+      throw new Error(
+        `/api/v1/comments/export request failed: ${response.status}`,
+      );
     }
     return response.text();
   }
@@ -174,39 +181,6 @@ export class RestViviClient implements ViviClient {
     throw new Error("draft review comments require the GraphQL Vivi client");
   }
 
-  async updateCommentStatus(input: {
-    id: string;
-    status: "open" | "resolved" | "archived";
-  }) {
-    return adaptComment(
-      await this.getJson<RestCommentDto>(
-        `/api/v1/comments/${encodeURIComponent(input.id)}`,
-        {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ status: input.status }),
-        },
-      ),
-    );
-  }
-
-  async updateCommentThreadStatus(input: {
-    id: string;
-    status: "open" | "resolved" | "archived";
-  }) {
-    const comments = await this.getComments();
-    const members = comments.filter(
-      (comment) => (comment.threadId ?? comment.id) === input.id,
-    );
-    if (!members.length) throw new Error("comment thread not found");
-    const updated = await Promise.all(
-      members.map((comment) =>
-        this.updateCommentStatus({ id: comment.id, status: input.status }),
-      ),
-    );
-    return buildCommentThreads(updated)[0]!;
-  }
-
   async searchFiles(input: {
     query: string;
     limit?: number;
@@ -250,9 +224,7 @@ export class RestViviClient implements ViviClient {
     const source = this.createEventSource(this.url("/events"));
     options.onStatus?.("connecting");
     source.addEventListener("open", () => options.onStatus?.("connected"));
-    source.addEventListener("error", () =>
-      options.onStatus?.("disconnected"),
-    );
+    source.addEventListener("error", () => options.onStatus?.("disconnected"));
     const listener = (raw: Event) => {
       const event = JSON.parse(
         (raw as MessageEvent<string>).data,

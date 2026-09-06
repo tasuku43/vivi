@@ -1,0 +1,132 @@
+.stage {
+  --vivi-color-surface-panel: #111d24;
+  --vivi-color-content-primary: #e3edf1;
+  --vivi-color-content-muted: #9bb0ba;
+  --vivi-color-border-default: #2a3c45;
+  --vivi-color-focus-ring: #78c5d2;
+  --vivi-color-selection-surface: #25404b;
+  --vivi-color-selection-surface-subtle: #1b2c36;
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-content-primary);
+  min-height: 600px;
+  font:
+    14px/1.5 system-ui,
+    sans-serif;
+}
+.light {
+  --vivi-color-surface-panel: #f0f4f6;
+  --vivi-color-content-primary: #233842;
+  --vivi-color-content-muted: #62747e;
+  --vivi-color-border-default: #d6e0e5;
+  --vivi-color-focus-ring: #237b92;
+  --vivi-color-selection-surface: #d6e8ef;
+  --vivi-color-selection-surface-subtle: #e3ebef;
+}
+.stage * {
+  box-sizing: border-box;
+}
+.note {
+  padding: 12px 16px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--vivi-color-content-muted);
+  overflow-wrap: anywhere;
+}
+.sidebar {
+  border: 1px solid var(--vivi-color-border-default);
+  padding: 10px 6px;
+  min-height: 440px;
+  margin: 0 16px;
+}
+.sidebar h2 {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
+  margin: 0 8px 12px;
+  color: var(--vivi-color-content-muted);
+}
+.row {
+  position: relative;
+  display: flex;
+  width: 100%;
+  gap: 5px;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--vivi-color-content-muted);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.row:hover {
+  background: var(--vivi-color-selection-surface-subtle);
+}
+.row:focus-visible {
+  outline: 1px solid var(--vivi-color-focus-ring);
+  outline-offset: -1px;
+  z-index: 1;
+}
+.row.selected {
+  background: var(--vivi-color-selection-surface);
+  color: var(--vivi-color-content-primary);
+}
+.selected .name {
+  font-weight: 600;
+}
+.selected .heading {
+  color: var(--vivi-color-content-primary);
+  opacity: 0.78;
+}
+.row svg {
+  flex: 0 0 15px;
+}
+.chevron {
+  width: 10px;
+  flex: 0 0 10px;
+}
+.copy {
+  min-width: 0;
+  flex: 1;
+}
+.name,
+.heading {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.name {
+  font-size: 13px;
+}
+.heading {
+  font-size: 10.5px;
+  color: var(--vivi-color-content-muted);
+  line-height: 1.5;
+}
+.guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--vivi-color-border-default);
+  pointer-events: none;
+}
+.open,
+.location {
+  width: 4px;
+  height: 4px;
+  flex: 0 0 4px;
+  margin-right: 3px;
+  border-radius: 50%;
+  background: var(--vivi-color-content-muted);
+}
+.location {
+  background: var(--vivi-color-focus-ring);
+  width: 5px;
+  height: 5px;
+  flex-basis: 5px;
+}

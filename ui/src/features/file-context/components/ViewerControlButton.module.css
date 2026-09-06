@@ -231,3 +231,38 @@
     display: none;
   }
 }
+
+@container (max-width: 760px) {
+  .toolbar {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    padding: 8px 12px;
+  }
+  .actions {
+    min-width: 0;
+    justify-content: flex-start;
+  }
+  .reviewStop,
+  .reviewSummary {
+    max-width: 100%;
+  }
+  .sandboxStatus {
+    display: none;
+  }
+}
+
+.modeSelect {
+  max-width: 128px;
+  min-height: 28px;
+  padding: 4px 6px;
+  border: 1px solid var(--vivi-color-border-default);
+  border-radius: 6px;
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-content-primary);
+  font: inherit;
+  cursor: pointer;
+}
+.modeSelect:focus-visible {
+  outline: 2px solid var(--vivi-color-focus-ring);
+  outline-offset: 2px;
+}

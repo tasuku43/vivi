@@ -88,7 +88,7 @@ describe("rendered comment block ranges", () => {
     );
     expect(normalizedRenderedCommentStyles).not.toContain("z-index: -1;");
     expect(normalizedRenderedCommentStyles).toMatch(
-      /\.vivi-rendered-comment-block:not\(tr\) > \* \{[\s\S]*?position: relative;[\s\S]*?z-index: 1;/,
+      /\.vivi-rendered-comment-block:not\(tr\)\s*>\s*:not\(\.rendered-comment-marker\)\s*\{[\s\S]*?position: relative;[\s\S]*?z-index: 1;/,
     );
     expect(normalizedRenderedCommentStyles).toMatch(
       /\.vivi-rendered-comment-block:not\(tr\)::before \{[\s\S]*?top: var\(--rendered-comment-block-top\);[\s\S]*?bottom: calc\([\s\S]*?var\(--rendered-comment-block-bottom\)[\s\S]*?var\(--rendered-comment-block-bottom-pad\)/,
@@ -130,19 +130,22 @@ describe("rendered comment block ranges", () => {
       /\.rendered-comment-marker \{[\s\S]*?top: var\(--rendered-comment-marker-top, calc\(50% \+ 1px\)\);/,
     );
     expect(normalizedRenderedCommentStyles).toMatch(
-      /\.rendered-comment-marker \{[\s\S]*?right: -12px;/,
+      /\.rendered-comment-marker \{[\s\S]*?right: -26px;/,
     );
     expect(normalizedRenderedCommentStyles).toMatch(
       /pre\.vivi-rendered-comment-block > \.rendered-comment-marker \{[\s\S]*?position: absolute;[\s\S]*?top: var\(--rendered-comment-marker-top, 18px\);[\s\S]*?right: auto;[\s\S]*?left: var\(--rendered-comment-marker-left, calc\(100% - 28px\)\);/,
     );
   });
 
-  it("uses the block surface for comment highlights", () => {
-    expect(normalizedRenderedCommentStyles).toMatch(
-      /\.vivi-rendered-comment-block\.has-rendered-comment:not\(tr\)::before\s*,[\s\S]*?\.vivi-rendered-comment-block\.drafting-rendered-comment:not\(tr\)::before\s*,[\s\S]*?background: linear-gradient/,
+  it("reserves block fills for the open comment and current input", () => {
+    expect(normalizedRenderedCommentStyles).not.toContain(
+      ".vivi-rendered-comment-block.has-rendered-comment:not(tr)::before,",
     );
     expect(normalizedRenderedCommentStyles).toMatch(
-      /\.vivi-rendered-comment-block\.has-rendered-comment:not\(tr\)::before\s*,[\s\S]*?\.vivi-rendered-comment-block\.drafting-rendered-comment:not\(tr\)::before\s*,[\s\S]*?box-shadow: inset 2px 0 0 var\(--vivi-color-comment-border\);/,
+      /\.vivi-rendered-comment-block\.drafting-rendered-comment:not\(tr\)::before\s*,[\s\S]*?background: var\(--vivi-color-comment-surface\);[\s\S]*?box-shadow: inset 2px 0 0 var\(--vivi-color-comment-border\);/,
+    );
+    expect(normalizedRenderedCommentStyles).toMatch(
+      /\.vivi-rendered-comment-block\.active-rendered-comment:not\(tr\)::before\s*,[\s\S]*?background: var\(--vivi-color-comment-surface\);/,
     );
   });
 

@@ -318,12 +318,18 @@ async function routeRequest(
     const requestedPath = decodeURIComponent(
       url.pathname.slice("/preview/raw/".length),
     );
-    const file = await options.service.readFile(requestedPath);
+    const file = await options.service.readPreviewResource(requestedPath);
     if (file.truncated) throw new Error("file is too large to preview");
     res.writeHead(200, {
       "content-type": previewContentTypeFor(file.path, file.mimeType),
       "x-content-type-options": "nosniff",
       "cache-control": "no-store",
+      ...(file.mimeType === "image/svg+xml"
+        ? {
+            "content-security-policy":
+              "sandbox; default-src 'none'; style-src 'unsafe-inline'",
+          }
+        : {}),
     });
     res.end(
       file.encoding === "base64"
@@ -675,46 +681,12 @@ async function executeGraphqlOperation(
           variables.input ?? {},
         ),
       };
-    case "ResolveThread":
-      return {
-        resolveThread: await options.service.updateCommentThreadStatus({
-          id: requiredString(variables, "id"),
-          status: "resolved",
-          actor: graphqlActor(variables.actor),
-        }),
-      };
-    case "ArchiveThread":
-      return {
-        archiveThread: await options.service.updateCommentThreadStatus({
-          id: requiredString(variables, "id"),
-          status: "archived",
-          actor: graphqlActor(variables.actor),
-        }),
-      };
-    case "ReopenThread":
-      return {
-        reopenThread: await options.service.updateCommentThreadStatus({
-          id: requiredString(variables, "id"),
-          status: "open",
-          actor: graphqlActor(variables.actor),
-        }),
-      };
     case "UpdateComment":
-    case "UpdateCommentStatus":
       return {
         updateComment: await options.service.updateComment(
           requiredString(variables, "id"),
-          variables.input ?? { status: requiredString(variables, "status") },
+          variables.input ?? {},
         ),
-      };
-    case "UpdateCommentThread":
-    case "UpdateCommentThreadStatus":
-      return {
-        updateCommentThread: await options.service.updateCommentThreadStatus({
-          id: requiredString(variables, "id"),
-          status: requiredString(variables, "status") as CommentStatus,
-          actor: graphqlActor(variables.actor),
-        }),
       };
     default:
       throw new Error("unsupported GraphQL operation");
@@ -762,9 +734,6 @@ function graphqlOperation(payload: {
     "PublishDraftReviewComments",
     "CreateThread",
     "AddComment",
-    "UpdateCommentThreadStatus",
-    "UpdateCommentThread",
-    "UpdateCommentStatus",
     "UpdateComment",
   ]) {
     if (payload.query?.includes(candidate)) return candidate;
@@ -780,9 +749,6 @@ function isGraphqlMutation(operationName: string, query?: string): boolean {
     operationName === "DeleteDraftReviewComment" ||
     operationName === "PublishDraftReviewComments" ||
     operationName === "UpdateComment" ||
-    operationName === "UpdateCommentStatus" ||
-    operationName === "UpdateCommentThread" ||
-    operationName === "UpdateCommentThreadStatus" ||
     query?.includes("mutation") === true
   );
 }
@@ -1109,6 +1075,9 @@ function statusForPublicError(message: string): number | null {
       "invalid Host header for local write API",
       "invalid Origin header for local write API",
       "comment id is required",
+      "comment lifecycle updates are no longer supported",
+      "new comments must be open",
+      "comment update must include body",
       "thread id is required",
       "draft id is required",
       "client event id must be a string",
@@ -1437,11 +1406,7 @@ function replaceHtmlElementBlocks(
       index = tagEnd + 1;
       continue;
     }
-    const closeStart = findMatchingClosingTagStart(
-      html,
-      tagName,
-      tagEnd + 1,
-    );
+    const closeStart = findMatchingClosingTagStart(html, tagName, tagEnd + 1);
     if (closeStart === -1) {
       output += openingTag;
       index = tagEnd + 1;
@@ -1512,7 +1477,10 @@ function hasMermaidClass(attributes: string): boolean {
   const value = match?.[2] ?? match?.[3] ?? "";
   return value
     .split(/\s+/)
-    .some((className) => className === "mermaid" || className === "language-mermaid");
+    .some(
+      (className) =>
+        className === "mermaid" || className === "language-mermaid",
+    );
 }
 
 function hasClosedMermaidCandidate(html: string): boolean {
@@ -1690,19 +1658,17 @@ function injectHtmlPreviewRuntime(
 		.vivi-rendered-comment-block{--rendered-comment-block-left:0px;--rendered-comment-block-right:0px;--vivi-rendered-soft-line:${palette.softLine};--vivi-rendered-panel:${palette.panel};--vivi-rendered-palette:${palette.background};--vivi-rendered-comment-tint:${palette.commentTint};--vivi-rendered-comment-tint-active:${palette.commentTintActive};--vivi-rendered-comment-line:${palette.commentLine};--vivi-rendered-comment-text:${palette.commentText};isolation:isolate;position:relative;z-index:0;border-radius:8px;transition:background 140ms ease,box-shadow 140ms ease;}
 	li.vivi-rendered-comment-block{--rendered-comment-block-left:calc(-1.45em);}
 	.vivi-rendered-comment-block:not(tr)::before{content:"";position:absolute;z-index:0;top:0;right:var(--rendered-comment-block-right);bottom:0;left:var(--rendered-comment-block-left);border-radius:inherit;pointer-events:none;transition:background 140ms ease,box-shadow 140ms ease;}
-	.vivi-rendered-comment-block:not(tr)>*{position:relative;z-index:1;}
+	.vivi-rendered-comment-block:not(tr)>:not(.rendered-comment-marker){position:relative;z-index:1;}
 		.vivi-rendered-comment-block.hover-rendered-comment-block:not(tr)::before,tr.vivi-rendered-comment-block.hover-rendered-comment-block{background:var(--vivi-rendered-soft-line);}
+	.vivi-rendered-comment-block.has-rendered-comment:not(.active-rendered-comment):not(.drafting-rendered-comment):focus-within:not(tr)::before{background:var(--vivi-rendered-soft-line);}
 		.vivi-rendered-comment-block.has-rendered-comment,.vivi-rendered-comment-block.drafting-rendered-comment{border-radius:8px;}
-		.vivi-rendered-comment-block.has-rendered-comment:not(tr),.vivi-rendered-comment-block.drafting-rendered-comment:not(tr){background:transparent;box-shadow:none;}
-		blockquote.vivi-rendered-comment-block.has-rendered-comment,blockquote.vivi-rendered-comment-block.drafting-rendered-comment,blockquote.vivi-rendered-comment-block.active-rendered-comment{border-left-color:transparent!important;}
-			.vivi-rendered-comment-block.has-rendered-comment:not(tr)::before,.vivi-rendered-comment-block.drafting-rendered-comment:not(tr)::before,tr.vivi-rendered-comment-block.has-rendered-comment,tr.vivi-rendered-comment-block.drafting-rendered-comment{background:linear-gradient(90deg,var(--vivi-rendered-comment-tint-active),color-mix(in srgb,var(--vivi-rendered-comment-tint) 56%,transparent) 68%,transparent);box-shadow:inset 2px 0 0 var(--vivi-rendered-comment-line);}
-	.vivi-rendered-comment-block.active-rendered-comment{background:transparent;box-shadow:none;}
-		.vivi-rendered-comment-block.active-rendered-comment:not(tr)::before,tr.vivi-rendered-comment-block.active-rendered-comment{background:linear-gradient(90deg,color-mix(in srgb,var(--vivi-rendered-comment-tint-active) 86%,white),var(--vivi-rendered-comment-tint) 72%,transparent);box-shadow:inset 3px 0 0 var(--vivi-rendered-comment-text),0 0 0 1px color-mix(in srgb,var(--vivi-rendered-comment-line) 46%,transparent);}
+	.vivi-rendered-comment-block.drafting-rendered-comment:not(tr)::before,tr.vivi-rendered-comment-block.drafting-rendered-comment{background:var(--vivi-rendered-comment-tint);box-shadow:inset 2px 0 0 var(--vivi-rendered-comment-line);}
+	.vivi-rendered-comment-block.active-rendered-comment:not(tr)::before,tr.vivi-rendered-comment-block.active-rendered-comment{background:var(--vivi-rendered-comment-tint);box-shadow:inset 2px 0 0 var(--vivi-rendered-comment-text);}
 	.vivi-rendered-comment-block.rendered-comment-range-start.has-rendered-comment,.vivi-rendered-comment-block.rendered-comment-range-start.drafting-rendered-comment{border-bottom-left-radius:0;border-bottom-right-radius:0;}
 	.vivi-rendered-comment-block.rendered-comment-range-middle.has-rendered-comment,.vivi-rendered-comment-block.rendered-comment-range-middle.drafting-rendered-comment{border-radius:0;}
 	.vivi-rendered-comment-block.rendered-comment-range-end.has-rendered-comment,.vivi-rendered-comment-block.rendered-comment-range-end.drafting-rendered-comment{border-top-left-radius:0;border-top-right-radius:0;}
-		.vivi-rendered-comment-block.rendered-comment-range-join-after:not(tr)::after{content:"";position:absolute;z-index:1;left:var(--rendered-comment-block-left);right:var(--rendered-comment-block-right);top:100%;height:var(--rendered-comment-join-after,0);pointer-events:none;background:linear-gradient(90deg,var(--vivi-rendered-comment-tint-active),color-mix(in srgb,var(--vivi-rendered-comment-tint) 56%,transparent) 68%,transparent);}
-		.vivi-rendered-comment-block.active-rendered-comment.rendered-comment-range-join-after:not(tr)::after{background:linear-gradient(90deg,color-mix(in srgb,var(--vivi-rendered-comment-tint-active) 86%,white),var(--vivi-rendered-comment-tint) 72%,transparent);}
+		.vivi-rendered-comment-block.rendered-comment-range-join-after:not(tr)::after{content:"";position:absolute;z-index:1;left:var(--rendered-comment-block-left);right:var(--rendered-comment-block-right);top:100%;height:var(--rendered-comment-join-after,0);pointer-events:none;background:transparent;}
+	.vivi-rendered-comment-block.active-rendered-comment.rendered-comment-range-join-after:not(tr)::after,.vivi-rendered-comment-block.drafting-rendered-comment.rendered-comment-range-join-after:not(tr)::after{background:var(--vivi-rendered-comment-tint);}
 		.rendered-comment-marker{position:absolute;z-index:2147483646;top:calc(50% + 1px);right:8px;width:20px;height:20px;border:1px solid var(--vivi-rendered-comment-line);border-radius:6px;background:var(--vivi-rendered-panel);color:var(--vivi-rendered-comment-text);box-shadow:0 5px 14px rgba(0,0,0,.22);cursor:pointer;padding:0;transform:translateY(-50%);transition:background 140ms ease,border-color 140ms ease,transform 140ms ease;}
 	.rendered-comment-marker::before{content:"";position:absolute;left:5px;top:5px;width:7px;height:6px;border:1.25px solid currentColor;border-radius:3px;}
 	.rendered-comment-marker::after{content:"";position:absolute;left:7px;top:10px;width:3px;height:3px;border-left:1.25px solid currentColor;transform:skew(-22deg);}
@@ -1744,7 +1710,9 @@ function injectHtmlPreviewRuntime(
   const readableText = (element) => {
     const clone = element?.cloneNode(true);
     clone?.querySelectorAll?.(".rendered-comment-marker").forEach((item) => item.remove());
-    return (clone?.innerText || clone?.textContent || "").replace(/\\s+/g, " ").trim();
+    const text = (clone?.innerText || clone?.textContent || "").replace(/\\s+/g, " ").trim();
+    if (text) return text;
+    return Array.from(clone?.querySelectorAll?.("img") || []).map((image) => image.getAttribute("alt")?.trim() || "Image").join(" ");
   };
   const rectLikeForBlocks = (blocks) => {
     if (!blocks.length) return null;

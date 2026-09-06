@@ -91,7 +91,9 @@ it("classifies REST not-found separately from permission failures", async () => 
     fetch: vi.fn<typeof fetch>(async () => new Response(null, { status: 403 })),
   });
 
-  await expect(missing.getFileContext({ path: "gone.md" })).rejects.toMatchObject({
+  await expect(
+    missing.getFileContext({ path: "gone.md" }),
+  ).rejects.toMatchObject({
     code: "not_found",
     status: 404,
   });
@@ -144,56 +146,20 @@ it("exports comments through the REST compatibility client", async () => {
   ]);
 });
 
-it("preserves comment creation and status update payloads", async () => {
-  const request = vi.fn<typeof fetch>(async (_input, init) =>
-    Response.json({
-      ...comment,
-      status: JSON.parse(String(init?.body)).status ?? comment.status,
-    }),
-  );
+it("preserves comment creation payloads", async () => {
+  const request = vi.fn<typeof fetch>(async () => Response.json(comment));
   const client = new RestViviClient({ fetch: request });
-
   await client.createComment({
     path: comment.path,
     viewerKind: comment.viewerKind,
     anchor: comment.anchor,
     body: comment.body,
   });
-  await client.updateCommentStatus({ id: comment.id, status: "resolved" });
-
   expect(request.mock.calls[0]?.[1]).toMatchObject({ method: "POST" });
   expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toMatchObject({
     path: "README.md",
     body: comment.body,
   });
-  expect(request.mock.calls[1]?.[1]).toMatchObject({ method: "PATCH" });
-  expect(JSON.parse(String(request.mock.calls[1]?.[1]?.body))).toEqual({
-    status: "resolved",
-  });
-});
-
-it("updates comment thread status through REST compatibility calls", async () => {
-  const request = vi.fn<typeof fetch>(async (input, init) => {
-    const url = String(input);
-    if (url.startsWith("/api/v1/comments?")) return Response.json([comment]);
-    return Response.json({
-      ...comment,
-      status: JSON.parse(String(init?.body)).status,
-    });
-  });
-  const client = new RestViviClient({ fetch: request });
-
-  await expect(
-    client.updateCommentThreadStatus({ id: "t1", status: "resolved" }),
-  ).resolves.toMatchObject({
-    id: "t1",
-    status: "resolved",
-    comments: [expect.objectContaining({ id: "c1", status: "resolved" })],
-  });
-  expect(request.mock.calls.map(([url]) => String(url))).toEqual([
-    "/api/v1/comments?",
-    "/api/v1/comments/c1",
-  ]);
 });
 
 it("reports REST workspace event connection status", () => {

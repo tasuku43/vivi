@@ -214,29 +214,35 @@ it("dismisses the compact inspector when file navigation needs the reader", asyn
     .toBe(true);
 });
 
-it("keeps the compact status bar readable without overlapping groups", async () => {
+it("keeps connection status visible at compact widths and reveals details on demand", async () => {
   await page!.setViewportSize({ width: 900, height: 700 });
   await explorerTree().locator('[data-tree-path="README.md"]').click();
-
-  const visibleGroups = await page!
-    .locator('footer[aria-label^="Workspace status"] > span')
-    .evaluateAll((groups) =>
-      groups
-        .filter((group) => getComputedStyle(group).display !== "none")
-        .map((group) => {
-          const rect = group.getBoundingClientRect();
-          return {
-            left: rect.left,
-            right: rect.right,
-            text: group.textContent ?? "",
-          };
-        }),
+  const status = page!.getByRole("button", {
+    name: "Workspace status details",
+  });
+  await expect.poll(() => status.isVisible()).toBe(true);
+  await expect.poll(() => status.getAttribute("aria-expanded")).toBe("false");
+  const groups = await page!
+    .locator(
+      'footer[aria-label^="Workspace status"] > button, footer[aria-label^="Workspace status"] > span',
+    )
+    .evaluateAll((items) =>
+      items.map((item) => {
+        const rect = item.getBoundingClientRect();
+        return { left: rect.left, right: rect.right };
+      }),
     );
-
-  expect(visibleGroups).toHaveLength(2);
-  expect(visibleGroups[0]?.text).toContain("Current");
-  expect(visibleGroups[1]?.text).toContain("Feedback");
-  expect(visibleGroups[0]!.right).toBeLessThanOrEqual(visibleGroups[1]!.left);
+  expect(groups).toHaveLength(2);
+  expect(groups[0]!.right).toBeLessThanOrEqual(groups[1]!.left);
+  await status.click();
+  const details = page!.getByRole("region", { name: "Workspace details" });
+  expect(await details.isVisible()).toBe(true);
+  expect(await details.textContent()).toContain("README.md");
+  await page!.keyboard.press("Escape");
+  expect(await details.isVisible()).toBe(false);
+  expect(
+    await status.evaluate((element) => element === document.activeElement),
+  ).toBe(true);
 });
 
 it("keeps a narrow HTML feedback popover below the sticky viewer toolbar", async () => {
@@ -279,7 +285,9 @@ it("keeps a narrow HTML feedback popover below the sticky viewer toolbar", async
     })
     .toBe(true);
 
-  await page!.getByRole("button", { name: "Source", exact: true }).click();
+  await page!
+    .getByRole("combobox", { name: /view mode/ })
+    .selectOption("source");
   await expect.poll(() => host.count()).toBe(0);
 }, 20_000);
 
@@ -287,7 +295,9 @@ it("keeps typed feedback through outside clicks and comment close controls", asy
   // Keep README open while another preview is inspected. Inputs belonging to a
   // replaced preview tab are intentionally omitted from the inspector.
   await explorerTree().locator('[data-tree-path="README.md"]').dblclick();
-  await page!.getByRole("button", { name: "Source", exact: true }).click();
+  await page!
+    .getByRole("combobox", { name: /view mode/ })
+    .selectOption("source");
   await page!.getByRole("button", { name: "Add comment on line 1" }).click();
 
   const input = page!.getByRole("textbox", { name: "New line comment" });
@@ -329,7 +339,9 @@ it("keeps typed feedback through outside clicks and comment close controls", asy
 
 it("keeps a failed pending draft visible and retryable", async () => {
   await explorerTree().locator('[data-tree-path="README.md"]').click();
-  await page!.getByRole("button", { name: "Source", exact: true }).click();
+  await page!
+    .getByRole("combobox", { name: /view mode/ })
+    .selectOption("source");
   await page!.getByRole("button", { name: "Add comment on line 1" }).click();
 
   const input = page!.getByRole("textbox", { name: "New line comment" });
@@ -371,9 +383,7 @@ it("keeps a failed pending draft visible and retryable", async () => {
   await expect.poll(() => input.count()).toBe(0);
   await expect
     .poll(() =>
-      page!
-        .locator("#root")
-        .evaluate((root) => root.childElementCount),
+      page!.locator("#root").evaluate((root) => root.childElementCount),
     )
     .toBeGreaterThan(0);
 }, 20_000);
@@ -554,11 +564,15 @@ it("keeps a saved HTML follow-up focused while the next block stays targetable",
     .toBe(1);
   await page!.getByRole("button", { name: "Close comment thread" }).click();
 
-  await page!.getByRole("button", { name: "Source", exact: true }).click();
+  await page!
+    .getByRole("combobox", { name: /view mode/ })
+    .selectOption("source");
   await expect
     .poll(() => page!.getByRole("article", { name: /Comment thread/ }).count())
     .toBe(0);
-  await page!.getByRole("button", { name: "Preview", exact: true }).click();
+  await page!
+    .getByRole("combobox", { name: /view mode/ })
+    .selectOption("preview");
   await expect
     .poll(() => page!.getByText(body, { exact: true }).count())
     .toBe(1);
@@ -602,8 +616,12 @@ it("survives rapid viewer, tree, palette, and layout transitions", async () => {
     .toBe(0);
 
   await explorerTree().locator('[data-tree-path="README.md"]').click();
-  await page!.getByRole("button", { name: "Source", exact: true }).click();
-  await page!.getByRole("button", { name: "Rendered", exact: true }).click();
+  await page!
+    .getByRole("combobox", { name: /view mode/ })
+    .selectOption("source");
+  await page!
+    .getByRole("combobox", { name: /view mode/ })
+    .selectOption("rendered");
   await expect
     .poll(() => page!.getByRole("heading", { name: "Vivi Fixture" }).count())
     .toBe(1);
@@ -617,8 +635,12 @@ it("survives rapid viewer, tree, palette, and layout transitions", async () => {
         .count(),
     )
     .toBe(1);
-  await page!.getByRole("button", { name: "Source", exact: true }).click();
-  await page!.getByRole("button", { name: "Preview", exact: true }).click();
+  await page!
+    .getByRole("combobox", { name: /view mode/ })
+    .selectOption("source");
+  await page!
+    .getByRole("combobox", { name: /view mode/ })
+    .selectOption("preview");
 
   await page!.getByRole("button", { name: "Open command palette" }).click();
   const query = page!.getByLabel("Quick open query");

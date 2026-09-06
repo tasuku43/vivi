@@ -129,29 +129,6 @@ export class NodeCommentStore implements CommentStorePort {
     return thread;
   }
 
-  async updateCommentThreadStatus(
-    id: string,
-    status: CommentStatus,
-    at: string,
-    actor: CommentActor = { id: "unknown", kind: "unknown" },
-  ): Promise<CommentThread> {
-    const thread = (await this.listCommentThreads()).find(
-      (item) => item.id === id,
-    );
-    if (!thread) throw new Error("comment thread not found");
-    await this.appendThreadEvent({
-      schemaVersion: 1,
-      id: randomUUID(),
-      type: "thread.status_changed",
-      threadId: id,
-      previousStatus: thread.status,
-      actor,
-      status,
-      at,
-    });
-    return (await this.listCommentThreads()).find((item) => item.id === id)!;
-  }
-
   async listCommentThreadActivities(
     threadId: string,
     after?: string,

@@ -404,7 +404,7 @@ export function CodeCommentThread({
           />
           <p className="code-comment-thread-hint" id={inputHintId}>
             <kbd className={sharedUiStyles.keycap}>Cmd/Ctrl Enter</kbd> to save
-            pending draft <span>Esc collapses · input is kept</span>
+            draft <span>Esc collapses · input is kept</span>
           </p>
           <div className="code-comment-thread-footer">
             <div>
@@ -428,7 +428,7 @@ export function CodeCommentThread({
               aria-keyshortcuts="Meta+Enter Control+Enter"
               title={`${submitLabel} (Cmd/Ctrl Enter)`}
             >
-              ↑
+              {saving ? "Saving…" : "Save draft"}
             </button>
           </div>
           {error ? (

@@ -167,11 +167,10 @@ once and exits. The human can keep
 drafting in the GUI and Publish when feedback should become agent-visible; the
 agent fetches when asked or when its workflow chooses to refresh. Add
 `--read-as codex` or `--read-as claude` only when the browser should show an
-explicit read receipt. Use
-`review queue` and `review diff` as changed-file context helpers; they are not
-the human-feedback intake loop. The deeper `comments` commands remain available
-for adapter authors, compatibility, debugging, protocol inspection, and
-recovery. Resident watch/claim workflows are not the default product path. The
+explicit read receipt. Launch, `servers`, and `inbox` are the entire CLI.
+Use the coding workbench's filesystem and Git tools to act on feedback; the
+browser keeps its Git Changes view. Ownership, resident loops, and task
+completion commands have been removed. The
 agent must keep the selected URL unchanged across the initial inbox read and
 later refreshes in that feedback pass.
 
@@ -243,10 +242,9 @@ npm run perf:otel
 
 The fixture-driven fake agent loop is documented in
 [`docs/engineering/23-local-agent-loop-harness.md`](docs/engineering/23-local-agent-loop-harness.md).
-Against a running Vivi server, run `npm run harness:agent-loop` to verify the
-human comment, actor-aware read receipt, and terminal lifecycle.
-Use `--intake work --terminal cli` only when validating the legacy resident
-adapter compatibility path.
+Against an isolated fixture server, run `npm run harness:agent-loop -- --url <url>`
+to verify draft privacy, publication, passive inbox reads, explicit read
+receipts, and rereading feedback. The harness creates fixture feedback.
 
 The Go backend is the distribution target. The TypeScript server remains useful
 while the migration is in progress because selected API contract tests can be

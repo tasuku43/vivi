@@ -119,16 +119,6 @@ type ComplexityRoot struct {
 		Type           func(childComplexity int) int
 	}
 
-	CommentThreadClaim struct {
-		Activity func(childComplexity int) int
-		Thread   func(childComplexity int) int
-	}
-
-	CommentThreadClaimRelease struct {
-		Activity func(childComplexity int) int
-		Thread   func(childComplexity int) int
-	}
-
 	DiffBase struct {
 		Label   func(childComplexity int) int
 		Ref     func(childComplexity int) int
@@ -207,17 +197,18 @@ type ComplexityRoot struct {
 	}
 
 	FsNode struct {
-		Children       func(childComplexity int) int
-		ChildrenLoaded func(childComplexity int) int
-		ID             func(childComplexity int) int
-		Kind           func(childComplexity int) int
-		MtimeMs        func(childComplexity int) int
-		Name           func(childComplexity int) int
-		ParentPath     func(childComplexity int) int
-		Path           func(childComplexity int) int
-		Size           func(childComplexity int) int
-		Version        func(childComplexity int) int
-		ViewerKind     func(childComplexity int) int
+		Children        func(childComplexity int) int
+		ChildrenLoaded  func(childComplexity int) int
+		DocumentHeading func(childComplexity int) int
+		ID              func(childComplexity int) int
+		Kind            func(childComplexity int) int
+		MtimeMs         func(childComplexity int) int
+		Name            func(childComplexity int) int
+		ParentPath      func(childComplexity int) int
+		Path            func(childComplexity int) int
+		Size            func(childComplexity int) int
+		Version         func(childComplexity int) int
+		ViewerKind      func(childComplexity int) int
 	}
 
 	Meta struct {
@@ -227,18 +218,12 @@ type ComplexityRoot struct {
 
 	Mutation struct {
 		AddComment                 func(childComplexity int, threadID string, input model.AddCommentInput) int
-		ArchiveThread              func(childComplexity int, id string, actor *model.CommentActorInput) int
-		ClaimThread                func(childComplexity int, id string, input model.CommentThreadClaimInput) int
 		CreateComment              func(childComplexity int, input model.CommentInput) int
 		CreateDraftReviewComment   func(childComplexity int, input model.DraftReviewCommentInput) int
 		CreateThread               func(childComplexity int, input model.CommentInput) int
 		DeleteDraftReviewComment   func(childComplexity int, id string) int
 		PublishDraftReviewComments func(childComplexity int, input *model.PublishDraftReviewCommentsInput) int
-		ReleaseThreadClaim         func(childComplexity int, id string, input model.CommentThreadClaimReleaseInput) int
-		ReopenThread               func(childComplexity int, id string, actor *model.CommentActorInput) int
-		ResolveThread              func(childComplexity int, id string, actor *model.CommentActorInput) int
 		UpdateComment              func(childComplexity int, id string, input model.CommentUpdateInput) int
-		UpdateCommentThread        func(childComplexity int, id string, input model.CommentThreadUpdateInput) int
 		UpdateDraftReviewComment   func(childComplexity int, id string, input model.DraftReviewCommentUpdateInput) int
 	}
 
@@ -366,12 +351,6 @@ type MutationResolver interface {
 	DeleteDraftReviewComment(ctx context.Context, id string) (*model.DraftReviewComment, error)
 	PublishDraftReviewComments(ctx context.Context, input *model.PublishDraftReviewCommentsInput) (*model.PublishedReviewBatch, error)
 	UpdateComment(ctx context.Context, id string, input model.CommentUpdateInput) (*model.Comment, error)
-	ClaimThread(ctx context.Context, id string, input model.CommentThreadClaimInput) (*model.CommentThreadClaim, error)
-	ReleaseThreadClaim(ctx context.Context, id string, input model.CommentThreadClaimReleaseInput) (*model.CommentThreadClaimRelease, error)
-	ResolveThread(ctx context.Context, id string, actor *model.CommentActorInput) (*model.CommentThread, error)
-	ArchiveThread(ctx context.Context, id string, actor *model.CommentActorInput) (*model.CommentThread, error)
-	ReopenThread(ctx context.Context, id string, actor *model.CommentActorInput) (*model.CommentThread, error)
-	UpdateCommentThread(ctx context.Context, id string, input model.CommentThreadUpdateInput) (*model.CommentThread, error)
 }
 type QueryResolver interface {
 	Workspace(ctx context.Context, path *string, depth *int) (*model.Workspace, error)
@@ -757,32 +736,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.CommentThreadActivityEvent.Type(childComplexity), true
 
-	case "CommentThreadClaim.activity":
-		if e.ComplexityRoot.CommentThreadClaim.Activity == nil {
-			break
-		}
-
-		return e.ComplexityRoot.CommentThreadClaim.Activity(childComplexity), true
-	case "CommentThreadClaim.thread":
-		if e.ComplexityRoot.CommentThreadClaim.Thread == nil {
-			break
-		}
-
-		return e.ComplexityRoot.CommentThreadClaim.Thread(childComplexity), true
-
-	case "CommentThreadClaimRelease.activity":
-		if e.ComplexityRoot.CommentThreadClaimRelease.Activity == nil {
-			break
-		}
-
-		return e.ComplexityRoot.CommentThreadClaimRelease.Activity(childComplexity), true
-	case "CommentThreadClaimRelease.thread":
-		if e.ComplexityRoot.CommentThreadClaimRelease.Thread == nil {
-			break
-		}
-
-		return e.ComplexityRoot.CommentThreadClaimRelease.Thread(childComplexity), true
-
 	case "DiffBase.label":
 		if e.ComplexityRoot.DiffBase.Label == nil {
 			break
@@ -1121,6 +1074,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.FsNode.ChildrenLoaded(childComplexity), true
+	case "FsNode.documentHeading":
+		if e.ComplexityRoot.FsNode.DocumentHeading == nil {
+			break
+		}
+
+		return e.ComplexityRoot.FsNode.DocumentHeading(childComplexity), true
 	case "FsNode.id":
 		if e.ComplexityRoot.FsNode.ID == nil {
 			break
@@ -1200,28 +1159,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.AddComment(childComplexity, args["threadId"].(string), args["input"].(model.AddCommentInput)), true
-	case "Mutation.archiveThread":
-		if e.ComplexityRoot.Mutation.ArchiveThread == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_archiveThread_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Mutation.ArchiveThread(childComplexity, args["id"].(string), args["actor"].(*model.CommentActorInput)), true
-	case "Mutation.claimThread":
-		if e.ComplexityRoot.Mutation.ClaimThread == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_claimThread_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Mutation.ClaimThread(childComplexity, args["id"].(string), args["input"].(model.CommentThreadClaimInput)), true
 	case "Mutation.createComment":
 		if e.ComplexityRoot.Mutation.CreateComment == nil {
 			break
@@ -1277,39 +1214,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.PublishDraftReviewComments(childComplexity, args["input"].(*model.PublishDraftReviewCommentsInput)), true
-	case "Mutation.releaseThreadClaim":
-		if e.ComplexityRoot.Mutation.ReleaseThreadClaim == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_releaseThreadClaim_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Mutation.ReleaseThreadClaim(childComplexity, args["id"].(string), args["input"].(model.CommentThreadClaimReleaseInput)), true
-	case "Mutation.reopenThread":
-		if e.ComplexityRoot.Mutation.ReopenThread == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_reopenThread_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Mutation.ReopenThread(childComplexity, args["id"].(string), args["actor"].(*model.CommentActorInput)), true
-	case "Mutation.resolveThread":
-		if e.ComplexityRoot.Mutation.ResolveThread == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_resolveThread_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Mutation.ResolveThread(childComplexity, args["id"].(string), args["actor"].(*model.CommentActorInput)), true
 	case "Mutation.updateComment":
 		if e.ComplexityRoot.Mutation.UpdateComment == nil {
 			break
@@ -1321,17 +1225,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateComment(childComplexity, args["id"].(string), args["input"].(model.CommentUpdateInput)), true
-	case "Mutation.updateCommentThread":
-		if e.ComplexityRoot.Mutation.UpdateCommentThread == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_updateCommentThread_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Mutation.UpdateCommentThread(childComplexity, args["id"].(string), args["input"].(model.CommentThreadUpdateInput)), true
 	case "Mutation.updateDraftReviewComment":
 		if e.ComplexityRoot.Mutation.UpdateDraftReviewComment == nil {
 			break
@@ -1870,9 +1763,6 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputAddCommentInput,
 		ec.unmarshalInputCommentActorInput,
 		ec.unmarshalInputCommentInput,
-		ec.unmarshalInputCommentThreadClaimInput,
-		ec.unmarshalInputCommentThreadClaimReleaseInput,
-		ec.unmarshalInputCommentThreadUpdateInput,
 		ec.unmarshalInputCommentUpdateInput,
 		ec.unmarshalInputDraftReviewCommentInput,
 		ec.unmarshalInputDraftReviewCommentUpdateInput,
@@ -2025,15 +1915,7 @@ type Mutation {
     input: PublishDraftReviewCommentsInput
   ): PublishedReviewBatch!
   updateComment(id: ID!, input: CommentUpdateInput!): Comment!
-  claimThread(id: ID!, input: CommentThreadClaimInput!): CommentThreadClaim!
-  releaseThreadClaim(
-    id: ID!
-    input: CommentThreadClaimReleaseInput!
-  ): CommentThreadClaimRelease!
-  resolveThread(id: ID!, actor: CommentActorInput): CommentThread!
-  archiveThread(id: ID!, actor: CommentActorInput): CommentThread!
-  reopenThread(id: ID!, actor: CommentActorInput): CommentThread!
-  updateCommentThread(id: ID!, input: CommentThreadUpdateInput!): CommentThread!
+
 }
 
 type Subscription {
@@ -2063,6 +1945,8 @@ type TreeSnapshot {
 }
 
 type FsNode {
+  "First H1 text; empty when absent, null when unavailable."
+  documentHeading: String
   id: ID!
   path: String!
   name: String!
@@ -2193,7 +2077,6 @@ input CommentInput {
   actor: CommentActorInput
   author: String
   source: CommentSource
-  status: CommentStatus
 }
 
 input DraftReviewCommentInput {
@@ -2225,34 +2108,7 @@ input AddCommentInput {
 
 input CommentUpdateInput {
   body: String
-  status: CommentStatus
   actor: CommentActorInput
-}
-
-input CommentThreadUpdateInput {
-  status: CommentStatus!
-  actor: CommentActorInput
-}
-
-input CommentThreadClaimInput {
-  actor: CommentActorInput!
-  clientEventId: String
-  leaseSeconds: Int = 600
-}
-
-type CommentThreadClaim {
-  thread: CommentThread!
-  activity: CommentThreadActivityEvent!
-}
-
-input CommentThreadClaimReleaseInput {
-  actor: CommentActorInput!
-  clientEventId: String
-}
-
-type CommentThreadClaimRelease {
-  thread: CommentThread!
-  activity: CommentThreadActivityEvent!
 }
 
 type CommentActor {
@@ -2587,26 +2443,6 @@ func (ec *executionContext) childFields_CommentThreadActivityEvent(ctx context.C
 	return nil, fmt.Errorf("no field named %q was found under type CommentThreadActivityEvent", field.Name)
 }
 
-func (ec *executionContext) childFields_CommentThreadClaim(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-	switch field.Name {
-	case "thread":
-		return ec.fieldContext_CommentThreadClaim_thread(ctx, field)
-	case "activity":
-		return ec.fieldContext_CommentThreadClaim_activity(ctx, field)
-	}
-	return nil, fmt.Errorf("no field named %q was found under type CommentThreadClaim", field.Name)
-}
-
-func (ec *executionContext) childFields_CommentThreadClaimRelease(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-	switch field.Name {
-	case "thread":
-		return ec.fieldContext_CommentThreadClaimRelease_thread(ctx, field)
-	case "activity":
-		return ec.fieldContext_CommentThreadClaimRelease_activity(ctx, field)
-	}
-	return nil, fmt.Errorf("no field named %q was found under type CommentThreadClaimRelease", field.Name)
-}
-
 func (ec *executionContext) childFields_DiffBase(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "ref":
@@ -2763,6 +2599,8 @@ func (ec *executionContext) childFields_FileSearchResult(ctx context.Context, fi
 
 func (ec *executionContext) childFields_FsNode(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
+	case "documentHeading":
+		return ec.fieldContext_FsNode_documentHeading(ctx, field)
 	case "id":
 		return ec.fieldContext_FsNode_id(ctx, field)
 	case "path":
@@ -3105,50 +2943,6 @@ func (ec *executionContext) field_Mutation_addComment_args(ctx context.Context, 
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_archiveThread_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNID2string(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["id"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "actor",
-		func(ctx context.Context, v any) (*model.CommentActorInput, error) {
-			return ec.unmarshalOCommentActorInput2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentActorInput(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["actor"] = arg1
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_claimThread_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNID2string(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["id"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input",
-		func(ctx context.Context, v any) (model.CommentThreadClaimInput, error) {
-			return ec.unmarshalNCommentThreadClaimInput2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThreadClaimInput(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg1
-	return args, nil
-}
-
 func (ec *executionContext) field_Mutation_createComment_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -3216,94 +3010,6 @@ func (ec *executionContext) field_Mutation_publishDraftReviewComments_args(ctx c
 		return nil, err
 	}
 	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_releaseThreadClaim_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNID2string(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["id"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input",
-		func(ctx context.Context, v any) (model.CommentThreadClaimReleaseInput, error) {
-			return ec.unmarshalNCommentThreadClaimReleaseInput2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThreadClaimReleaseInput(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg1
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_reopenThread_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNID2string(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["id"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "actor",
-		func(ctx context.Context, v any) (*model.CommentActorInput, error) {
-			return ec.unmarshalOCommentActorInput2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentActorInput(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["actor"] = arg1
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_resolveThread_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNID2string(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["id"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "actor",
-		func(ctx context.Context, v any) (*model.CommentActorInput, error) {
-			return ec.unmarshalOCommentActorInput2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentActorInput(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["actor"] = arg1
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_updateCommentThread_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNID2string(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["id"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input",
-		func(ctx context.Context, v any) (model.CommentThreadUpdateInput, error) {
-			return ec.unmarshalNCommentThreadUpdateInput2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThreadUpdateInput(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg1
 	return args, nil
 }
 
@@ -5082,134 +4788,6 @@ func (ec *executionContext) fieldContext_CommentThreadActivityEvent_createdAt(_ 
 	return graphql.NewScalarFieldContext("CommentThreadActivityEvent", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
-func (ec *executionContext) _CommentThreadClaim_thread(ctx context.Context, field graphql.CollectedField, obj *model.CommentThreadClaim) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_CommentThreadClaim_thread(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Thread, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.CommentThread) graphql.Marshaler {
-			return ec.marshalNCommentThread2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThread(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_CommentThreadClaim_thread(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "CommentThreadClaim",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_CommentThread(ctx, field)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _CommentThreadClaim_activity(ctx context.Context, field graphql.CollectedField, obj *model.CommentThreadClaim) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_CommentThreadClaim_activity(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Activity, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.CommentThreadActivityEvent) graphql.Marshaler {
-			return ec.marshalNCommentThreadActivityEvent2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThreadActivityEvent(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_CommentThreadClaim_activity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "CommentThreadClaim",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_CommentThreadActivityEvent(ctx, field)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _CommentThreadClaimRelease_thread(ctx context.Context, field graphql.CollectedField, obj *model.CommentThreadClaimRelease) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_CommentThreadClaimRelease_thread(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Thread, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.CommentThread) graphql.Marshaler {
-			return ec.marshalNCommentThread2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThread(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_CommentThreadClaimRelease_thread(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "CommentThreadClaimRelease",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_CommentThread(ctx, field)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _CommentThreadClaimRelease_activity(ctx context.Context, field graphql.CollectedField, obj *model.CommentThreadClaimRelease) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_CommentThreadClaimRelease_activity(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Activity, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.CommentThreadActivityEvent) graphql.Marshaler {
-			return ec.marshalNCommentThreadActivityEvent2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThreadActivityEvent(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_CommentThreadClaimRelease_activity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "CommentThreadClaimRelease",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_CommentThreadActivityEvent(ctx, field)
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _DiffBase_ref(ctx context.Context, field graphql.CollectedField, obj *gitreview.DiffBase) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6510,6 +6088,29 @@ func (ec *executionContext) fieldContext_FileSearchResult_score(_ context.Contex
 	return graphql.NewScalarFieldContext("FileSearchResult", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
+func (ec *executionContext) _FsNode_documentHeading(ctx context.Context, field graphql.CollectedField, obj *model.FsNode) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_FsNode_documentHeading(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DocumentHeading, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_FsNode_documentHeading(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("FsNode", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _FsNode_id(ctx context.Context, field graphql.CollectedField, obj *model.FsNode) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -7173,270 +6774,6 @@ func (ec *executionContext) fieldContext_Mutation_updateComment(ctx context.Cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_updateComment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_claimThread(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Mutation_claimThread(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().ClaimThread(ctx, fc.Args["id"].(string), fc.Args["input"].(model.CommentThreadClaimInput))
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.CommentThreadClaim) graphql.Marshaler {
-			return ec.marshalNCommentThreadClaim2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThreadClaim(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Mutation_claimThread(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_CommentThreadClaim(ctx, field)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_claimThread_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_releaseThreadClaim(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Mutation_releaseThreadClaim(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().ReleaseThreadClaim(ctx, fc.Args["id"].(string), fc.Args["input"].(model.CommentThreadClaimReleaseInput))
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.CommentThreadClaimRelease) graphql.Marshaler {
-			return ec.marshalNCommentThreadClaimRelease2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThreadClaimRelease(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Mutation_releaseThreadClaim(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_CommentThreadClaimRelease(ctx, field)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_releaseThreadClaim_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_resolveThread(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Mutation_resolveThread(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().ResolveThread(ctx, fc.Args["id"].(string), fc.Args["actor"].(*model.CommentActorInput))
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.CommentThread) graphql.Marshaler {
-			return ec.marshalNCommentThread2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThread(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Mutation_resolveThread(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_CommentThread(ctx, field)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_resolveThread_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_archiveThread(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Mutation_archiveThread(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().ArchiveThread(ctx, fc.Args["id"].(string), fc.Args["actor"].(*model.CommentActorInput))
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.CommentThread) graphql.Marshaler {
-			return ec.marshalNCommentThread2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThread(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Mutation_archiveThread(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_CommentThread(ctx, field)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_archiveThread_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_reopenThread(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Mutation_reopenThread(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().ReopenThread(ctx, fc.Args["id"].(string), fc.Args["actor"].(*model.CommentActorInput))
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.CommentThread) graphql.Marshaler {
-			return ec.marshalNCommentThread2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThread(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Mutation_reopenThread(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_CommentThread(ctx, field)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_reopenThread_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_updateCommentThread(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Mutation_updateCommentThread(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().UpdateCommentThread(ctx, fc.Args["id"].(string), fc.Args["input"].(model.CommentThreadUpdateInput))
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.CommentThread) graphql.Marshaler {
-			return ec.marshalNCommentThread2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThread(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Mutation_updateCommentThread(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_CommentThread(ctx, field)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_updateCommentThread_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -10749,7 +10086,7 @@ func (ec *executionContext) unmarshalInputCommentInput(ctx context.Context, obj 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"threadId", "path", "viewerKind", "anchor", "body", "actor", "author", "source", "status"}
+	fieldsInOrder := [...]string{"threadId", "path", "viewerKind", "anchor", "body", "actor", "author", "source"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -10812,135 +10149,6 @@ func (ec *executionContext) unmarshalInputCommentInput(ctx context.Context, obj 
 				return it, err
 			}
 			it.Source = data
-		case "status":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("status"))
-			data, err := ec.unmarshalOCommentStatus2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentStatus(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Status = data
-		}
-	}
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputCommentThreadClaimInput(ctx context.Context, obj any) (model.CommentThreadClaimInput, error) {
-	var it model.CommentThreadClaimInput
-	if obj == nil {
-		return it, nil
-	}
-
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	if _, present := asMap["leaseSeconds"]; !present {
-		asMap["leaseSeconds"] = 600
-	}
-
-	fieldsInOrder := [...]string{"actor", "clientEventId", "leaseSeconds"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "actor":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("actor"))
-			data, err := ec.unmarshalNCommentActorInput2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentActorInput(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Actor = data
-		case "clientEventId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientEventId"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ClientEventID = data
-		case "leaseSeconds":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("leaseSeconds"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.LeaseSeconds = data
-		}
-	}
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputCommentThreadClaimReleaseInput(ctx context.Context, obj any) (model.CommentThreadClaimReleaseInput, error) {
-	var it model.CommentThreadClaimReleaseInput
-	if obj == nil {
-		return it, nil
-	}
-
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"actor", "clientEventId"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "actor":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("actor"))
-			data, err := ec.unmarshalNCommentActorInput2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentActorInput(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Actor = data
-		case "clientEventId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientEventId"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ClientEventID = data
-		}
-	}
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputCommentThreadUpdateInput(ctx context.Context, obj any) (model.CommentThreadUpdateInput, error) {
-	var it model.CommentThreadUpdateInput
-	if obj == nil {
-		return it, nil
-	}
-
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"status", "actor"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "status":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("status"))
-			data, err := ec.unmarshalNCommentStatus2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentStatus(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Status = data
-		case "actor":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("actor"))
-			data, err := ec.unmarshalOCommentActorInput2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentActorInput(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Actor = data
 		}
 	}
 	return it, nil
@@ -10957,7 +10165,7 @@ func (ec *executionContext) unmarshalInputCommentUpdateInput(ctx context.Context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"body", "status", "actor"}
+	fieldsInOrder := [...]string{"body", "actor"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -10971,13 +10179,6 @@ func (ec *executionContext) unmarshalInputCommentUpdateInput(ctx context.Context
 				return it, err
 			}
 			it.Body = data
-		case "status":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("status"))
-			data, err := ec.unmarshalOCommentStatus2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentStatus(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Status = data
 		case "actor":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("actor"))
 			data, err := ec.unmarshalOCommentActorInput2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentActorInput(ctx, v)
@@ -11683,92 +10884,6 @@ func (ec *executionContext) _CommentThreadActivityEvent(ctx context.Context, sel
 	return out
 }
 
-var commentThreadClaimImplementors = []string{"CommentThreadClaim"}
-
-func (ec *executionContext) _CommentThreadClaim(ctx context.Context, sel ast.SelectionSet, obj *model.CommentThreadClaim) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, commentThreadClaimImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("CommentThreadClaim")
-		case "thread":
-			out.Values[i] = ec._CommentThreadClaim_thread(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "activity":
-			out.Values[i] = ec._CommentThreadClaim_activity(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
-
-	return out
-}
-
-var commentThreadClaimReleaseImplementors = []string{"CommentThreadClaimRelease"}
-
-func (ec *executionContext) _CommentThreadClaimRelease(ctx context.Context, sel ast.SelectionSet, obj *model.CommentThreadClaimRelease) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, commentThreadClaimReleaseImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("CommentThreadClaimRelease")
-		case "thread":
-			out.Values[i] = ec._CommentThreadClaimRelease_thread(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "activity":
-			out.Values[i] = ec._CommentThreadClaimRelease_activity(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
-
-	return out
-}
-
 var diffBaseImplementors = []string{"DiffBase"}
 
 func (ec *executionContext) _DiffBase(ctx context.Context, sel ast.SelectionSet, obj *gitreview.DiffBase) graphql.Marshaler {
@@ -12310,6 +11425,11 @@ func (ec *executionContext) _FsNode(ctx context.Context, sel ast.SelectionSet, o
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("FsNode")
+		case "documentHeading":
+			out.Values[i] = ec._FsNode_documentHeading(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "id":
 			out.Values[i] = ec._FsNode_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -12501,48 +11621,6 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "updateComment":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateComment(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "claimThread":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_claimThread(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "releaseThreadClaim":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_releaseThreadClaim(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "resolveThread":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_resolveThread(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "archiveThread":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_archiveThread(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "reopenThread":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_reopenThread(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "updateCommentThread":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_updateCommentThread(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -14185,11 +13263,6 @@ func (ec *executionContext) marshalNCommentActor2ᚖgithubᚗcomᚋtasuku43ᚋvi
 	return ec._CommentActor(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNCommentActorInput2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentActorInput(ctx context.Context, v any) (*model.CommentActorInput, error) {
-	res, err := ec.unmarshalInputCommentActorInput(ctx, v)
-	return &res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) unmarshalNCommentActorKind2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentActorKind(ctx context.Context, v any) (model.CommentActorKind, error) {
 	var res model.CommentActorKind
 	err := res.UnmarshalGQL(v)
@@ -14417,49 +13490,6 @@ func (ec *executionContext) marshalNCommentThreadActivityType2ᚕgithubᚗcomᚋ
 	}
 
 	return ret
-}
-
-func (ec *executionContext) marshalNCommentThreadClaim2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThreadClaim(ctx context.Context, sel ast.SelectionSet, v model.CommentThreadClaim) graphql.Marshaler {
-	return ec._CommentThreadClaim(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNCommentThreadClaim2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThreadClaim(ctx context.Context, sel ast.SelectionSet, v *model.CommentThreadClaim) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._CommentThreadClaim(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalNCommentThreadClaimInput2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThreadClaimInput(ctx context.Context, v any) (model.CommentThreadClaimInput, error) {
-	res, err := ec.unmarshalInputCommentThreadClaimInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNCommentThreadClaimRelease2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThreadClaimRelease(ctx context.Context, sel ast.SelectionSet, v model.CommentThreadClaimRelease) graphql.Marshaler {
-	return ec._CommentThreadClaimRelease(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNCommentThreadClaimRelease2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThreadClaimRelease(ctx context.Context, sel ast.SelectionSet, v *model.CommentThreadClaimRelease) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._CommentThreadClaimRelease(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalNCommentThreadClaimReleaseInput2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThreadClaimReleaseInput(ctx context.Context, v any) (model.CommentThreadClaimReleaseInput, error) {
-	res, err := ec.unmarshalInputCommentThreadClaimReleaseInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNCommentThreadUpdateInput2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentThreadUpdateInput(ctx context.Context, v any) (model.CommentThreadUpdateInput, error) {
-	res, err := ec.unmarshalInputCommentThreadUpdateInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNCommentUpdateInput2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentUpdateInput(ctx context.Context, v any) (model.CommentUpdateInput, error) {

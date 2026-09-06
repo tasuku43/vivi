@@ -59,12 +59,11 @@ export const RenderedMarkdownComment: Story = {
     await expect(
       canvas.getByRole("heading", { name: "Review Surface" }),
     ).toBeInTheDocument();
-    const sourceMode = canvasElement.querySelector<HTMLButtonElement>(
-      `[data-testid="viewer-mode-option"][data-viewer-mode="source"][data-viewer-path="${sampleFiles.markdown.path}"]`,
-    );
-    await expect(sourceMode).toBeInTheDocument();
-    await expect(sourceMode).toHaveAttribute("data-active", "false");
-    await userEvent.click(sourceMode!);
+    const sourceMode = canvas.getByRole("combobox", {
+      name: "Markdown view mode",
+    });
+    await expect(sourceMode).toHaveValue("rendered");
+    await userEvent.selectOptions(sourceMode, "source");
     await expect(args.onModeChange).toHaveBeenCalledWith("source");
     const diffToggle = canvasElement.querySelector<HTMLButtonElement>(
       `[data-testid="viewer-diff-toggle"][data-viewer-path="${sampleFiles.markdown.path}"]`,
@@ -96,7 +95,10 @@ export const RenderedShowsSourceInputReturn: Story = {
       name: "New line comment",
     });
     await userEvent.type(composer, "Keep this visible from Rendered mode");
-    await userEvent.click(canvas.getByRole("button", { name: "Rendered" }));
+    await userEvent.selectOptions(
+      canvas.getByRole("combobox", { name: "Markdown view mode" }),
+      "rendered",
+    );
 
     const returnButton = canvas.getByRole("button", {
       name: "Return to Source, 1 input in progress",
@@ -106,7 +108,10 @@ export const RenderedShowsSourceInputReturn: Story = {
     await expect(
       canvas.getByRole("textbox", { name: "New line comment" }),
     ).toHaveValue("Keep this visible from Rendered mode");
-    await userEvent.click(canvas.getByRole("button", { name: "Rendered" }));
+    await userEvent.selectOptions(
+      canvas.getByRole("combobox", { name: "Markdown view mode" }),
+      "rendered",
+    );
     await expect(
       canvas.getByRole("button", {
         name: "Return to Source, 1 input in progress",
@@ -502,7 +507,7 @@ export const RenderedMarkdownSyntaxGallery: Story = {
     await expect(markdown!.getBoundingClientRect().width).toBeLessThanOrEqual(
       862,
     );
-    await expect(getComputedStyle(markdown!).backgroundColor).not.toBe(
+    await expect(getComputedStyle(markdown!).backgroundColor).toBe(
       "rgba(0, 0, 0, 0)",
     );
     await expect(tableWrap!.getBoundingClientRect().right).toBeLessThanOrEqual(
@@ -734,6 +739,17 @@ export const RenderedMarkerPlacement: Story = {
     const listMarker = within(listItem).getByRole("button", {
       name: /Open comment thread/,
     });
+    await expect(getComputedStyle(listItem, "::before").backgroundColor).toBe(
+      "rgba(0, 0, 0, 0)",
+    );
+    await expect(getComputedStyle(listItem, "::before").boxShadow).toBe("none");
+    const paragraphMarker = within(paragraph).getByRole("button", {
+      name: /Open comment thread/,
+    });
+    await expect(getComputedStyle(paragraphMarker).position).toBe("absolute");
+    await expect(paragraphMarker.getBoundingClientRect().left).toBeGreaterThan(
+      paragraph.getBoundingClientRect().right,
+    );
     const listTopBefore = listMarker.getBoundingClientRect().top;
     const listMetricsBefore = renderedBlockMetrics(listItem);
     const adjacentListMetrics = renderedBlockMetrics(adjacentListItem);
@@ -758,6 +774,12 @@ export const RenderedMarkerPlacement: Story = {
     ).toBe("calc(0.85em + 1px)");
 
     await userEvent.click(listMarker);
+    await waitFor(() =>
+      expect(getComputedStyle(listItem, "::before").backgroundColor).not.toBe(
+        "rgba(0, 0, 0, 0)",
+      ),
+    );
+    await expect(listItem).toHaveClass("drafting-rendered-comment");
     await expect(canvas.queryByRole("textbox")).not.toBeInTheDocument();
     await waitFor(() =>
       expect(
@@ -811,6 +833,13 @@ export const RenderedMarkerPlacement: Story = {
       4,
     );
     await expect(listMetricsAfterCodeOpen.height).toBeLessThanOrEqual(56);
+    await expect(codeBlock).toHaveClass("drafting-rendered-comment");
+    await expect(listItem).not.toHaveClass("drafting-rendered-comment");
+    await waitFor(() =>
+      expect(getComputedStyle(listItem, "::before").backgroundColor).toBe(
+        "rgba(0, 0, 0, 0)",
+      ),
+    );
     canvasElement.dataset.viviSnapshotReady = "true";
   },
 };
@@ -1132,5 +1161,56 @@ export const SourceDiffMode: Story = {
     mode: "source",
     diffEnabled: true,
     diff: markdownDiff,
+  },
+};
+
+const diagramImage =
+  'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="320" height="100"%3E%3Crect width="320" height="100" rx="8" fill="%234a827d"/%3E%3C/svg%3E';
+export const ImageOnlyFeedback: Story = {
+  tags: ["interaction"],
+  args: {
+    mode: "rendered",
+    file: {
+      ...sampleFiles.markdown,
+      content: `# Diagram review\n\n<p><img src='${diagramImage}' alt="Workspace diagram"></p>`,
+    },
+    comments: [
+      {
+        ...commentsForPath(sampleFiles.markdown.path)[0]!,
+        body: "Clarify the diagram labels.",
+        anchor: {
+          ...commentsForPath(sampleFiles.markdown.path)[0]!.anchor,
+          canonical: {
+            path: sampleFiles.markdown.path,
+            lineStart: 3,
+            lineEnd: 3,
+            fileHash: sampleFiles.markdown.etag,
+          },
+          rendered: {
+            kind: "markdown",
+            selector: "p",
+            textQuote: "Workspace diagram",
+          },
+        },
+      },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const diagram = canvas.getByRole("img", { name: "Workspace diagram" });
+    await expect(diagram).toBeVisible();
+    const marker = canvas.getByRole("button", {
+      name: "Open comment thread with 1 message",
+    });
+    await userEvent.click(marker);
+    await expect(canvas.getByText("Clarify the diagram labels.")).toBeVisible();
+    await expect(canvas.queryByRole("textbox")).not.toBeInTheDocument();
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Close comment thread" }),
+    );
+    await userEvent.dblClick(diagram);
+    await expect(
+      canvas.getByRole("textbox", { name: "New line comment" }),
+    ).toBeVisible();
   },
 };

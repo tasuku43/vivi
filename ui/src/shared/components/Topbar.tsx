@@ -79,7 +79,7 @@ export function Topbar({
           data-topbar-action="quick-open"
           onClick={onQuickOpen}
         >
-          <span>Command</span>
+          <span>Find a document</span>
           <kbd className={sharedUiStyles.keycap}>Cmd/Ctrl K</kbd>
         </button>
         <button

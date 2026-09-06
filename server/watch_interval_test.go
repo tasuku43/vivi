@@ -107,3 +107,41 @@ func receiveWorkspaceEvent(t *testing.T, events <-chan application.WorkspaceEven
 		return application.WorkspaceEvent{}
 	}
 }
+
+func TestPublishInvalidatesHeadingBeforeDeliveringEvent(t *testing.T) {
+	root := t.TempDir()
+	pathname := filepath.Join(root, "README.md")
+	if err := os.WriteFile(pathname, []byte("# First\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fsys, err := workspace.New(workspace.Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fsys.ReadDirectory("", 1); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(pathname)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(pathname, []byte("# Other\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(pathname, info.ModTime(), info.ModTime()); err != nil {
+		t.Fatal(err)
+	}
+	service := application.NewService(application.Options{Workspace: fsys})
+	server := &Server{app: service, options: Options{Workspace: fsys}}
+	events, unsubscribe := service.SubscribeWorkspaceEvents()
+	defer unsubscribe()
+	server.publish(application.WorkspaceEvent{Type: "change", Path: "README.md"})
+	receiveWorkspaceEvent(t, events)
+	tree, err := fsys.ReadDirectory("", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tree.Nodes[0].DocumentHeading == nil || *tree.Nodes[0].DocumentHeading != "Other" {
+		t.Fatalf("cached heading survived notification: %+v", tree.Nodes[0])
+	}
+}

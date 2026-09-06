@@ -107,8 +107,19 @@ export class NodeFileSystem implements FileSystemPort {
     };
   }
 
-  async readFile(relativePath: string): Promise<FilePayload> {
-    const resolved = await this.resolveInsideRoot(relativePath);
+  readFile(relativePath: string): Promise<FilePayload> {
+    return this.readFilePayload(relativePath, false);
+  }
+
+  readPreviewResource(relativePath: string): Promise<FilePayload> {
+    return this.readFilePayload(relativePath, true);
+  }
+
+  private async readFilePayload(
+    relativePath: string,
+    previewImage: boolean,
+  ): Promise<FilePayload> {
+    const resolved = await this.resolveInsideRoot(relativePath, previewImage);
     const stat = await fs.stat(resolved.absolutePath);
     if (!stat.isFile()) throw new Error("path is not a file");
     let viewerKind = classifyViewer(resolved.relativePath);
@@ -387,7 +398,10 @@ export class NodeFileSystem implements FileSystemPort {
     return nodes;
   }
 
-  private async resolveInsideRoot(input: string): Promise<{
+  private async resolveInsideRoot(
+    input: string,
+    previewImage = false,
+  ): Promise<{
     absolutePath: string;
     relativePath: string;
   }> {
@@ -398,7 +412,10 @@ export class NodeFileSystem implements FileSystemPort {
       throw new Error("path is excluded");
     if (isIgnoredPath(normalized.relativePath, this.ignoredNames))
       throw new Error("path is ignored");
-    if (!this.isIncluded(normalized.relativePath))
+    if (
+      !this.isIncluded(normalized.relativePath) &&
+      !(previewImage && classifyViewer(normalized.relativePath) === "image")
+    )
       throw new Error("path is excluded");
     const absolutePath = path.resolve(this.rootDir, normalized.relativePath);
     const relativeToRoot = path.relative(this.rootDir, absolutePath);

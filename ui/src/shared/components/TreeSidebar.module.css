@@ -19,9 +19,10 @@
 }
 
 .row {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 5px;
   width: 100%;
   box-sizing: border-box;
   border: 0;
@@ -30,41 +31,37 @@
   font: inherit;
   text-align: left;
   padding: 5px 8px;
-  border-radius: 8px;
+  border-radius: 5px;
   cursor: pointer;
   white-space: nowrap;
 }
 
-.row:hover,
-.selected {
+.row:hover {
+  background: var(--vivi-color-selection-surface-subtle);
+}
+.row.selected {
   background: var(--vivi-color-selection-surface);
   color: var(--vivi-color-selection-text);
 }
-
-.selected {
-  box-shadow: inset 2px 0 0 var(--vivi-color-selection-indicator);
+.selected .label {
+  font-weight: 600;
 }
-
-.containsSelection:not(.selected) {
-  background: color-mix(
-    in srgb,
-    var(--vivi-color-selection-surface) 56%,
-    transparent
-  );
-  box-shadow: inset 2px 0 0
-    color-mix(in srgb, var(--vivi-color-selection-indicator) 58%, transparent);
-  color: var(--vivi-color-content-primary);
+.selected .documentHeading {
+  color: var(--vivi-color-selection-text);
+  opacity: 0.78;
 }
-
-.containsCurrentStop:not(.selected),
-.currentReviewStop:not(.selected) {
-  background: color-mix(
-    in srgb,
-    var(--vivi-color-selection-surface) 42%,
-    transparent
-  );
-  box-shadow: inset 2px 0 0 var(--vivi-color-selection-indicator);
-  color: var(--vivi-color-content-primary);
+.row:focus-visible {
+  outline: 1px solid var(--vivi-color-focus-ring);
+  outline-offset: -1px;
+  z-index: 1;
+}
+.currentLocation {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 5px;
+  margin-right: 3px;
+  border-radius: 50%;
+  background: var(--vivi-color-selection-indicator);
 }
 
 .changed {
@@ -79,15 +76,14 @@
   font-weight: 650;
 }
 
-.openInTab .label::after {
+.openInTab::after {
   content: "";
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  margin-left: 7px;
-  border-radius: 999px;
-  background: var(--vivi-color-selection-indicator);
-  vertical-align: middle;
+  width: 4px;
+  height: 4px;
+  flex: 0 0 4px;
+  border-radius: 50%;
+  background: var(--vivi-color-content-muted);
+  margin-right: 3px;
 }
 
 .removed {
@@ -127,8 +123,7 @@
   color: var(--vivi-color-review-text);
 }
 
-.currentReviewStop .reason,
-.containsCurrentStop .reason {
+.currentReviewStop .reason {
   color: var(--vivi-color-selection-indicator);
 }
 
@@ -185,4 +180,38 @@
   width: 12px;
   flex: 0 0 12px;
   color: var(--vivi-color-content-subtle);
+}
+
+.documentHeading {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--vivi-color-content-muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--vivi-color-border-default);
+  pointer-events: none;
+}
+.folderIcon {
+  flex: 0 0 15px;
+  color: var(--vivi-color-content-muted);
+}
+.twisty {
+  height: 12px;
+  transition: transform 100ms ease;
+}
+.expanded {
+  transform: rotate(90deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .twisty {
+    transition: none;
+  }
 }

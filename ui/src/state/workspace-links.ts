@@ -51,3 +51,15 @@ function normalizeWorkspacePath(path: string): string | null {
   }
   return parts.length ? parts.join("/") : null;
 }
+
+export function workspaceImageUrl(
+  currentPath: string,
+  source: string,
+): string | null {
+  const path = resolveWorkspaceLink(currentPath, source);
+  if (!path) return null;
+  const fragment = source.includes("#")
+    ? source.slice(source.indexOf("#"))
+    : "";
+  return `/preview/raw/${path.split("/").map(encodeURIComponent).join("/")}${fragment}`;
+}

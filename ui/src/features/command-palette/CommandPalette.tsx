@@ -247,6 +247,7 @@ export function CommandPalette({
               <button
                 id={`palette-result-${index}`}
                 key={item.id}
+                title={item.kind === "action" ? item.detail : item.path}
                 role="option"
                 aria-label={`${item.label} ${item.detail} ${
                   item.kind === "file"
@@ -281,16 +282,26 @@ export function CommandPalette({
                     : iconForPath(item.path, item.viewerKind)}
                 </span>
                 <span className={styles.resultMain}>
-                  <strong>{item.label}</strong>
+                  <strong>
+                    {item.kind === "file"
+                      ? item.path.split("/").at(-1)
+                      : item.label}
+                  </strong>
                   <small>
                     {item.kind === "text" ? (
                       <TextSearchPreview item={item} />
+                    ) : item.kind === "file" ? (
+                      item.path.split("/").slice(0, -1).join("/") ||
+                      "Workspace root"
                     ) : (
                       item.detail
                     )}
                   </small>
                 </span>
-                <span className={styles.type}>
+                <span
+                  className={styles.type}
+                  hidden={item.kind === "file" && !filePaletteType(item.source)}
+                >
                   {item.kind === "file"
                     ? filePaletteType(item.source)
                     : item.kind === "text"
@@ -321,56 +332,28 @@ export function CommandPalette({
               </p>
             )}
           </div>
-          <aside className={styles.help}>
-            {mode === "action" ? (
-              <>
-                <div>
-                  <span>Run action</span>
-                  <kbd className={sharedUiStyles.keycap}>Enter</kbd>
-                </div>
-                <div>
-                  <span>Filter actions</span>
-                  <kbd className={sharedUiStyles.keycap}>Type</kbd>
-                </div>
-                <div>
-                  <span>Command palette</span>
-                  <kbd className={sharedUiStyles.keycap}>Cmd/Ctrl K</kbd>
-                </div>
-                <div>
-                  <span>Search text</span>
-                  <kbd className={sharedUiStyles.keycap}>Cmd/Ctrl Shift F</kbd>
-                </div>
-              </>
-            ) : (
-              <>
-                <div>
-                  <span>Preview</span>
-                  <kbd className={sharedUiStyles.keycap}>Enter</kbd>
-                </div>
-                <div>
-                  <span>Keep open</span>
-                  <kbd className={sharedUiStyles.keycap}>Cmd/Ctrl Enter</kbd>
-                </div>
-                <div>
-                  <span>Command palette</span>
-                  <kbd className={sharedUiStyles.keycap}>Cmd/Ctrl K</kbd>
-                </div>
-                <div>
-                  <span>Search text</span>
-                  <kbd className={sharedUiStyles.keycap}>Cmd/Ctrl Shift F</kbd>
-                </div>
-              </>
+          <aside className={styles.help} aria-label="Search keyboard hints">
+            <span>
+              <kbd className={sharedUiStyles.keycap}>↑ ↓</kbd> Navigate
+            </span>
+            <span>
+              <kbd className={sharedUiStyles.keycap}>Enter</kbd>{" "}
+              {mode === "action" ? "Run action" : "Preview"}
+            </span>
+            {mode !== "action" && (
+              <span>
+                <kbd className={sharedUiStyles.keycap}>Cmd/Ctrl Enter</kbd> Keep
+                open
+              </span>
             )}
-            {hasActionMode ? (
-              <div>
-                <span>Switch mode</span>
-                <kbd className={sharedUiStyles.keycap}>Tab</kbd>
-              </div>
-            ) : null}
-            <div>
-              <span>Close</span>
-              <kbd className={sharedUiStyles.keycap}>Esc</kbd>
-            </div>
+            {hasActionMode && (
+              <span>
+                <kbd className={sharedUiStyles.keycap}>Tab</kbd> Switch mode
+              </span>
+            )}
+            <span>
+              <kbd className={sharedUiStyles.keycap}>Esc</kbd> Close
+            </span>
           </aside>
         </div>
       </section>
@@ -383,7 +366,8 @@ function filePaletteType(
 ): string {
   if (source === "active") return "Active";
   if (source === "recent") return "Recent";
-  return "Open";
+  if (source === "open") return "Open";
+  return "";
 }
 
 function TextSearchPreview({

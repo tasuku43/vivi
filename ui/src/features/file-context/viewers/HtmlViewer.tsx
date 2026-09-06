@@ -50,7 +50,7 @@ import {
   DiffToggleButton,
   SourceInputReturnButton,
   ViewerToolbar,
-  ViewerModeButton,
+  ViewerModeSelect,
 } from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
 import surfaceStyles from "./ViewerSurface.module.css";
@@ -568,27 +568,15 @@ export function HtmlViewer({
       <ViewerToolbar
         status={`sandboxed · scripts ${allowHtmlScripts ? "on" : "off"}`}
       >
-        <div
-          className={`${surfaceStyles.segmentedControl} segmented-control`}
-          aria-label="HTML view mode"
-        >
-          <ViewerModeButton
-            active={mode === "preview"}
-            mode="preview"
-            path={file.path}
-            onClick={() => setMode("preview")}
-          >
-            Preview
-          </ViewerModeButton>
-          <ViewerModeButton
-            active={mode === "source"}
-            mode="source"
-            path={file.path}
-            onClick={() => setMode("source")}
-          >
-            Source
-          </ViewerModeButton>
-        </div>
+        <ViewerModeSelect
+          label="HTML view mode"
+          value={mode}
+          options={[
+            { value: "preview", label: "Preview" },
+            { value: "source", label: "Source" },
+          ]}
+          onChange={setMode}
+        />
         {mode === "preview" ? (
           <SourceInputReturnButton
             count={sourceInputCount}

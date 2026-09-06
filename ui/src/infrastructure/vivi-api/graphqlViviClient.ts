@@ -9,7 +9,6 @@ import {
 import type {
   CommentListFilters,
   CommentExportFilters,
-  CommentStatus,
   CreateDraftReviewCommentInput,
   CreateCommentInput,
   CommentThreadActivityEvent,
@@ -36,8 +35,6 @@ import {
   CreateDraftReviewCommentDocument,
   DeleteDraftReviewCommentDocument,
   PublishDraftReviewCommentsDocument,
-  UpdateCommentStatusDocument,
-  UpdateCommentThreadStatusDocument,
   UpdateDraftReviewCommentDocument,
   ViviCommentExportDocument,
   ViviCommentsDocument,
@@ -60,8 +57,6 @@ import type {
   CreateDraftReviewCommentMutation,
   DeleteDraftReviewCommentMutation,
   PublishDraftReviewCommentsMutation,
-  UpdateCommentStatusMutation,
-  UpdateCommentThreadStatusMutation,
   UpdateDraftReviewCommentMutation,
   ViviCommentExportQuery,
   ViviCommentsQuery,
@@ -268,27 +263,6 @@ export class GraphqlViviClient implements ViviClient {
     };
   }
 
-  async updateCommentStatus(input: { id: string; status: CommentStatus }) {
-    const data = await this.graphql<UpdateCommentStatusMutation>({
-      operationName: "UpdateCommentStatus",
-      query: print(UpdateCommentStatusDocument),
-      variables: input,
-    });
-    return adaptGraphqlComment(data.updateComment);
-  }
-
-  async updateCommentThreadStatus(input: {
-    id: string;
-    status: CommentStatus;
-  }) {
-    const data = await this.graphql<UpdateCommentThreadStatusMutation>({
-      operationName: "UpdateCommentThreadStatus",
-      query: print(UpdateCommentThreadStatusDocument),
-      variables: input,
-    });
-    return adaptGraphqlCommentThread(data.updateCommentThread);
-  }
-
   async getCommentThreadActivities(input: {
     threadId: string;
     after?: string;
@@ -366,9 +340,7 @@ export class GraphqlViviClient implements ViviClient {
     const source = this.createEventSource(this.url(`/graphql?${params}`));
     options.onStatus?.("connecting");
     source.addEventListener("open", () => options.onStatus?.("connected"));
-    source.addEventListener("error", () =>
-      options.onStatus?.("disconnected"),
-    );
+    source.addEventListener("error", () => options.onStatus?.("disconnected"));
     const listener = (raw: Event) => {
       const event = parseWorkspaceEvent((raw as MessageEvent<string>).data);
       onEvent(adaptGraphqlWorkspaceEvent(event));

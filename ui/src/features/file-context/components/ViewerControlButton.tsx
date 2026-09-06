@@ -259,3 +259,35 @@ export function ViewerModeButton({
     </button>
   );
 }
+
+export function ViewerModeSelect<T extends string>({
+  value,
+  options,
+  onChange,
+  label,
+}: {
+  value: T;
+  options: ReadonlyArray<{ value: T; label: string }>;
+  onChange: (value: T) => void;
+  label: string;
+}) {
+  return (
+    <select
+      className={styles.modeSelect}
+      aria-label={label}
+      value={value}
+      onChange={(event) => {
+        const option = options.find(
+          (candidate) => candidate.value === event.currentTarget.value,
+        );
+        if (option) onChange(option.value);
+      }}
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  );
+}

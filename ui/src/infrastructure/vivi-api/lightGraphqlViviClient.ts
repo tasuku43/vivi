@@ -35,8 +35,6 @@ import type {
   CreateDraftReviewCommentMutation,
   DeleteDraftReviewCommentMutation,
   PublishDraftReviewCommentsMutation,
-  UpdateCommentStatusMutation,
-  UpdateCommentThreadStatusMutation,
   UpdateDraftReviewCommentMutation,
   ViviCommentExportQuery,
   ViviCommentsQuery,
@@ -243,27 +241,6 @@ export class LightGraphqlViviClient implements ViviClient {
     };
   }
 
-  async updateCommentStatus(input: { id: string; status: CommentStatus }) {
-    const data = await this.graphql<UpdateCommentStatusMutation>({
-      operationName: "UpdateCommentStatus",
-      query: operations.UpdateCommentStatus,
-      variables: input,
-    });
-    return adaptGraphqlComment(data.updateComment);
-  }
-
-  async updateCommentThreadStatus(input: {
-    id: string;
-    status: CommentStatus;
-  }) {
-    const data = await this.graphql<UpdateCommentThreadStatusMutation>({
-      operationName: "UpdateCommentThreadStatus",
-      query: operations.UpdateCommentThreadStatus,
-      variables: input,
-    });
-    return adaptGraphqlCommentThread(data.updateCommentThread);
-  }
-
   async getCommentThreadActivities(input: {
     threadId: string;
     after?: string;
@@ -341,9 +318,7 @@ export class LightGraphqlViviClient implements ViviClient {
     const source = this.createEventSource(this.url(`/graphql?${params}`));
     options.onStatus?.("connecting");
     source.addEventListener("open", () => options.onStatus?.("connected"));
-    source.addEventListener("error", () =>
-      options.onStatus?.("disconnected"),
-    );
+    source.addEventListener("error", () => options.onStatus?.("disconnected"));
     const listener = (raw: Event) => {
       const event = parseWorkspaceEvent((raw as MessageEvent<string>).data);
       onEvent(adaptGraphqlWorkspaceEvent(event));
@@ -422,6 +397,7 @@ fragment TreeFields on TreeSnapshot {
     kind
     parentPath
     viewerKind
+    documentHeading
     childrenLoaded
     size
     mtimeMs
@@ -433,7 +409,8 @@ fragment TreeFields on TreeSnapshot {
       kind
       parentPath
       viewerKind
-      childrenLoaded
+      documentHeading
+    childrenLoaded
       size
       mtimeMs
       version
@@ -711,14 +688,6 @@ mutation PublishDraftReviewComments($input: PublishDraftReviewCommentsInput) {
     publishedAt
     threads { ...ThreadFields }
   }
-}`,
-  UpdateCommentStatus: `${commentFields}
-mutation UpdateCommentStatus($id: ID!, $status: CommentStatus!) {
-  updateComment(id: $id, input: { status: $status }) { ...CommentFields }
-}`,
-  UpdateCommentThreadStatus: `${commentFields}${threadFields}
-mutation UpdateCommentThreadStatus($id: ID!, $status: CommentStatus!) {
-  updateCommentThread(id: $id, input: { status: $status }) { ...ThreadFields }
 }`,
   WorkspaceEvents: `
 subscription WorkspaceEvents {

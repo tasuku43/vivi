@@ -102,7 +102,6 @@ export interface CreateCommentInput {
 
 export interface UpdateCommentInput {
   body?: string;
-  status?: CommentStatus;
 }
 
 export interface CommentListFilters {
@@ -187,8 +186,9 @@ export function normalizeCommentCreateInput(
   const body = stringField(input.body, "body").trim();
   if (!body) throw new Error("comment body is required");
   const anchor = normalizeAnchor(input.anchor, path, options.fileHash);
-  const status =
-    input.status === undefined ? "open" : normalizeStatus(input.status);
+  if (input.status !== undefined && input.status !== "open")
+    throw new Error("new comments must be open");
+  const status = "open";
   return {
     threadId: optionalString(input.threadId),
     path,
@@ -225,9 +225,10 @@ export function normalizeCommentUpdateInput(
     if (!body) throw new Error("comment body is required");
     update.body = body;
   }
-  if (input.status !== undefined) update.status = normalizeStatus(input.status);
-  if (update.body === undefined && update.status === undefined) {
-    throw new Error("comment update must include body or status");
+  if (input.status !== undefined)
+    throw new Error("comment lifecycle updates are no longer supported");
+  if (update.body === undefined) {
+    throw new Error("comment update must include body");
   }
   return update;
 }
@@ -249,23 +250,7 @@ export function applyCommentUpdate(
   update: UpdateCommentInput,
   now: string,
 ): ViviComment {
-  const next: ViviComment = {
-    ...comment,
-    body: update.body ?? comment.body,
-    status: update.status ?? comment.status,
-    updatedAt: now,
-  };
-  if (update.status === "resolved" && comment.status !== "resolved") {
-    next.resolvedAt = now;
-  }
-  if (update.status === "archived" && comment.status !== "archived") {
-    next.archivedAt = now;
-  }
-  if (update.status === "open") {
-    next.resolvedAt = undefined;
-    next.archivedAt = undefined;
-  }
-  return next;
+  return { ...comment, body: update.body ?? comment.body, updatedAt: now };
 }
 
 export function buildCommentThreads(comments: ViviComment[]): CommentThread[] {

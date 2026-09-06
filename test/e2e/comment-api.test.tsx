@@ -166,18 +166,18 @@ it("creates, lists, updates, persists, and exports comments", async () => {
     [source.id, diffContext.id, diffAdded.id].sort(),
   );
 
-  const resolved = await patchJson<ViviComment>(
+  const updated = await patchJson<ViviComment>(
     `/api/v1/comments/${source.id}`,
-    { status: "resolved" },
+    { body: "Updated source feedback" },
   );
-  expect(resolved.status).toBe("resolved");
-  expect(resolved.resolvedAt).toBeDefined();
+  expect(updated.body).toBe("Updated source feedback");
+  expect(updated.status).toBe("open");
 
   const openOnly = await fetchJson<ViviComment[]>(
     "/api/v1/comments?status=open",
   );
-  expect(openOnly).toHaveLength(4);
-  expect(openOnly.map((comment) => comment.id)).not.toContain(source.id);
+  expect(openOnly).toHaveLength(5);
+  expect(openOnly.map((comment) => comment.id)).toContain(source.id);
 
   const persisted = await new NodeCommentStore({ dataDir }).listComments({
     path: "README.md",
@@ -190,7 +190,7 @@ it("creates, lists, updates, persists, and exports comments", async () => {
     `${server!.url}/api/v1/comments/export?status=open&format=jsonl`,
   ).then((res) => res.text());
   const lines = exported.trim().split("\n");
-  expect(lines).toHaveLength(4);
+  expect(lines).toHaveLength(5);
   expect(lines.map((line) => JSON.parse(line))).toContainEqual(
     expect.objectContaining({
       path: "index.html",

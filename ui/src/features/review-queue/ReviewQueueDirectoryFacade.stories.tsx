@@ -222,6 +222,13 @@ export const WiredInspectorFilterInteraction: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     const draftPath = wiredDraft.path;
+    await expect(canvas.getByRole("radio", { name: "All" })).toBeChecked();
+    await expect(
+      canvasElement.querySelector(".change-open .unread-dot"),
+    ).toBeNull();
+    await expect(
+      canvasElement.querySelector(".review-panel-heading strong"),
+    ).toBeNull();
     const changedPath = "docs/product/01-product-brief.md";
     const draftsFilter = canvas.getByRole("radio", { name: "Drafts 1" });
     const draftBadge = canvasElement.querySelector<HTMLElement>(

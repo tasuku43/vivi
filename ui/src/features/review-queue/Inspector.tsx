@@ -21,7 +21,7 @@ import {
   type DiffStat,
   type ReviewChangeItem,
 } from "../../state/git-review.js";
-import { iconForPath, languageForPath } from "../../state/file-icons.js";
+import { languageForPath } from "../../state/file-icons.js";
 import {
   isReviewQueueItemOpenable,
   reviewQueuePosition,
@@ -31,7 +31,6 @@ import {
 } from "../../state/review-queue.js";
 import { gitReviewUnavailableGuidance } from "../../state/git-review-refresh.js";
 import type { OutlineHeading } from "../../state/outline.js";
-import fileIconStyles from "../../shared/components/FileIcon.module.css";
 import { InspectorSurfaceTabs } from "../../shared/components/InspectorSurfaceTabs.js";
 import sharedUiStyles from "../../shared/styles/SharedUi.module.css";
 
@@ -191,10 +190,6 @@ export function Inspector({
               reviewStop,
             })}
           </span>
-          <span className={reviewQueueItemDotClass(item)} aria-hidden="true" />
-          <span className={`${fileIconStyles.icon} file-icon change-icon`}>
-            {iconForPath(item.path)}
-          </span>
           <span className="change-main">
             <span className="change-heading">
               <span className="change-kind">{kindLabel}</span>
@@ -258,14 +253,7 @@ export function Inspector({
         className={`${sharedUiStyles.panelTitle} panel-title review-panel-title`}
       >
         <span className="review-panel-heading">
-          <strong>
-            {reviewQueueCount
-              ? `${reviewQueueCount} active ${reviewQueueCount === 1 ? "file" : "files"}`
-              : reviewLoading
-                ? "loading"
-                : "clear"}
-          </strong>
-          <span>Sorted by attention</span>
+          {reviewLoading ? "Updating review…" : "Sorted by attention"}
         </span>
         {queueItems.length ? (
           <button
@@ -350,7 +338,13 @@ export function Inspector({
                       htmlFor={`review-signal-filter-${filter.id}`}
                       key={filter.id}
                     >
-                      {filter.label} <span>{filter.count}</span>
+                      {filter.label}
+                      {filter.id !== "all" && (
+                        <>
+                          {" "}
+                          <span>{filter.count}</span>
+                        </>
+                      )}
                     </label>
                   ))}
                 </div>
@@ -489,15 +483,6 @@ function reviewQueueItemDescription(
   ]
     .filter(Boolean)
     .join(", ");
-}
-
-function reviewQueueItemDotClass(item: ReviewQueueItem): string {
-  if (item.unread) return "unread-dot";
-  if ((item.pendingDraftCount ?? 0) > 0) {
-    return "unread-dot muted";
-  }
-  if (item.change) return "unread-dot muted";
-  return "unread-dot read";
 }
 
 function reviewQueueStopTitle(active: boolean): string {

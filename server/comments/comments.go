@@ -382,6 +382,9 @@ func (store *Store) PublishDrafts(ids []string, actor map[string]any) (map[strin
 }
 
 func (store *Store) Update(id string, input map[string]any) (map[string]any, error) {
+	if _, ok := input["status"]; ok {
+		return nil, errors.New("comment lifecycle updates are no longer supported")
+	}
 	store.mu.Lock()
 	defer store.mu.Unlock()
 	if strings.TrimSpace(id) == "" {
@@ -402,100 +405,11 @@ func (store *Store) Update(id string, input map[string]any) (map[string]any, err
 				return nil, err
 			}
 		}
-		if status, ok := input["status"].(string); ok {
-			if _, err := store.updateThreadStatusLocked(threadIDForComment(comment), status, now, comments, actorFromInput(input), stringValue(input["clientEventId"])); err != nil {
-				return nil, err
-			}
-			comment["status"] = status
-		}
 		comment["updatedAt"] = now
 		comments[index] = comment
 		return comment, store.writeAll(comments)
 	}
 	return nil, errors.New("comment not found")
-}
-
-func (store *Store) UpdateThreadStatus(id, status string) (map[string]any, error) {
-	return store.UpdateThreadStatusAs(id, status, unknownActor(), "")
-}
-
-func (store *Store) UpdateThreadStatusAs(id, status string, actor map[string]any, clientEventID string) (map[string]any, error) {
-	store.mu.Lock()
-	defer store.mu.Unlock()
-	comments, err := store.readAll()
-	if err != nil {
-		return nil, err
-	}
-	now := time.Now().UTC().Format(time.RFC3339Nano)
-	return store.updateThreadStatusLocked(id, status, now, comments, normalizeActor(actor), clientEventID)
-}
-
-func (store *Store) updateThreadStatusLocked(id, status, now string, comments []map[string]any, actor map[string]any, clientEventID string) (map[string]any, error) {
-	if id == "" {
-		return nil, errors.New("comment thread id is required")
-	}
-	if status != "open" && status != "resolved" && status != "archived" {
-		return nil, errors.New("invalid comment thread status")
-	}
-	threads, err := store.projectThreads(comments)
-	if err != nil {
-		return nil, err
-	}
-	var current map[string]any
-	for _, thread := range threads {
-		if thread["id"] == id {
-			current = thread
-			break
-		}
-	}
-	if current == nil {
-		return nil, errors.New("comment thread not found")
-	}
-	clientEventID = strings.TrimSpace(clientEventID)
-	if clientEventID != "" {
-		existing, err := store.threadStatusChangedByClientEvent(id, status, actor, clientEventID)
-		if err != nil {
-			return nil, err
-		}
-		if existing != nil {
-			return current, nil
-		}
-	}
-	from := stringValue(current["status"])
-	if !validTransition(from, status) {
-		return nil, errors.New("invalid comment thread status transition")
-	}
-	if from != status {
-		event := map[string]any{"schemaVersion": 1, "type": "thread.status_changed", "threadId": id, "previousStatus": from, "status": status, "at": now, "actor": actor}
-		if clientEventID != "" {
-			event["clientEventId"] = clientEventID
-		}
-		if err := store.appendThreadEvent(event); err != nil {
-			return nil, err
-		}
-	}
-	current["status"] = status
-	current["updatedAt"] = now
-	delete(current, "resolvedAt")
-	delete(current, "archivedAt")
-	if status == "resolved" {
-		current["resolvedAt"] = now
-	}
-	if status == "archived" {
-		current["archivedAt"] = now
-	}
-	for _, item := range current["comments"].([]map[string]any) {
-		item["status"] = status
-		delete(item, "resolvedAt")
-		delete(item, "archivedAt")
-		if status == "resolved" {
-			item["resolvedAt"] = now
-		}
-		if status == "archived" {
-			item["archivedAt"] = now
-		}
-	}
-	return current, nil
 }
 
 func (store *Store) AppendThreadReadActivity(threadID string, actor map[string]any, clientEventID string) (map[string]any, error) {
@@ -544,147 +458,6 @@ func (store *Store) AppendThreadReadActivity(threadID string, actor map[string]a
 		return nil, err
 	}
 	return publicActivity(event, 0), nil
-}
-
-func (store *Store) AppendThreadClaimActivity(threadID string, actor map[string]any, clientEventID string, leaseSeconds int) (map[string]any, error) {
-	store.mu.Lock()
-	defer store.mu.Unlock()
-	if strings.TrimSpace(threadID) == "" {
-		return nil, errors.New("comment thread id is required")
-	}
-	if leaseSeconds <= 0 {
-		leaseSeconds = 600
-	}
-	comments, err := store.readAll()
-	if err != nil {
-		return nil, err
-	}
-	threads, err := store.projectThreads(comments)
-	if err != nil {
-		return nil, err
-	}
-	var selected map[string]any
-	for _, thread := range threads {
-		if stringValue(thread["id"]) == threadID {
-			selected = thread
-			break
-		}
-	}
-	if selected == nil {
-		return nil, errors.New("comment thread not found")
-	}
-	if stringValue(selected["status"]) != "open" {
-		return nil, errors.New("comment thread must be open to claim")
-	}
-	normalizedActor := normalizeActor(actor)
-	if stringValue(normalizedActor["id"]) == "unknown" {
-		return nil, errors.New("activity actor id is required")
-	}
-	now := time.Now().UTC()
-	events, err := store.readThreadEvents()
-	if err != nil {
-		return nil, err
-	}
-	if clientEventID != "" {
-		for index, persisted := range events {
-			activity := publicActivity(persisted, index)
-			activityActor, _ := activity["actor"].(map[string]any)
-			if activity["threadId"] == threadID && activity["type"] == "thread_claimed" && activity["clientEventId"] == clientEventID && activityActor["id"] == normalizedActor["id"] {
-				return activity, nil
-			}
-		}
-	}
-	if claim := latestLiveClaimEvent(events, threadID, now); claim != nil {
-		eventActor, _ := claim["actor"].(map[string]any)
-		if stringValue(eventActor["id"]) != stringValue(normalizedActor["id"]) {
-			return nil, errors.New("comment thread is already claimed")
-		}
-	}
-	expiresAt := now.Add(time.Duration(leaseSeconds) * time.Second).Format(time.RFC3339Nano)
-	event := map[string]any{"schemaVersion": 1, "type": "thread.claimed", "threadId": threadID, "actor": normalizedActor, "clientEventId": strings.TrimSpace(clientEventID), "leaseExpiresAt": expiresAt, "at": now.Format(time.RFC3339Nano)}
-	if err := store.appendThreadEvent(event); err != nil {
-		return nil, err
-	}
-	return publicActivity(event, 0), nil
-}
-
-func (store *Store) AppendThreadClaimReleaseActivity(threadID string, actor map[string]any, clientEventID string) (map[string]any, error) {
-	store.mu.Lock()
-	defer store.mu.Unlock()
-	if strings.TrimSpace(threadID) == "" {
-		return nil, errors.New("comment thread id is required")
-	}
-	comments, err := store.readAll()
-	if err != nil {
-		return nil, err
-	}
-	threads, err := store.projectThreads(comments)
-	if err != nil {
-		return nil, err
-	}
-	found := false
-	for _, thread := range threads {
-		if stringValue(thread["id"]) == threadID {
-			found = true
-			if stringValue(thread["status"]) != "open" {
-				return nil, errors.New("comment thread must be open to release a claim")
-			}
-			break
-		}
-	}
-	if !found {
-		return nil, errors.New("comment thread not found")
-	}
-	normalizedActor := normalizeActor(actor)
-	if stringValue(normalizedActor["id"]) == "unknown" {
-		return nil, errors.New("activity actor id is required")
-	}
-	events, err := store.readThreadEvents()
-	if err != nil {
-		return nil, err
-	}
-	if clientEventID != "" {
-		for index, persisted := range events {
-			activity := publicActivity(persisted, index)
-			activityActor, _ := activity["actor"].(map[string]any)
-			if activity["threadId"] == threadID && activity["type"] == "thread_claim_released" && activity["clientEventId"] == clientEventID && activityActor["id"] == normalizedActor["id"] {
-				return activity, nil
-			}
-		}
-	}
-	claim := latestLiveClaimEvent(events, threadID, time.Now().UTC())
-	if claim == nil {
-		return nil, errors.New("comment thread has no live claim")
-	}
-	claimActor, _ := claim["actor"].(map[string]any)
-	if stringValue(claimActor["id"]) != stringValue(normalizedActor["id"]) {
-		return nil, errors.New("comment thread is claimed by another actor")
-	}
-	event := map[string]any{"schemaVersion": 1, "type": "thread.claim_released", "threadId": threadID, "actor": normalizedActor, "clientEventId": strings.TrimSpace(clientEventID), "at": time.Now().UTC().Format(time.RFC3339Nano)}
-	if err := store.appendThreadEvent(event); err != nil {
-		return nil, err
-	}
-	return publicActivity(event, 0), nil
-}
-
-func latestLiveClaimEvent(events []map[string]any, threadID string, now time.Time) map[string]any {
-	for index := len(events) - 1; index >= 0; index-- {
-		event := events[index]
-		if stringValue(event["threadId"]) != threadID {
-			continue
-		}
-		switch stringValue(event["type"]) {
-		case "thread.claim_released":
-			return nil
-		case "thread.claimed":
-			expiresAt, err := time.Parse(time.RFC3339Nano, stringValue(event["leaseExpiresAt"]))
-			if err != nil || !expiresAt.After(now) {
-				return nil
-			}
-			return event
-		}
-	}
-	return nil
 }
 
 func (store *Store) ListActivities(filters ActivityFilters) ([]map[string]any, error) {
@@ -837,6 +610,9 @@ func (store *Store) publicCommentFromInput(input map[string]any, fileHash, viewe
 	}
 	if strings.TrimSpace(body) == "" {
 		return nil, errors.New("body is required")
+	}
+	if status, exists := input["status"]; exists && status != "open" {
+		return nil, errors.New("new comments must be open")
 	}
 	comment := copyMap(input)
 	comment["id"] = randomID()
@@ -1001,24 +777,6 @@ func (store *Store) commentAddedByClientEvent(comments []map[string]any, threadI
 	return nil, nil
 }
 
-func (store *Store) threadStatusChangedByClientEvent(threadID, status string, actor map[string]any, clientEventID string) (map[string]any, error) {
-	events, err := store.readThreadEvents()
-	if err != nil {
-		return nil, err
-	}
-	normalizedActor := normalizeActor(actor)
-	for index, event := range events {
-		if stringValue(event["type"]) != "thread.status_changed" || stringValue(event["threadId"]) != threadID || stringValue(event["status"]) != status || stringValue(event["clientEventId"]) != clientEventID {
-			continue
-		}
-		eventActor, _ := event["actor"].(map[string]any)
-		if stringValue(normalizeActor(eventActor)["id"]) == stringValue(normalizedActor["id"]) {
-			return publicActivity(event, index), nil
-		}
-	}
-	return nil, nil
-}
-
 func (store *Store) appendThreadEvent(event map[string]any) error {
 	if err := os.MkdirAll(filepath.Dir(store.threadPath), 0o755); err != nil {
 		return err
@@ -1062,7 +820,6 @@ func actorFromInput(input map[string]any) map[string]any {
 	return normalizeActor(map[string]any{"kind": input["source"], "displayName": input["author"]})
 }
 func actorForComment(comment map[string]any) map[string]any { return actorFromInput(comment) }
-func unknownActor() map[string]any                          { return map[string]any{"id": "unknown", "kind": "unknown"} }
 func normalizeActor(actor map[string]any) map[string]any {
 	kind := strings.ReplaceAll(stringValue(actor["kind"]), "-", "_")
 	if kind != "human" && kind != "claude_code" && kind != "codex" {
@@ -1100,18 +857,6 @@ func normalizedStatus(value any) string {
 		return status
 	}
 	return "open"
-}
-func validTransition(from, to string) bool {
-	if from == to {
-		return true
-	}
-	if from == "open" {
-		return to == "resolved" || to == "archived"
-	}
-	if from == "resolved" {
-		return to == "open" || to == "archived"
-	}
-	return from == "archived" && to == "open"
 }
 func statusRank(status string) int {
 	if status == "open" {

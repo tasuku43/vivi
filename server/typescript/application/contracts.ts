@@ -16,7 +16,6 @@ import type {
 } from "../domain/search.js";
 import type {
   CommentListFilters,
-  CommentStatus,
   CommentThread,
   CommentActor,
   CommentThreadActivityEvent,
@@ -32,6 +31,7 @@ export interface FileSystemPort {
     options?: { depth?: number },
   ): Promise<TreeSnapshot>;
   readFile(relativePath: string): Promise<FilePayload>;
+  readPreviewResource?(relativePath: string): Promise<FilePayload>;
   readHtmlPreview(relativePath: string): Promise<string>;
   searchFiles?(
     query: string,
@@ -87,12 +87,6 @@ export interface CommentStorePort {
   deleteDraftReviewComment?(id: string): Promise<DraftReviewComment>;
   listCommentThreads?(filters?: CommentListFilters): Promise<CommentThread[]>;
   createCommentThread?(thread: CommentThread): Promise<CommentThread>;
-  updateCommentThreadStatus?(
-    id: string,
-    status: CommentStatus,
-    at: string,
-    actor?: CommentActor,
-  ): Promise<CommentThread>;
   listCommentThreadActivities?(
     threadId: string,
     after?: string,

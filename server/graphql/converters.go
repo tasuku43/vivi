@@ -221,17 +221,18 @@ func nodesFromDomain(nodes []workspace.Node) []*model.FsNode {
 
 func nodeFromDomain(node workspace.Node) *model.FsNode {
 	return &model.FsNode{
-		ID:             node.ID,
-		Path:           node.Path,
-		Name:           node.Name,
-		Kind:           model.NodeKind(node.Kind),
-		ParentPath:     node.ParentPath,
-		ViewerKind:     optionalStringValue(node.ViewerKind),
-		Children:       nodesFromDomain(node.Children),
-		ChildrenLoaded: node.ChildrenLoaded,
-		Size:           optionalInt64Value(node.Size),
-		MtimeMs:        optionalFloatValue(node.MtimeMs),
-		Version:        optionalIntValue(node.Version),
+		DocumentHeading: node.DocumentHeading,
+		ID:              node.ID,
+		Path:            node.Path,
+		Name:            node.Name,
+		Kind:            model.NodeKind(node.Kind),
+		ParentPath:      node.ParentPath,
+		ViewerKind:      optionalStringValue(node.ViewerKind),
+		Children:        nodesFromDomain(node.Children),
+		ChildrenLoaded:  node.ChildrenLoaded,
+		Size:            optionalInt64Value(node.Size),
+		MtimeMs:         optionalFloatValue(node.MtimeMs),
+		Version:         optionalIntValue(node.Version),
 	}
 }
 
@@ -249,9 +250,6 @@ func commentInputMap(input model.CommentInput) map[string]any {
 	}
 	if input.ThreadID != nil {
 		result["threadId"] = *input.ThreadID
-	}
-	if input.Status != nil {
-		result["status"] = input.Status.String()
 	}
 	if input.Author != nil {
 		result["author"] = *input.Author
@@ -313,9 +311,6 @@ func commentUpdateInputMap(input model.CommentUpdateInput) map[string]any {
 	result := map[string]any{}
 	if input.Body != nil {
 		result["body"] = *input.Body
-	}
-	if input.Status != nil {
-		result["status"] = input.Status.String()
 	}
 	if input.Actor != nil {
 		result["actor"] = commentActorInputMap(input.Actor)

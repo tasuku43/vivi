@@ -387,3 +387,41 @@ func mustWrite(t *testing.T, root, relative string, content []byte) {
 		t.Fatal(err)
 	}
 }
+
+func TestPreviewImagesPreserveWorkspaceGuards(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"diagram.svg", "private.svg", "node_modules/hidden.svg", "script.js", "README.md"} {
+		mustWrite(t, root, name, []byte("fixture"))
+	}
+	outside := filepath.Join(t.TempDir(), "outside.svg")
+	if err := os.WriteFile(outside, []byte("outside"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "escape.svg")); err != nil {
+		t.Fatal(err)
+	}
+	fsys, err := New(Options{Root: root, Include: []string{"md"}, Exclude: []string{"private.svg"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fsys.ReadFile("diagram.svg"); err == nil {
+		t.Fatal("ordinary read bypassed include filter")
+	}
+	file, err := fsys.ReadPreviewResource("diagram.svg")
+	if err != nil || file.MimeType != "image/svg+xml" {
+		t.Fatalf("image resource: %#v, %v", file, err)
+	}
+	for _, name := range []string{"private.svg", "node_modules/hidden.svg", "script.js", "../outside.svg", "escape.svg"} {
+		if _, err := fsys.ReadPreviewResource(name); err == nil {
+			t.Errorf("allowed protected resource %s", name)
+		}
+	}
+	limited, err := New(Options{Root: root, Include: []string{"md"}, MaxFileSizeBytes: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	file, err = limited.ReadPreviewResource("diagram.svg")
+	if err != nil || !file.Truncated || file.Content != "" {
+		t.Fatalf("size guard: %#v, %v", file, err)
+	}
+}

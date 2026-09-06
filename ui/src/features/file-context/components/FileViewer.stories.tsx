@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useState } from "react";
+import { useState, type ComponentProps } from "react";
+import type { ViewerMode } from "../../../state/viewer-mode.js";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import type { FilePayload } from "../../../domain/fs-node.js";
 import {
@@ -550,3 +551,82 @@ function storyFileWithContent(
     size: new TextEncoder().encode(content).byteLength,
   };
 }
+
+export const NarrowMarkdownReader: Story = {
+  name: "Markdown remains readable in a narrow split pane",
+  args: { file: sampleFiles.markdown, comments: [] },
+  tags: ["interaction"],
+  render: (args) => <NarrowReaderHarness {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole("heading", { level: 1 });
+    const pane = canvasElement.querySelector<HTMLElement>(
+      "[data-narrow-reader]",
+    )!;
+    await waitFor(() =>
+      expect(pane.scrollWidth).toBeLessThanOrEqual(pane.clientWidth + 1),
+    );
+    const modeSelect = canvas.getByRole("combobox", {
+      name: "Markdown view mode",
+    });
+    await expect(modeSelect).toBeVisible();
+    await expect(modeSelect).toHaveValue("rendered");
+    await userEvent.selectOptions(modeSelect, "source");
+    await expect(modeSelect).toHaveValue("source");
+    await userEvent.selectOptions(modeSelect, "rendered");
+    await canvas.findByRole("heading", { level: 1 });
+  },
+};
+
+function NarrowReaderHarness(args: ComponentProps<typeof FileViewer>) {
+  const [mode, setMode] = useState<ViewerMode>("rendered");
+  return (
+    <div
+      data-narrow-reader
+      style={{
+        width: 310,
+        height: 700,
+        overflow: "auto",
+        containerType: "inline-size",
+      }}
+    >
+      <FileViewer {...args} viewerMode={mode} onViewerModeChange={setMode} />
+    </div>
+  );
+}
+
+export const CompactHtmlToolbar: Story = {
+  tags: ["interaction"],
+  args: {
+    file: sampleFiles.html,
+    viewerMode: "preview",
+    comments: commentsForPath(sampleFiles.html.path),
+    activeCommentId: "comment-html-rendered",
+    onFocusActiveComment: () => undefined,
+  },
+  render: (args) => (
+    <div style={{ width: 600, maxWidth: "100%", containerType: "inline-size" }}>
+      <FileViewer {...args} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const current = await canvas.findByRole("button", {
+      name: /Focus current review stop/,
+    });
+    const mode = canvas.getByRole("combobox", { name: "HTML view mode" });
+    const location = canvasElement.querySelector<HTMLElement>(
+      ".viewer-toolbar-location",
+    )!;
+    await expect(current).toBeVisible();
+    await expect(mode).toBeVisible();
+    await expect(location.scrollWidth).toBeLessThanOrEqual(
+      location.clientWidth + 1,
+    );
+    await expect(mode.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      location.getBoundingClientRect().bottom,
+    );
+    await userEvent.click(current);
+    await expect(current).toHaveFocus();
+  },
+};

@@ -10,6 +10,8 @@ export interface FsNode {
   kind: NodeKind;
   parentPath: string | null;
   viewerKind?: ViewerKind;
+  /** First H1; empty means none, null unavailable, omitted by older producers. */
+  documentHeading?: string | null;
   children?: FsNode[];
   childrenLoaded?: boolean;
   size?: number;

@@ -26,6 +26,29 @@ A build is acceptable when a user can:
 18. Move between the repository Review Queue and current Document through two persistent inspector tabs whose labels and positions stay fixed; keep Review selected by default and keep “Next queued” within the Review workflow rather than treating it as navigation.
 19. Scan active Markdown and HTML review files in one compact signal ledger, filter them by All, Unseen, Drafts, or Changed, and retain each parent path plus exact per-file diff totals. Pending drafts and published feedback not yet observed by an agent do not expire. Once every current published comment has an agent read receipt, that latest read joins watcher events and user opens in one thirty-minute inactivity window; after thirty quiet minutes the file simply leaves active attention without entering a Reviewed state. A later file change, user open, pending draft, or newly published unseen comment makes it visible again. Keep draft publication on the actionable file row while global “Next queued” order remains unchanged. When a source path is confirmed missing, remove it from all active counts and navigation immediately, retain its feedback under a collapsed Unavailable feedback section, and restore it after a file-add event or successful read.
 
+## Quiet Reader acceptance
+
+- Preserve the real filename as the primary sidebar label and show a document's
+  first H1 underneath when available. Missing metadata must not prevent opening
+  a document; heading updates must not change path identity, order or selection.
+- Use understated outline folder icons and thin ancestor guide lines in the
+  sidebar. Omit document icons so filename/H1 rows retain more text width.
+  Guides follow visible nesting through lazy loading, collapse and keyboard
+  expansion; decorative SVGs and lines do not add screen-reader stops.
+- Keep tab close controls visible and group bulk operations in a keyboard-accessible
+  Tab actions menu. Preview promotion and close-other/right/unchanged/preview
+  operations preserve their existing semantics and operate only on their pane.
+- Start fresh workspaces with 210 px sidebar and 310 px inspector widths; restore
+  saved user widths. Keep document filenames legible while many tabs scroll.
+- Offer Find a document from the toolbar and the empty reader, opening the real
+  document palette. Explain reading, double-click feedback, saved drafts and
+  explicit publication without adding new workflow states.
+- At compact widths, expose the inspector through a visible bar and preserve its
+  Review / Document choice. Escape closes the drawer and restores trigger focus.
+- At 800 px and 520 px, keep document prose and viewer controls inside the pane,
+  with reachable tab actions and inspector controls. Split panes retain independent
+  tab operations and keyboard focus even when the same path is open twice.
+
 ## Evaluation function
 
 Score a UI implementation against these dimensions:
@@ -58,3 +81,27 @@ Add or update tests for:
 - resumable comment input transitions: outside click, Escape/collapse, navigation and reload restoration, rendered-to-source return, explicit discard, successful save, individual pending-draft deletion, publish cleanup, and stale-anchor re-anchoring.
 
 Add an E2E test that starts the server against a mixed fixture directory and verifies the UI exposes only the pruned Markdown and HTML Explorer tree, filters Review Queue files by signal without changing their global order, opens each document kind, preserves drag selection, starts feedback only on double-click, and receives at least one document-relevant filesystem event.
+
+## Quiet workspace details
+
+- The selected file owns one tree-row fill. Expanded ancestors remain quiet;
+  collapsing a selected descendant's folder preserves a small location cue.
+- A normally collapsed tree is not described as truncated. Genuine row limits,
+  directory loading, and load failures retain their notices.
+- Saving feedback says **Save draft**. Publishing remains a separate action.
+- Connection state and unpublished drafts remain visible at narrow widths.
+  Watcher counts and refresh details live in a keyboard-accessible disclosure.
+- Search puts filename and parent directory together and keeps key hints below
+  the result list. Full path identity remains available to assistive technology.
+- Review Queue does not repeat its total in the heading and All filter. Unseen,
+  drafts, and changes stay independent signals, each shown once per row.
+- The Markdown reading surface has no outer card frame or shadow. A first-visit
+  feedback tip can be dismissed; returning readers do not see it repeatedly.
+- Passive rendered comments retain a discoverable marker without persistent
+  paragraph fills. The open/input target receives the emphasis. Published/read
+  state remains on feedback rather than recoloring the document.
+- Rendered/source selection uses one labeled native control; source inputs and
+  the optional Changes lens retain their state across mode switches.
+- Markdown feedback markers occupy the text column's right margin without adding
+  a line or overlapping the paragraph. Text-layer positioning must never override
+  the marker's absolute positioning in either document adapter.

@@ -84,12 +84,11 @@ export const SourceHtmlComment: Story = {
       canvas.getByRole("button", { name: "Save pending draft comment" }),
     ).toBeDisabled();
     await expect(canvas.queryByText("Draft a review comment")).toBeNull();
-    const previewMode = canvasElement.querySelector<HTMLButtonElement>(
-      `[data-testid="viewer-mode-option"][data-viewer-mode="preview"][data-viewer-path="${sampleFiles.html.path}"]`,
-    );
-    await expect(previewMode).toBeInTheDocument();
-    await expect(previewMode).toHaveAttribute("data-active", "false");
-    await userEvent.click(previewMode!);
+    const previewMode = canvas.getByRole("combobox", {
+      name: "HTML view mode",
+    });
+    await expect(previewMode).toHaveValue("source");
+    await userEvent.selectOptions(previewMode, "preview");
     await expect(args.onModeChange).toHaveBeenCalledWith("preview");
     const diffToggle = canvasElement.querySelector<HTMLButtonElement>(
       `[data-testid="viewer-diff-toggle"][data-viewer-path="${sampleFiles.html.path}"]`,

@@ -1,0 +1,1088 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Vivi · ツリーに文書の名前を</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --vivi-color-surface-canvas: #0c151c;
+        --vivi-color-surface-panel: #141f28;
+        --vivi-color-content-primary: #e3ecf0;
+        --vivi-color-content-muted: #a2b4c0;
+        --vivi-color-border-default: #2a3b47;
+        --vivi-color-selection-surface: #203843;
+        --vivi-color-selection-indicator: #8ed5df;
+        --vivi-color-change-text: #e8c082;
+        --sidebar-width: 280px;
+      }
+      :root[data-theme="light"] {
+        color-scheme: light;
+        --vivi-color-surface-canvas: #fff;
+        --vivi-color-surface-panel: #f0f5f7;
+        --vivi-color-content-primary: #1b303e;
+        --vivi-color-content-muted: #526b7b;
+        --vivi-color-border-default: #cfdee5;
+        --vivi-color-selection-surface: #dfedf3;
+        --vivi-color-selection-indicator: #126780;
+        --vivi-color-change-text: #8b6018;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--vivi-color-surface-canvas);
+        color: var(--vivi-color-content-primary);
+        font:
+          14px/1.6 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+        color: inherit;
+      }
+      button,
+      select {
+        cursor: pointer;
+        background: var(--vivi-color-surface-panel);
+        border: 1px solid var(--vivi-color-border-default);
+        border-radius: 6px;
+        padding: 7px 10px;
+      }
+      button:hover,
+      summary:hover {
+        background: var(--vivi-color-selection-surface);
+      }
+      :focus-visible {
+        outline: 2px solid var(--vivi-color-selection-indicator);
+        outline-offset: 2px;
+      }
+      a {
+        color: var(--vivi-color-selection-indicator);
+      }
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+      h1 {
+        font-size: 34px;
+        letter-spacing: -0.035em;
+        line-height: 1.3;
+        margin-bottom: 14px;
+      }
+      h2 {
+        font-size: 22px;
+        letter-spacing: -0.025em;
+      }
+      small,
+      .muted {
+        color: var(--vivi-color-content-muted);
+      }
+      .page {
+        max-width: 1512px;
+        margin: auto;
+        padding: 32px;
+      }
+      .eyebrow {
+        font-size: 10px;
+        letter-spacing: 0.16em;
+        font-weight: 700;
+        color: var(--vivi-color-selection-indicator);
+        margin-bottom: 12px;
+      }
+      .intro {
+        max-width: 850px;
+        font-size: 14px;
+        color: var(--vivi-color-content-muted);
+      }
+      .decision {
+        border-left: 2px solid var(--vivi-color-selection-indicator);
+        padding: 12px 18px;
+        background: var(--vivi-color-selection-surface);
+        margin: 22px 0;
+      }
+      .decision p {
+        margin: 0;
+        font-size: 13px;
+      }
+      .controls {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin: 22px 0;
+      }
+      .controls label {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        font-size: 12px;
+      }
+      .controls select {
+        max-width: 280px;
+      }
+      .controls button {
+        font-size: 12px;
+      }
+      button[aria-pressed="true"] {
+        color: var(--vivi-color-selection-indicator);
+        background: var(--vivi-color-selection-surface);
+      }
+      .compare-scroll {
+        overflow-x: auto;
+        padding: 4px 2px 18px;
+      }
+      .comparisons {
+        display: grid;
+        grid-template-columns: repeat(4, var(--sidebar-width));
+        gap: 16px;
+        width: max-content;
+      }
+      .concept {
+        border: 1px solid var(--vivi-color-border-default);
+        border-radius: 9px;
+        overflow: hidden;
+        background: var(--vivi-color-surface-panel);
+      }
+      .concept header {
+        padding: 16px 16px 14px;
+        height: 177px;
+        border-bottom: 1px solid var(--vivi-color-border-default);
+      }
+      .concept h2 {
+        font-size: 18px;
+        margin: 5px 0 10px;
+      }
+      .concept header p {
+        font-size: 12px;
+        color: var(--vivi-color-content-muted);
+        line-height: 1.65;
+        margin: 0;
+      }
+      .concept .letter {
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        color: var(--vivi-color-selection-indicator);
+      }
+      .tree-frame {
+        height: 535px;
+        display: flex;
+        flex-direction: column;
+      }
+      .tree-heading {
+        height: 39px;
+        flex: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 12px;
+        color: var(--vivi-color-content-muted);
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        border-bottom: 1px solid var(--vivi-color-border-default);
+      }
+      .tree-heading span:last-child {
+        letter-spacing: 0;
+      }
+      .tree-scroll {
+        flex: 1;
+        overflow: auto;
+        padding: 9px 6px;
+      }
+      .tree-scroll details > summary {
+        cursor: pointer;
+        list-style: none;
+        font-size: 12px;
+        padding: 7px 8px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        white-space: nowrap;
+      }
+      .tree-scroll details > summary:before {
+        content: "▸";
+        color: var(--vivi-color-content-muted);
+        font-size: 10px;
+        width: 9px;
+      }
+      .tree-scroll details[open] > summary:before {
+        content: "▾";
+      }
+      .children {
+        padding-left: 13px;
+      }
+      .row {
+        width: 100%;
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        border: 1px solid transparent;
+        border-radius: 5px;
+        background: transparent;
+        text-align: left;
+        min-height: 34px;
+        padding: 6px 7px;
+        position: relative;
+      }
+      .row[aria-current="true"] {
+        background: var(--vivi-color-selection-surface);
+        border-left-color: var(--vivi-color-selection-indicator);
+      }
+      .glyph {
+        width: 13px;
+        flex: none;
+        color: var(--vivi-color-content-muted);
+        font-size: 11px;
+        padding-top: 2px;
+      }
+      .text {
+        min-width: 0;
+        flex: 1;
+        display: block;
+      }
+      .primary {
+        display: block;
+        font-size: 12px;
+        line-height: 20px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 500;
+      }
+      .secondary {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 10px;
+        line-height: 18px;
+        color: var(--vivi-color-content-muted);
+      }
+      .two-line .row {
+        min-height: 52px;
+      }
+      .signal {
+        font-size: 8px;
+        align-self: center;
+        flex: none;
+        color: var(--vivi-color-change-text);
+      }
+      .fallback {
+        color: var(--vivi-color-content-muted);
+      }
+      .title-box {
+        height: 116px;
+        flex: none;
+        border-top: 1px solid var(--vivi-color-border-default);
+        padding: 12px;
+        background: var(--vivi-color-surface-canvas);
+      }
+      .title-box .box-label {
+        font-size: 9px;
+        color: var(--vivi-color-content-muted);
+        letter-spacing: 0.1em;
+      }
+      .title-box strong {
+        font-size: 12px;
+        line-height: 1.55;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        margin: 5px 0;
+      }
+      .title-box small {
+        font-size: 10px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        display: block;
+      }
+      .concept footer {
+        padding: 14px 16px;
+        border-top: 1px solid var(--vivi-color-border-default);
+      }
+      .concept footer p {
+        font-size: 11px;
+        color: var(--vivi-color-content-muted);
+        min-height: 55px;
+        margin: 0 0 12px;
+      }
+      .concept footer button {
+        width: 100%;
+        font-size: 12px;
+      }
+      .guide {
+        font-size: 12px;
+        color: var(--vivi-color-content-muted);
+        margin: 0 0 20px;
+      }
+      .legend {
+        display: flex;
+        gap: 22px;
+        flex-wrap: wrap;
+        font-size: 11px;
+        color: var(--vivi-color-content-muted);
+        margin: 12px 0;
+      }
+      .detail {
+        margin: 14px 0 30px;
+        border: 1px solid var(--vivi-color-border-default);
+        border-radius: 8px;
+        padding: 18px 22px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .detail strong {
+        font-size: 16px;
+      }
+      .detail code {
+        font:
+          11px/1.5 ui-monospace,
+          monospace;
+        overflow-wrap: anywhere;
+        color: var(--vivi-color-content-muted);
+      }
+      .detail p {
+        font-size: 12px;
+        margin: 6px 0 0;
+      }
+      .section-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        margin-top: 35px;
+      }
+      .section-heading select {
+        font-size: 12px;
+      }
+      .workspace {
+        border: 1px solid var(--vivi-color-border-default);
+        border-radius: 8px;
+        overflow: hidden;
+        display: grid;
+        grid-template-columns: var(--sidebar-width) minmax(0, 1fr) 250px;
+        grid-template-rows: 44px 600px 27px;
+      }
+      .topbar {
+        grid-column: 1/-1;
+        background: var(--vivi-color-surface-panel);
+        border-bottom: 1px solid var(--vivi-color-border-default);
+        display: flex;
+        gap: 22px;
+        align-items: center;
+        padding: 0 16px;
+        font-size: 12px;
+      }
+      .brand {
+        font-weight: 800;
+        font-size: 20px;
+        letter-spacing: -0.04em;
+      }
+      .search-look {
+        margin-left: auto;
+        color: var(--vivi-color-content-muted);
+        border: 1px solid var(--vivi-color-border-default);
+        padding: 4px 11px;
+        border-radius: 5px;
+        font-size: 11px;
+      }
+      .workspace-tree {
+        background: var(--vivi-color-surface-panel);
+        border-right: 1px solid var(--vivi-color-border-default);
+        min-width: 0;
+      }
+      .workspace-tree .tree-frame {
+        height: 100%;
+      }
+      .reader {
+        overflow: auto;
+        min-width: 0;
+      }
+      .tabs {
+        height: 40px;
+        background: var(--vivi-color-surface-panel);
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--vivi-color-border-default);
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .breadcrumb {
+        padding: 9px 22px;
+        color: var(--vivi-color-content-muted);
+        border-bottom: 1px solid var(--vivi-color-border-default);
+        font-size: 10px;
+        overflow-wrap: anywhere;
+      }
+      .document {
+        max-width: 750px;
+        padding: 32px;
+        margin: auto;
+      }
+      .document h1 {
+        font-size: 30px;
+        overflow-wrap: anywhere;
+      }
+      .document h2 {
+        font-size: 20px;
+        margin-top: 32px;
+      }
+      .document p {
+        font-size: 14px;
+        line-height: 1.9;
+      }
+      .document .note {
+        font-size: 11px;
+        color: var(--vivi-color-content-muted);
+      }
+      .inspector {
+        border-left: 1px solid var(--vivi-color-border-default);
+        background: var(--vivi-color-surface-panel);
+        overflow: auto;
+      }
+      .inspector-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        text-align: center;
+        font-size: 11px;
+        border-bottom: 1px solid var(--vivi-color-border-default);
+      }
+      .inspector-tabs span {
+        padding: 12px 0;
+      }
+      .inspector-tabs span:first-child {
+        border-bottom: 2px solid var(--vivi-color-selection-indicator);
+      }
+      .inspector-content {
+        padding: 18px;
+      }
+      .inspector-content strong {
+        font-size: 13px;
+      }
+      .inspector-content p {
+        font-size: 11px;
+        color: var(--vivi-color-content-muted);
+        margin-top: 7px;
+      }
+      .queue-example {
+        padding: 16px 0;
+        border-bottom: 1px solid var(--vivi-color-border-default);
+      }
+      .queue-example small {
+        display: block;
+        font-size: 10px;
+      }
+      .status {
+        grid-column: 1/-1;
+        border-top: 1px solid var(--vivi-color-border-default);
+        font-size: 10px;
+        padding: 4px 14px;
+        color: var(--vivi-color-content-muted);
+      }
+      .rationale {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 32px;
+        margin: 32px 0;
+      }
+      .rationale h3 {
+        font-size: 15px;
+      }
+      .rationale p,
+      .rationale li {
+        font-size: 12px;
+        color: var(--vivi-color-content-muted);
+        line-height: 1.8;
+      }
+      .rationale ul {
+        padding-left: 19px;
+      }
+      .mini-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      .mini-table td,
+      .mini-table th {
+        text-align: left;
+        padding: 10px;
+        border-bottom: 1px solid var(--vivi-color-border-default);
+        vertical-align: top;
+      }
+      .mini-table td {
+        color: var(--vivi-color-content-muted);
+      }
+      .label-note {
+        font-size: 11px;
+        color: var(--vivi-color-content-muted);
+      }
+      [hidden] {
+        display: none !important;
+      }
+      @media (max-width: 1100px) {
+        .workspace {
+          grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+        }
+        .inspector {
+          display: none;
+        }
+        .page {
+          padding: 22px;
+        }
+        .rationale {
+          grid-template-columns: 1fr;
+        }
+        .document {
+          padding: 24px;
+        }
+      }
+      @media (max-width: 650px) {
+        .page {
+          padding: 16px;
+        }
+        .controls {
+          gap: 10px;
+        }
+        .detail {
+          grid-template-columns: 1fr;
+        }
+        .workspace {
+          grid-template-columns: min(42vw, var(--sidebar-width)) minmax(0, 1fr);
+        }
+        .document {
+          padding: 18px;
+        }
+        .document h1 {
+          font-size: 24px;
+        }
+        .search-look {
+          display: none;
+        }
+        h1 {
+          font-size: 28px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="eyebrow">VIVI / STUDY 48 / HTML CONCEPT</div>
+      <h1>
+        ファイルの場所と、文書の意味。<br />ツリーは、どちらを先に伝える？
+      </h1>
+      <p class="intro">
+        同じパス・同じ並び・同じ選択で4案を比較。H1を伝える方向は文書中心のViviに合う。ただしH1は変わり、重複し、存在しないこともある。
+      </p>
+      <div class="decision">
+        <p>
+          <strong>まずの推奨は B：ファイル名を残し、H1を添える。</strong
+          >既存の空間的な記憶を守りながら内容が分かる。Cは文書名で探す人向けの有力案。Aの完全置換は比較用、Dは密度を優先する場合の選択肢。
+        </p>
+      </div>
+      <div class="controls">
+        <label
+          >文書セット<select id="dataset">
+            <option value="normal">普段の文書</option>
+            <option value="edges">重複・長文・H1なし・未取得</option>
+          </select></label
+        ><label
+          >サイドバー幅<select id="width">
+            <option value="280">280 px</option>
+            <option value="210">210 px · 前のA案</option>
+            <option value="340">340 px</option>
+          </select></label
+        ><button id="rename" aria-pressed="false">選択文書のH1を更新</button
+        ><button id="theme" aria-pressed="false">ライトで比較</button>
+      </div>
+      <p class="guide">
+        行をクリックすると4案の選択が連動します。Dはポインターを重ねる／Tabで行にフォーカスすると、下部にH1が出ます。フォルダーは開閉可能。幅が足りない場合は比較欄を横にスクロールできます。
+      </p>
+      <div class="compare-scroll">
+        <div id="comparisons" class="comparisons"></div>
+      </div>
+      <div class="legend">
+        <span>▤ Markdown / ◇ HTML</span><span>● H1が更新された文書</span
+        ><span id="rename-note"
+          >並び順は常にファイル名順。H1では並べ替えない。</span
+        >
+      </div>
+      <div class="detail" aria-live="polite">
+        <div>
+          <small>選択した文書のH1（省略なし）</small>
+          <p><strong id="selected-title"></strong></p>
+        </div>
+        <div>
+          <small>実際のパス</small>
+          <p><code id="selected-path"></code></p>
+          <p id="selected-explanation"></p>
+        </div>
+      </div>
+      <div class="section-heading">
+        <h2>読書面と一緒に見る</h2>
+        <label
+          >表示方式
+          <select id="workspace-mode">
+            <option value="b">B · ファイル名＋H1</option>
+            <option value="c">C · H1＋ファイル名</option>
+            <option value="a">A · H1で置き換え</option>
+            <option value="d">D · 注目した文書だけ</option>
+          </select></label
+        >
+      </div>
+      <p class="guide">
+        下のサイドバーでも文書を選択できます。タブとパンくずはファイル名を維持し、本文はH1を表示。本文・レビュー件数は架空のサンプルです。
+      </p>
+      <div class="workspace">
+        <div class="topbar">
+          <span class="brand">vivi</span><span class="muted">launch-kit</span
+          ><span class="search-look">Find a document…　⌘ K</span>
+        </div>
+        <aside
+          id="workspace-tree"
+          class="workspace-tree"
+          aria-label="ワークスペースの文書"
+        ></aside>
+        <main class="reader">
+          <div class="tabs" id="active-tab"></div>
+          <div class="breadcrumb" id="breadcrumb"></div>
+          <article class="document">
+            <p class="note">Double-click a block to leave feedback.</p>
+            <h1 id="document-title"></h1>
+            <p id="document-lead"></p>
+            <h2>文書から、次の指示へ</h2>
+            <p>
+              読みたい文書を見つけ、その文脈のまま判断する。ファイルの保存場所と、人が読んでいる文書の名前を、一つの場所で無理なく把握できるようにする。
+            </p>
+            <h2>変わっても、迷わない</h2>
+            <p>
+              見出しが編集されても、フォルダーやファイルの並びは動かない。見出しがないときにも、そのファイルを開く入口は残る。
+            </p>
+            <p class="note">
+              文書の内容を要約・生成したラベルではなく、文書自身が持つH1を表示する。
+            </p>
+          </article>
+        </main>
+        <aside class="inspector">
+          <div class="inspector-tabs">
+            <span>Review queue · 2</span><span>Document</span>
+          </div>
+          <div class="inspector-content">
+            <strong>2 active files</strong>
+            <p>Sorted by attention</p>
+            <div class="queue-example">
+              <strong>02-feedback.md</strong><small>docs / guides</small>
+              <p>Unseen by agent</p>
+            </div>
+            <div class="queue-example">
+              <strong>preview.html</strong><small>docs / design</small>
+              <p>Changed · +12 −3</p>
+            </div>
+            <p>今回の比較は左ツリーだけ。右のレビュー導線は同じ位置に保つ。</p>
+          </div>
+        </aside>
+        <div class="status">
+          ● Live ·
+          sample　　文書・状態は比較用のfixture。実ファイルや本体UIは変更しません。
+        </div>
+      </div>
+      <section class="rationale">
+        <div>
+          <h3>H1の表示は筋がよい。H1への完全置換は弱い。</h3>
+          <p>
+            README.mdや番号付きファイルは、ファイル名だけでは意味が薄い。H1は「何が書かれているか」を伝える。その一方、「要件一覧」のようなH1は重複する。エージェントがH1を書き換えた瞬間に、見覚えのあるラベルが消えるのも置換案の弱点。
+          </p>
+          <p>
+            過去の文書モデルは表示タイトルを重視する一方、ツリーについては「file
+            and directory labels come from their real
+            names」と明記している。Bはそのまま沿える。Cはファイル名を保持したうえで、ラベルの優先順位を意図的に変える判断になる。
+          </p>
+          <h3>ツリーの中にH1を子ノードとして置く？</h3>
+          <p>
+            推奨しない。同じ文書への入口が親と子に二重化し、フォルダー展開と文書内アウトラインが混ざる。H1はファイルの説明として持ち、H2への移動はDocumentのアウトラインに任せる方が一貫する。
+          </p>
+        </div>
+        <div>
+          <h3>幅と密度も、選択の一部</h3>
+          <p>
+            B/Cは全行を固定の2段にする。選択時にだけ行を高くすると周囲の行が動くため採用しない。210pxでは、深い階層に入るほどH1が切れる。280pxで意味が読めるかをまず見てほしい。340pxは読みやすいが、本文の幅を使う。
+          </p>
+          <p>
+            Dは一行の密度を維持する。H1表示枠は常設し、ホバーやフォーカスで高さを変えない。既知のファイルを素早く開く人にはよいが、文書群を意味で眺める体験は弱い。
+          </p>
+          <h3>次の実装で守る境界</h3>
+          <p>
+            ファイルの識別子と順序はパスを基準に維持する。H1を得るために各ツリー行から本文を読み込まない。既存のツリーDTOにタイトルはないため、タイトル抽出・キャッシュ・更新通知は別の設計が必要。初回取得前にもファイルはすぐ開けることが前提。
+          </p>
+        </div>
+      </section>
+      <h2>例外でも、嘘をつかない表示</h2>
+      <table class="mini-table">
+        <thead>
+          <tr>
+            <th>状態</th>
+            <th>このモックの扱い</th>
+            <th>設計上の意味</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>H1なし</td>
+            <td>ファイル名を表示。副行や詳細に「H1なし」。</td>
+            <td>ファイル名を消さない。勝手なタイトルを生成しない。</td>
+          </tr>
+          <tr>
+            <td>H1が未取得</td>
+            <td>ファイル名＋「見出しを取得中」。</td>
+            <td>H1なしと区別。文字が取れるまで操作を待たせない。</td>
+          </tr>
+          <tr>
+            <td>同じH1</td>
+            <td>同じフォルダーの01-requirements.mdと02-requirements.md。</td>
+            <td>Aでは見分けにくい。B/Cは実ファイル名を見て選べる。</td>
+          </tr>
+          <tr>
+            <td>H1が長い</td>
+            <td>行内では1行で省略。選択詳細・Dの枠・ツールチップで補う。</td>
+            <td>
+              行の高さを揃える。アクセシビリティ名には省略しないH1とパス。
+            </td>
+          </tr>
+          <tr>
+            <td>H1が更新された</td>
+            <td>選択と並びは維持。更新ドットだけを添える。</td>
+            <td>別ファイルになったように振る舞わない。</td>
+          </tr>
+          <tr>
+            <td>HTML</td>
+            <td>文書本文の最初のH1を比較用に使用。</td>
+            <td>
+              ブラウザーのtitle要素とH1は別物。優先順位は未決定のため、黙って混ぜない。
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="label-note" style="margin-top: 20px">
+        このページはコンセプト比較です。新しいタイトルの取得処理、React/Storybookの変更、本体への接続は含みません。
+      </p>
+    </div>
+    <script>
+      const normal = [
+        { path: "README.md", h1: "Vivi — 文書から、次の指示へ" },
+        { path: "docs/guides/01-start.md", h1: "はじめてのレビュー" },
+        {
+          path: "docs/guides/02-feedback.md",
+          h1: "指摘をエージェントに伝える",
+        },
+        { path: "docs/guides/03-revisit.md", h1: "更新された文書を読み直す" },
+        {
+          path: "docs/product/01-brief.md",
+          h1: "人とエージェントのための読書面",
+        },
+        { path: "docs/product/02-decisions.md", h1: "Viviの設計で守ること" },
+        {
+          path: "docs/design/preview.html",
+          h1: "レビューに集中できるワークスペース",
+        },
+        { path: "docs/research/notes.md", h1: "ユーザーが迷った場所" },
+      ];
+      const edges = [
+        { path: "README.md", h1: "Vivi — 文書から、次の指示へ" },
+        { path: "docs/guides/01-start.md", h1: "はじめてのレビュー" },
+        { path: "docs/product/01-requirements.md", h1: "要件一覧" },
+        { path: "docs/product/02-requirements.md", h1: "要件一覧" },
+        {
+          path: "docs/product/03-long.md",
+          h1: "人とエージェントが文書の背景を共有しながら、変更後の意図を確かめて次の指示を出すための設計",
+        },
+        { path: "docs/product/04-notes.md", h1: null },
+        { path: "docs/product/05-new.md", h1: undefined },
+        { path: "docs/design/preview.html", h1: "Viviの読書体験" },
+        { path: "docs/research/README.md", h1: "調査の読み方" },
+      ];
+      const modes = {
+        a: {
+          title: "H1で置き換え",
+          tag: "A / 意味だけを出す",
+          lead: "見えているラベルは文書の名前。ファイル名は詳細を見るまで分からない。",
+          trade:
+            "一行で意味が伝わる。ただし同名H1と更新時に、ファイルの識別が弱い。",
+        },
+        b: {
+          title: "ファイル名 ＋ H1",
+          tag: "B / 安定した地図 · 推奨",
+          lead: "いつものファイル名を主に、H1を小さく添える。場所と内容を同時に読む。",
+          trade:
+            "既存の使い方を保てる。全行が二段になるので、見えるファイル数は減る。",
+        },
+        c: {
+          title: "H1 ＋ ファイル名",
+          tag: "C / 文書の意味を優先",
+          lead: "H1を主に、実ファイル名を小さく残す。文書の名前で探し、パスで確かめる。",
+          trade:
+            "文書中心の体験に合う。H1更新で主ラベルは変わるが、ファイル名は残る。",
+        },
+        d: {
+          title: "注目した文書だけ",
+          tag: "D / 一行の密度を保つ",
+          lead: "ツリーはファイル名のまま。ホバー・フォーカス・選択で下部にH1を表示。",
+          trade:
+            "大量のファイルを見渡しやすい。各文書の意味は、注目するまで分からない。",
+        },
+      };
+      let selected = "docs/guides/01-start.md";
+      const renamed = new Set();
+      const expansions = new Map();
+      const scrollPositions = new Map();
+      const $ = (id) => document.getElementById(id);
+      function items() {
+        return $("dataset").value === "edges" ? edges : normal;
+      }
+      function title(item) {
+        return renamed.has(item.path)
+          ? "初回レビューを、迷わず始める"
+          : item.h1;
+      }
+      function fallback(item) {
+        return item.h1 === null ? "H1なし" : "見出しを取得中";
+      }
+      function basename(path) {
+        return path.split("/").at(-1);
+      }
+      function node(tag, cls, text) {
+        const e = document.createElement(tag);
+        if (cls) e.className = cls;
+        if (text !== undefined) e.textContent = text;
+        return e;
+      }
+      function fillBox(box, item) {
+        box.replaceChildren(
+          node("span", "box-label", "DOCUMENT H1"),
+          node("strong", "", title(item) || fallback(item)),
+          node("small", "", item.path),
+        );
+        box.title = (title(item) || fallback(item)) + "\n" + item.path;
+      }
+      function tree(mode, instance) {
+        const frame = node(
+          "div",
+          "tree-frame" + (["b", "c"].includes(mode) ? " two-line" : ""),
+        );
+        const heading = node("div", "tree-heading");
+        heading.append(
+          node("span", "", "DOCUMENTS"),
+          node("span", "", "launch-kit"),
+        );
+        frame.append(heading);
+        const scroll = node("nav", "tree-scroll");
+        scroll.dataset.instance = instance;
+        scroll.setAttribute("aria-label", modes[mode].title + "の文書一覧");
+        frame.append(scroll);
+        const box = node("div", "title-box");
+        if (mode === "d") {
+          fillBox(
+            box,
+            items().find((i) => i.path === selected),
+          );
+          frame.append(box);
+        }
+        const folders = new Map([["", scroll]]);
+        function folder(path) {
+          if (folders.has(path)) return folders.get(path);
+          const parent = path.includes("/")
+            ? path.slice(0, path.lastIndexOf("/"))
+            : "";
+          const details = node("details");
+          details.dataset.folder = `${instance}:${path}`;
+          details.open = expansions.get(details.dataset.folder) ?? true;
+          details.append(node("summary", "", basename(path)));
+          const content = node("div", "children");
+          details.append(content);
+          folder(parent).append(details);
+          folders.set(path, content);
+          return content;
+        }
+        for (const item of [...items()].sort((a, b) =>
+          a.path.localeCompare(b.path, "en"),
+        )) {
+          const h1 = title(item);
+          const name = basename(item.path);
+          const label = h1 || name;
+          const parent = item.path.includes("/")
+            ? item.path.slice(0, item.path.lastIndexOf("/"))
+            : "";
+          const row = node("button", "row");
+          row.type = "button";
+          row.dataset.path = item.path;
+          row.dataset.instance = instance;
+          row.setAttribute("aria-current", String(item.path === selected));
+          row.setAttribute(
+            "aria-label",
+            `${name} — ${h1 || fallback(item)} — ${item.path}`,
+          );
+          row.title = `${h1 || fallback(item)}\n${item.path}`;
+          row.append(node("span", "glyph", name.endsWith(".html") ? "◇" : "▤"));
+          const text = node("span", "text");
+          text.append(
+            node(
+              "span",
+              "primary" +
+                (!h1 && mode !== "b" && mode !== "d" ? " fallback" : ""),
+              mode === "a" || mode === "c" ? label : name,
+            ),
+          );
+          if (mode === "b")
+            text.append(node("span", "secondary", h1 || fallback(item)));
+          if (mode === "c")
+            text.append(node("span", "secondary", h1 ? name : fallback(item)));
+          row.append(text);
+          if (renamed.has(item.path)) {
+            const dot = node("span", "signal", "●");
+            dot.setAttribute("aria-label", "H1更新");
+            row.append(dot);
+          }
+          row.addEventListener("click", () => {
+            selected = item.path;
+            render(instance);
+          });
+          if (mode === "d") {
+            row.addEventListener("pointerenter", () => fillBox(box, item));
+            row.addEventListener("focus", () => fillBox(box, item));
+          }
+          folder(parent).append(row);
+        }
+        if (mode === "d") {
+          const restore = () => {
+            const focused = scroll.querySelector(":focus");
+            const item = items().find(
+              (i) => i.path === (focused?.dataset.path || selected),
+            );
+            if (item) fillBox(box, item);
+          };
+          scroll.addEventListener("pointerleave", restore);
+          scroll.addEventListener("focusout", () => queueMicrotask(restore));
+        }
+        return frame;
+      }
+      function render(focusInstance) {
+        document
+          .querySelectorAll(".tree-scroll")
+          .forEach((scroll) =>
+            scrollPositions.set(scroll.dataset.instance, scroll.scrollTop),
+          );
+        document
+          .querySelectorAll("details[data-folder]")
+          .forEach((details) =>
+            expansions.set(details.dataset.folder, details.open),
+          );
+        const chosen = items().find((i) => i.path === selected) || items()[1];
+        selected = chosen.path;
+        const comparisons = $("comparisons");
+        comparisons.replaceChildren();
+        for (const [mode, info] of Object.entries(modes)) {
+          const card = node("section", "concept");
+          const header = node("header");
+          header.append(
+            node("span", "letter", info.tag),
+            node("h2", "", info.title),
+            node("p", "", info.lead),
+          );
+          card.append(header, tree(mode, mode));
+          const footer = node("footer");
+          footer.append(node("p", "", info.trade));
+          const show = node(
+            "button",
+            "",
+            mode.toUpperCase() + "を読書面で見る ↓",
+          );
+          show.addEventListener("click", () => {
+            $("workspace-mode").value = mode;
+            render();
+            $("workspace-tree").scrollIntoView({
+              block: "center",
+              behavior: "smooth",
+            });
+          });
+          footer.append(show);
+          card.append(footer);
+          comparisons.append(card);
+        }
+        $("workspace-tree").replaceChildren(
+          tree($("workspace-mode").value, "workspace"),
+        );
+        $("selected-title").textContent = title(chosen) || fallback(chosen);
+        $("selected-path").textContent = chosen.path;
+        $("selected-explanation").textContent = renamed.has(selected)
+          ? "H1だけ変更。パス・並び順・選択は同じ。"
+          : chosen.h1 === null
+            ? "取得済みだがH1がない文書。"
+            : chosen.h1 === undefined
+              ? "まだH1を取得していない文書。"
+              : "H1は文書の内容、パスはファイルの識別子。";
+        $("active-tab").textContent = basename(selected) + "　×";
+        $("breadcrumb").textContent = selected;
+        $("document-title").textContent = title(chosen) || basename(selected);
+        $("document-lead").textContent =
+          chosen.h1 === null
+            ? "この文書にはH1がありません。ここではファイル名を読書面の識別表示として使います。"
+            : chosen.h1 === undefined
+              ? "ツリー用の見出しメタデータは未取得です。ファイルを開く操作は妨げません。"
+              : "これは「" + title(chosen) + "」の読書面サンプルです。";
+        $("rename").disabled = !chosen.h1;
+        $("rename").setAttribute("aria-pressed", String(renamed.has(selected)));
+        $("rename").textContent = renamed.has(selected)
+          ? "選択文書のH1を元に戻す"
+          : "選択文書のH1を更新";
+        document.querySelectorAll(".tree-scroll").forEach((scroll) => {
+          scroll.scrollTop = scrollPositions.get(scroll.dataset.instance) ?? 0;
+        });
+        if (focusInstance)
+          Array.from(document.querySelectorAll(".row"))
+            .find(
+              (r) =>
+                r.dataset.instance === focusInstance &&
+                r.dataset.path === selected,
+            )
+            ?.focus({ preventScroll: true });
+      }
+      $("dataset").addEventListener("change", () => {
+        renamed.clear();
+        selected =
+          $("dataset").value === "edges"
+            ? "docs/product/01-requirements.md"
+            : "docs/guides/01-start.md";
+        render();
+      });
+      $("width").addEventListener("change", () =>
+        document.documentElement.style.setProperty(
+          "--sidebar-width",
+          $("width").value + "px",
+        ),
+      );
+      $("rename").addEventListener("click", () => {
+        if (renamed.has(selected)) renamed.delete(selected);
+        else renamed.add(selected);
+        render();
+      });
+      $("theme").addEventListener("click", () => {
+        const light = document.documentElement.dataset.theme !== "light";
+        document.documentElement.dataset.theme = light ? "light" : "dark";
+        $("theme").setAttribute("aria-pressed", String(light));
+        $("theme").textContent = light ? "ダークで比較" : "ライトで比較";
+      });
+      $("workspace-mode").addEventListener("change", () => render());
+      render();
+    </script>
+  </body>
+</html>

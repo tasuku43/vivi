@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Vivi · Reader UX refinement</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --vivi-color-surface-canvas: #0d151d;
+        --vivi-color-surface-panel: #141f29;
+        --vivi-color-content-primary: #e0eaf0;
+        --vivi-color-content-muted: #a2b4c1;
+        --vivi-color-border-default: #2a3c4b;
+        --vivi-color-selection-indicator: #83d0df;
+        --vivi-color-selection-surface: #1b3542;
+        --vivi-color-change-text: #efc380;
+      }
+      :root[data-theme="light"] {
+        color-scheme: light;
+        --vivi-color-surface-canvas: #fff;
+        --vivi-color-surface-panel: #f1f5f8;
+        --vivi-color-content-primary: #1c303f;
+        --vivi-color-content-muted: #536879;
+        --vivi-color-border-default: #d0dce4;
+        --vivi-color-selection-indicator: #11647d;
+        --vivi-color-selection-surface: #e1f0f5;
+        --vivi-color-change-text: #865600;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--vivi-color-surface-canvas);
+        color: var(--vivi-color-content-primary);
+        font:
+          14px/1.55 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      button,
+      select {
+        font: inherit;
+        color: inherit;
+      }
+      button,
+      select,
+      summary {
+        cursor: pointer;
+      }
+      button,
+      select {
+        border: 1px solid var(--vivi-color-border-default);
+        border-radius: 6px;
+        background: var(--vivi-color-surface-panel);
+        padding: 7px 11px;
+      }
+      button:hover,
+      summary:hover {
+        background: var(--vivi-color-selection-surface);
+      }
+      :focus-visible {
+        outline: 2px solid var(--vivi-color-selection-indicator);
+        outline-offset: 3px;
+      }
+      button[aria-pressed="true"],
+      .selected {
+        background: var(--vivi-color-selection-surface);
+        color: var(--vivi-color-selection-indicator);
+      }
+      a {
+        color: var(--vivi-color-selection-indicator);
+      }
+      .review {
+        padding: 28px 34px 22px;
+        border-bottom: 1px solid var(--vivi-color-border-default);
+      }
+      .eyebrow {
+        color: var(--vivi-color-selection-indicator);
+        font-size: 11px;
+        letter-spacing: 0.16em;
+        font-weight: 700;
+      }
+      h1 {
+        font-size: 28px;
+        letter-spacing: -0.04em;
+        margin: 6px 0;
+      }
+      p {
+        margin: 10px 0;
+      }
+      .muted,
+      small {
+        color: var(--vivi-color-content-muted);
+      }
+      .compare {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 20px 0 12px;
+      }
+      .compare button {
+        padding: 11px 17px;
+      }
+      .controls {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .description {
+        min-height: 44px;
+        max-width: 1000px;
+      }
+      .frame {
+        margin: 22px 24px;
+        border: 1px solid var(--vivi-color-border-default);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .top {
+        height: 48px;
+        padding: 0 18px;
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        background: var(--vivi-color-surface-panel);
+        border-bottom: 1px solid var(--vivi-color-border-default);
+      }
+      .brand {
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        font-size: 21px;
+      }
+      .spacer {
+        flex: 1;
+      }
+      .search {
+        color: var(--vivi-color-content-muted);
+        font-size: 12px;
+        padding: 5px 14px;
+        border: 1px solid var(--vivi-color-border-default);
+        border-radius: 6px;
+      }
+      .workspace {
+        height: 580px;
+        display: grid;
+        grid-template-columns: 210px minmax(0, 1fr) 310px;
+      }
+      .with-composer .workspace {
+        height: 740px;
+      }
+      .tree {
+        padding: 22px 12px;
+        background: var(--vivi-color-surface-panel);
+        border-right: 1px solid var(--vivi-color-border-default);
+        font-size: 12px;
+        overflow: auto;
+      }
+      .label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.13em;
+        color: var(--vivi-color-content-muted);
+        margin: 0 10px 17px;
+      }
+      .tree-row {
+        padding: 7px 10px;
+        border-radius: 5px;
+        white-space: nowrap;
+      }
+      .indent {
+        padding-left: 23px;
+      }
+      .deeper {
+        padding-left: 38px;
+      }
+      .tree-row.active {
+        background: var(--vivi-color-selection-surface);
+        color: var(--vivi-color-selection-indicator);
+      }
+      .reader {
+        min-width: 0;
+        position: relative;
+        overflow: auto;
+      }
+      .tabs {
+        display: flex;
+        gap: 2px;
+        align-items: center;
+        padding: 0 10px;
+        min-height: 42px;
+        border-bottom: 1px solid var(--vivi-color-border-default);
+        background: var(--vivi-color-surface-panel);
+        font-size: 12px;
+        position: relative;
+      }
+      .file-tab {
+        padding: 11px 10px;
+        white-space: nowrap;
+      }
+      .file-tab.active {
+        border-bottom: 2px solid var(--vivi-color-selection-indicator);
+        color: var(--vivi-color-content-primary);
+      }
+      .file-tab:not(.active) {
+        color: var(--vivi-color-content-muted);
+      }
+      .tabs details {
+        margin-left: auto;
+      }
+      .tabs summary {
+        padding: 5px 10px;
+        list-style: none;
+      }
+      .menu {
+        position: absolute;
+        right: 8px;
+        top: 39px;
+        z-index: 5;
+        background: var(--vivi-color-surface-panel);
+        border: 1px solid var(--vivi-color-border-default);
+        box-shadow: 0 12px 36px #0004;
+        border-radius: 8px;
+        padding: 8px;
+        min-width: 185px;
+      }
+      .menu div {
+        padding: 7px;
+      }
+      .toolbar {
+        padding: 9px 20px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        border-bottom: 1px solid var(--vivi-color-border-default);
+        font-size: 11px;
+        flex-wrap: wrap;
+      }
+      .toolbar .mode {
+        color: var(--vivi-color-selection-indicator);
+      }
+      .document {
+        max-width: 740px;
+        margin: auto;
+        padding: 32px 36px 50px;
+      }
+      .document h2 {
+        font-size: 30px;
+        line-height: 1.25;
+        letter-spacing: -0.035em;
+        margin: 4px 0 12px;
+      }
+      .document h3 {
+        font-size: 20px;
+        margin: 29px 0 12px;
+      }
+      .document p {
+        font-size: 15px;
+        line-height: 1.8;
+      }
+      .document .lead {
+        color: var(--vivi-color-content-muted);
+        font-size: 16px;
+      }
+      .hint {
+        font-size: 11px;
+        margin-bottom: 24px;
+        color: var(--vivi-color-content-muted);
+      }
+      #anchor {
+        border-left: 2px solid transparent;
+        padding-left: 13px;
+      }
+      #anchor.anchor {
+        border-left: 2px solid var(--vivi-color-selection-indicator);
+        padding-left: 13px;
+        background: var(--vivi-color-selection-surface);
+        border-radius: 0 5px 5px 0;
+      }
+      .note {
+        font-size: 11px !important;
+        color: var(--vivi-color-content-muted);
+      }
+      .inspector {
+        border-left: 1px solid var(--vivi-color-border-default);
+        background: var(--vivi-color-surface-panel);
+        overflow: auto;
+      }
+      .inspector-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        border-bottom: 1px solid var(--vivi-color-border-default);
+        height: 42px;
+        font-size: 12px;
+        text-align: center;
+      }
+      .inspector-tabs span {
+        padding: 11px 0;
+      }
+      .inspector-tabs .active {
+        border-bottom: 2px solid var(--vivi-color-selection-indicator);
+      }
+      .queue-head {
+        padding: 17px 16px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .next {
+        font-size: 11px;
+      }
+      .filters {
+        display: flex;
+        gap: 5px;
+        padding: 0 16px 14px;
+        font-size: 10px;
+      }
+      .pill {
+        border: 1px solid var(--vivi-color-border-default);
+        padding: 3px 7px;
+        border-radius: 20px;
+      }
+      .queue-row {
+        padding: 14px 16px;
+        border-top: 1px solid var(--vivi-color-border-default);
+      }
+      .queue-row strong {
+        font-size: 12px;
+      }
+      .queue-row small {
+        display: block;
+        font-size: 10px;
+        margin-top: 3px;
+      }
+      .signal {
+        font-size: 10px;
+        color: var(--vivi-color-selection-indicator);
+      }
+      .draft {
+        color: var(--vivi-color-change-text);
+      }
+      .queue-row.current {
+        background: var(--vivi-color-selection-surface);
+        border-left: 2px solid var(--vivi-color-selection-indicator);
+        padding-left: 14px;
+      }
+      .row-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .publish-label {
+        font-size: 10px;
+        border: 1px solid var(--vivi-color-change-text);
+        border-radius: 4px;
+        padding: 3px 7px;
+        color: var(--vivi-color-change-text);
+      }
+      .queue-help {
+        padding: 16px;
+        font-size: 11px;
+        color: var(--vivi-color-content-muted);
+      }
+      .receipt {
+        padding: 14px;
+        border: 1px solid var(--vivi-color-border-default);
+        border-radius: 7px;
+        margin: 12px 14px;
+      }
+      .receipt strong {
+        font-size: 12px;
+      }
+      .receipt p {
+        font-size: 11px;
+      }
+      .footer {
+        padding: 7px 16px;
+        border-top: 1px solid var(--vivi-color-border-default);
+        display: flex;
+        gap: 22px;
+        color: var(--vivi-color-content-muted);
+        font-size: 10px;
+      }
+      .live {
+        color: var(--vivi-color-selection-indicator);
+      }
+      .composer {
+        position: absolute;
+        z-index: 2;
+        right: 16px;
+        top: 430px;
+        width: min(335px, calc(100% - 32px));
+        padding: 17px;
+        border: 1px solid var(--vivi-color-selection-indicator);
+        border-radius: 9px;
+        background: var(--vivi-color-surface-panel);
+        box-shadow: 0 14px 35px #0005;
+      }
+      .composer strong {
+        font-size: 12px;
+      }
+      .quoted {
+        border-left: 2px solid var(--vivi-color-border-default);
+        padding-left: 10px;
+        font-size: 11px;
+        color: var(--vivi-color-content-muted);
+        margin: 12px 0;
+      }
+      .sample-input {
+        padding: 10px;
+        background: var(--vivi-color-surface-canvas);
+        border: 1px solid var(--vivi-color-border-default);
+        border-radius: 5px;
+        min-height: 62px;
+        font-size: 12px;
+      }
+      .composer-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 12px;
+        font-size: 10px;
+      }
+      .primary-label {
+        background: var(--vivi-color-selection-surface);
+        border: 1px solid var(--vivi-color-selection-indicator);
+        padding: 6px 10px;
+        border-radius: 5px;
+      }
+      .empty {
+        padding: 80px 36px;
+        text-align: center;
+      }
+      .empty h2 {
+        font-size: 27px;
+      }
+      .empty .steps {
+        max-width: 340px;
+        margin: 25px auto;
+        text-align: left;
+      }
+      .empty .steps p {
+        padding: 11px 0;
+        border-top: 1px solid var(--vivi-color-border-default);
+        font-size: 13px;
+      }
+      .empty .primary-label {
+        display: inline-block;
+        margin-top: 15px;
+      }
+      .evidence {
+        margin: 28px 34px 45px;
+        max-width: 1100px;
+      }
+      .evidence h2 {
+        font-size: 18px;
+      }
+      .evidence-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+      }
+      .evidence h3 {
+        font-size: 14px;
+      }
+      .evidence p {
+        font-size: 12px;
+        color: var(--vivi-color-content-muted);
+      }
+      [hidden] {
+        display: none !important;
+      }
+      .spec {
+        font-size: 11px;
+        color: var(--vivi-color-content-muted);
+        margin: 0 25px;
+      }
+      .compact .workspace {
+        grid-template-columns: 180px minmax(0, 1fr) 275px;
+      }
+      .compact .document {
+        padding: 25px;
+      }
+      .narrow .workspace {
+        grid-template-columns: 180px minmax(0, 1fr);
+      }
+      .narrow .inspector {
+        display: none;
+      }
+      .narrow .review-entry {
+        display: inline !important;
+      }
+      .review-entry {
+        display: none;
+      }
+      .narrow.frame {
+        max-width: 900px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      @media (max-width: 1050px) {
+        .workspace {
+          grid-template-columns: 180px minmax(0, 1fr);
+        }
+        .inspector {
+          display: none;
+        }
+        .review-entry {
+          display: inline !important;
+        }
+        .file-tab.secondary {
+          display: none;
+        }
+        .evidence-grid {
+          grid-template-columns: 1fr;
+        }
+        .frame {
+          margin: 16px 12px;
+        }
+        .review {
+          padding: 20px;
+        }
+        .description {
+          min-height: 66px;
+        }
+      }
+      @media (max-width: 600px) {
+        .workspace {
+          grid-template-columns: 140px minmax(0, 1fr);
+        }
+        .tree {
+          padding: 15px 3px;
+        }
+        .deeper {
+          padding-left: 18px;
+        }
+        .tree-row {
+          font-size: 10px;
+        }
+        .document {
+          padding: 23px 18px;
+        }
+        .document h2 {
+          font-size: 23px;
+        }
+        .toolbar {
+          padding: 9px;
+        }
+        .search {
+          display: none;
+        }
+        .top {
+          gap: 12px;
+        }
+        .footer {
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .hint {
+          font-size: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="review">
+      <div class="eyebrow">VIVI / UX STUDY 47 / CONCEPT — NOT WIRED</div>
+      <h1>読むことと、伝えることに、余白を。</h1>
+      <p class="muted">
+        実画面の操作と既存の意思決定を踏まえた3案。ツリー・文書・Review Queue
+        の関係と Blueprint Ledger の配色を保つ。
+      </p>
+      <nav class="compare" aria-label="改善案の比較">
+        <button data-concept="a" aria-pressed="true">
+          A · 静かな読書面（推奨）
+        </button>
+        <button data-concept="b" aria-pressed="false">
+          B · 文脈のある指摘
+        </button>
+        <button data-concept="c" aria-pressed="false">
+          C · 明確な受け渡し
+        </button>
+      </nav>
+      <p class="description" id="description" aria-live="polite"></p>
+      <div class="controls">
+        <label
+          >表示状態
+          <select id="state">
+            <option value="reading">文書を読む</option>
+            <option value="empty">まだ文書を開いていない</option>
+            <option value="stale">入力中に文書が更新された</option>
+            <option value="offline">接続が切れた</option>
+          </select></label
+        ><button id="theme" aria-pressed="false">ライトで比較</button
+        ><button id="width" aria-pressed="false">狭い画面で比較</button>
+      </div>
+    </header>
+    <div class="frame" id="frame">
+      <div class="top">
+        <span class="brand">◫ vivi</span
+        ><span class="muted">workspace / launch-kit</span
+        ><span class="spacer"></span
+        ><span class="search">Find a document…　⌘ K</span
+        ><span class="review-entry">Review queue · 4</span>
+      </div>
+      <div class="workspace">
+        <aside class="tree" aria-label="実際のディレクトリ構造のサンプル">
+          <div class="label">Documents</div>
+          <div class="tree-row">▤ README.md</div>
+          <div class="tree-row">⌄ docs</div>
+          <div class="tree-row indent">⌄ product</div>
+          <div class="tree-row deeper active">▤ product-brief.md</div>
+          <div class="tree-row deeper">▤ launch-plan.md</div>
+          <div class="tree-row indent">⌄ design</div>
+          <div class="tree-row deeper">▤ preview.html</div>
+          <div class="tree-row indent">⌄ research</div>
+          <div class="tree-row deeper">▤ interviews.md</div>
+        </aside>
+        <main class="reader">
+          <div class="tabs" id="tabs">
+            <span class="file-tab active">product-brief.md　×</span
+            ><span class="file-tab secondary">preview.html　×</span>
+            <details>
+              <summary aria-label="タブ操作を表示">•••</summary>
+              <div class="menu">
+                <small>操作一覧のモック</small>
+                <div>Keep preview open</div>
+                <div>Close other tabs</div>
+                <div>Close tabs to the right</div>
+                <div>Close unchanged tabs</div>
+                <div>Close preview tabs</div>
+              </div>
+            </details>
+          </div>
+          <div id="reading">
+            <div class="toolbar">
+              <span class="muted">docs / product</span
+              ><span class="spacer"></span><span class="mode">Rendered</span
+              ><span class="muted">Source</span
+              ><span class="muted">Changes</span>
+            </div>
+            <article class="document">
+              <div class="hint">
+                Double-click a paragraph to leave feedback. Your text stays here
+                until you save it.
+              </div>
+              <h2>A calmer way to review<br />agent-written work</h2>
+              <p class="lead">
+                Keep the document in view.<br />Make the next instruction
+                precise.
+              </p>
+              <h3>The experience</h3>
+              <p id="anchor">
+                A person opens a document, reads it as intended, and leaves
+                feedback exactly where something needs to change.
+              </p>
+              <p>
+                The directory tree is the stable map. Open tabs keep reading
+                context. The review queue brings recent work and feedback into
+                view.
+              </p>
+              <h3>What we keep simple</h3>
+              <p>
+                Feedback is saved as a draft before publication. After
+                publication, an agent can fetch it. A read receipt shows that it
+                has been observed.
+              </p>
+              <p class="note">
+                Source and changes remain supporting evidence. Normal reading
+                always comes first.
+              </p>
+            </article>
+            <aside
+              class="composer"
+              id="composer"
+              aria-label="コメント入力の静的サンプル"
+              hidden
+            >
+              <div class="row-top">
+                <strong id="composer-title">Feedback on “The experience”</strong
+                ><span>×</span>
+              </div>
+              <div class="quoted">
+                “leaves feedback exactly where something needs to change”
+              </div>
+              <div class="sample-input">
+                初めて使う人にも、コメントの始め方が分かるようにしたい。
+              </div>
+              <p class="note" id="composer-help">
+                Only saved drafts are included when you publish.
+              </p>
+              <div class="composer-foot">
+                <span>Esc · keep for later</span
+                ><span class="primary-label" id="save-label"
+                  >Save draft　⌘ ↵</span
+                >
+              </div>
+            </aside>
+          </div>
+          <div class="empty" id="empty" hidden>
+            <div class="eyebrow">YOUR LOCAL REVIEW SPACE</div>
+            <h2>Open a document.<br />Make your next thought precise.</h2>
+            <p class="muted">Choose Markdown or HTML from the tree.</p>
+            <span class="primary-label">Find a document　⌘ K</span>
+            <div class="steps">
+              <p>01　Read the document as it was written.</p>
+              <p>02　Double-click a block to leave feedback.</p>
+              <p>03　Save a draft, then publish for your agent.</p>
+            </div>
+            <small>Local workspace · files stay read-only</small>
+          </div>
+        </main>
+        <aside class="inspector">
+          <div class="inspector-tabs">
+            <span class="active">Review queue　4</span><span>Document</span>
+          </div>
+          <div class="queue-head">
+            <strong>4 active files</strong
+            ><span class="next">Next queued →</span>
+          </div>
+          <div class="filters">
+            <span class="pill selected">All 4</span
+            ><span class="pill">Unseen 1</span><span class="pill">Drafts 1</span
+            ><span class="pill">Changed 2</span>
+          </div>
+          <div class="queue-row">
+            <strong>launch-plan.md</strong><small>docs / product</small
+            ><span class="signal">Unseen by agent</span>
+          </div>
+          <div class="queue-row current">
+            <div class="row-top">
+              <strong>product-brief.md</strong
+              ><span class="publish-label">Publish 2 drafts</span>
+            </div>
+            <small>docs / product</small
+            ><span class="signal draft">2 saved drafts</span>
+          </div>
+          <div class="queue-row">
+            <strong>preview.html</strong><small>docs / design</small
+            ><span class="signal draft">Changed · +18 −6</span>
+          </div>
+          <div class="queue-row">
+            <strong>interviews.md</strong><small>docs / research</small
+            ><span class="signal draft">Changed · +7 −2</span>
+          </div>
+          <div class="receipt" id="handoff" hidden>
+            <strong>Ready to publish · 2 drafts</strong>
+            <p>In product-brief.md</p>
+            <p>
+              1 thought is still being typed. It stays private and is not
+              included.
+            </p>
+            <span class="publish-label">Publish 2 drafts in this document</span>
+            <p>
+              Publishing makes feedback available to your agent. It does not
+              start the agent.
+            </p>
+          </div>
+          <div class="queue-help" id="queue-help">
+            Unseen feedback stays here until an agent reads it. Recent activity
+            recedes after 30 quiet minutes.
+          </div>
+          <div class="receipt" id="seen" hidden>
+            <strong>Read receipts</strong>
+            <p>Example: Codex read this feedback · 2 min ago</p>
+            <p>Seen means observed, not implemented.</p>
+          </div>
+        </aside>
+      </div>
+      <footer class="footer">
+        <span class="live" id="connection">● Live updates</span
+        ><span id="document-count">6 documents · 2 tabs</span
+        ><span class="spacer"></span><span>2 saved drafts · 1 unseen file</span>
+      </footer>
+    </div>
+    <p class="spec">
+      画面内は架空の文書と状態。上部の案・状態・配色・幅、およびタブの「•••」のみ操作できます。送信やアプリ状態の変更は行いません。
+    </p>
+    <section class="evidence">
+      <h2>判断の根拠と、次に検証すること</h2>
+      <div class="evidence-grid">
+        <div>
+          <h3>A · 静かな読書面</h3>
+          <p>
+            実画面の1280px幅では、左280px・右396pxが使われ、中央は604px。5個のタブ管理ボタンが1枚目の文書名まで押し縮めていた。管理操作をメニューに集約し、左右の初期幅を210px
+            / 310pxとして比較する。
+          </p>
+          <p>
+            最も小さい変更で読む面積が増える。タブ一括操作は1手増える。既存のリサイズ値は尊重し、長い同名タブ・分割表示・キーボード操作をFacadeで確認する。
+          </p>
+        </div>
+        <div>
+          <h3>B · 文脈のある指摘</h3>
+          <p>
+            現在の入力見出しは「Line 5 /
+            Composing」。読者が見ている節と引用を先に見せ、ソース行を補助情報へ。本文の再配置を起こさない既存のポップオーバー方針を維持する。
+          </p>
+          <p>
+            初回の指摘が分かりやすい。引用は場所を使うため長さを制限する。Markdown
+            / HTML・文書更新・Escapeでの退避・再開時のフォーカスを確認する。
+          </p>
+        </div>
+        <div>
+          <h3>C · 明確な受け渡し</h3>
+          <p>
+            公開前に「どの文書の何件か」「入力中は含まれない」を一か所で示す。Published
+            / Unseen / Seenの意味を短文で説明し、受信箱や完了管理を追加しない。
+          </p>
+          <p>
+            複数文書の指摘をまとめるときに有効。常時表示では右側が重くなるため、公開対象があるときに限定する。全体
+            / 現在文書 / 行単位の対象件数を検証する。
+          </p>
+        </div>
+      </div>
+      <p>
+        <strong>推奨：</strong
+        >Aを最初の縦断スライスとし、Bの入口とCの公開説明を段階的に足す。既存の注意ウィンドウやコメントの状態遷移は維持する。
+      </p>
+    </section>
+    <script>
+      const descriptions = {
+        a: "A：操作の優先順位を整え、本文と文書名に面積を戻す。初期画面に読む・指摘する・渡す入口を用意する。最初の改善として推奨。",
+        b: "B：何行目かより、どの文章への指摘かが分かる入力面。引用・Save draft・退避の意味を一か所にまとめる。",
+        c: "C：公開する対象と件数を明示し、入力中・保存済み・エージェント未読を取り違えない受け渡し面。",
+      };
+      let concept = "a";
+      const el = (id) => document.getElementById(id);
+      function render() {
+        const state = el("state").value;
+        el("description").textContent = descriptions[concept];
+        document
+          .querySelectorAll("[data-concept]")
+          .forEach((b) =>
+            b.setAttribute(
+              "aria-pressed",
+              String(b.dataset.concept === concept),
+            ),
+          );
+        el("empty").hidden = state !== "empty";
+        el("reading").hidden = state === "empty";
+        el("tabs").hidden = state === "empty";
+        el("document-count").textContent =
+          state === "empty" ? "6 documents · 0 tabs" : "6 documents · 2 tabs";
+        document
+          .querySelector(".tree-row.deeper")
+          .classList.toggle("active", state !== "empty");
+        el("composer").hidden =
+          state === "empty" || (concept !== "b" && state !== "stale");
+        el("frame").classList.toggle("with-composer", !el("composer").hidden);
+        el("anchor").classList.toggle(
+          "anchor",
+          concept === "b" || state === "stale",
+        );
+        el("handoff").hidden = concept !== "c";
+        el("seen").hidden = concept !== "c";
+        el("queue-help").hidden = concept === "c";
+        el("composer-title").textContent =
+          state === "stale"
+            ? "Document changed · input kept"
+            : "Feedback on “The experience”";
+        el("composer-help").textContent =
+          state === "stale"
+            ? "Re-anchor this feedback to the updated text before saving."
+            : "Only saved drafts are included when you publish.";
+        el("save-label").textContent =
+          state === "stale" ? "Re-anchor feedback" : "Save draft　⌘ ↵";
+        el("connection").textContent =
+          state === "offline"
+            ? "◌ Reconnecting · displayed content may be outdated"
+            : "● Live updates";
+      }
+      document.querySelectorAll("[data-concept]").forEach((b) =>
+        b.addEventListener("click", () => {
+          concept = b.dataset.concept;
+          render();
+        }),
+      );
+      el("state").addEventListener("change", render);
+      el("theme").addEventListener("click", () => {
+        const light = document.documentElement.dataset.theme !== "light";
+        document.documentElement.dataset.theme = light ? "light" : "dark";
+        el("theme").setAttribute("aria-pressed", String(light));
+        el("theme").textContent = light ? "ダークで比較" : "ライトで比較";
+      });
+      el("width").addEventListener("click", () => {
+        const narrow = el("frame").classList.toggle("narrow");
+        el("width").setAttribute("aria-pressed", String(narrow));
+        el("width").textContent = narrow ? "標準幅で比較" : "狭い画面で比較";
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape")
+          document
+            .querySelectorAll("details[open]")
+            .forEach((d) => (d.open = false));
+      });
+      render();
+    </script>
+  </body>
+</html>

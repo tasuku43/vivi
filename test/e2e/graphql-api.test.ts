@@ -225,40 +225,6 @@ it("serves the first GraphQL data API slice with REST-equivalent behavior", asyn
     }),
   );
 
-  const resolvedThread = await graphql<{
-    updateCommentThread: {
-      id: string;
-      status: string;
-      comments: Array<{ id: string; status: string; resolvedAt?: string }>;
-    };
-  }>("UpdateCommentThreadStatus", {
-    id: created.createComment.id,
-    status: "resolved",
-  });
-  expect(resolvedThread.updateCommentThread).toMatchObject({
-    id: created.createComment.id,
-    status: "resolved",
-    comments: expect.arrayContaining([
-      expect.objectContaining({
-        id: created.createComment.id,
-        status: "resolved",
-        resolvedAt: expect.any(String),
-      }),
-    ]),
-  });
-
-  const resolved = await graphql<{
-    updateComment: { id: string; status: string; resolvedAt?: string };
-  }>("UpdateCommentStatus", {
-    id: created.createComment.id,
-    status: "resolved",
-  });
-  expect(resolved.updateComment).toMatchObject({
-    id: created.createComment.id,
-    status: "resolved",
-  });
-  expect(resolved.updateComment.resolvedAt).toEqual(expect.any(String));
-
   const search = await graphql<{
     textSearch: {
       results: Array<{ path: string; lineNumber: number; lineText: string }>;
@@ -441,20 +407,6 @@ function graphqlQuery(operationName: string): string {
     }`,
     ViviDraftReviewComments: `query ViviDraftReviewComments($path: String) {
       draftReviewComments(path: $path) { id }
-    }`,
-    UpdateCommentThreadStatus: `mutation UpdateCommentThreadStatus($id: ID!, $status: CommentStatus!) {
-      updateCommentThread(id: $id, input: { status: $status }) {
-        id
-        status
-        comments { id status resolvedAt }
-      }
-    }`,
-    UpdateCommentStatus: `mutation UpdateCommentStatus($id: ID!, $status: CommentStatus!) {
-      updateComment(id: $id, input: { status: $status }) {
-        id
-        status
-        resolvedAt
-      }
     }`,
     ViviTextSearch: `query ViviTextSearch($query: String!, $limit: Int) {
       textSearch(query: $query, limit: $limit) {

@@ -1,0 +1,1140 @@
+<!doctype html>
+<html lang="ja">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Vivi · 全体の細部を整える</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0d161c;
+      --panel: #131f26;
+      --text: #e6edf1;
+      --muted: #9baeb9;
+      --line: #293a44;
+      --active: #223b47;
+      --accent: #90cfdb;
+      --amber: #e3c478;
+      --soft: #192b35;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font:
+        14px/1.6 system-ui,
+        sans-serif;
+    }
+    main {
+      max-width: 1240px;
+      margin: auto;
+      padding: 32px 28px 60px;
+    }
+    h1 {
+      font-size: 30px;
+      letter-spacing: -0.03em;
+      margin: 5px 0 10px;
+    }
+    h2 {
+      font-size: 20px;
+      margin: 0 0 6px;
+    }
+    h3 {
+      font-size: 16px;
+      margin: 0 0 8px;
+    }
+    p {
+      margin: 0;
+      color: var(--muted);
+    }
+    small {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    button,
+    select,
+    input,
+    textarea {
+      font: inherit;
+      color: inherit;
+    }
+    button,
+    select {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 6px;
+      padding: 6px 11px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: var(--soft);
+    }
+    button:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    button[aria-pressed="true"] {
+      background: var(--active);
+      color: var(--accent);
+      border-color: #4a7785;
+    }
+    .eyebrow {
+      color: var(--accent);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+    }
+    .topnote {
+      max-width: 780px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin: 24px 0 10px;
+    }
+    .modes {
+      display: flex;
+      gap: 6px;
+    }
+    .mode-note {
+      min-height: 40px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 15px;
+    }
+    .viewport {
+      container-type: inline-size;
+      max-width: 100%;
+      transition: width 0.15s;
+    }
+    .shell {
+      display: grid;
+      grid-template-columns: 210px minmax(0, 1fr) 270px;
+      grid-template-rows: 43px minmax(470px, auto) 28px;
+      min-height: 540px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      overflow: hidden;
+      background: var(--bg);
+      font-size: 12px;
+    }
+    .top {
+      grid-column: 1/-1;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    .top strong {
+      font-size: 18px;
+    }
+    .spacer {
+      flex: 1;
+    }
+    .top button {
+      font-size: 11px;
+      padding: 4px 9px;
+    }
+    .side {
+      padding: 14px 8px;
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .label {
+      font-size: 10px;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      margin: 0 6px 10px;
+    }
+    .tree-row {
+      padding: 5px 9px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .tree-row.indent {
+      padding-left: 26px;
+      border-left: 1px solid var(--line);
+      margin-left: 12px;
+    }
+    .tree-row.selected {
+      background: var(--active);
+      border-radius: 5px;
+      color: var(--text);
+    }
+    .tree-row small {
+      display: block;
+      font-size: 10px;
+    }
+    .document {
+      min-width: 0;
+    }
+    .tabs {
+      height: 38px;
+      padding: 0 9px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: stretch;
+      gap: 6px;
+    }
+    .tab {
+      padding: 9px 10px 6px;
+      border-bottom: 2px solid var(--accent);
+      font-size: 11px;
+    }
+    .tab .cross {
+      margin-left: 20px;
+      color: var(--muted);
+    }
+    .toolbar {
+      padding: 9px 18px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .toolbar button {
+      padding: 3px 8px;
+      font-size: 10px;
+    }
+    .paper {
+      padding: 30px 34px;
+      max-width: 650px;
+      margin: auto;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+    .paper h2 {
+      font-size: 27px;
+      line-height: 1.3;
+      letter-spacing: -0.025em;
+      color: var(--text);
+      margin-bottom: 21px;
+    }
+    .paper p {
+      color: var(--text);
+      margin-bottom: 16px;
+    }
+    .paper h3 {
+      font-size: 18px;
+      margin-top: 25px;
+    }
+    .paper li {
+      padding: 3px 0;
+    }
+    .inspector {
+      border-left: 1px solid var(--line);
+      min-width: 0;
+    }
+    .inspect-tabs {
+      display: flex;
+      justify-content: space-around;
+      border-bottom: 1px solid var(--line);
+      padding: 11px 5px;
+    }
+    .inspect-tabs strong {
+      color: var(--accent);
+    }
+    .filters {
+      display: flex;
+      gap: 12px;
+      font-size: 10px;
+      padding: 12px 14px;
+      color: var(--muted);
+    }
+    .item {
+      padding: 13px 15px;
+      border-top: 1px solid var(--line);
+      font-size: 11px;
+    }
+    .item strong {
+      display: block;
+    }
+    .item small {
+      font-size: 10px;
+    }
+    .statusline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+      font-size: 10px;
+      color: var(--accent);
+    }
+    .draftbutton {
+      color: var(--amber);
+      font-size: 10px;
+      padding: 3px 7px;
+      margin-left: auto;
+    }
+    .foot {
+      grid-column: 1/-1;
+      border-top: 1px solid var(--line);
+      padding: 5px 12px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      font-size: 10px;
+      color: var(--muted);
+      position: relative;
+    }
+    .foot button {
+      border: 0;
+      background: none;
+      padding: 0;
+      font-size: 10px;
+    }
+    .foot .draft {
+      color: var(--amber);
+    }
+    .extra,
+    .legacy,
+    .read-review {
+      display: none;
+    }
+    .current .legacy {
+      display: block;
+    }
+    .current .top .legacy,
+    .current .foot .legacy {
+      display: inline;
+    }
+    .current .top {
+      gap: 20px;
+    }
+    .current .tabs .tab:before {
+      content: "📘 ";
+      font-size: 13px;
+    }
+    .current .previewtag,
+    .conservative .previewtag {
+      display: inline;
+      color: var(--accent);
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 1px 4px;
+      margin-left: 6px;
+      font-size: 9px;
+    }
+    .previewtag {
+      display: none;
+    }
+    .current .tabs .tab > i {
+      font-size: 13px;
+    }
+    .current .hint {
+      padding: 6px 12px;
+      font-size: 9px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+    }
+    .current .paper {
+      margin: 16px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 24px;
+    }
+    .current .paper h2 {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 14px;
+    }
+    .current .reviewcount {
+      padding: 10px 14px;
+    }
+    .current .warning {
+      font-size: 10px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      margin-bottom: 10px;
+    }
+    .current .ancestor {
+      background: var(--soft);
+      box-shadow: inset 2px 0 var(--accent);
+      border-radius: 6px;
+    }
+    .current .openword {
+      color: var(--accent);
+      float: right;
+      font-size: 9px;
+    }
+    .current .tree-row.selected {
+      box-shadow: inset 2px 0 var(--accent);
+    }
+    .current .pill {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 1px 5px;
+    }
+    .current .statusline:before {
+      content: "●";
+      color: var(--accent);
+    }
+    .conservative .paper {
+      margin: 16px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 24px;
+    }
+    .conservative .extra {
+      display: block;
+    }
+    .focus .shell {
+      grid-template-columns: 210px minmax(0, 1fr) 42px;
+    }
+    .focus .inspector > * {
+      display: none;
+    }
+    .focus .inspector .read-review {
+      display: block;
+      writing-mode: vertical-rl;
+      margin: 12px auto;
+      border: 0;
+      background: none;
+    }
+    .focus .paper {
+      max-width: 680px;
+    }
+    .focus .toolbar .secondary {
+      display: none;
+    }
+    .comparegrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-top: 24px;
+    }
+    .detail {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      overflow: hidden;
+      background: var(--panel);
+      scroll-margin-top: 20px;
+    }
+    .detailheader {
+      padding: 19px 20px 12px;
+    }
+    .detailheader .num {
+      font-size: 10px;
+      color: var(--accent);
+      margin-bottom: 5px;
+    }
+    .detailheader p {
+      font-size: 12px;
+    }
+    .pair {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--line);
+      border-top: 1px solid var(--line);
+    }
+    .sample {
+      padding: 13px 15px 18px;
+      background: var(--bg);
+      min-height: 128px;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+    .sample > small {
+      display: block;
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      margin-bottom: 12px;
+    }
+    .sample strong {
+      font-size: 12px;
+    }
+    .sample .bar {
+      padding: 7px 8px;
+      border: 1px solid var(--line);
+      margin-bottom: 4px;
+      border-radius: 4px;
+    }
+    .sample .dim {
+      color: var(--muted);
+      font-size: 10px;
+    }
+    .sample .accent {
+      color: var(--accent);
+    }
+    .sample .amber {
+      color: var(--amber);
+    }
+    .sample .cta {
+      background: var(--active);
+      color: var(--text);
+      border: 1px solid #467081;
+      padding: 5px 9px;
+      border-radius: 5px;
+      display: inline-block;
+      font-size: 11px;
+    }
+    .sample .tiny {
+      font-size: 9px;
+      color: var(--muted);
+    }
+    .detailfooter {
+      padding: 10px 20px;
+      color: var(--muted);
+      font-size: 11px;
+      border-top: 1px solid var(--line);
+    }
+    .source {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .sectionheading {
+      margin-top: 35px;
+    }
+    .priorities {
+      margin-top: 25px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      font-size: 12px;
+    }
+    .priorities strong {
+      color: var(--text);
+    }
+    .priorities p {
+      margin: 8px 0;
+    }
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 18px 0;
+    }
+    .nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 11px;
+      padding: 4px 8px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+    }
+    .popup {
+      position: absolute;
+      bottom: 28px;
+      left: 8px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      padding: 12px;
+      border-radius: 7px;
+      z-index: 3;
+      box-shadow: 0 10px 30px #0007;
+    }
+    .popup p {
+      font-size: 11px;
+      margin: 4px 0;
+    }
+    .offline {
+      color: var(--amber) !important;
+    }
+    .endnote {
+      font-size: 11px;
+      margin-top: 18px;
+    }
+    @container (max-width:850px) {
+      .shell {
+        grid-template-columns: 210px minmax(0, 1fr) 38px;
+      }
+      .inspector > * {
+        display: none;
+      }
+      .inspector .read-review {
+        display: block;
+        writing-mode: vertical-rl;
+        margin: 12px auto;
+        border: 0;
+      }
+      .paper {
+        padding: 24px;
+      }
+      .top .legacy {
+        display: none !important;
+      }
+      .current .foot .legacy {
+        display: none !important;
+      }
+      .toolbar .secondary {
+        display: none;
+      }
+    }
+    @media (max-width: 850px) {
+      main {
+        padding: 24px 15px;
+      }
+      .comparegrid {
+        grid-template-columns: 1fr;
+      }
+      .viewport {
+        overflow-x: auto;
+      }
+      .shell {
+        min-width: 620px;
+      }
+      .controls {
+        align-items: flex-start;
+      }
+      .modes {
+        flex-wrap: wrap;
+      }
+    }
+    .directmode {
+      display: none;
+    }
+    .current .directmode,
+    .conservative .directmode {
+      display: inline-flex;
+      gap: 4px;
+    }
+    .current .mergedmode,
+    .conservative .mergedmode {
+      display: none;
+    }
+    .viewport:not(.current) .legacy {
+      display: none !important;
+    }
+    .shell {
+      position: relative;
+    }
+    .dismiss-review {
+      display: none;
+    }
+    @container (max-width:850px) {
+      .show-review .inspector {
+        position: absolute;
+        right: 0;
+        top: 43px;
+        bottom: 28px;
+        width: 270px;
+        background: var(--panel);
+        z-index: 4;
+        box-shadow: -12px 0 30px #0005;
+        overflow: auto;
+      }
+      .show-review .inspector .inspect-tabs,
+      .show-review .inspector .filters {
+        display: flex;
+      }
+      .show-review .inspector .item {
+        display: block;
+      }
+      .show-review .inspector .read-review {
+        display: none;
+      }
+      .show-review .inspector .dismiss-review {
+        display: block;
+        margin: 8px 10px 0 auto;
+        font-size: 10px;
+      }
+    }
+  </style>
+  <main>
+    <div class="eyebrow">VIVI / DETAIL REVIEW 51</div>
+    <h1>読むために、細部を整える。</h1>
+    <p class="topnote">
+      実画面とStorybookで見つけた8つの違和感。状態の重複、強調の競合、操作の曖昧さを整理する。サイドバーAを共通の土台に、画面全体で比較。
+    </p>
+    <div class="controls">
+      <div class="modes">
+        <button data-mode="current">現状の要点</button
+        ><button data-mode="conservative">① 控えめに整理</button
+        ><button data-mode="balanced" aria-pressed="true">
+          ② 文書中心 · 推奨</button
+        ><button data-mode="focus">③ 集中して読む</button>
+      </div>
+      <span class="spacer"></span
+      ><label
+        ><small>画面幅 </small
+        ><select id="width">
+          <option value="100%">全幅</option>
+          <option value="760px">760px</option>
+        </select></label
+      >
+    </div>
+    <p class="mode-note" id="mode-note">
+      ②
+      重複する表示を統合し、本文の枠と常設案内を減らす。レビュー欄は見えるまま。普段の読む・判断する・伝えるを両立。
+    </p>
+    <div class="viewport balanced" id="viewport">
+      <div class="shell">
+        <header class="top">
+          <strong>vivi</strong><span>product-docs</span
+          ><small class="legacy"
+            >WORKSPACE · /Users/tasuku/work/github.com/tasuku43</small
+          ><span class="spacer"></span
+          ><button id="find">Find a document <small>⌘ K</small></button
+          ><button aria-label="Workspace options" title="Workspace options">
+            •••
+          </button>
+        </header>
+        <aside class="side">
+          <div class="label">DOCUMENTS</div>
+          <div class="legacy warning">
+            Showing 20 of 72 rows. Expand folders as needed.
+          </div>
+          <div class="tree-row">README.md<small>Vivi</small></div>
+          <div class="tree-row ancestor">
+            ⌄ ▱ docs <span class="legacy openword">OPEN</span
+            ><small class="legacy">1 open tab</small>
+          </div>
+          <div class="tree-row indent selected">
+            <strong>README.md</strong><span class="legacy openword">OPEN</span
+            ><small>Documentation</small><small class="legacy">open tab</small>
+          </div>
+          <div class="tree-row indent">› ▱ architecture</div>
+          <div class="tree-row indent">› ▱ contracts</div>
+          <div class="tree-row indent">› ▱ engineering</div>
+          <div class="tree-row indent">› ▱ product</div>
+          <div class="tree-row">SECURITY.md<small>Security policy</small></div>
+        </aside>
+        <section class="document">
+          <div class="tabs">
+            <div class="tab">
+              <i>README.md</i><span class="previewtag">preview</span
+              ><span class="cross">×</span>
+            </div>
+            <span class="spacer"></span
+            ><small style="align-self: center">•••</small>
+          </div>
+          <div class="legacy hint">
+            Double-click a block to leave feedback. Save a draft, then publish
+            for your agent.
+          </div>
+          <div class="toolbar">
+            <span>docs / <strong>README.md</strong></span
+            ><span class="spacer"></span
+            ><span class="directmode"
+              ><button>Rendered</button><button>Source</button></span
+            ><button class="mergedmode">Rendered ▾</button
+            ><button class="secondary">Changes</button
+            ><button aria-label="Document options">•••</button>
+          </div>
+          <article class="paper">
+            <h2>Documentation</h2>
+            <p>
+              Vivi gives humans a quiet place to read agent-written documents
+              and leave precise feedback.
+            </p>
+            <p>
+              Keep the directory tree as a stable map. Open a document, read
+              naturally, and comment where something needs attention.
+            </p>
+            <h3>Feedback belongs to the document</h3>
+            <ul>
+              <li>Read Markdown and HTML as authored.</li>
+              <li>Save a draft when you notice an issue.</li>
+              <li>Publish when it is ready for your agent.</li>
+            </ul>
+            <p class="extra" style="font-size: 11px; color: var(--muted)">
+              Double-click a block to leave feedback.
+            </p>
+          </article>
+        </section>
+        <aside class="inspector">
+          <button class="dismiss-review" id="close-review">Close review</button>
+          <button class="read-review" id="review">Review · 12</button>
+          <div class="inspect-tabs">
+            <strong>Review <small>12</small></strong
+            ><span>Document</span>
+          </div>
+          <div class="legacy reviewcount">
+            <strong>12 active files</strong
+            ><small style="display: block">Sorted by attention</small>
+          </div>
+          <div class="filters">
+            <strong>All</strong><span>Unseen 6</span><span>Drafts 1</span>
+          </div>
+          <div class="item">
+            <strong>README.md</strong><small>Workspace root</small>
+            <div class="statusline">
+              <span class="pill">Unseen by agent</span
+              ><button class="draftbutton">Publish 1 draft</button>
+            </div>
+          </div>
+          <div class="item">
+            <strong>18-ux-acceptance-criteria.md</strong
+            ><small>docs / product</small>
+            <div class="statusline">
+              <span class="pill">Unseen by agent</span>
+            </div>
+          </div>
+          <div class="item">
+            <strong>03-cli-or-api-contract.md</strong
+            ><small>docs / contracts</small>
+            <div class="statusline" style="color: var(--muted)">
+              Changed · +36 −16
+            </div>
+          </div>
+          <div class="item">
+            <strong>README.md</strong><small>docs / adr</small>
+            <div class="statusline" style="color: var(--muted)">
+              Changed · +2
+            </div>
+          </div>
+        </aside>
+        <footer class="foot">
+          <button id="live">● Live</button
+          ><span class="legacy"
+            >WORKSPACE · Watching 684 files · 1 tab open</span
+          ><span class="spacer"></span
+          ><span class="legacy">CURRENT · README.md · preview · rendered</span
+          ><span class="draft">1 unpublished draft</span
+          ><span class="legacy">LIVE · 21 file events received</span>
+          <div class="popup" id="diagnostics" hidden>
+            <strong>Workspace connection</strong>
+            <p>Watching 684 files · 21 events received</p>
+            <p>Last event: a few seconds ago</p>
+            <button id="connection">接続切れを比較</button>
+          </div>
+        </footer>
+      </div>
+    </div>
+    <p class="endnote">
+      画面は観測した表示の要点を再構成したコンセプトです。実データを操作しません。Liveから詳細・接続切れの強調も比較できます。
+    </p>
+    <h2 class="sectionheading">細部の Before / After</h2>
+    <p>
+      見た目を減らすだけでなく、「何が起きるか」「いまどこか」を分かりやすくする。
+    </p>
+    <nav class="nav">
+      <a href="#d1">01 保存の意味</a><a href="#d2">02 ツリーの案内</a
+      ><a href="#d3">03 フッター</a><a href="#d4">04 レビュー欄</a
+      ><a href="#d5">05 本文まわり</a><a href="#d6">06 検索</a
+      ><a href="#d7">07 タブ</a><a href="#d8">08 空の状態</a>
+    </nav>
+    <div class="comparegrid">
+      <section class="detail" id="d1">
+        <div class="detailheader">
+          <div class="num">01 / COMMENT · 判断に直結</div>
+          <h3>↑ は「公開・送信」に見える</h3>
+          <p>実際は下書き保存。主操作の意味を小さなキー説明に頼っている。</p>
+        </div>
+        <div class="pair">
+          <div class="sample">
+            <small>BEFORE · STORYBOOKで確認</small>
+            <div class="bar">
+              Lines 9–12　<span class="dim">Composing</span>
+            </div>
+            <p class="tiny">Cmd/Ctrl Enter to save pending draft</p>
+            <div style="text-align: right; margin-top: 15px">
+              <span class="cta">↑</span>
+            </div>
+          </div>
+          <div class="sample">
+            <small>AFTER</small><strong>Comment · Lines 9–12</strong>
+            <p class="dim" style="margin: 12px 0">
+              Not shared with your agent until published.
+            </p>
+            <div style="text-align: right">
+              <span class="cta">Save draft</span>
+            </div>
+          </div>
+        </div>
+        <div class="detailfooter">
+          公開は保存後の別操作のまま。閉じる操作による入力保持と、古いアンカーへの警告も維持する。
+        </div>
+      </section>
+      <section class="detail" id="d2">
+        <div class="detailheader">
+          <div class="num">02 / NAVIGATION · 不要な不安</div>
+          <h3>普通の折りたたみに、制限の案内が出る</h3>
+          <p>
+            「Showing 20 of 72 rows」が、ファイルの読み込み不足のように見える。
+          </p>
+        </div>
+        <div class="pair">
+          <div class="sample">
+            <small>BEFORE · 実画面で確認</small>
+            <div class="bar dim">
+              Showing 20 of 72 rows.<br />Expand folders as needed.
+            </div>
+            ⌄ docs<br />　› architecture
+          </div>
+          <div class="sample">
+            <small>AFTER</small>⌄ docs<br />　› architecture
+            <p class="dim" style="margin-top: 14px">
+              通常の折りたたみは案内を出さない。
+            </p>
+          </div>
+        </div>
+        <div class="detailfooter">
+          実際の描画上限・読み込み失敗は表示する。サイドバーの選択表現は採用済みAへ。
+        </div>
+      </section>
+      <section class="detail" id="d3">
+        <div class="detailheader">
+          <div class="num">03 / STATUS · 視線の競合</div>
+          <h3>平常時のフッターが、常に忙しい</h3>
+          <p>タブ名・表示モード・ファイル数・イベント数まで常設されている。</p>
+        </div>
+        <div class="pair">
+          <div class="sample">
+            <small>BEFORE · 実画面で確認</small>
+            <div class="bar tiny">WORKSPACE · Watching 684 files</div>
+            <div class="bar tiny">CURRENT · README.md · preview · rendered</div>
+            <div class="bar tiny">LIVE · 21 file events received</div>
+          </div>
+          <div class="sample">
+            <small>AFTER</small>
+            <div class="bar">
+              ● Live <span class="amber" style="float: right">1 draft</span>
+            </div>
+            <p class="dim">件数や更新時刻はLiveから開く。</p>
+            <div class="bar amber" style="margin-top: 12px">
+              ● Disconnected · Retrying…
+            </div>
+          </div>
+        </div>
+        <div class="detailfooter">
+          平常は控えめに、接続切れ・未公開の下書きは消さない。
+        </div>
+      </section>
+      <section class="detail" id="d4">
+        <div class="detailheader">
+          <div class="num">04 / REVIEW · 情報の重複</div>
+          <h3>件数と未読を何度も伝えている</h3>
+          <p>タブ・見出し・Allフィルターに同じ件数。行にも点とUnseenが並ぶ。</p>
+        </div>
+        <div class="pair">
+          <div class="sample">
+            <small>BEFORE · 実画面で確認</small><strong>Review queue 12</strong>
+            <div class="bar">
+              12 active files <span class="tiny">Sorted by attention</span>
+            </div>
+            <span class="dim">All 12 · Unseen 6</span>
+            <div class="bar">
+              ● MD README.md <span class="accent">Unseen</span>
+            </div>
+          </div>
+          <div class="sample">
+            <small>AFTER</small><strong>Review 12</strong>
+            <p class="dim">All · Unseen 6 · Drafts 1</p>
+            <div style="margin-top: 12px">
+              <strong>README.md</strong>
+              <p class="dim">docs / product</p>
+              <span class="accent">Unseen by agent</span>
+            </div>
+          </div>
+        </div>
+        <div class="detailfooter">
+          未読・未公開・変更は別の意味を保つ。件数と同じ意味の装飾だけを統合する。
+        </div>
+      </section>
+      <section class="detail" id="d5">
+        <div class="detailheader">
+          <div class="num">05 / READER · 本文に入るまでの層</div>
+          <h3>文書の上に、説明と枠が積み重なる</h3>
+          <p>
+            タブ→案内文→操作バー→本文の枠。Storybookの読み手向け画面より密度が高い。
+          </p>
+        </div>
+        <div class="pair">
+          <div class="sample">
+            <small>BEFORE · 実画面 / STORYBOOK比較</small>
+            <div class="bar">README.md · preview</div>
+            <div class="bar tiny">Double-click a block to leave feedback…</div>
+            <div class="bar tiny">
+              docs / README　Rendered　Source　Outline　Changes
+            </div>
+            <div class="bar"><strong>Documentation</strong></div>
+          </div>
+          <div class="sample">
+            <small>AFTER</small>
+            <div class="bar">README.md</div>
+            <p class="dim">docs / README　　Rendered ▾　Changes</p>
+            <h3 style="margin-top: 22px">Documentation</h3>
+          </div>
+        </div>
+        <div class="detailfooter">
+          初回案内は初回・ヘルプへ。Rendered /
+          Sourceの直接切替を残す①案との比較が必要。
+        </div>
+      </section>
+      <section class="detail" id="d6">
+        <div class="detailheader">
+          <div class="num">06 / SEARCH · 候補に使える幅</div>
+          <h3>結果2件より、常設ヘルプが大きい</h3>
+          <p>右のキー一覧が幅を取り、Active・Recentも説明とバッジで重複。</p>
+        </div>
+        <div class="pair">
+          <div class="sample">
+            <small>BEFORE · 実パレットで確認</small>
+            <div class="bar">
+              <strong>docs/README.md</strong>
+              <p class="dim">Active tab · markdown　Active</p>
+            </div>
+            <p class="tiny">
+              Preview / Keep open / Command palette / Search text / Switch mode
+              / Close
+            </p>
+          </div>
+          <div class="sample">
+            <small>AFTER</small>
+            <div class="bar">
+              <strong>README.md</strong>
+              <p class="dim">
+                docs · Documentation　<span class="accent">Active</span>
+              </p>
+            </div>
+            <p class="tiny">↑↓ 選択　↵ プレビュー　⌘↵ タブに固定</p>
+          </div>
+        </div>
+        <div class="detailfooter">
+          詳細キー一覧はヘルプへ。長いパスや同名READMEは親パスを残して識別する。
+        </div>
+      </section>
+      <section class="detail" id="d7">
+        <div class="detailheader">
+          <div class="num">07 / TABS · 文書名の可読域</div>
+          <h3>プレビューを3つの場所で説明する</h3>
+          <p>
+            斜体・previewバッジ・フッターに同じ状態。ファイルアイコンも幅を使う。
+          </p>
+        </div>
+        <div class="pair">
+          <div class="sample">
+            <small>BEFORE · 実タブで確認</small>
+            <div class="bar">
+              📘 <i>README.md</i> <span class="accent">preview</span> ×
+            </div>
+            <p class="tiny">CURRENT · README.md · preview · rendered</p>
+          </div>
+          <div class="sample">
+            <small>AFTER</small>
+            <div class="bar">
+              <i>README.md</i> <span style="float: right">×</span>
+            </div>
+            <p class="dim">
+              ホバーの説明・タブメニューから「Keep open」。固定後は通常字体。
+            </p>
+          </div>
+        </div>
+        <div class="detailfooter">
+          変更・削除・同名タブの識別は維持。プレビューの発見性は①のバッジ維持案とも比較。
+        </div>
+      </section>
+      <section class="detail" id="d8">
+        <div class="detailheader">
+          <div class="num">08 / INSPECTOR · 空でも主張する枠</div>
+          <h3>「何もない」を大きなカードで伝える</h3>
+          <p>
+            コメント操作の再説明と、変更がないことの説明で空の文書欄が埋まる。
+          </p>
+        </div>
+        <div class="pair">
+          <div class="sample">
+            <small>BEFORE · DOCUMENTタブで確認</small><strong>FEEDBACK</strong>
+            <p class="tiny">
+              Double-click a rendered block to comment. Drag still selects text.
+            </p>
+            <div class="bar" style="margin-top: 12px">
+              <strong>No working-tree changes</strong>
+              <p class="tiny">The document stays in normal reading mode.</p>
+            </div>
+          </div>
+          <div class="sample">
+            <small>AFTER</small><strong>Feedback</strong>
+            <p class="dim">No feedback yet.</p>
+            <p class="dim" style="margin-top: 18px">
+              Changes　<span style="float: right">None</span>
+            </p>
+          </div>
+        </div>
+        <div class="detailfooter">
+          読み込み中・取得失敗・対象なしは別表示にする。失敗を「None」に置き換えない。
+        </div>
+      </section>
+    </div>
+    <section class="priorities">
+      <h3>進め方の提案</h3>
+      <p>
+        <strong>最初：</strong
+        >採用済みサイドバーA、保存ボタンの文言、通常のツリー案内、フッター。意味を変えずに、違和感を取りやすい。
+      </p>
+      <p>
+        <strong>次：</strong
+        >レビュー欄と検索の重複整理。未読・下書き・同名ファイル・空・エラーの状態をStorybookで確認。
+      </p>
+      <p>
+        <strong>比較して決める：</strong
+        >本文の枠、Source切替、プレビュー表現、インスペクターの常設。見た目と発見性のトレードオフがある。
+      </p>
+      <p>
+        採用済みAの
+        <a
+          class="source"
+          href="http://127.0.0.1:6010/iframe.html?id=workspace-navigation-chrome--quiet-selection-a&viewMode=story"
+          >Storybook facade</a
+        >
+        ·
+        <a
+          class="source"
+          href="http://127.0.0.1:6010/iframe.html?id=workspace-navigation-chrome--quiet-selection-a-light&viewMode=story"
+          >ライト / 280px</a
+        >
+      </p>
+    </section>
+    <p class="endnote">
+      レビュー範囲：実画面のヘッダー・ツリー・タブ・本文・Review/Documentインスペクター・パレット・フッター、StorybookのQuiet
+      Readerとコメント入力。上記以外の全ストーリーを目視監査したという意味ではありません。
+    </p>
+  </main>
+  <script>
+    const viewport = document.getElementById("viewport");
+    const notes = {
+      current:
+        "現状の要点を再構成。説明・バッジ・枠が重なっている状態を比較。実画面のスクリーンショットではありません。",
+      conservative:
+        "① 重複バッジと技術的な案内を整理し、本文の枠と操作の発見性を保つ。変化が小さく導入しやすい。",
+      balanced:
+        "② 重複する表示を統合し、本文の枠と常設案内を減らす。レビュー欄は見えるまま。普段の読む・判断する・伝えるを両立。",
+      focus:
+        "③ レビュー欄を細い入口へ畳み、読む幅を広げる。長文に向くが、未読や公開操作の発見性は落ちる。Reviewから②へ戻れます。",
+    };
+    function mode(value) {
+      viewport.className = "viewport " + value;
+      document.getElementById("mode-note").textContent = notes[value];
+      document
+        .querySelectorAll("[data-mode]")
+        .forEach((b) =>
+          b.setAttribute("aria-pressed", b.dataset.mode === value),
+        );
+    }
+    document
+      .querySelectorAll("[data-mode]")
+      .forEach((b) => (b.onclick = () => mode(b.dataset.mode)));
+    document.getElementById("width").onchange = (e) =>
+      (viewport.style.width = e.target.value);
+    document.getElementById("live").onclick = () => {
+      const el = document.getElementById("diagnostics");
+      el.hidden = !el.hidden;
+    };
+    document.getElementById("connection").onclick = () => {
+      const button = document.getElementById("live");
+      const down = button.classList.toggle("offline");
+      button.textContent = down ? "● Disconnected · Retrying…" : "● Live";
+    };
+    document.getElementById("review").onclick = () => {
+      mode("balanced");
+      viewport.classList.add("show-review");
+    };
+    document.getElementById("close-review").onclick = () =>
+      viewport.classList.remove("show-review");
+    document.getElementById("find").onclick = () =>
+      document
+        .getElementById("d6")
+        .scrollIntoView({ behavior: "smooth", block: "start" });
+  </script>
+</html>

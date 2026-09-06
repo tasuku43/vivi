@@ -20,6 +20,10 @@ import type {
 } from "../../domain/fs-node.js";
 import { TreeSidebar } from "../../shared/components/TreeSidebar.js";
 import { FileViewer } from "../file-context/components/FileViewer.js";
+import {
+  ReaderWelcome,
+  ReadingHint,
+} from "../../shared/components/ReaderGuidance.js";
 import { Topbar } from "../../shared/components/Topbar.js";
 import {
   OpenTabs,
@@ -343,6 +347,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     "document" | "review"
   >("review");
   const [compactInspectorOpen, setCompactInspectorOpen] = useState(false);
+  const compactInspectorTrigger = useRef<HTMLButtonElement>(null);
   const [sidebarWidth, setSidebarWidth] = useState(defaultSidebarWidth);
   const [inspectorWidth, setInspectorWidth] = useState(defaultInspectorWidth);
   const [resizingWorkbenchPane, setResizingWorkbenchPane] = useState<
@@ -1935,6 +1940,16 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }, []);
 
   useEffect(() => {
+    if (!compactInspectorOpen || !inspectorCollapsedByViewport) return;
+    const frame = window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>(".inspector [role=tab][aria-selected=true]")
+        ?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [compactInspectorOpen, inspectorCollapsedByViewport]);
+
+  useEffect(() => {
     if (!inspectorCollapsedByViewport) setCompactInspectorOpen(false);
   }, [inspectorCollapsedByViewport]);
 
@@ -2060,6 +2075,17 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       const action = keyboardShortcutAction(event);
       if (!action) return;
 
+      if (
+        action === "dismiss-overlays" &&
+        compactInspectorOpen &&
+        !paletteOpen &&
+        !shortcutHelpOpen
+      ) {
+        event.preventDefault();
+        setCompactInspectorOpen(false);
+        compactInspectorTrigger.current?.focus();
+        return;
+      }
       if (action === "dismiss-overlays") {
         setPaletteOpen(false);
         setShortcutHelpOpen(false);
@@ -2141,6 +2167,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
+    compactInspectorOpen,
     layout.activePaneId,
     paletteMode,
     paletteOpen,
@@ -2163,6 +2190,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   ]);
 
   useEffect(() => {
+    let reconnectPending = false;
     const unsubscribe = client.subscribeWorkspaceEvents(
       (event) => {
         const decision = decideLiveRefresh(event, activeFilePaths.current);
@@ -2230,7 +2258,37 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
           scheduleDiffRefresh(event.path);
         }
       },
-      { onStatus: setWorkspaceConnectionStatus },
+      {
+        onStatus: (status) => {
+          setWorkspaceConnectionStatus(status);
+          if (status === "disconnected") reconnectPending = true;
+          if (status !== "connected" || !reconnectPending) return;
+          reconnectPending = false;
+          // Watcher events missed during an outage cannot be replayed reliably.
+          // Revalidate without reopening tabs or discarding the user's input.
+          setError(null);
+          loadedActivityThreadIds.current.clear();
+          void Promise.all([
+            loadConfig(),
+            loadTree(),
+            loadDraftReviewComments(),
+            loadComments(null).then((loaded) =>
+              loadThreadActivities(
+                commentActivityThreadTargets({
+                  comments: loaded,
+                  selectedPath: null,
+                  reviewPaths: loaded.map((comment) => comment.path),
+                }),
+              ),
+            ),
+          ]).catch((err) => setError(String(err)));
+          for (const path of activeFilePaths.current) {
+            scheduleLiveFileRefresh(path, 0);
+            if (diffEnabledRef.current) scheduleDiffRefresh(path, 0);
+          }
+          scheduleGitReviewRefresh(0);
+        },
+      },
     );
     return () => {
       unsubscribe();
@@ -2352,6 +2410,25 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
           </button>
 
           <main className={styles.main}>
+            {inspectorCollapsedByViewport ? (
+              <div className={styles.compactInspectorBar}>
+                <button
+                  ref={compactInspectorTrigger}
+                  type="button"
+                  aria-label={
+                    compactInspectorOpen
+                      ? "Collapse inspector"
+                      : "Expand inspector"
+                  }
+                  aria-expanded={compactInspectorOpen}
+                  onClick={() => setCompactInspectorOpen((open) => !open)}
+                >
+                  {compactInspectorOpen
+                    ? "Close inspector"
+                    : `Review queue · ${reviewQueueProgress.total}`}
+                </button>
+              </div>
+            ) : null}
             <div
               className={`${styles.editorGrid}${draggingTab ? ` ${styles.draggingTab}` : ""}`}
             >
@@ -2359,36 +2436,38 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
             </div>
           </main>
 
-          <button
-            className={`${styles.railToggle} ${styles.inspectorRailToggle}`}
-            type="button"
-            aria-label={
-              effectiveInspectorVisible
-                ? "Collapse inspector"
-                : "Expand inspector"
-            }
-            aria-keyshortcuts="Meta+Shift+\\ Control+Shift+\\"
-            title={
-              effectiveInspectorVisible
-                ? "Collapse inspector"
-                : "Expand inspector"
-            }
-            onClick={() => {
-              if (inspectorCollapsedByViewport) {
-                setCompactInspectorOpen((visible) => !visible);
-              } else {
-                setInspectorVisible((visible) => !visible);
-              }
-            }}
-          >
-            <span
-              className={
+          {!inspectorCollapsedByViewport && (
+            <button
+              className={`${styles.railToggle} ${styles.inspectorRailToggle}`}
+              type="button"
+              aria-label={
                 effectiveInspectorVisible
-                  ? `${styles.collapseIcon} ${styles.collapseRight}`
-                  : `${styles.collapseIcon} ${styles.collapseLeft}`
+                  ? "Collapse inspector"
+                  : "Expand inspector"
               }
-            />
-          </button>
+              aria-keyshortcuts="Meta+Shift+\\ Control+Shift+\\"
+              title={
+                effectiveInspectorVisible
+                  ? "Collapse inspector"
+                  : "Expand inspector"
+              }
+              onClick={() => {
+                if (inspectorCollapsedByViewport) {
+                  setCompactInspectorOpen((visible) => !visible);
+                } else {
+                  setInspectorVisible((visible) => !visible);
+                }
+              }}
+            >
+              <span
+                className={
+                  effectiveInspectorVisible
+                    ? `${styles.collapseIcon} ${styles.collapseRight}`
+                    : `${styles.collapseIcon} ${styles.collapseLeft}`
+                }
+              />
+            </button>
+          )}
 
           {effectiveInspectorVisible ? (
             <>
@@ -2430,7 +2509,14 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                       : null
                   }
                   diffLoading={
-                    selectedPath ? Boolean(loadingDiffs[selectedPath]) : false
+                    (gitReviewLoading && gitReview === null) ||
+                    (selectedPath ? Boolean(loadingDiffs[selectedPath]) : false)
+                  }
+                  changesUnavailableReason={
+                    gitReview?.reason ??
+                    (gitReview === null
+                      ? "Change information has not loaded yet."
+                      : null)
                   }
                   changesVisible={Boolean(
                     file && diffEnabled && supportsDiffMode(file),
@@ -2747,8 +2833,24 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               ) : null}
               {panePendingPath ? (
                 <WorkbenchPendingFileMessage path={panePendingPath} />
+              ) : !paneFile ? (
+                <ReaderWelcome
+                  onFind={() => {
+                    setLayout((current) => ({
+                      ...current,
+                      activePaneId: pane.id,
+                    }));
+                    openPalette("file");
+                  }}
+                />
               ) : (
                 <CommentInputResumePaneProvider paneId={pane.id}>
+                  {(paneFile.viewerKind === "markdown" ||
+                    paneFile.viewerKind === "html") &&
+                  viewerModes[paneFile.path] !== "source" &&
+                  !diffEnabled ? (
+                    <ReadingHint />
+                  ) : null}
                   <FileViewer
                     key={paneFile?.path ?? "empty"}
                     file={paneFile}

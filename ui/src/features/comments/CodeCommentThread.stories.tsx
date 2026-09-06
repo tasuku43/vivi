@@ -183,6 +183,9 @@ export const NewLineComment: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     const input = canvas.getByLabelText("New line comment");
+    await expect(
+      canvas.getByRole("button", { name: "Save pending draft comment" }),
+    ).toHaveTextContent("Save draft");
     await userEvent.type(input, "Use one shared attention clock.");
     await userEvent.click(
       canvas.getByRole("button", { name: "Save pending draft comment" }),

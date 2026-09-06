@@ -18,6 +18,7 @@ const tree = {
       id: "README.md",
       path: "README.md",
       name: "README.md",
+      documentHeading: "Vivi",
       kind: "file" as const,
       parentPath: null,
       viewerKind: "markdown" as const,
@@ -62,6 +63,7 @@ it("uses GraphQL for startup workspace reads without generated document objects"
     expect(body.operationName).toBe("ViviWorkspace");
     expect(body.query).toContain("query ViviWorkspace");
     expect(body.query).toContain("fragment TreeFields");
+    expect(body.query).toContain("documentHeading");
     expect(body.variables).toEqual({ depth: 1 });
     return Response.json({
       data: {
@@ -118,7 +120,9 @@ it("assembles file context through GraphQL", async () => {
 it("classifies GraphQL file-not-found without treating permission errors as missing", async () => {
   const missing = new LightGraphqlViviClient({
     fetch: vi.fn<typeof fetch>(async () =>
-      Response.json({ errors: [{ message: "open gone.md: no such file or directory" }] }),
+      Response.json({
+        errors: [{ message: "open gone.md: no such file or directory" }],
+      }),
     ),
   });
   const forbidden = new LightGraphqlViviClient({
@@ -127,7 +131,9 @@ it("classifies GraphQL file-not-found without treating permission errors as miss
     ),
   });
 
-  await expect(missing.getFileContext({ path: "gone.md" })).rejects.toMatchObject({
+  await expect(
+    missing.getFileContext({ path: "gone.md" }),
+  ).rejects.toMatchObject({
     code: "not_found",
   });
   await expect(

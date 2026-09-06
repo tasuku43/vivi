@@ -1,8 +1,14 @@
-import type { KeyboardEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
+import { createPortal } from "react-dom";
 import type { OpenTab } from "../../state/tabs.js";
-import { iconForPath } from "../../state/file-icons.js";
 import { tabKeyboardAction } from "../../state/tab-navigation.js";
-import fileIconStyles from "./FileIcon.module.css";
 import styles from "./OpenTabs.module.css";
 
 export type { OpenTab };
@@ -10,29 +16,6 @@ export interface DraggedTabPayload {
   path: string;
   paneId: string;
 }
-
-const tabActionLabels = {
-  keep: {
-    label: "Keep tab",
-    description: "Keep this preview open as a normal tab",
-  },
-  closeOthers: {
-    label: "Close others",
-    description: "Close every tab except the active file",
-  },
-  closeRight: {
-    label: "Close right",
-    description: "Close tabs to the right of the active file",
-  },
-  closeClean: {
-    label: "Close clean",
-    description: "Close tabs without pending file changes",
-  },
-  closePreviews: {
-    label: "Close previews",
-    description: "Close temporary preview tabs",
-  },
-} as const;
 
 interface Props {
   tabs: OpenTab[];
@@ -70,12 +53,118 @@ export function OpenTabs({
   onDragStateChange,
   onManualDragStart,
 }: Props) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
+  const menuId = useId();
   const activeTab = tabs.find((tab) => tab.path === activePath);
+  const activeIndex = tabs.findIndex((tab) => tab.path === activePath);
+  const actions = [
+    {
+      label: "Keep preview open",
+      disabled: !activeTab?.isPreview,
+      run: () => {
+        if (activePath) onPromote(activePath);
+      },
+    },
+    {
+      label: "Close other tabs",
+      disabled: !activeTab || tabs.length < 2,
+      run: onCloseOtherTabs,
+    },
+    {
+      label: "Close tabs to the right",
+      disabled: activeIndex < 0 || activeIndex === tabs.length - 1,
+      run: onCloseTabsToRight,
+    },
+    {
+      label: "Close unchanged tabs",
+      disabled: !tabs.some((tab) => !tab.changed),
+      run: onCloseUnchangedTabs,
+    },
+    {
+      label: "Close preview tabs",
+      disabled: !tabs.some((tab) => tab.isPreview),
+      run: onClosePreviewTabs,
+    },
+  ];
+  function closeMenu(restoreFocus = true) {
+    setMenuOpen(false);
+    if (restoreFocus) triggerRef.current?.focus();
+  }
+  useLayoutEffect(() => {
+    if (!menuOpen) return;
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (rect)
+      setMenuPosition({
+        top: rect.bottom + 4,
+        left: Math.max(8, Math.min(rect.right - 230, window.innerWidth - 238)),
+      });
+    menuRef.current
+      ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
+      ?.focus();
+    const outside = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !menuRef.current?.contains(event.target) &&
+        !triggerRef.current?.contains(event.target)
+      )
+        setMenuOpen(false);
+    };
+    const dismiss = () => setMenuOpen(false);
+    document.addEventListener("pointerdown", outside);
+    window.addEventListener("resize", dismiss);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      window.removeEventListener("resize", dismiss);
+    };
+  }, [menuOpen]);
+  useEffect(() => {
+    Array.from(
+      stripRef.current?.querySelectorAll<HTMLElement>("[data-tab-path]") ?? [],
+    )
+      .find((element) => element.dataset.tabPath === activePath)
+      ?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [activePath, tabs.length]);
+  function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      closeMenu();
+      return;
+    }
+    if (event.key === "Tab") {
+      closeMenu();
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const items = Array.from(
+      menuRef.current?.querySelectorAll<HTMLButtonElement>(
+        "button:not(:disabled)",
+      ) ?? [],
+    );
+    const index = items.indexOf(document.activeElement as HTMLButtonElement);
+    const next =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? items.length - 1
+          : (index + (event.key === "ArrowDown" ? 1 : -1) + items.length) %
+            items.length;
+    items[next]?.focus();
+  }
+
   const duplicateBasenames = duplicateTabBasenames(tabs);
   const tabListLabel = openTabsAriaLabel(tabs, activePath);
   function focusTab(path: string) {
     window.requestAnimationFrame(() => {
-      Array.from(document.querySelectorAll<HTMLElement>("[data-tab-path]"))
+      Array.from(
+        stripRef.current?.querySelectorAll<HTMLElement>("[data-tab-path]") ??
+          [],
+      )
         .find((element) => element.dataset.tabPath === path)
         ?.focus();
     });
@@ -100,6 +189,7 @@ export function OpenTabs({
       }}
     >
       <div
+        ref={stripRef}
         className={styles.strip}
         role="group"
         aria-label={tabListLabel}
@@ -123,7 +213,7 @@ export function OpenTabs({
               ]
                 .filter(Boolean)
                 .join(" ")}
-              title={tab.path}
+              title={`${tab.path}${tab.isPreview ? " — Preview; double-click to keep open" : ""}`}
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
                 event.preventDefault();
@@ -140,7 +230,7 @@ export function OpenTabs({
                 tabIndex={tab.path === activePath ? 0 : -1}
                 data-tab-path={tab.path}
                 aria-label={`${tab.path}${tab.isPreview ? " preview" : ""}${tab.changed ? " changed" : ""}${tab.removed ? " removed" : ""}`}
-                title={tab.path}
+                title={`${tab.path}${tab.isPreview ? " — Preview; double-click to keep open" : ""}`}
                 draggable
                 onMouseDown={(event) => {
                   if (event.button === 0)
@@ -159,9 +249,6 @@ export function OpenTabs({
                 onDragEnd={() => onDragStateChange(false)}
               >
                 <span className={styles.main} aria-hidden="true">
-                  <span className={`${fileIconStyles.icon} file-icon`}>
-                    {iconForPath(tab.path, tab.viewerKind)}
-                  </span>
                   <span className={styles.titleStack}>
                     <span className={styles.title}>{title}</span>
                     {context ? (
@@ -170,11 +257,6 @@ export function OpenTabs({
                       </span>
                     ) : null}
                   </span>
-                  {tab.isPreview ? (
-                    <span className={styles.previewMark} title="Preview tab">
-                      preview
-                    </span>
-                  ) : null}
                   {tab.removed ? (
                     <span
                       className={styles.removedMark}
@@ -202,53 +284,60 @@ export function OpenTabs({
       </div>
       <div className={styles.actions} aria-label="Tab management">
         <button
-          aria-label={tabActionLabels.keep.description}
-          disabled={!activeTab?.isPreview}
-          onClick={() => {
-            if (activePath) onPromote(activePath);
+          ref={triggerRef}
+          type="button"
+          aria-label="Tab actions"
+          title="Tab actions"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          aria-controls={menuOpen ? menuId : undefined}
+          disabled={tabs.length === 0}
+          onClick={() => setMenuOpen((open) => !open)}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+              event.preventDefault();
+              setMenuOpen(true);
+            }
           }}
-          title={tabActionLabels.keep.description}
-          type="button"
         >
-          {tabActionLabels.keep.label}
-        </button>
-        <button
-          aria-label={tabActionLabels.closeOthers.description}
-          disabled={!activePath}
-          onClick={onCloseOtherTabs}
-          title={tabActionLabels.closeOthers.description}
-          type="button"
-        >
-          {tabActionLabels.closeOthers.label}
-        </button>
-        <button
-          aria-label={tabActionLabels.closeRight.description}
-          disabled={!activePath}
-          onClick={onCloseTabsToRight}
-          title={tabActionLabels.closeRight.description}
-          type="button"
-        >
-          {tabActionLabels.closeRight.label}
-        </button>
-        <button
-          aria-label={tabActionLabels.closeClean.description}
-          disabled={!tabs.some((tab) => !tab.changed)}
-          onClick={onCloseUnchangedTabs}
-          title={tabActionLabels.closeClean.description}
-          type="button"
-        >
-          {tabActionLabels.closeClean.label}
-        </button>
-        <button
-          aria-label={tabActionLabels.closePreviews.description}
-          disabled={!tabs.some((tab) => tab.isPreview)}
-          onClick={onClosePreviewTabs}
-          title={tabActionLabels.closePreviews.description}
-          type="button"
-        >
-          {tabActionLabels.closePreviews.label}
+          <span aria-hidden="true">•••</span>
         </button>
       </div>
+      {menuOpen &&
+        createPortal(
+          <div
+            ref={menuRef}
+            id={menuId}
+            role="menu"
+            aria-label="Tab actions"
+            className={styles.menu}
+            style={menuPosition}
+            onKeyDown={handleMenuKeyDown}
+            onBlur={(event) => {
+              if (
+                event.relatedTarget instanceof Node &&
+                !event.currentTarget.contains(event.relatedTarget)
+              )
+                setMenuOpen(false);
+            }}
+          >
+            {actions.map((action) => (
+              <button
+                key={action.label}
+                role="menuitem"
+                type="button"
+                disabled={action.disabled}
+                onClick={() => {
+                  action.run();
+                  closeMenu();
+                }}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

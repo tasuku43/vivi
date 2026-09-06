@@ -7,16 +7,11 @@ This note is an exploration artifact, not an implementation contract. The
 question being tested is how small the agent CLI can become if its only near
 term job is:
 
-> Decision update (2026-07): Vivi selected the on-demand form of the comment
-> pipe. `vivi inbox <url>` returns the current published snapshot and exits;
-> Publish never waits for an agent. The resident concepts below remain as the
-> historical comparison that led to that decision, not the current default UX.
-> The selected implementation defaults to a compact anchor-and-history text
-> projection, retains legacy JSON Lines behind `--json`, and resolves reply
-> identity as `--actor` then `VIVI_ACTOR`. Agents first run `vivi servers` to
-> validate registered servers and identify roots that contain their current
-> working directory; after selecting one, they carry its explicit URL through
-> inbox, refresh, and reply.
+> Current decision (2026-09): [CLI core simplification B](../adr/31-cli-core-simplification.md)
+> reduces the entire CLI to launch, `servers`, and one-shot `inbox <url>`.
+> Replies, ownership, resident loops, and task lifecycle operations are removed.
+> The alternatives below are historical exploration; use the
+> [CLI/API contract](../contracts/03-cli-or-api-contract.md) for current behavior.
 
 1. notice that a human comment arrived,
 2. read the comment with enough workspace context,

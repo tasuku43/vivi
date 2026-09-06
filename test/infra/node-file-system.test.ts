@@ -1,4 +1,11 @@
-import { mkdtemp, rm, writeFile, mkdir, unlink } from "node:fs/promises";
+import {
+  mkdtemp,
+  rm,
+  writeFile,
+  mkdir,
+  unlink,
+  symlink,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it } from "vitest";
@@ -34,10 +41,7 @@ beforeEach(async () => {
     "ignored",
   );
   await mkdir(path.join(dir, "storybook-static"), { recursive: true });
-  await writeFile(
-    path.join(dir, "storybook-static", "index.html"),
-    "ignored",
-  );
+  await writeFile(path.join(dir, "storybook-static", "index.html"), "ignored");
 });
 
 afterEach(async () => {
@@ -268,4 +272,50 @@ it("exposes server-safe viewer config", () => {
     allowHtmlScripts: false,
     maxFileSizeBytes: 4,
   });
+});
+
+it("permits preview image dependencies without bypassing workspace guards", async () => {
+  await writeFile(path.join(dir, "diagram.svg"), "<svg/>");
+  await writeFile(path.join(dir, "private.svg"), "<svg/>");
+  await writeFile(path.join(dir, "node_modules/hidden.svg"), "<svg/>");
+  const outsideDir = await mkdtemp(path.join(tmpdir(), "vivi-outside-"));
+  try {
+    await writeFile(path.join(outsideDir, "outside.svg"), "<svg/>");
+    await symlink(
+      path.join(outsideDir, "outside.svg"),
+      path.join(dir, "escape.svg"),
+    );
+    const fs = new NodeFileSystem({
+      rootDir: dir,
+      includeExtensions: new Set(["md"]),
+      excludePatterns: ["private.svg"],
+    });
+    await expect(fs.readFile("diagram.svg")).rejects.toThrow(
+      "path is excluded",
+    );
+    expect((await fs.readPreviewResource("diagram.svg")).mimeType).toBe(
+      "image/svg+xml",
+    );
+    expect(JSON.stringify(await fs.readTree())).not.toContain("diagram.svg");
+    for (const name of [
+      "private.svg",
+      "node_modules/hidden.svg",
+      "large.txt",
+      "../outside.svg",
+      "escape.svg",
+    ]) {
+      await expect(fs.readPreviewResource(name)).rejects.toThrow();
+    }
+    const limited = new NodeFileSystem({
+      rootDir: dir,
+      includeExtensions: new Set(["md"]),
+      maxFileSizeBytes: 2,
+    });
+    expect(await limited.readPreviewResource("diagram.svg")).toMatchObject({
+      truncated: true,
+      content: "",
+    });
+  } finally {
+    await rm(outsideDir, { recursive: true, force: true });
+  }
 });

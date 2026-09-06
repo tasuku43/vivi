@@ -426,8 +426,11 @@ export function readableBlockText(element: HTMLElement): string {
   )) {
     decoration.remove();
   }
-  const raw = readable.textContent ?? "";
-  return raw.replace(/\s+/g, " ").trim();
+  const text = (readable.textContent ?? "").replace(/\s+/g, " ").trim();
+  if (text) return text;
+  return Array.from(readable.querySelectorAll("img"))
+    .map((image) => image.getAttribute("alt")?.trim() || "Image")
+    .join(" ");
 }
 
 export function rectLikeFromElement(

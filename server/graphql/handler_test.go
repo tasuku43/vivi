@@ -40,17 +40,46 @@ func TestHandlerServesWorkspaceAndCommentThreads(t *testing.T) {
 		Comments:  store,
 	}), func(*http.Request) bool { return true })
 
+	for _, operation := range []string{
+		`createComment(input: {path: "README.md", body: "status bypass", anchor: {}, status: resolved}) { id }`,
+		`claimThread(input: {threadId: "old", actor: {id: "codex", kind: agent}}) { threadId }`,
+		`releaseThreadClaim(input: {threadId: "old", actor: {id: "codex", kind: agent}}) { threadId }`,
+		`resolveThread(id: "old") { id }`,
+		`archiveThread(id: "old") { id }`,
+		`reopenThread(id: "old") { id }`,
+		`updateCommentThread(id: "old", input: {status: resolved}) { id }`,
+		`updateComment(id: "old", input: {status: resolved}) { id }`,
+	} {
+		payload, _ := json.Marshal(map[string]any{"query": "mutation { " + operation + " }"})
+		request := httptest.NewRequest(http.MethodPost, "/graphql", bytes.NewReader(payload))
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		var result map[string]any
+		if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+			t.Fatal(err)
+		}
+		if result["errors"] == nil {
+			t.Fatalf("removed mutation accepted: %s: %s", operation, response.Body.String())
+		}
+	}
+
 	workspaceData := graphql(t, handler, map[string]any{
 		"operationName": "ViviWorkspace",
 		"query": `query ViviWorkspace($depth: Int) {
 			workspace(depth: $depth) {
 				config { root allowHtmlScripts maxFileSizeBytes }
-				tree { nodes { path kind childrenLoaded } }
+				tree { nodes { path kind childrenLoaded documentHeading } }
 			}
 		}`,
 		"variables": map[string]any{"depth": float64(1)},
 	})
 	workspaceValue := workspaceData["workspace"].(map[string]any)
+	tree := workspaceValue["tree"].(map[string]any)
+	firstNode := tree["nodes"].([]any)[0].(map[string]any)
+	if firstNode["documentHeading"] != "Vivi" {
+		t.Fatalf("heading = %v", firstNode["documentHeading"])
+	}
 	config := workspaceValue["config"].(map[string]any)
 	if config["root"] != root {
 		t.Fatalf("root = %v, want %v", config["root"], root)
@@ -147,80 +176,7 @@ func TestHandlerServesWorkspaceAndCommentThreads(t *testing.T) {
 	if !bytes.Contains([]byte(export["content"].(string)), []byte("GraphQL Go comment")) {
 		t.Fatalf("export content = %v, want created comment", export["content"])
 	}
-	updatedThreadData := graphql(t, handler, map[string]any{
-		"operationName": "UpdateCommentThreadStatus",
-		"query": `mutation UpdateCommentThreadStatus($id: ID!, $status: CommentStatus!) {
-			updateCommentThread(id: $id, input: { status: $status }) {
-				id
-				status
-				comments { id status resolvedAt }
-			}
-		}`,
-		"variables": map[string]any{"id": created["id"], "status": "resolved"},
-	})
-	updatedThread := updatedThreadData["updateCommentThread"].(map[string]any)
-	if updatedThread["status"] != "resolved" {
-		t.Fatalf("thread status = %v, want resolved", updatedThread["status"])
-	}
-}
 
-func TestHandlerSupportsExplicitThreadLifecycleMutations(t *testing.T) {
-	root := t.TempDir()
-	dataDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# Vivi\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	fsys, _ := workspace.New(workspace.Options{Root: root})
-	reviewer, _ := gitreview.New(root, time.Second)
-	store, _ := comments.NewStore(dataDir)
-	handler := NewHandler(application.NewService(application.Options{Workspace: fsys, Git: reviewer, Comments: store}), func(*http.Request) bool { return true })
-	created := graphql(t, handler, map[string]any{"operationName": "CreateThread", "query": `mutation CreateThread($input: CommentInput!) { createThread(input: $input) { id status createdAt comments { id source body } } }`, "variables": map[string]any{"input": map[string]any{"path": "README.md", "body": "human request", "source": "human", "anchor": map[string]any{"surface": "source", "canonical": map[string]any{"path": "README.md", "lineStart": float64(1)}}}}})["createThread"].(map[string]any)
-	id := created["id"].(string)
-	if created["status"] != "open" {
-		t.Fatalf("created = %#v", created)
-	}
-	added := graphql(t, handler, map[string]any{"operationName": "AddComment", "query": `mutation AddComment($threadId: ID!, $input: AddCommentInput!) { addComment(threadId: $threadId, input: $input) { threadId source body } }`, "variables": map[string]any{"threadId": id, "input": map[string]any{"body": "fixed", "source": "codex"}}})["addComment"].(map[string]any)
-	if added["threadId"] != id || added["source"] != "codex" {
-		t.Fatalf("added = %#v", added)
-	}
-	for _, transition := range []struct{ operation, field, status string }{{"ResolveThread", "resolveThread", "resolved"}, {"ArchiveThread", "archiveThread", "archived"}, {"ReopenThread", "reopenThread", "open"}} {
-		result := graphql(t, handler, map[string]any{"operationName": transition.operation, "query": `mutation ` + transition.operation + `($id: ID!) { ` + transition.field + `(id: $id) { id status comments { status } } }`, "variables": map[string]any{"id": id}})[transition.field].(map[string]any)
-		if result["status"] != transition.status {
-			t.Fatalf("%s = %#v", transition.operation, result)
-		}
-	}
-}
-
-func TestHandlerCanReplyAndReleaseClaimWhenThreadSourceIsMissing(t *testing.T) {
-	root := t.TempDir()
-	dataDir := t.TempDir()
-	path := filepath.Join(root, "README.md")
-	if err := os.WriteFile(path, []byte("# Vivi\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	fsys, _ := workspace.New(workspace.Options{Root: root})
-	reviewer, _ := gitreview.New(root, time.Second)
-	store, _ := comments.NewStore(dataDir)
-	handler := NewHandler(application.NewService(application.Options{Workspace: fsys, Git: reviewer, Comments: store}), func(*http.Request) bool { return true })
-	created := graphql(t, handler, map[string]any{"operationName": "CreateThread", "query": `mutation CreateThread($input: CommentInput!) { createThread(input: $input) { id status comments { id viewerKind anchor } } }`, "variables": map[string]any{"input": map[string]any{"path": "README.md", "body": "human request", "source": "human", "anchor": map[string]any{"surface": "source", "canonical": map[string]any{"path": "README.md", "lineStart": float64(1)}}}}})["createThread"].(map[string]any)
-	id := created["id"].(string)
-	if err := os.Remove(path); err != nil {
-		t.Fatal(err)
-	}
-	claim := graphql(t, handler, map[string]any{"operationName": "ClaimThread", "query": `mutation ClaimThread($id: ID!) { claimThread(id: $id, input: { actor: { id: "codex-dogfood", kind: codex }, leaseSeconds: 600 }) { activity { type actor { id } } } }`, "variables": map[string]any{"id": id}})["claimThread"].(map[string]any)
-	claimActivity := claim["activity"].(map[string]any)
-	if claimActivity["type"] != "thread_claimed" {
-		t.Fatalf("claim = %#v", claim)
-	}
-	added := graphql(t, handler, map[string]any{"operationName": "AddComment", "query": `mutation AddComment($threadId: ID!) { addComment(threadId: $threadId, input: { body: "source is missing, releasing", source: codex, actor: { id: "codex-dogfood", kind: codex } }) { threadId path viewerKind anchor body } }`, "variables": map[string]any{"threadId": id}})["addComment"].(map[string]any)
-	if added["threadId"] != id || added["path"] != "README.md" || added["viewerKind"] != "markdown" {
-		t.Fatalf("added = %#v", added)
-	}
-	released := graphql(t, handler, map[string]any{"operationName": "ReleaseThreadClaim", "query": `mutation ReleaseThreadClaim($id: ID!) { releaseThreadClaim(id: $id, input: { actor: { id: "codex-dogfood", kind: codex } }) { activity { type actor { id } } thread { id status } } }`, "variables": map[string]any{"id": id}})["releaseThreadClaim"].(map[string]any)
-	releaseActivity := released["activity"].(map[string]any)
-	if releaseActivity["type"] != "thread_claim_released" {
-		t.Fatalf("released = %#v", released)
-	}
 }
 
 func TestHandlerRecordsActorAwareReadActivityWithoutChangingStatus(t *testing.T) {

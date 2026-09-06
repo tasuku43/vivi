@@ -118,23 +118,19 @@ func runTopLevelInbox(ctx context.Context, args []string, stdout io.Writer) erro
 }
 
 func topLevelInbox(ctx context.Context, stdout io.Writer, options topLevelAgentOptions) error {
-	threads, _, err := fetchCommentThreads(ctx, topLevelInboxCommentsOptions(options, ""), "open")
+	threads, err := fetchCommentThreads(ctx, topLevelInboxRequestOptions(options))
 	if err != nil {
 		return err
 	}
 	return writeTopLevelInboxItems(stdout, options, orderCommentThreadsForAgent(threads))
 }
 
-func topLevelInboxCommentsOptions(options topLevelAgentOptions, cursor string) commentsCommandOptions {
-	commentsOptions := commentsCommandOptions{URL: options.URL, Status: "open", JSON: true}
+func topLevelInboxRequestOptions(options topLevelAgentOptions) inboxRequestOptions {
+	commentsOptions := inboxRequestOptions{URL: options.URL}
 	if options.ReadAs.Name != "" {
 		commentsOptions.ActorID = options.ReadAs.ID
 		commentsOptions.ActorKind = options.ReadAs.Kind
 		commentsOptions.ActorName = options.ReadAs.Name
-		commentsOptions.ClientEventID = "top-level-inbox:" + options.ReadAs.Name
-		if cursor != "" {
-			commentsOptions.ClientEventID += ":" + cursor
-		}
 	}
 	return commentsOptions
 }

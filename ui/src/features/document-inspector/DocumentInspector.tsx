@@ -42,6 +42,7 @@ export interface DocumentInspectorProps {
   change?: ReviewChangeItem | null;
   diffStat?: DiffStat | null;
   diffLoading?: boolean;
+  changesUnavailableReason?: string | null;
   changesVisible?: boolean;
   onOutlineSelect?: (id: string) => void;
   onOpenComment?: (comment: ViviComment) => void;
@@ -69,6 +70,7 @@ export function DocumentInspector({
   change = null,
   diffStat = null,
   diffLoading = false,
+  changesUnavailableReason = null,
   changesVisible = false,
   onOutlineSelect,
   onOpenComment,
@@ -171,11 +173,6 @@ export function DocumentInspector({
               title="Feedback"
               count={feedbackCount || undefined}
             >
-              <p className={styles.gestureHint}>
-                Double-click a rendered block to comment. Drag still selects
-                text.
-              </p>
-
               {unsavedInputCount && !documentDrafts.length ? (
                 <div className={styles.unsaved} role="status">
                   <span>
@@ -262,36 +259,38 @@ export function DocumentInspector({
               ) : commentsLoading ? (
                 <p className={styles.empty}>Loading feedback…</p>
               ) : !documentDrafts.length ? (
-                <p className={styles.empty}>
-                  No feedback on this document yet.
-                </p>
+                <p className={styles.empty}>No feedback yet.</p>
               ) : null}
             </InspectorSection>
 
             <InspectorSection title="Changes">
-              <div
-                className={`${styles.changeCard} ${changesVisible ? styles.changeActive : ""}`}
-              >
-                <div>
-                  <strong>
-                    {change ? changeLabel(change) : "No working-tree changes"}
-                  </strong>
-                  <span>
-                    {change
-                      ? changeDetail(diffStat, diffLoading)
-                      : "The document stays in normal reading mode."}
-                  </span>
+              {change ? (
+                <div
+                  className={`${styles.changeCard} ${changesVisible ? styles.changeActive : ""}`}
+                >
+                  <div>
+                    <strong>{changeLabel(change)}</strong>
+                    <span>{changeDetail(diffStat, diffLoading)}</span>
+                  </div>
+                  {change && onToggleChanges ? (
+                    <button
+                      type="button"
+                      aria-pressed={changesVisible}
+                      onClick={onToggleChanges}
+                    >
+                      {changesVisible ? "Back to document" : "Show changes"}
+                    </button>
+                  ) : null}
                 </div>
-                {change && onToggleChanges ? (
-                  <button
-                    type="button"
-                    aria-pressed={changesVisible}
-                    onClick={onToggleChanges}
-                  >
-                    {changesVisible ? "Back to document" : "Show changes"}
-                  </button>
-                ) : null}
-              </div>
+              ) : (
+                <p className={styles.empty}>
+                  {diffLoading
+                    ? "Checking changes…"
+                    : changesUnavailableReason
+                      ? `Changes unavailable. ${changesUnavailableReason}`
+                      : "No working-tree changes"}
+                </p>
+              )}
             </InspectorSection>
 
             <details className={styles.details}>

@@ -68,6 +68,13 @@ export const QuickOpen: Story = {
       canvas.getByRole("dialog", { name: "Quick open" }),
     ).toBeInTheDocument();
     const input = canvas.getByLabelText("Quick open query");
+    const results = canvas.getByRole("listbox", { name: "Quick open results" });
+    const hints = canvas.getByLabelText("Search keyboard hints");
+    await expect(hints.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      results.getBoundingClientRect().bottom,
+    );
+    await expect(within(results).getByText("product-review.md")).toBeVisible();
+    await expect(within(results).getByText("docs")).toBeVisible();
     await waitFor(() => expect(input).toHaveFocus());
     await userEvent.type(input, "-new");
     await expect(args.onQueryChange).toHaveBeenCalled();

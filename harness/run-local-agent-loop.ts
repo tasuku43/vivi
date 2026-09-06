@@ -1,97 +1,39 @@
 #!/usr/bin/env node
 import path from "node:path";
 import {
-  AgentLoopStageError,
   loadLocalAgentLoopFixture,
   runLocalAgentLoop,
-  writeLocalAgentLoopHtmlReport,
 } from "./local-agent-loop.js";
 
-const options = parseArgs(process.argv.slice(2));
-
 try {
-  const fixture = await loadLocalAgentLoopFixture(options.fixture);
-  const report = await runLocalAgentLoop({
-    baseUrl: options.url,
-    fixture,
-    intake: options.intake,
-    terminalTransport: options.terminal,
-  });
-  if (options.html) {
-    await writeLocalAgentLoopHtmlReport(report, options.html);
-  }
-  console.log(JSON.stringify(report, null, 2));
-} catch (error) {
-  if (error instanceof AgentLoopStageError) {
-    console.error(
-      JSON.stringify(
-        {
-          status: "failed",
-          failedStage: error.stage,
-          message: error.message,
-          completedStages: error.completedStages,
-        },
-        null,
-        2,
-      ),
-    );
-  } else {
-    console.error(error instanceof Error ? error.message : String(error));
-  }
-  process.exitCode = 1;
-}
-
-function parseArgs(args: string[]): {
-  url: string;
-  fixture: string;
-  html?: string;
-  intake?: "query" | "watch" | "claim-wait" | "work";
-  terminal?: "graphql" | "cli";
-} {
-  let url = process.env.VIVI_URL ?? "http://127.0.0.1:4317";
-  let fixture = "test/fixtures/agent-loop/basic.json";
-  let html: string | undefined;
-  let intake: "query" | "watch" | "claim-wait" | "work" | undefined;
-  let terminal: "graphql" | "cli" | undefined;
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    if (arg === "--url") url = requiredValue(args, ++index, arg);
-    else if (arg === "--fixture") fixture = requiredValue(args, ++index, arg);
-    else if (arg === "--html") html = requiredValue(args, ++index, arg);
-    else if (arg === "--intake") {
-      intake = parseIntake(requiredValue(args, ++index, arg));
-    } else if (arg === "--terminal") {
-      terminal = parseTerminal(requiredValue(args, ++index, arg));
-    } else throw new Error(`unknown argument ${arg}`);
-  }
-  return {
-    url: url.replace(/\/+$/, ""),
-    fixture: path.resolve(fixture),
-    html: html ? path.resolve(html) : undefined,
-    intake,
-    terminal,
+  const args = process.argv.slice(2);
+  const options = {
+    url: "",
+    fixture: "test/fixtures/agent-loop/basic.json",
+    cli: path.resolve("vivi"),
   };
-}
-
-function requiredValue(args: string[], index: number, flag: string): string {
-  const value = args[index];
-  if (!value) throw new Error(`${flag} requires a value`);
-  return value;
-}
-
-function parseIntake(value: string): "query" | "watch" | "claim-wait" | "work" {
-  if (
-    value === "query" ||
-    value === "watch" ||
-    value === "claim-wait" ||
-    value === "work"
-  ) {
-    return value;
+  for (let i = 0; i < args.length; i++) {
+    const key = args[i].slice(2);
+    if (!["url", "fixture", "cli"].includes(key) || !args[i + 1])
+      throw new Error(
+        "Usage: npm run harness:agent-loop -- --url <url> [--fixture <path>] [--cli <binary>]",
+      );
+    options[key as keyof typeof options] = args[++i];
   }
-  throw new Error(`--intake must be query, watch, claim-wait, or work`);
-}
-
-function parseTerminal(value: string): "graphql" | "cli" {
-  if (value === "graphql" || value === "cli") return value;
-  throw new Error(`--terminal must be graphql or cli`);
+  if (!options.url)
+    throw new Error("--url is required; use an isolated fixture workspace");
+  console.log(
+    JSON.stringify(
+      await runLocalAgentLoop({
+        baseUrl: options.url,
+        fixture: await loadLocalAgentLoopFixture(options.fixture),
+        cliPath: options.cli,
+      }),
+      null,
+      2,
+    ),
+  );
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
 }

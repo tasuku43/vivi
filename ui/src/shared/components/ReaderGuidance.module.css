@@ -1,0 +1,64 @@
+.welcome {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 720px;
+  margin: auto;
+  padding: clamp(20px, 6vw, 72px) clamp(16px, 4vw, 48px);
+  color: var(--vivi-color-content-primary);
+  line-height: 1.6;
+}
+.welcome h1 {
+  font-size: clamp(22px, 3vw, 34px);
+  line-height: 1.25;
+  letter-spacing: -0.035em;
+  margin: 20px 0;
+}
+.welcome small,
+.welcome p,
+.welcome ol {
+  color: var(--vivi-color-content-muted);
+}
+.welcome small {
+  font-size: 11px;
+}
+.welcome ol {
+  padding-left: 20px;
+  margin-block: 28px;
+  font-size: 13px;
+}
+.welcome li {
+  margin-block: 9px;
+}
+.welcome button {
+  font: inherit;
+  font-size: 13px;
+  padding: 10px 14px;
+  border: 1px solid var(--vivi-color-selection-border);
+  border-radius: 7px;
+  color: var(--vivi-color-selection-text);
+  background: var(--vivi-color-selection-surface);
+  cursor: pointer;
+}
+.hint {
+  padding: 10px 20px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--vivi-color-content-muted);
+  border-bottom: 1px solid var(--vivi-color-border-default);
+}
+
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+}
+.hint button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0 4px;
+  font: inherit;
+}

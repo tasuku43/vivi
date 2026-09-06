@@ -149,12 +149,16 @@ it("restores Source input after reload and clears its composer after publish", a
 
   await page.locator('[data-tree-path="README.md"]').click();
   await page.getByRole("tab", { name: "Document" }).click();
-  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: /view mode/ })
+    .selectOption("source");
   await page.getByRole("button", { name: "Add comment on line 1" }).click();
   await page
     .getByRole("textbox", { name: "New line comment" })
     .fill("Persist this review thought across reload");
-  await page.getByRole("button", { name: "Rendered", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: /view mode/ })
+    .selectOption("rendered");
 
   await page
     .getByRole("button", {
@@ -208,7 +212,9 @@ it("starts separate feedback after the agent reads published feedback", async ()
 
   await page.locator('[data-tree-path="README.md"]').click();
   await page.getByRole("tab", { name: "Document" }).click();
-  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: /view mode/ })
+    .selectOption("source");
   await page.getByRole("button", { name: "Add comment on line 1" }).click();
   await page
     .getByRole("textbox", { name: "New line comment" })
@@ -247,7 +253,9 @@ it("starts separate feedback after the agent reads published feedback", async ()
   await page.reload();
   await page.locator('[data-tree-path="index.html"]').click();
   await page.locator('[data-tree-path="README.md"]').click();
-  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: /view mode/ })
+    .selectOption("source");
   await page
     .getByRole("button", {
       name: "Open comment thread on line 1 with 1 message",
@@ -294,7 +302,9 @@ it("reanchors an out-of-range stale Source input to the current file", async () 
 
   await page.locator('[data-tree-path="README.md"]').click();
   await page.getByRole("tab", { name: "Document" }).click();
-  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: /view mode/ })
+    .selectOption("source");
   await page.getByRole("button", { name: "Add comment on line 5" }).click();
   const body = "Keep this thought after the selected lines disappear";
   await page.getByRole("textbox", { name: "New line comment" }).fill(body);
@@ -304,7 +314,9 @@ it("reanchors an out-of-range stale Source input to the current file", async () 
   await page.reload();
   await page.locator('[data-tree-path="README.md"]').click();
   await page.getByRole("tab", { name: "Document" }).click();
-  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: /view mode/ })
+    .selectOption("source");
   await expect
     .poll(() =>
       page.locator('.code-line[data-line="1"] .line-code').textContent(),
@@ -365,7 +377,9 @@ it("deletes a saved pending comment before publish", async () => {
 
   await page.locator('[data-tree-path="README.md"]').click();
   await page.getByRole("tab", { name: "Document" }).click();
-  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: /view mode/ })
+    .selectOption("source");
   await page.getByRole("button", { name: "Add comment on line 1" }).click();
   await page
     .getByRole("textbox", { name: "New line comment" })

@@ -71,7 +71,6 @@ type CommentInput struct {
 	Actor      *CommentActorInput `json:"actor,omitempty"`
 	Author     *string            `json:"author,omitempty"`
 	Source     *CommentSource     `json:"source,omitempty"`
-	Status     *CommentStatus     `json:"status,omitempty"`
 }
 
 type CommentMeta struct {
@@ -109,36 +108,9 @@ type CommentThreadActivityEvent struct {
 	CreatedAt      string                    `json:"createdAt"`
 }
 
-type CommentThreadClaim struct {
-	Thread   *CommentThread              `json:"thread"`
-	Activity *CommentThreadActivityEvent `json:"activity"`
-}
-
-type CommentThreadClaimInput struct {
-	Actor         *CommentActorInput `json:"actor"`
-	ClientEventID *string            `json:"clientEventId,omitempty"`
-	LeaseSeconds  *int               `json:"leaseSeconds,omitempty"`
-}
-
-type CommentThreadClaimRelease struct {
-	Thread   *CommentThread              `json:"thread"`
-	Activity *CommentThreadActivityEvent `json:"activity"`
-}
-
-type CommentThreadClaimReleaseInput struct {
-	Actor         *CommentActorInput `json:"actor"`
-	ClientEventID *string            `json:"clientEventId,omitempty"`
-}
-
-type CommentThreadUpdateInput struct {
-	Status CommentStatus      `json:"status"`
-	Actor  *CommentActorInput `json:"actor,omitempty"`
-}
-
 type CommentUpdateInput struct {
-	Body   *string            `json:"body,omitempty"`
-	Status *CommentStatus     `json:"status,omitempty"`
-	Actor  *CommentActorInput `json:"actor,omitempty"`
+	Body  *string            `json:"body,omitempty"`
+	Actor *CommentActorInput `json:"actor,omitempty"`
 }
 
 // Stable location of a comment in a unified diff. Line numbers are 1-based.
@@ -194,17 +166,19 @@ type FileContext struct {
 }
 
 type FsNode struct {
-	ID             string    `json:"id"`
-	Path           string    `json:"path"`
-	Name           string    `json:"name"`
-	Kind           NodeKind  `json:"kind"`
-	ParentPath     *string   `json:"parentPath,omitempty"`
-	ViewerKind     *string   `json:"viewerKind,omitempty"`
-	Children       []*FsNode `json:"children,omitempty"`
-	ChildrenLoaded *bool     `json:"childrenLoaded,omitempty"`
-	Size           *int      `json:"size,omitempty"`
-	MtimeMs        *float64  `json:"mtimeMs,omitempty"`
-	Version        *int      `json:"version,omitempty"`
+	// First H1 text; empty when absent, null when unavailable.
+	DocumentHeading *string   `json:"documentHeading,omitempty"`
+	ID              string    `json:"id"`
+	Path            string    `json:"path"`
+	Name            string    `json:"name"`
+	Kind            NodeKind  `json:"kind"`
+	ParentPath      *string   `json:"parentPath,omitempty"`
+	ViewerKind      *string   `json:"viewerKind,omitempty"`
+	Children        []*FsNode `json:"children,omitempty"`
+	ChildrenLoaded  *bool     `json:"childrenLoaded,omitempty"`
+	Size            *int      `json:"size,omitempty"`
+	MtimeMs         *float64  `json:"mtimeMs,omitempty"`
+	Version         *int      `json:"version,omitempty"`
 }
 
 type Meta struct {

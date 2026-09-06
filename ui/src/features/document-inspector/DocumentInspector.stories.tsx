@@ -149,3 +149,69 @@ export const MultipleInputsRemainIndividuallyResumable: Story = {
     );
   },
 };
+
+export const QuietEmptyDocument: Story = {
+  tags: ["interaction"],
+  args: {
+    comments: [],
+    draftComments: [],
+    change: undefined,
+    diffStat: undefined,
+    diffLoading: false,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("No feedback yet.")).toBeVisible();
+    await expect(canvas.getByText("No working-tree changes")).toBeVisible();
+    await expect(
+      canvas.queryByRole("button", { name: "Show changes" }),
+    ).not.toBeInTheDocument();
+    await expect(
+      canvas.queryByText(/normal reading mode/),
+    ).not.toBeInTheDocument();
+    await expect(
+      canvas.getByRole("navigation", { name: "Document outline" }),
+    ).toBeVisible();
+  },
+};
+export const LoadingEmptyDocument: Story = {
+  tags: ["interaction"],
+  args: {
+    ...QuietEmptyDocument.args,
+    commentsLoading: true,
+    diffLoading: true,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Loading feedback…")).toBeVisible();
+    await expect(canvas.getByText("Checking changes…")).toBeVisible();
+    await expect(
+      canvas.queryByText("No feedback yet."),
+    ).not.toBeInTheDocument();
+    await expect(
+      canvas.queryByText("No working-tree changes"),
+    ).not.toBeInTheDocument();
+  },
+};
+
+export const UnavailableChanges: Story = {
+  tags: ["interaction"],
+  args: {
+    ...QuietEmptyDocument.args,
+    changesUnavailableReason: "This workspace is not a Git repository.",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByText(
+        "Changes unavailable. This workspace is not a Git repository.",
+      ),
+    ).toBeVisible();
+    await expect(
+      canvas.queryByText("No working-tree changes"),
+    ).not.toBeInTheDocument();
+    await expect(
+      canvas.getByRole("navigation", { name: "Document outline" }),
+    ).toBeVisible();
+  },
+};
