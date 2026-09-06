@@ -387,3 +387,100 @@ it("recovers the active document and missed tree changes after the server restar
     await page.getByText("Preview unavailable", { exact: true }).count(),
   ).toBe(0);
 }, 30_000);
+
+it.each(["close", "save"] as const)(
+  "preserves a newer %s action when an earlier resume request finishes late",
+  async (action) => {
+    await page.locator('[data-tree-path="README.md"]').dblclick();
+    await page
+      .getByRole("combobox", { name: "Markdown view mode" })
+      .selectOption("source");
+    await page.getByRole("button", { name: "Add comment on line 1" }).click();
+    const input = page.getByRole("textbox", { name: "New line comment" });
+    await input.fill("Preserve this thought without reopening it.");
+    await page.locator('[data-tree-path="index.html"]').click();
+    await expect.poll(() => input.count()).toBe(0);
+    let releaseRequest!: () => void;
+    const pause = new Promise<void>((resolve) => {
+      releaseRequest = resolve;
+    });
+    let paused = false;
+    await page.route("**/graphql", async (route) => {
+      const body = route.request().postData() ?? "";
+      if (
+        !paused &&
+        body.includes("ViviFileContext") &&
+        body.includes("README.md")
+      ) {
+        paused = true;
+        await pause;
+      }
+      await route.continue();
+    });
+    try {
+      await page
+        .getByRole("button", { name: /Resume input in README\.md/ })
+        .click();
+      await expect.poll(() => paused).toBe(true);
+      await expect
+        .poll(() => input.inputValue())
+        .toBe("Preserve this thought without reopening it.");
+      const savedBody = page
+        .getByRole("article", { name: "Comment thread for line 1" })
+        .getByText("Preserve this thought without reopening it.", {
+          exact: true,
+        });
+      if (action === "close") {
+        await page
+          .getByRole("button", { name: "Close comment thread" })
+          .click();
+        await expect.poll(() => input.count()).toBe(0);
+      } else {
+        await page
+          .getByRole("button", { name: "Save pending draft comment" })
+          .click();
+        await expect.poll(() => input.count()).toBe(0);
+        await expect
+          .poll(() =>
+            page
+              .getByRole("article", { name: "Comment thread for line 1" })
+              .count(),
+          )
+          .toBe(0);
+      }
+      const refreshComplete = page.waitForResponse((response) => {
+        const body = response.request().postData() ?? "";
+        return body.includes("ViviComments") && body.includes("README.md");
+      });
+      releaseRequest();
+      await refreshComplete;
+      if (action === "close") {
+        await expect.poll(() => input.count()).toBe(0);
+        await page
+          .getByRole("button", { name: /Resume input in README\.md/ })
+          .click();
+        await expect
+          .poll(() => input.inputValue())
+          .toBe("Preserve this thought without reopening it.");
+      } else {
+        await expect
+          .poll(() =>
+            page
+              .getByRole("article", { name: "Comment thread for line 1" })
+              .count(),
+          )
+          .toBe(0);
+        await page
+          .getByRole("button", {
+            name: "Open comment thread on line 1 with 1 message",
+          })
+          .click();
+        await expect.poll(() => savedBody.count()).toBe(1);
+        expect(await input.count()).toBe(0);
+      }
+    } finally {
+      releaseRequest();
+    }
+  },
+  20_000,
+);

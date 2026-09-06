@@ -545,6 +545,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   ) {
     const trimmedBody = body.trim();
     if (!trimmedBody) return;
+    resumeInputRequestVersion.current += 1;
     draftSavingCountRef.current += 1;
     setDraftSavingCount(draftSavingCountRef.current);
     try {
@@ -639,6 +640,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }
 
   function closeInlineComment() {
+    // A completed file fetch must not undo a newer close or draft target.
+    resumeInputRequestVersion.current += 1;
     setActiveCommentId(null);
     setActiveCommentRect(null);
   }

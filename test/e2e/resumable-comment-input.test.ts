@@ -355,6 +355,18 @@ it("reanchors an out-of-range stale Source input to the current file", async () 
   await page
     .getByRole("button", { name: "Save pending draft comment" })
     .click();
+  // Source saves collapse the composer; reopen the durable draft via its marker.
+  await expect.poll(() => input.count()).toBe(0);
+  await expect
+    .poll(() =>
+      page.getByRole("article", { name: "Comment thread for line 1" }).count(),
+    )
+    .toBe(0);
+  await page
+    .getByRole("button", {
+      name: "Open comment thread on line 1 with 1 message",
+    })
+    .click();
   await expect
     .poll(() =>
       page

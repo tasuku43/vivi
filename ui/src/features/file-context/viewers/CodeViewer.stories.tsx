@@ -661,6 +661,20 @@ export const SavedInlineDraftRemainsVisible: Story = {
     await expect(
       canvas.queryByRole("article", { name: "Comment thread for line 6" }),
     ).toBeNull();
+    await userEvent.click(
+      canvas.getByRole("button", {
+        name: "Open comment thread on line 6 with 1 message",
+      }),
+    );
+    await expect(
+      canvas.getByText("Persist this draft in place."),
+    ).toBeVisible();
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Close comment thread" }),
+    );
+    await expect(
+      canvas.queryByRole("article", { name: "Comment thread for line 6" }),
+    ).toBeNull();
   },
 };
 
