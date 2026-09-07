@@ -208,9 +208,9 @@ func (r *queryResolver) Comments(ctx context.Context, path *string, status *mode
 }
 
 // CommentThreads is the resolver for the commentThreads field.
-func (r *queryResolver) CommentThreads(ctx context.Context, path *string, status *model.CommentStatus, reviewBatchID *string) ([]*model.CommentThread, error) {
+func (r *queryResolver) CommentThreads(ctx context.Context, path *string, status *model.CommentStatus, reviewBatchID *string, unseenBy *string) ([]*model.CommentThread, error) {
 	pathValue, statusValue, batchValue := commentFilters(path, status, reviewBatchID)
-	items, err := r.service.ListCommentThreads(comments.Filters{Path: pathValue, Status: statusValue, ReviewBatchID: batchValue})
+	items, err := r.service.ListCommentThreads(comments.Filters{Path: pathValue, Status: statusValue, ReviewBatchID: batchValue, UnseenBy: stringPointerValue(unseenBy)})
 	if err != nil {
 		return nil, err
 	}

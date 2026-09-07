@@ -146,7 +146,7 @@ it("publishes apply-feedback from the vivi plugin", () => {
       name: "vivi",
       displayName: "Vivi",
       source: "./agent-extensions/claude/vivi",
-      version: "0.2.0",
+      version: "0.2.1",
     }),
   );
   expect(codexManifest.name).toBe("vivi");
@@ -157,7 +157,7 @@ it("publishes apply-feedback from the vivi plugin", () => {
   expect(claudeManifest).toMatchObject({
     name: "vivi",
     displayName: "Vivi",
-    version: "0.2.0",
+    version: "0.2.1",
   });
 
   const codexSkill = readFileSync(
@@ -314,7 +314,7 @@ it("packages both review entry points for Codex and Claude", () => {
     expect(open).toMatch(/^name: open$/m);
     expect(open).toContain("vivi open <url> <path> --print");
     const apply = readFileSync(`${root}/apply-feedback/SKILL.md`, "utf8");
-    expect(apply).toContain(`vivi inbox <url> --read-as ${platform}`);
+    expect(apply).toContain(`vivi inbox <url> --read-as ${platform} --unseen`);
     expect(apply).not.toMatch(/^allowed-tools:/m);
   }
 });

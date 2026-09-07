@@ -534,3 +534,37 @@ func TestReadReceiptProjectionUsesFirstReadOfCurrentHumanFeedback(t *testing.T) 
 		t.Fatalf("new unread message retained old receipt: %v %v", fresh, err)
 	}
 }
+
+func TestUnseenThreadsReturnAfterHumanFollowup(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	created, err := store.Create(map[string]any{"path": "README.md", "body": "Review this", "source": "human"}, "sha256:file", "markdown")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := created["threadId"].(string)
+	actor := map[string]any{"id": "codex", "kind": "codex"}
+	if _, err := store.AppendThreadReadActivity(id, actor, "legacy-client"); err != nil {
+		t.Fatal(err)
+	}
+	threads, err := store.ListThreads(Filters{UnseenBy: "codex", Status: "open"})
+	if err != nil || len(threads) != 0 {
+		t.Fatalf("seen threads: %v %v", threads, err)
+	}
+	if _, err := store.Create(map[string]any{"path": "README.md", "threadId": id, "body": "One more point", "source": "human"}, "sha256:file", "markdown"); err != nil {
+		t.Fatal(err)
+	}
+	threads, err = store.ListThreads(Filters{UnseenBy: "codex", Status: "open"})
+	if err != nil || len(threads) != 1 {
+		t.Fatalf("followup threads: %v %v", threads, err)
+	}
+	if _, err := store.AppendThreadReadActivity(id, actor, ""); err != nil {
+		t.Fatal(err)
+	}
+	threads, err = store.ListThreads(Filters{UnseenBy: "codex", Status: "open"})
+	if err != nil || len(threads) != 0 {
+		t.Fatalf("reread threads: %v %v", threads, err)
+	}
+}

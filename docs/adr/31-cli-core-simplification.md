@@ -39,3 +39,7 @@ exercises draft privacy, publish, read, reread, and follow-up observation.
 The additive `open` command completes the artifact handoff: it validates an
 existing server target and opens a reader deep link, with `--print` for host
 browsers. It introduces no server lifecycle, task state, or navigation broadcast.
+
+The optional `--unseen` filter with `--read-as` narrows retrieval to current
+human feedback not yet observed by that actor. The agent plugins use it for
+initial fetch and bounded refresh; omit it to recover previously fetched work.

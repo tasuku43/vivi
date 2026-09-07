@@ -24,6 +24,7 @@ type Store struct {
 }
 
 type Filters struct {
+	UnseenBy      string
 	Path          string
 	Status        string
 	ReviewBatchID string
@@ -110,6 +111,13 @@ func (store *Store) ListThreads(filters Filters) ([]map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	var events []map[string]any
+	if filters.UnseenBy != "" {
+		events, err = store.readThreadEvents()
+		if err != nil {
+			return nil, err
+		}
+	}
 	filtered := []map[string]any{}
 	for _, thread := range threads {
 		if filters.Path != "" && thread["path"] != filters.Path {
@@ -119,6 +127,9 @@ func (store *Store) ListThreads(filters Filters) ([]map[string]any, error) {
 			continue
 		}
 		if filters.ReviewBatchID != "" && thread["reviewBatchId"] != filters.ReviewBatchID {
+			continue
+		}
+		if filters.UnseenBy != "" && threadSeenBy(thread, events, filters.UnseenBy) {
 			continue
 		}
 		filtered = append(filtered, thread)

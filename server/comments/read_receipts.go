@@ -74,3 +74,43 @@ func (store *Store) RecentReadReceipts(since time.Time) ([]ReadReceipt, error) {
 	}
 	return result, nil
 }
+
+// threadSeenBy compares receipts with the latest human feedback, so a follow-up
+// becomes unseen again while agent-authored history does not reset attention.
+func threadSeenBy(thread map[string]any, events []map[string]any, actorID string) bool {
+	latest := time.Time{}
+	items, _ := thread["comments"].([]map[string]any)
+	for _, c := range items {
+		if stringValue(actorForComment(c)["kind"]) != "human" {
+			continue
+		}
+		stamp := stringValue(c["updatedAt"])
+		if stamp == "" {
+			stamp = stringValue(c["createdAt"])
+		}
+		at, err := time.Parse(time.RFC3339Nano, stamp)
+		if err != nil {
+			return false
+		}
+		if at.After(latest) {
+			latest = at
+		}
+	}
+	if latest.IsZero() {
+		return false
+	}
+	for _, e := range events {
+		if e["threadId"] != thread["id"] || e["type"] != "thread.read" {
+			continue
+		}
+		actor, _ := e["actor"].(map[string]any)
+		if stringValue(normalizeActor(actor)["id"]) != actorID {
+			continue
+		}
+		at, err := time.Parse(time.RFC3339Nano, stringValue(e["at"]))
+		if err == nil && !at.Before(latest) {
+			return true
+		}
+	}
+	return false
+}

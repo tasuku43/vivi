@@ -15,6 +15,7 @@ import (
 // The transport carries only published feedback and optional read identity.
 type inboxRequestOptions struct {
 	URL       string
+	UnseenBy  string
 	ActorID   string
 	ActorKind string
 	ActorName string
@@ -70,10 +71,10 @@ type actorOutput struct {
 
 func fetchCommentThreads(ctx context.Context, options inboxRequestOptions) ([]commentThreadOutput, error) {
 	var threads []commentThreadOutput
-	if err := postGraphQL(ctx, options, graphqlRequest{
+	request := graphqlRequest{
 		OperationName: "AgentCommentThreads",
-		Query: `query AgentCommentThreads($status: CommentStatus) {
-			commentThreads(status: $status) {
+		Query: `query AgentCommentThreads($status: CommentStatus, $unseenBy: ID) {
+			commentThreads(status: $status, unseenBy: $unseenBy) {
 				id
 				path
 				status
@@ -100,8 +101,14 @@ func fetchCommentThreads(ctx context.Context, options inboxRequestOptions) ([]co
 				}
 			}
 		}`,
-		Variables: map[string]any{"status": "open"},
-	}, "commentThreads", &threads); err != nil {
+		Variables: map[string]any{"status": "open", "unseenBy": options.UnseenBy},
+	}
+	if options.UnseenBy == "" {
+		request.Query = strings.ReplaceAll(request.Query, ", $unseenBy: ID", "")
+		request.Query = strings.ReplaceAll(request.Query, ", unseenBy: $unseenBy", "")
+		delete(request.Variables, "unseenBy")
+	}
+	if err := postGraphQL(ctx, options, request, "commentThreads", &threads); err != nil {
 		return nil, err
 	}
 	return threads, nil

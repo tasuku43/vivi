@@ -19,7 +19,7 @@ type Query {
     diffBase: String
   ): FileContext!
   comments(path: String, status: CommentStatus, reviewBatchId: ID): [Comment!]!
-  commentThreads(path: String, status: CommentStatus, reviewBatchId: ID): [CommentThread!]!
+  commentThreads(path: String, status: CommentStatus, reviewBatchId: ID, unseenBy: ID): [CommentThread!]!
   draftReviewComments(path: String): [DraftReviewComment!]!
   commentThreadActivities(
     threadId: ID!

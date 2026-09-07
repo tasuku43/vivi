@@ -245,7 +245,7 @@ type ComplexityRoot struct {
 		Attention               func(childComplexity int, paths []string) int
 		CommentExport           func(childComplexity int, path *string, status *model.CommentStatus, format *model.CommentExportFormat) int
 		CommentThreadActivities func(childComplexity int, threadID string, after *string, first *int) int
-		CommentThreads          func(childComplexity int, path *string, status *model.CommentStatus, reviewBatchID *string) int
+		CommentThreads          func(childComplexity int, path *string, status *model.CommentStatus, reviewBatchID *string, unseenBy *string) int
 		Comments                func(childComplexity int, path *string, status *model.CommentStatus, reviewBatchID *string) int
 		Config                  func(childComplexity int) int
 		Diff                    func(childComplexity int, path string, base *string) int
@@ -363,7 +363,7 @@ type QueryResolver interface {
 	File(ctx context.Context, path string) (*workspace.FilePayload, error)
 	FileContext(ctx context.Context, path string, includeComments *bool, includeDiff *bool, diffBase *string) (*model.FileContext, error)
 	Comments(ctx context.Context, path *string, status *model.CommentStatus, reviewBatchID *string) ([]*model.Comment, error)
-	CommentThreads(ctx context.Context, path *string, status *model.CommentStatus, reviewBatchID *string) ([]*model.CommentThread, error)
+	CommentThreads(ctx context.Context, path *string, status *model.CommentStatus, reviewBatchID *string, unseenBy *string) ([]*model.CommentThread, error)
 	DraftReviewComments(ctx context.Context, path *string) ([]*model.DraftReviewComment, error)
 	CommentThreadActivities(ctx context.Context, threadID string, after *string, first *int) ([]*model.CommentThreadActivityEvent, error)
 	CommentExport(ctx context.Context, path *string, status *model.CommentStatus, format *model.CommentExportFormat) (*model.CommentExport, error)
@@ -1339,7 +1339,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.CommentThreads(childComplexity, args["path"].(*string), args["status"].(*model.CommentStatus), args["reviewBatchId"].(*string)), true
+		return e.ComplexityRoot.Query.CommentThreads(childComplexity, args["path"].(*string), args["status"].(*model.CommentStatus), args["reviewBatchId"].(*string), args["unseenBy"].(*string)), true
 	case "Query.comments":
 		if e.ComplexityRoot.Query.Comments == nil {
 			break
@@ -1906,7 +1906,7 @@ type Query {
     diffBase: String
   ): FileContext!
   comments(path: String, status: CommentStatus, reviewBatchId: ID): [Comment!]!
-  commentThreads(path: String, status: CommentStatus, reviewBatchId: ID): [CommentThread!]!
+  commentThreads(path: String, status: CommentStatus, reviewBatchId: ID, unseenBy: ID): [CommentThread!]!
   draftReviewComments(path: String): [DraftReviewComment!]!
   commentThreadActivities(
     threadId: ID!
@@ -3222,6 +3222,14 @@ func (ec *executionContext) field_Query_commentThreads_args(ctx context.Context,
 		return nil, err
 	}
 	args["reviewBatchId"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "unseenBy",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOID2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["unseenBy"] = arg3
 	return args, nil
 }
 
@@ -7364,7 +7372,7 @@ func (ec *executionContext) _Query_commentThreads(ctx context.Context, field gra
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().CommentThreads(ctx, fc.Args["path"].(*string), fc.Args["status"].(*model.CommentStatus), fc.Args["reviewBatchId"].(*string))
+			return ec.Resolvers.Query().CommentThreads(ctx, fc.Args["path"].(*string), fc.Args["status"].(*model.CommentStatus), fc.Args["reviewBatchId"].(*string), fc.Args["unseenBy"].(*string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.CommentThread) graphql.Marshaler {

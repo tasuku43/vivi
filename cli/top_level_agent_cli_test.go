@@ -454,3 +454,51 @@ func decodeSingleJSONLine(t *testing.T, line string) map[string]any {
 	}
 	return decoded
 }
+
+func TestTopLevelInboxUnseenIsActorScopedAndMarksOnlyReturnedThreads(t *testing.T) {
+	ctx := context.Background()
+	url := newTopLevelAgentTestServer(t)
+	first := createTopLevelAgentThread(t, ctx, url, "README.md", "First feedback")
+	read := func(actor string, unseen bool, json bool) string {
+		t.Helper()
+		args := []string{"inbox", url, "--read-as", actor}
+		if unseen {
+			args = append(args, "--unseen")
+		}
+		if json {
+			args = append(args, "--json")
+		}
+		var out bytes.Buffer
+		if err := runTopLevelAgentCommand(ctx, args, &out); err != nil {
+			t.Fatal(err)
+		}
+		return out.String()
+	}
+	if out := read("codex", true, false); !strings.Contains(out, first.ID) {
+		t.Fatal(out)
+	}
+	if out := read("codex", true, false); out != "inbox count=0 read-as=codex\n" {
+		t.Fatal(out)
+	}
+	second := createTopLevelAgentThread(t, ctx, url, "README.md", "Second feedback")
+	if out := read("codex", true, true); !strings.Contains(out, second.ID) || strings.Contains(out, first.ID) {
+		t.Fatal(out)
+	}
+	if n := readActivityCount(t, ctx, url, first.ID); n != 1 {
+		t.Fatalf("excluded thread received another receipt: %d", n)
+	}
+	if out := read("claude", true, false); !strings.Contains(out, first.ID) || !strings.Contains(out, second.ID) {
+		t.Fatal(out)
+	}
+	if out := read("codex", false, false); !strings.Contains(out, first.ID) || !strings.Contains(out, second.ID) {
+		t.Fatal(out)
+	}
+}
+
+func TestTopLevelInboxUnseenRequiresActor(t *testing.T) {
+	var out bytes.Buffer
+	err := runTopLevelAgentCommand(context.Background(), []string{"inbox", "http://127.0.0.1:4317", "--unseen"}, &out)
+	if err == nil || err.Error() != "error: --unseen requires --read-as codex|claude" {
+		t.Fatalf("error = %v", err)
+	}
+}

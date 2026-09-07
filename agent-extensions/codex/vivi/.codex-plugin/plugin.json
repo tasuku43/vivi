@@ -1,6 +1,6 @@
 {
   "name": "vivi",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Open local artifacts for human review and apply published Vivi feedback on demand.",
   "author": {
     "name": "Vivi"

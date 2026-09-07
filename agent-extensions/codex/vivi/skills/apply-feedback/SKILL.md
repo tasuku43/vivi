@@ -36,8 +36,8 @@ inbox and bounded refresh.
 
 ## Fetch once
 
-1. Run `vivi inbox <url> --read-as codex` once with the selected URL. The command returns the
-   current open snapshot and exits. Do not poll, watch, or delegate a listener.
+1. Run `vivi inbox <url> --read-as codex --unseen` once with the selected URL. The command returns the
+   open threads with feedback unseen by this actor and exits. Do not poll, watch, or delegate a listener.
 2. For an apply request, record Seen when retrieving the feedback. For an
    inspection-only request, use passive `vivi inbox <url>` and do not edit files.
    `VIVI_ACTOR` does not make an inbox read stateful. Seen means observed,
@@ -73,10 +73,13 @@ history.
 
 ## Apply every current thread
 
-Previously seen threads remain in the snapshot. Compare each request with the
-current files and conversation before acting. If already satisfied, verify it
-and report it as already reflected; do not repeat a change just because the
-thread was returned again.
+Previously seen threads are excluded; new human feedback makes a thread unseen
+again. Returned threads retain their full conversation and anchor context.
+Seen means retrieved, so retain the fetched snapshot until its work is finished.
+When resuming interrupted work or explicitly revisiting earlier feedback, use
+that snapshot or `vivi inbox <url> --read-as codex` without `--unseen` to
+recover all open threads. Compare requests with current files before acting;
+verify already satisfied requests instead of repeating changes.
 
 For each thread, inspect the referenced file and anchor, make the appropriate
 change, and verify it in proportion to risk. Preserve the thread ID exactly.
@@ -87,7 +90,7 @@ connection failure, or malformed snapshot, report the failure instead of
 attempting removed resident commands.
 
 After applying the fetched snapshot and before reporting completion, run
-`vivi inbox <url> --read-as codex` once more. If a record has a newer human message, apply it
+`vivi inbox <url> --read-as codex --unseen` once more. Apply any newly returned feedback
 before finishing. This is one bounded refresh, not per-thread polling.
 
 ## Report completion
@@ -95,7 +98,7 @@ before finishing. This is one bounded refresh, not per-thread polling.
 Return the result, verification, and any remaining question in the coding
 conversation where the user is already directing Codex. Do not post an
 agent-authored response back into Vivi. The browser's `Seen` state comes only
-from an explicit `vivi inbox <url> --read-as codex` fetch.
+from an explicit `--read-as codex` fetch.
 
 Include links to the changed artifacts for human re-review, obtained with
 `vivi open <url> <path> --print` on the same server. Do not automatically open

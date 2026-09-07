@@ -27,6 +27,7 @@ type topLevelAgentOptions struct {
 	URL    string
 	ReadAs simpleAgentActor
 	JSON   bool
+	Unseen bool
 }
 
 type topLevelInboxItem struct {
@@ -94,6 +95,7 @@ func runTopLevelInbox(ctx context.Context, args []string, stdout io.Writer) erro
 	flags := flag.NewFlagSet("vivi inbox", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	readAs := flags.String("read-as", "", "mark returned threads as read by codex or claude")
+	unseen := flags.Bool("unseen", false, "return only feedback unseen by --read-as")
 	jsonOutput := flags.Bool("json", false, "emit legacy JSON Lines")
 	flagArgs, positional := splitTopLevelAgentFlagsAndPositionals(args)
 	if err := flags.Parse(flagArgs); err != nil {
@@ -103,7 +105,7 @@ func runTopLevelInbox(ctx context.Context, args []string, stdout io.Writer) erro
 	if len(positional) != 1 {
 		return errors.New("error: inbox requires <url>")
 	}
-	options := topLevelAgentOptions{URL: strings.TrimRight(positional[0], "/"), JSON: *jsonOutput}
+	options := topLevelAgentOptions{URL: strings.TrimRight(positional[0], "/"), JSON: *jsonOutput, Unseen: *unseen}
 	if err := validateTopLevelURL(options.URL); err != nil {
 		return err
 	}
@@ -113,6 +115,9 @@ func runTopLevelInbox(ctx context.Context, args []string, stdout io.Writer) erro
 			return err
 		}
 		options.ReadAs = actor
+	}
+	if options.Unseen && options.ReadAs.Name == "" {
+		return errors.New("error: --unseen requires --read-as codex|claude")
 	}
 	return topLevelInbox(ctx, stdout, options)
 }
@@ -131,6 +136,9 @@ func topLevelInboxRequestOptions(options topLevelAgentOptions) inboxRequestOptio
 		commentsOptions.ActorID = options.ReadAs.ID
 		commentsOptions.ActorKind = options.ReadAs.Kind
 		commentsOptions.ActorName = options.ReadAs.Name
+	}
+	if options.Unseen {
+		commentsOptions.UnseenBy = options.ReadAs.ID
 	}
 	return commentsOptions
 }
@@ -399,10 +407,11 @@ func topLevelInboxHelpText() string {
 		"vivi inbox - fetch published feedback once",
 		"",
 		"Usage:",
-		"  vivi inbox <url> [--read-as codex|claude] [--json]",
+		"  vivi inbox <url> [--read-as codex|claude] [--unseen] [--json]",
 		"",
 		"The default read is passive. It returns the current open snapshot and exits.",
 		"Use --read-as only when Vivi should record a read receipt.",
+		"Use --unseen with --read-as to fetch only feedback that actor has not seen; new human feedback returns the thread to the inbox.",
 		"Use --json for the legacy JSON Lines projection.",
 		"Text output: <thread-id> <quoted-path> <anchor>, followed by indented <actor> <quoted-body> records.",
 	}, "\n")

@@ -54,11 +54,14 @@ URL. The explicitly selected server stays the same throughout the review.
 
 The human reads, comments, saves drafts, and publishes. Publish makes feedback
 available; it does not wake an agent. On an apply request, `apply-feedback`
-retrieves the anchored conversation, records Seen for the host actor, checks
+uses `vivi inbox <url> --read-as codex|claude --unseen` to retrieve unseen
+anchored conversations, records Seen for the host actor, checks
 current files for already-satisfied requests, implements and verifies changes,
 and refreshes once before reporting in the coding conversation. It returns
 validated artifact links for human re-review. Inspection-only requests remain
-passive and do not edit files.
+passive and do not edit files. New human feedback returns a thread to the next
+unseen fetch. To resume previously retrieved work, retain its snapshot or omit
+`--unseen` to retrieve all open threads.
 
 Seen means observed, not implemented or approved. The plugin adds no listener,
 automatic resolution, task ownership, or parallel response inbox.

@@ -2,7 +2,7 @@
   "name": "vivi",
   "displayName": "Vivi",
   "description": "Open local artifacts for human review and apply published Vivi feedback on demand.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": {
     "name": "Vivi"
   },

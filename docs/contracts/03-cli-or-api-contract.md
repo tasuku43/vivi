@@ -658,3 +658,17 @@ human feedback, drafts, and input in progress) and expiring **Recent** activity.
 Archived/resolved records and files outside the document scope do not inflate
 active unread counts. Hiding a recent item suppresses old event replay; the next
 meaningful activity restores it. No stored feedback is deleted by this filter.
+
+### Unseen inbox filter
+
+`vivi inbox <url> --read-as codex|claude --unseen` returns only open threads
+whose current human feedback has not been read by the selected actor. The
+filter is applied before read receipts are recorded, and only returned threads
+are marked seen. New or updated human feedback makes a thread eligible again;
+another actor's read does not hide it. Returned threads retain full context.
+`--unseen` requires `--read-as` and also works with `--json`. Without the flag,
+existing passive and identified full-snapshot behavior is unchanged. Seen is
+observation, not completion: omit `--unseen` to resume previously fetched work.
+
+GraphQL `commentThreads` accepts optional `unseenBy: ID` using the same actor ID
+as read receipts. Omitting it or passing an empty ID preserves all-thread reads.
