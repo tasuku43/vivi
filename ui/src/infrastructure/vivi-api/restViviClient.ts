@@ -173,6 +173,12 @@ export class RestViviClient implements ViviClient {
     throw new Error("draft review comments require the GraphQL Vivi client");
   }
 
+  async deletePublishedComment(): Promise<never> {
+    throw new Error(
+      "published comment deletion requires the GraphQL Vivi client",
+    );
+  }
+
   async deleteDraftReviewComment(): Promise<never> {
     throw new Error("draft review comments require the GraphQL Vivi client");
   }

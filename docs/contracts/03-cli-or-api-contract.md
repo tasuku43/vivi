@@ -672,3 +672,18 @@ observation, not completion: omit `--unseen` to resume previously fetched work.
 
 GraphQL `commentThreads` accepts optional `unseenBy: ID` using the same actor ID
 as read receipts. Omitting it or passing an empty ID preserves all-thread reads.
+
+### Published human comment deletion
+
+`deletePublishedComment(id: ID!): DeletedComment!` permanently removes a
+published human comment from live projections and returns `{ id, threadId, path }`.
+The same ID can be retried successfully; unknown IDs and agent-authored comments
+are rejected. The append-only thread journal stores a `comment.deleted` tombstone
+and subscriptions emit `comment_deleted` with `commentId`. Deleted comments are
+excluded from thread lists, inbox (including `--unseen`), exports, and read receipt
+projections after restart. A thread with no remaining comments disappears.
+
+The browser confirms each deletion inline, retains the comment on failure, and
+allows retry. Removing the last unseen comment releases the document from Feedback
+unless other pending feedback remains. Existing Recent activity is preserved;
+deletion does not extend it. An agent may already have fetched the deleted text.

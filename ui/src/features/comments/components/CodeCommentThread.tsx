@@ -19,6 +19,7 @@ import { CommentStatusBadge } from "./CommentStatusBadge.js";
 import { useCommentInputSession } from "../CommentInputSessionProvider.js";
 import {
   useDraftReviewCommentDelete,
+  usePublishedCommentDelete,
   type DraftReviewCommentDeleteHandler,
 } from "../DraftReviewCommentActions.js";
 import styles from "./CodeCommentThread.module.css";
@@ -33,6 +34,7 @@ export function CodeCommentThread({
   activeCommentId = null,
   currentActorId,
   onDeleteDraft,
+  onDeletePublished,
   onStartNewFeedback,
   keepOpenAfterCreate = false,
   focusRevision = 0,
@@ -47,6 +49,7 @@ export function CodeCommentThread({
   activeCommentId?: string | null;
   currentActorId?: string;
   onDeleteDraft?: DraftReviewCommentDeleteHandler;
+  onDeletePublished?: (id: string) => void | Promise<void>;
   onStartNewFeedback?: (target: HTMLElement) => void;
   keepOpenAfterCreate?: boolean;
   focusRevision?: number;
@@ -72,8 +75,19 @@ export function CodeCommentThread({
   const stale = input.session?.status === "stale";
   const [saving, setSaving] = useState(false);
   const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(
+    null,
+  );
+  const [deletingPublishedId, setDeletingPublishedId] = useState<string | null>(
+    null,
+  );
+  const [publishedDeleteError, setPublishedDeleteError] = useState(false);
+  const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const cancelDeleteRef = useRef<HTMLButtonElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inheritedDeleteDraft = useDraftReviewCommentDelete();
+  const inheritedDeletePublished = usePublishedCommentDelete();
+  const deletePublished = onDeletePublished ?? inheritedDeletePublished;
   const deleteDraft = onDeleteDraft ?? inheritedDeleteDraft;
   const threadRef = useRef<HTMLElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -137,9 +151,52 @@ export function CodeCommentThread({
     refocusAfterReanchorRef.current = false;
   }, [activeDraft, showComposer, stale]);
 
+  useEffect(() => {
+    if (confirmingDeleteId) cancelDeleteRef.current?.focus();
+  }, [confirmingDeleteId]);
+
+  useEffect(() => {
+    if (publishedDeleteError && !deletingPublishedId)
+      cancelDeleteRef.current?.focus();
+  }, [publishedDeleteError, deletingPublishedId]);
+
+  function cancelPublishedDelete() {
+    if (deletingPublishedId) return;
+    setConfirmingDeleteId(null);
+    setPublishedDeleteError(false);
+    deleteTriggerRef.current?.focus();
+  }
+
+  async function deletePublishedComment(id: string) {
+    if (!deletePublished || deletingPublishedId || deletingDraftId || saving)
+      return;
+    const viewer = threadRef.current?.closest<HTMLElement>(".document-viewer");
+    setDeletingPublishedId(id);
+    setPublishedDeleteError(false);
+    try {
+      await deletePublished(id);
+      setConfirmingDeleteId(null);
+      if (visibleComments.length === 1 && !latestBodyRef.current.trim()) {
+        if (viewer?.isConnected) {
+          viewer.tabIndex = -1;
+          viewer.focus();
+        }
+        onClose();
+      } else {
+        threadRef.current?.focus();
+      }
+    } catch {
+      setPublishedDeleteError(true);
+      cancelDeleteRef.current?.focus();
+    } finally {
+      setDeletingPublishedId(null);
+    }
+  }
+
   async function submit() {
     const trimmed = body.trim();
-    if (!trimmed || !onCreateComment || saving || stale) return;
+    if (!trimmed || !onCreateComment || saving || stale || deletingPublishedId)
+      return;
     const keepComposerOpen =
       canContinuePendingDraft || (!hasThreadMessages && keepOpenAfterCreate);
     setSaving(true);
@@ -177,7 +234,8 @@ export function CodeCommentThread({
   }
 
   async function deletePendingDraft(id: string) {
-    if (!deleteDraft || deletingDraftId || saving) return;
+    if (!deleteDraft || deletingDraftId || saving || deletingPublishedId)
+      return;
     const closesDraftOnlyThread =
       !hasPublishedComments && visibleComments.length === 1;
     setDeletingDraftId(id);
@@ -198,6 +256,14 @@ export function CodeCommentThread({
   return (
     <article
       ref={threadRef}
+      tabIndex={-1}
+      onKeyDownCapture={(event) => {
+        if (confirmingDeleteId && event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          cancelPublishedDelete();
+        }
+      }}
       className={`${styles.threadRoot} ${activityStyles.activityStyles} code-comment-thread${className ? ` ${className}` : ""}`}
       aria-label={`Comment thread for ${lineLabel.toLowerCase()}`}
       onClick={(event) => event.stopPropagation()}
@@ -299,12 +365,36 @@ export function CodeCommentThread({
                       Published
                     </CommentStatusBadge>
                   )}
+                  {!draftComment && deletePublished ? (
+                    <button
+                      className="code-thread-comment-delete"
+                      type="button"
+                      aria-label={`Delete published comment ${index + 1}`}
+                      aria-expanded={confirmingDeleteId === comment.id}
+                      disabled={Boolean(
+                        deletingPublishedId || deletingDraftId || saving,
+                      )}
+                      onClick={(event) => {
+                        deleteTriggerRef.current = event.currentTarget;
+                        setConfirmingDeleteId(comment.id);
+                        setPublishedDeleteError(false);
+                      }}
+                    >
+                      {deletingPublishedId === comment.id
+                        ? "Deleting…"
+                        : "Delete"}
+                    </button>
+                  ) : null}
                   {draftId && deleteDraft ? (
                     <button
                       className="code-thread-comment-delete"
                       type="button"
                       aria-label={`Delete pending draft comment ${index + 1}`}
-                      disabled={deletingDraftId === draftId || saving}
+                      disabled={
+                        deletingDraftId === draftId ||
+                        saving ||
+                        Boolean(deletingPublishedId)
+                      }
                       onClick={() => void deletePendingDraft(draftId)}
                     >
                       {deletingDraftId === draftId ? "Deleting…" : "Delete"}
@@ -312,6 +402,47 @@ export function CodeCommentThread({
                   ) : null}
                 </div>
                 <p>{comment.body}</p>
+                {confirmingDeleteId === comment.id ? (
+                  <div
+                    className={styles.deleteConfirmation}
+                    role="group"
+                    aria-label="Delete this comment?"
+                    aria-busy={deletingPublishedId === comment.id}
+                  >
+                    <strong>Delete this comment?</strong>
+                    <p>
+                      It will be removed from this document and future inbox
+                      reads. An agent may already have fetched it.
+                    </p>
+                    {publishedDeleteError ? (
+                      <p role="alert" className={styles.deleteError}>
+                        Couldn’t delete this comment. Try again.
+                      </p>
+                    ) : null}
+                    <div className={styles.deleteActions}>
+                      <button
+                        type="button"
+                        ref={cancelDeleteRef}
+                        disabled={Boolean(deletingPublishedId)}
+                        onClick={cancelPublishedDelete}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.confirmDelete}
+                        disabled={Boolean(deletingPublishedId)}
+                        onClick={() => void deletePublishedComment(comment.id)}
+                      >
+                        {deletingPublishedId
+                          ? "Deleting…"
+                          : publishedDeleteError
+                            ? "Try again"
+                            : "Delete comment"}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             );
           })}

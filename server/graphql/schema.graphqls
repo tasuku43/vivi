@@ -52,6 +52,7 @@ type Mutation {
     input: DraftReviewCommentUpdateInput!
   ): DraftReviewComment!
   deleteDraftReviewComment(id: ID!): DraftReviewComment!
+  deletePublishedComment(id: ID!): DeletedComment!
   publishDraftReviewComments(
     input: PublishDraftReviewCommentsInput
   ): PublishedReviewBatch!
@@ -410,6 +411,7 @@ enum CommentThreadActivityType {
   thread_read
   comment_added
   comment_updated
+  comment_deleted
   thread_status_changed
   thread_claimed
   thread_claim_released
@@ -417,4 +419,10 @@ enum CommentThreadActivityType {
 
 enum CommentExportFormat {
   jsonl
+}
+
+type DeletedComment {
+  id: ID!
+  threadId: ID!
+  path: String!
 }

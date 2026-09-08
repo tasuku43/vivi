@@ -113,6 +113,12 @@ type CommentUpdateInput struct {
 	Actor *CommentActorInput `json:"actor,omitempty"`
 }
 
+type DeletedComment struct {
+	ID       string `json:"id"`
+	ThreadID string `json:"threadId"`
+	Path     string `json:"path"`
+}
+
 // Stable location of a comment in a unified diff. Line numbers are 1-based.
 type DiffCommentAnchor struct {
 	Path         string   `json:"path"`
@@ -467,6 +473,7 @@ const (
 	CommentThreadActivityTypeThreadRead          CommentThreadActivityType = "thread_read"
 	CommentThreadActivityTypeCommentAdded        CommentThreadActivityType = "comment_added"
 	CommentThreadActivityTypeCommentUpdated      CommentThreadActivityType = "comment_updated"
+	CommentThreadActivityTypeCommentDeleted      CommentThreadActivityType = "comment_deleted"
 	CommentThreadActivityTypeThreadStatusChanged CommentThreadActivityType = "thread_status_changed"
 	CommentThreadActivityTypeThreadClaimed       CommentThreadActivityType = "thread_claimed"
 	CommentThreadActivityTypeThreadClaimReleased CommentThreadActivityType = "thread_claim_released"
@@ -477,6 +484,7 @@ var AllCommentThreadActivityType = []CommentThreadActivityType{
 	CommentThreadActivityTypeThreadRead,
 	CommentThreadActivityTypeCommentAdded,
 	CommentThreadActivityTypeCommentUpdated,
+	CommentThreadActivityTypeCommentDeleted,
 	CommentThreadActivityTypeThreadStatusChanged,
 	CommentThreadActivityTypeThreadClaimed,
 	CommentThreadActivityTypeThreadClaimReleased,
@@ -484,7 +492,7 @@ var AllCommentThreadActivityType = []CommentThreadActivityType{
 
 func (e CommentThreadActivityType) IsValid() bool {
 	switch e {
-	case CommentThreadActivityTypeThreadCreated, CommentThreadActivityTypeThreadRead, CommentThreadActivityTypeCommentAdded, CommentThreadActivityTypeCommentUpdated, CommentThreadActivityTypeThreadStatusChanged, CommentThreadActivityTypeThreadClaimed, CommentThreadActivityTypeThreadClaimReleased:
+	case CommentThreadActivityTypeThreadCreated, CommentThreadActivityTypeThreadRead, CommentThreadActivityTypeCommentAdded, CommentThreadActivityTypeCommentUpdated, CommentThreadActivityTypeCommentDeleted, CommentThreadActivityTypeThreadStatusChanged, CommentThreadActivityTypeThreadClaimed, CommentThreadActivityTypeThreadClaimReleased:
 		return true
 	}
 	return false

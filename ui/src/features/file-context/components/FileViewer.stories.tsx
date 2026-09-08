@@ -133,12 +133,16 @@ export const CodeWithLocalOutline: Story = {
     comments: commentsForPath(sampleFiles.code.path),
   },
   play: async ({ canvasElement }) => {
-    await waitFor(() => {
-      expect(
-        canvasElement.querySelector(".file-location-crumbs"),
-      ).toBeInTheDocument();
-      expect(canvasElement.querySelector(".mark-reviewed-button")).toBeNull();
-    });
+    // Lazy viewer modules can take longer on a cold Storybook server.
+    await waitFor(
+      () => {
+        expect(
+          canvasElement.querySelector(".file-location-crumbs"),
+        ).toBeInTheDocument();
+        expect(canvasElement.querySelector(".mark-reviewed-button")).toBeNull();
+      },
+      { timeout: 5_000 },
+    );
   },
 };
 
@@ -366,22 +370,26 @@ export const ViewerToolbarStickyByExtension: Story = {
     </div>
   ),
   play: async ({ canvasElement }) => {
-    await waitFor(() => {
-      expect(
-        canvasElement.querySelectorAll("[data-toolbar-sticky-case]"),
-      ).toHaveLength(toolbarStickyCases.length);
-      expect(
-        canvasElement.querySelectorAll(
-          "[data-toolbar-sticky-case] .file-viewer-frame > section > .viewer-toolbar",
-        ),
-      ).toHaveLength(toolbarStickyCases.length);
-      expect(canvasElement.querySelectorAll(".file-location-bar")).toHaveLength(
-        0,
-      );
-      expect(
-        canvasElement.querySelectorAll(".file-location-kind"),
-      ).toHaveLength(0);
-    });
+    // Lazy viewer modules can take longer on a cold Storybook server.
+    await waitFor(
+      () => {
+        expect(
+          canvasElement.querySelectorAll("[data-toolbar-sticky-case]"),
+        ).toHaveLength(toolbarStickyCases.length);
+        expect(
+          canvasElement.querySelectorAll(
+            "[data-toolbar-sticky-case] .file-viewer-frame > section > .viewer-toolbar",
+          ),
+        ).toHaveLength(toolbarStickyCases.length);
+        expect(
+          canvasElement.querySelectorAll(".file-location-bar"),
+        ).toHaveLength(0);
+        expect(
+          canvasElement.querySelectorAll(".file-location-kind"),
+        ).toHaveLength(0);
+      },
+      { timeout: 5_000 },
+    );
     expect(canvasElement.textContent ?? "").not.toContain("Read-only");
 
     for (const item of toolbarStickyCases) {

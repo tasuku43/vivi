@@ -7,6 +7,7 @@ import type {
   CommentListFilters,
   CommentExportFilters,
   CommentThreadActivityEvent,
+  DeletedComment,
   CommentThread,
   CreateDraftReviewCommentInput,
   CreateCommentInput,
@@ -70,6 +71,7 @@ export interface ViviClient {
     input: UpdateDraftReviewCommentInput,
   ): Promise<DraftReviewComment>;
   deleteDraftReviewComment(id: string): Promise<DraftReviewComment>;
+  deletePublishedComment(id: string): Promise<DeletedComment>;
   publishDraftReviewComments(input?: {
     draftIds?: string[];
   }): Promise<PublishedReviewBatch>;

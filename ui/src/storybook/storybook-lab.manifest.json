@@ -36,7 +36,8 @@
     "ui/src/features/workbench/DocumentReaderFacade.stories.tsx",
     "ui/src/shared/components/Navigation.stories.tsx",
     "ui/src/storybook/QuietReaderFacade.stories.tsx",
-    "ui/src/features/review-queue/ForYou.stories.tsx"
+    "ui/src/features/review-queue/ForYou.stories.tsx",
+    "ui/src/features/comments/PublishedCommentDeletion.stories.tsx"
   ],
   "surfaces": [
     {
@@ -356,6 +357,39 @@
       "interactionStories": [
         "Workspace/Navigation Chrome/QuietSelectionA",
         "Workspace/Navigation Chrome/SidebarStructure"
+      ]
+    },
+    {
+      "id": "published-comment-deletion",
+      "label": "Published comment deletion",
+      "stage": "wired-feature",
+      "intent": "Approved concept 53 A wired to published human comment deletion; facade stories preserve confirmation, failure, focus and attention transitions.",
+      "reviewFocus": [
+        "Published human comments expose Delete for both Unseen and Seen states.",
+        "Cancel and Escape restore trigger focus; pending deletes block duplicates and failure retains feedback for retry.",
+        "Deleting the last unseen comment releases Feedback; other drafts or Recent activity remain and the document stays open."
+      ],
+      "requiredStories": [
+        "Review/Published Comment Deletion/Unseen",
+        "Review/Published Comment Deletion/Confirmation",
+        "Review/Published Comment Deletion/Deleting",
+        "Review/Published Comment Deletion/DeleteFailure",
+        "Review/Published Comment Deletion/DeleteLastUnseen",
+        "Review/Published Comment Deletion/OtherUnseenRemains",
+        "Review/Published Comment Deletion/PendingDraftRemains",
+        "Review/Published Comment Deletion/MovesToRecent",
+        "Review/Published Comment Deletion/SeenComment"
+      ],
+      "interactionStories": [
+        "Review/Published Comment Deletion/Confirmation",
+        "Review/Published Comment Deletion/Deleting",
+        "Review/Published Comment Deletion/DeleteFailure",
+        "Review/Published Comment Deletion/RetryAfterFailure",
+        "Review/Published Comment Deletion/DeleteLastUnseen",
+        "Review/Published Comment Deletion/OtherUnseenRemains",
+        "Review/Published Comment Deletion/PendingDraftRemains",
+        "Review/Published Comment Deletion/MovesToRecent",
+        "Review/Published Comment Deletion/SeenComment"
       ]
     }
   ],

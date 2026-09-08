@@ -283,6 +283,43 @@ func (store *Store) DeleteDraft(id string) (map[string]any, error) {
 	return deleted, store.writeDrafts(next)
 }
 
+// DeletePublished records a tombstone so stale comment-file writes cannot resurrect feedback.
+func (store *Store) DeletePublished(id string) (map[string]any, error) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if strings.TrimSpace(id) == "" {
+		return nil, errors.New("comment id is required")
+	}
+	events, err := store.readThreadEvents()
+	if err != nil {
+		return nil, err
+	}
+	for _, event := range events {
+		if event["type"] == "comment.deleted" && event["commentId"] == id {
+			return map[string]any{"id": id, "threadId": event["threadId"], "path": event["path"]}, nil
+		}
+	}
+	items, err := store.readAll()
+	if err != nil {
+		return nil, err
+	}
+	for _, comment := range items {
+		if comment["id"] != id {
+			continue
+		}
+		if actorForComment(comment)["kind"] != "human" {
+			return nil, errors.New("only human comments can be deleted")
+		}
+		result := map[string]any{"id": id, "threadId": threadIDForComment(comment), "path": comment["path"]}
+		event := map[string]any{"schemaVersion": 1, "type": "comment.deleted", "commentId": id, "threadId": result["threadId"], "path": result["path"], "at": time.Now().UTC().Format(time.RFC3339Nano), "actor": map[string]any{"id": "human", "kind": "human"}}
+		if err := store.appendThreadEvent(event); err != nil {
+			return nil, err
+		}
+		return result, nil
+	}
+	return nil, errors.New("comment not found")
+}
+
 func (store *Store) PublishDrafts(ids []string, actor map[string]any) (map[string]any, error) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
@@ -895,6 +932,16 @@ func statusRank(status string) int {
 }
 
 func (store *Store) readAll() ([]map[string]any, error) {
+	events, err := store.readThreadEvents()
+	if err != nil {
+		return nil, err
+	}
+	deleted := map[string]bool{}
+	for _, event := range events {
+		if event["type"] == "comment.deleted" {
+			deleted[stringValue(event["commentId"])] = true
+		}
+	}
 	file, err := os.Open(store.path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -914,7 +961,9 @@ func (store *Store) readAll() ([]map[string]any, error) {
 		if err := json.Unmarshal([]byte(line), &comment); err != nil {
 			return nil, err
 		}
-		comments = append(comments, comment)
+		if !deleted[stringValue(comment["id"])] {
+			comments = append(comments, comment)
+		}
 	}
 	return comments, scanner.Err()
 }

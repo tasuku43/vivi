@@ -246,3 +246,7 @@ func (s *EventService) Publish(event WorkspaceEvent) {
 func (s *PreviewService) ReadResource(path string) (workspace.FilePayload, error) {
 	return s.workspace.ReadPreviewResource(path)
 }
+
+func (s *CommentService) DeletePublished(id string) (map[string]any, error) {
+	return s.comments.DeletePublished(id)
+}

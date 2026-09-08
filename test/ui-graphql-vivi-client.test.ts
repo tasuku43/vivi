@@ -479,3 +479,71 @@ class FakeEventSource {
     this.closed = true;
   }
 }
+
+it("deletes a published comment by id and returns its domain identity", async () => {
+  const deleted = { id: "c1", threadId: "t1", path: "README.md" };
+  const request = vi.fn<typeof fetch>(async (_input, init) => {
+    const body = JSON.parse(String(init?.body));
+    expect(body.operationName).toBe("DeletePublishedComment");
+    expect(body.query).toContain("mutation DeletePublishedComment($id: ID!)");
+    expect(body.query).toContain("deletePublishedComment(id: $id)");
+    expect(body.variables).toEqual({ id: "c1" });
+    return Response.json({
+      data: {
+        deletePublishedComment: { ...deleted, __typename: "DeletedComment" },
+      },
+    });
+  });
+  const client = new GraphqlViviClient({ fetch: request });
+  await expect(client.deletePublishedComment("c1")).resolves.toEqual(deleted);
+  expect(request).toHaveBeenCalledTimes(1);
+});
+
+it("surfaces published deletion failures without retrying the mutation", async () => {
+  const request = vi.fn<typeof fetch>(async () =>
+    Response.json({
+      errors: [{ message: "comment not found" }],
+    }),
+  );
+  const client = new GraphqlViviClient({ fetch: request });
+  await expect(client.deletePublishedComment("missing")).rejects.toThrow(
+    "comment not found",
+  );
+  expect(request).toHaveBeenCalledTimes(1);
+});
+
+it("maps comment deletion activity including the actor kind", async () => {
+  const request = vi.fn<typeof fetch>(async () =>
+    Response.json({
+      data: {
+        commentThreadActivities: [
+          {
+            id: "a-delete",
+            threadId: "t1",
+            commentId: "c1",
+            type: "comment_deleted",
+            actor: {
+              id: "claude:1",
+              kind: "claude_code",
+              displayName: "Claude",
+            },
+            createdAt: "2026-09-08T00:00:00Z",
+          },
+        ],
+      },
+    }),
+  );
+  const client = new GraphqlViviClient({ fetch: request });
+  await expect(
+    client.getCommentThreadActivities({ threadId: "t1" }),
+  ).resolves.toEqual([
+    {
+      id: "a-delete",
+      threadId: "t1",
+      commentId: "c1",
+      type: "comment_deleted",
+      actor: { id: "claude:1", kind: "claude-code", displayName: "Claude" },
+      createdAt: "2026-09-08T00:00:00Z",
+    },
+  ]);
+});

@@ -119,6 +119,12 @@ type ComplexityRoot struct {
 		Type           func(childComplexity int) int
 	}
 
+	DeletedComment struct {
+		ID       func(childComplexity int) int
+		Path     func(childComplexity int) int
+		ThreadID func(childComplexity int) int
+	}
+
 	DiffBase struct {
 		Label   func(childComplexity int) int
 		Ref     func(childComplexity int) int
@@ -222,6 +228,7 @@ type ComplexityRoot struct {
 		CreateDraftReviewComment   func(childComplexity int, input model.DraftReviewCommentInput) int
 		CreateThread               func(childComplexity int, input model.CommentInput) int
 		DeleteDraftReviewComment   func(childComplexity int, id string) int
+		DeletePublishedComment     func(childComplexity int, id string) int
 		ObserveDocument            func(childComplexity int, path string, reason string) int
 		PublishDraftReviewComments func(childComplexity int, input *model.PublishDraftReviewCommentsInput) int
 		UpdateComment              func(childComplexity int, id string, input model.CommentUpdateInput) int
@@ -352,6 +359,7 @@ type MutationResolver interface {
 	CreateDraftReviewComment(ctx context.Context, input model.DraftReviewCommentInput) (*model.DraftReviewComment, error)
 	UpdateDraftReviewComment(ctx context.Context, id string, input model.DraftReviewCommentUpdateInput) (*model.DraftReviewComment, error)
 	DeleteDraftReviewComment(ctx context.Context, id string) (*model.DraftReviewComment, error)
+	DeletePublishedComment(ctx context.Context, id string) (*model.DeletedComment, error)
 	PublishDraftReviewComments(ctx context.Context, input *model.PublishDraftReviewCommentsInput) (*model.PublishedReviewBatch, error)
 	UpdateComment(ctx context.Context, id string, input model.CommentUpdateInput) (*model.Comment, error)
 }
@@ -739,6 +747,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.CommentThreadActivityEvent.Type(childComplexity), true
+
+	case "DeletedComment.id":
+		if e.ComplexityRoot.DeletedComment.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeletedComment.ID(childComplexity), true
+	case "DeletedComment.path":
+		if e.ComplexityRoot.DeletedComment.Path == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeletedComment.Path(childComplexity), true
+	case "DeletedComment.threadId":
+		if e.ComplexityRoot.DeletedComment.ThreadID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeletedComment.ThreadID(childComplexity), true
 
 	case "DiffBase.label":
 		if e.ComplexityRoot.DiffBase.Label == nil {
@@ -1207,6 +1234,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteDraftReviewComment(childComplexity, args["id"].(string)), true
+	case "Mutation.deletePublishedComment":
+		if e.ComplexityRoot.Mutation.DeletePublishedComment == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deletePublishedComment_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeletePublishedComment(childComplexity, args["id"].(string)), true
 	case "Mutation.observeDocument":
 		if e.ComplexityRoot.Mutation.ObserveDocument == nil {
 			break
@@ -1939,6 +1977,7 @@ type Mutation {
     input: DraftReviewCommentUpdateInput!
   ): DraftReviewComment!
   deleteDraftReviewComment(id: ID!): DraftReviewComment!
+  deletePublishedComment(id: ID!): DeletedComment!
   publishDraftReviewComments(
     input: PublishDraftReviewCommentsInput
   ): PublishedReviewBatch!
@@ -2297,6 +2336,7 @@ enum CommentThreadActivityType {
   thread_read
   comment_added
   comment_updated
+  comment_deleted
   thread_status_changed
   thread_claimed
   thread_claim_released
@@ -2304,6 +2344,12 @@ enum CommentThreadActivityType {
 
 enum CommentExportFormat {
   jsonl
+}
+
+type DeletedComment {
+  id: ID!
+  threadId: ID!
+  path: String!
 }
 `, BuiltIn: false},
 }
@@ -2469,6 +2515,18 @@ func (ec *executionContext) childFields_CommentThreadActivityEvent(ctx context.C
 		return ec.fieldContext_CommentThreadActivityEvent_createdAt(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type CommentThreadActivityEvent", field.Name)
+}
+
+func (ec *executionContext) childFields_DeletedComment(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_DeletedComment_id(ctx, field)
+	case "threadId":
+		return ec.fieldContext_DeletedComment_threadId(ctx, field)
+	case "path":
+		return ec.fieldContext_DeletedComment_path(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type DeletedComment", field.Name)
 }
 
 func (ec *executionContext) childFields_DiffBase(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -3014,6 +3072,20 @@ func (ec *executionContext) field_Mutation_createThread_args(ctx context.Context
 }
 
 func (ec *executionContext) field_Mutation_deleteDraftReviewComment_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deletePublishedComment_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
@@ -4858,6 +4930,75 @@ func (ec *executionContext) _CommentThreadActivityEvent_createdAt(ctx context.Co
 }
 func (ec *executionContext) fieldContext_CommentThreadActivityEvent_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("CommentThreadActivityEvent", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DeletedComment_id(ctx context.Context, field graphql.CollectedField, obj *model.DeletedComment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DeletedComment_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DeletedComment_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DeletedComment", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _DeletedComment_threadId(ctx context.Context, field graphql.CollectedField, obj *model.DeletedComment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DeletedComment_threadId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ThreadID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DeletedComment_threadId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DeletedComment", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _DeletedComment_path(ctx context.Context, field graphql.CollectedField, obj *model.DeletedComment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DeletedComment_path(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Path, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DeletedComment_path(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DeletedComment", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _DiffBase_ref(ctx context.Context, field graphql.CollectedField, obj *gitreview.DiffBase) (ret graphql.Marshaler) {
@@ -6802,6 +6943,50 @@ func (ec *executionContext) fieldContext_Mutation_deleteDraftReviewComment(ctx c
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deleteDraftReviewComment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deletePublishedComment(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_deletePublishedComment(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeletePublishedComment(ctx, fc.Args["id"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.DeletedComment) graphql.Marshaler {
+			return ec.marshalNDeletedComment2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDeletedComment(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_deletePublishedComment(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DeletedComment(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deletePublishedComment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -11044,6 +11229,54 @@ func (ec *executionContext) _CommentThreadActivityEvent(ctx context.Context, sel
 	return out
 }
 
+var deletedCommentImplementors = []string{"DeletedComment"}
+
+func (ec *executionContext) _DeletedComment(ctx context.Context, sel ast.SelectionSet, obj *model.DeletedComment) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, deletedCommentImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DeletedComment")
+		case "id":
+			out.Values[i] = ec._DeletedComment_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "threadId":
+			out.Values[i] = ec._DeletedComment_threadId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "path":
+			out.Values[i] = ec._DeletedComment_path(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var diffBaseImplementors = []string{"DiffBase"}
 
 func (ec *executionContext) _DiffBase(ctx context.Context, sel ast.SelectionSet, obj *gitreview.DiffBase) graphql.Marshaler {
@@ -11774,6 +12007,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "deleteDraftReviewComment":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteDraftReviewComment(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deletePublishedComment":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deletePublishedComment(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -13684,6 +13924,20 @@ func (ec *executionContext) marshalNCommentThreadActivityType2ᚕgithubᚗcomᚋ
 func (ec *executionContext) unmarshalNCommentUpdateInput2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐCommentUpdateInput(ctx context.Context, v any) (model.CommentUpdateInput, error) {
 	res, err := ec.unmarshalInputCommentUpdateInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDeletedComment2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDeletedComment(ctx context.Context, sel ast.SelectionSet, v model.DeletedComment) graphql.Marshaler {
+	return ec._DeletedComment(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDeletedComment2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDeletedComment(ctx context.Context, sel ast.SelectionSet, v *model.DeletedComment) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DeletedComment(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNDiffBase2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgitreviewᚐDiffBase(ctx context.Context, sel ast.SelectionSet, v gitreview.DiffBase) graphql.Marshaler {

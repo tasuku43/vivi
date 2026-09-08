@@ -13,6 +13,7 @@ export type CommentThreadActivityType =
   | "thread_read"
   | "comment_added"
   | "comment_updated"
+  | "comment_deleted"
   | "thread_status_changed"
   | "thread_claimed"
   | "thread_claim_released";
@@ -85,6 +86,12 @@ export interface ViviComment {
   updatedAt: string;
   resolvedAt?: string;
   archivedAt?: string;
+}
+
+export interface DeletedComment {
+  id: string;
+  threadId: string;
+  path: string;
 }
 
 export interface CreateCommentInput {

@@ -1,3 +1,4 @@
+import { CommentSnapshots } from "../../state/comment-snapshots.js";
 import type { DocumentAttentionSnapshot } from "../../domain/attention.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
@@ -385,6 +386,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   );
   const diffEnabledRef = useRef(diffEnabled);
   const commentsRef = useRef<ViviComment[]>([]);
+  const commentSnapshots = useRef(new CommentSnapshots());
   const liveFileRefreshTimers = useRef<Record<string, number>>({});
   const liveFileRefreshVersions = useRef<Record<string, number>>({});
   const loadedActivityThreadIds = useRef(new Set<string>());
@@ -487,12 +489,17 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     path: string | null = selectedPath,
   ): Promise<ViviComment[]> {
     setCommentsLoading(true);
+    const revision = commentSnapshots.current.revision;
     try {
       const loaded = await client.getComments(
         path ? { path, status: "open" } : { status: "open" },
       );
-      setComments((items) => mergeComments(items, loaded, path));
-      return loaded;
+      setComments((items) =>
+        commentSnapshots.current.apply(items, loaded, path, revision),
+      );
+      return revision === commentSnapshots.current.revision
+        ? commentSnapshots.current.retained(loaded)
+        : commentsRef.current;
     } finally {
       setCommentsLoading(false);
     }
@@ -595,6 +602,12 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     }
   }
 
+  async function deletePublishedComment(id: string) {
+    await client.deletePublishedComment(id);
+    commentSnapshots.current.remove(id);
+    setComments((items) => commentSnapshots.current.retained(items));
+  }
+
   async function deleteDraftReviewComment(id: string) {
     await client.deleteDraftReviewComment(id);
     setDraftPublishError(null);
@@ -624,16 +637,21 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     setLastPublishedReviewBatchId(null);
     try {
       const batch = await client.publishDraftReviewComments({ draftIds });
+      commentSnapshots.current.invalidate();
       const nextActiveCommentId = activePublishingDraft
         ? matchingPublishedCommentForDraft(
-            batch.threads.flatMap((thread) => thread.comments),
+            commentSnapshots.current.retained(
+              batch.threads.flatMap((thread) => thread.comments),
+            ),
             activePublishingDraft,
           )?.id
         : undefined;
       setComments((items) =>
         mergeComments(
           items,
-          batch.threads.flatMap((thread) => thread.comments),
+          commentSnapshots.current.retained(
+            batch.threads.flatMap((thread) => thread.comments),
+          ),
           null,
         ),
       );
@@ -1887,6 +1905,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   useEffect(() => {
     if (!client.subscribeCommentThreadActivities) return undefined;
     return client.subscribeCommentThreadActivities(undefined, (event) => {
+      if (event.type === "comment_deleted" && event.commentId) {
+        commentSnapshots.current.remove(event.commentId);
+        setComments((items) => commentSnapshots.current.retained(items));
+      }
       setCommentActivity((state) => addCommentActivity(state, event));
       recordAgentReadActivity(event);
       const target = commentActivityRefreshTarget(event, commentsRef.current);
@@ -2273,6 +2295,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     const unsubscribe = client.subscribeWorkspaceEvents(
       (event) => {
         if (event.type === "attention") {
+          commentSnapshots.current.invalidate();
           void refreshDocumentAttention().catch((err) => setError(String(err)));
           loadedActivityThreadIds.current.clear();
           void loadComments(null)
@@ -2407,7 +2430,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }, [manualDraggedTab]);
 
   return (
-    <DraftReviewCommentActionsProvider onDeleteDraft={deleteDraftReviewComment}>
+    <DraftReviewCommentActionsProvider
+      onDeleteDraft={deleteDraftReviewComment}
+      onDeletePublished={deletePublishedComment}
+    >
       <div
         className={`${sharedUiStyles.sharedUiStyles} ${sharedUiStyles.appShell} app-shell`}
       >

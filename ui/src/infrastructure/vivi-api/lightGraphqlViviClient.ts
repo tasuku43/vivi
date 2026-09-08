@@ -15,6 +15,7 @@ import type {
   CreateDraftReviewCommentInput,
   CreateCommentInput,
   CommentThreadActivityEvent,
+  DeletedComment,
 } from "../../domain/comments.js";
 import type { ReviewLedgerSnapshot } from "../../domain/review-ledger.js";
 import {
@@ -36,6 +37,7 @@ import type {
   CreateCommentMutation,
   CreateDraftReviewCommentMutation,
   DeleteDraftReviewCommentMutation,
+  DeletePublishedCommentMutation,
   PublishDraftReviewCommentsMutation,
   UpdateDraftReviewCommentMutation,
   ViviCommentExportQuery,
@@ -258,6 +260,16 @@ export class LightGraphqlViviClient implements ViviClient {
       variables: { id: input.id, input: { body: input.body } },
     });
     return adaptGraphqlDraftReviewComment(data.updateDraftReviewComment);
+  }
+
+  async deletePublishedComment(id: string): Promise<DeletedComment> {
+    const data = await this.graphql<DeletePublishedCommentMutation>({
+      operationName: "DeletePublishedComment",
+      query: operations.DeletePublishedComment,
+      variables: { id },
+    });
+    const deleted = data.deletePublishedComment;
+    return { id: deleted.id, threadId: deleted.threadId, path: deleted.path };
   }
 
   async deleteDraftReviewComment(id: string) {
@@ -720,6 +732,11 @@ mutation CreateDraftReviewComment($input: DraftReviewCommentInput!) {
 mutation UpdateDraftReviewComment($id: ID!, $input: DraftReviewCommentUpdateInput!) {
   updateDraftReviewComment(id: $id, input: $input) { ...DraftReviewCommentFields }
 }`,
+  DeletePublishedComment: `
+mutation DeletePublishedComment($id: ID!) {
+  deletePublishedComment(id: $id) { id threadId path }
+}
+`,
   DeleteDraftReviewComment: `${draftReviewCommentFields}
 mutation DeleteDraftReviewComment($id: ID!) {
   deleteDraftReviewComment(id: $id) { ...DraftReviewCommentFields }

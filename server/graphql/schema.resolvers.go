@@ -84,6 +84,15 @@ func (r *mutationResolver) DeleteDraftReviewComment(ctx context.Context, id stri
 	return draftReviewCommentFromMap(draft), nil
 }
 
+// DeletePublishedComment is the resolver for the deletePublishedComment field.
+func (r *mutationResolver) DeletePublishedComment(ctx context.Context, id string) (*model.DeletedComment, error) {
+	deleted, err := r.service.DeletePublishedComment(id)
+	if err != nil {
+		return nil, err
+	}
+	return &model.DeletedComment{ID: stringValue(deleted["id"]), ThreadID: stringValue(deleted["threadId"]), Path: stringValue(deleted["path"])}, nil
+}
+
 // PublishDraftReviewComments is the resolver for the publishDraftReviewComments field.
 func (r *mutationResolver) PublishDraftReviewComments(ctx context.Context, input *model.PublishDraftReviewCommentsInput) (*model.PublishedReviewBatch, error) {
 	draftIDs := []string{}

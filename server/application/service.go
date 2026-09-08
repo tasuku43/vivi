@@ -258,3 +258,25 @@ func stringValue(value any) string {
 	return text
 }
 func mapValue(value any) map[string]any { result, _ := value.(map[string]any); return result }
+
+func (service *Service) DeletePublishedComment(id string) (map[string]any, error) {
+	deleted, err := service.Comment.DeletePublished(id)
+	if err == nil {
+		// Match the deleted comment even on a retry and beyond the first activity page.
+		after := ""
+		for {
+			events, activityErr := service.ListCommentThreadActivities(stringValue(deleted["threadId"]), after, 500)
+			if activityErr != nil || len(events) == 0 {
+				break
+			}
+			for _, event := range events {
+				if event["type"] == "comment_deleted" && event["commentId"] == id {
+					service.ActivityEvent.Publish(event)
+					return deleted, nil
+				}
+			}
+			after = stringValue(events[len(events)-1]["id"])
+		}
+	}
+	return deleted, err
+}

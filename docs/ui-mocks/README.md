@@ -31,6 +31,8 @@ wired into the application.
 
 ## Mockup roles
 
+- `53-delete-published-feedback.html`: published-comment deletion concepts: direct Delete (recommended), overflow menu, and Feedback-based management. Includes confirmation, last-unseen removal, remaining feedback, Recent, and failure states. Concept A and facade approved; wired to the published-comment deletion API. Storybook `Review/Published Comment Deletion` preserves the interactive visual contract.
+
 - `52-now-reading.html`: proposed “いま見る” inspector with persistent feedback, a 30-minute recent section, simulated time, agent reads and presentation, temporary dismissal, and empty state. Specification: `docs/research/33-now-reading-spec.md`.
 
 - `48-document-titles-in-tree.html`: four sidebar H1 concepts using identical paths and ordering: H1 replacement, filename-first with H1 (recommended), H1-first with filename, and focused-title disclosure. Includes narrow/wide comparisons, a composed reader, duplicate/long/missing/unloaded headings, and a heading-update simulation. These are alternatives for review, not an approved title-extraction or tree-contract change.

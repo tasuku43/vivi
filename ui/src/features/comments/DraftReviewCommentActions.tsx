@@ -8,16 +8,28 @@ const DraftReviewCommentDeleteContext = createContext<
   DraftReviewCommentDeleteHandler | undefined
 >(undefined);
 
+const PublishedCommentDeleteContext = createContext<
+  DraftReviewCommentDeleteHandler | undefined
+>(undefined);
+
+export function usePublishedCommentDelete() {
+  return useContext(PublishedCommentDeleteContext);
+}
+
 export function DraftReviewCommentActionsProvider({
   children,
   onDeleteDraft,
+  onDeletePublished,
 }: {
   children: ReactNode;
   onDeleteDraft?: DraftReviewCommentDeleteHandler;
+  onDeletePublished?: DraftReviewCommentDeleteHandler;
 }) {
   return (
     <DraftReviewCommentDeleteContext.Provider value={onDeleteDraft}>
-      {children}
+      <PublishedCommentDeleteContext.Provider value={onDeletePublished}>
+        {children}
+      </PublishedCommentDeleteContext.Provider>
     </DraftReviewCommentDeleteContext.Provider>
   );
 }

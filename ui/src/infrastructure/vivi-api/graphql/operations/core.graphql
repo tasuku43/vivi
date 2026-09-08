@@ -364,3 +364,11 @@ subscription CommentThreadActivity($threadId: ID) {
     createdAt
   }
 }
+
+mutation DeletePublishedComment($id: ID!) {
+  deletePublishedComment(id: $id) {
+    id
+    threadId
+    path
+  }
+}

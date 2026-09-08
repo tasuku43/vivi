@@ -14,6 +14,7 @@ import type {
   CreateDraftReviewCommentInput,
   CreateCommentInput,
   CommentThreadActivityEvent,
+  DeletedComment,
 } from "../../domain/comments.js";
 import type { ReviewLedgerSnapshot } from "../../domain/review-ledger.js";
 import {
@@ -36,6 +37,7 @@ import {
   CreateCommentDocument,
   CreateDraftReviewCommentDocument,
   DeleteDraftReviewCommentDocument,
+  DeletePublishedCommentDocument,
   PublishDraftReviewCommentsDocument,
   UpdateDraftReviewCommentDocument,
   ViviCommentExportDocument,
@@ -58,6 +60,7 @@ import type {
   CreateCommentMutation,
   CreateDraftReviewCommentMutation,
   DeleteDraftReviewCommentMutation,
+  DeletePublishedCommentMutation,
   PublishDraftReviewCommentsMutation,
   UpdateDraftReviewCommentMutation,
   ViviCommentExportQuery,
@@ -280,6 +283,16 @@ export class GraphqlViviClient implements ViviClient {
       variables: { id: input.id, input: { body: input.body } },
     });
     return adaptGraphqlDraftReviewComment(data.updateDraftReviewComment);
+  }
+
+  async deletePublishedComment(id: string): Promise<DeletedComment> {
+    const data = await this.graphql<DeletePublishedCommentMutation>({
+      operationName: "DeletePublishedComment",
+      query: print(DeletePublishedCommentDocument),
+      variables: { id },
+    });
+    const deleted = data.deletePublishedComment;
+    return { id: deleted.id, threadId: deleted.threadId, path: deleted.path };
   }
 
   async deleteDraftReviewComment(id: string) {
