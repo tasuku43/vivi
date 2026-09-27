@@ -38,9 +38,18 @@ func (excluder PathExcluder) Matches(relative string) bool {
 	if err != nil || normalized == "" {
 		return false
 	}
-	segments := strings.Split(normalized, "/")
+	return excluder.matchesCanonical(normalized)
+}
+
+// matchesCanonical matches a path already normalized by the workspace walk.
+// It parses path segments in place so hot directory walks do not allocate a
+// second copy of every relative path just to evaluate exclusions.
+func (excluder PathExcluder) matchesCanonical(relative string) bool {
+	if relative == "" {
+		return false
+	}
 	for _, pattern := range excluder.patterns {
-		if matchExcludeSegments(pattern.segments, segments) {
+		if matchExcludePath(pattern.segments, relative, 0) {
 			return true
 		}
 	}
@@ -86,19 +95,37 @@ func parseExcludePattern(input string) (excludePattern, bool, error) {
 	return excludePattern{raw: input, segments: segments}, true, nil
 }
 
-func matchExcludeSegments(pattern, target []string) bool {
+func matchExcludePath(pattern []string, target string, offset int) bool {
 	if len(pattern) == 0 {
-		return len(target) == 0
+		return offset == len(target)
 	}
 	if pattern[0] == "**" {
-		if matchExcludeSegments(pattern[1:], target) {
+		if matchExcludePath(pattern[1:], target, offset) {
 			return true
 		}
-		return len(target) > 0 && matchExcludeSegments(pattern, target[1:])
-	}
-	if len(target) == 0 {
+		for offset < len(target) {
+			separator := strings.IndexByte(target[offset:], '/')
+			if separator < 0 {
+				offset = len(target)
+			} else {
+				offset += separator + 1
+			}
+			if matchExcludePath(pattern, target, offset) {
+				return true
+			}
+		}
 		return false
 	}
-	matched, err := path.Match(pattern[0], target[0])
-	return err == nil && matched && matchExcludeSegments(pattern[1:], target[1:])
+	if offset >= len(target) {
+		return false
+	}
+	segmentEnd := strings.IndexByte(target[offset:], '/')
+	nextOffset := len(target)
+	segment := target[offset:]
+	if segmentEnd >= 0 {
+		segment = target[offset : offset+segmentEnd]
+		nextOffset = offset + segmentEnd + 1
+	}
+	matched, err := path.Match(pattern[0], segment)
+	return err == nil && matched && matchExcludePath(pattern[1:], target, nextOffset)
 }

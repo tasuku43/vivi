@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -164,6 +165,7 @@ func TestExcludeGlobWinsOverIncludeAcrossTreeReadAndWatch(t *testing.T) {
 	mustWrite(t, root, "package-lock.json", []byte("{}\n"))
 	mustWrite(t, root, "src/generated/client.md", []byte("# Generated\n"))
 	mustWrite(t, root, "src/guide.md", []byte("# Guide\n"))
+	mustWrite(t, root, "node_modules/private.md", []byte("# Guide\n"))
 
 	fsys, err := New(Options{
 		Root:    root,
@@ -206,6 +208,16 @@ func TestExcludeGlobWinsOverIncludeAcrossTreeReadAndWatch(t *testing.T) {
 	}
 	if _, ok := entries["src/generated/client.md"]; ok {
 		t.Fatalf("watch entries included excluded subtree: %#v", entries)
+	}
+	text, err := fsys.SearchText("Guide", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(text.Results) != 1 || text.Results[0].Path != "src/guide.md" {
+		t.Fatalf("text search results = %#v, want only src/guide.md", text.Results)
+	}
+	if text.Stats.ScannedFiles != 2 || text.Stats.ReadFiles != 2 {
+		t.Fatalf("text search stats = %#v, want 2 visible files scanned and read", text.Stats)
 	}
 }
 
@@ -321,6 +333,150 @@ func TestReadTreeSkipsSymlinksOutsideRoot(t *testing.T) {
 	}
 	if strings.Contains(serialized, "secret-link.md") {
 		t.Fatalf("tree exposed outside symlink: %#v", tree.Nodes)
+	}
+}
+
+func TestWatchEntriesPreserveSymlinkContainmentAndDirectoryPolicy(t *testing.T) {
+	root := t.TempDir()
+	insideTarget := filepath.Join(root, "target.md")
+	if err := os.WriteFile(insideTarget, []byte("inside\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, root, "nested/visible.md", []byte("visible\n"))
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "secret.md"), []byte("secret\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	links := []struct{ target, name string }{
+		{insideTarget, filepath.Join(root, "inside-link.md")},
+		{filepath.Join(outside, "secret.md"), filepath.Join(root, "outside-link.md")},
+		{filepath.Join(root, "nested"), filepath.Join(root, "inside-dir-link")},
+		{outside, filepath.Join(root, "outside-dir-link")},
+	}
+	for _, link := range links {
+		if err := os.Symlink(link.target, link.name); err != nil {
+			t.Skipf("symlink unavailable: %v", err)
+		}
+	}
+
+	fsys, err := New(Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries, _, err := fsys.WatchEntriesWithStats()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"target.md", "inside-link.md", "nested", "nested/visible.md"} {
+		if _, ok := entries[want]; !ok {
+			t.Errorf("watch entries missing %q: %#v", want, entries)
+		}
+	}
+	for _, hidden := range []string{"outside-link.md", "inside-dir-link", "outside-dir-link"} {
+		if _, ok := entries[hidden]; ok {
+			t.Errorf("watch entries included protected symlink %q: %#v", hidden, entries)
+		}
+	}
+}
+
+func TestSearchTextStreamsAndPreservesLineMatchingSemantics(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, root, "00-binary.md", []byte("needle first\n\x00"))
+	mustWrite(t, root, "01-hits.md", []byte("\xEF\xBB\xBFfirst NEEDLE\r\nsecond needle\nStraße NEEDLE\r\nfourth needle\n"))
+	mustWrite(t, root, "02-invalid.md", []byte("needle before invalid UTF-8\n\xff"))
+	mustWrite(t, root, "03-next.md", []byte("another needle\n"))
+
+	fsys, err := New(Options{Root: root, Include: []string{"md"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := fsys.SearchText(" needle ", 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Results) != 4 {
+		t.Fatalf("results = %#v", response.Results)
+	}
+	want := []TextSearchResult{
+		{Path: "01-hits.md", ViewerKind: "markdown", LineNumber: 1, LineText: "\xEF\xBB\xBFfirst NEEDLE", MatchStart: 9, MatchLength: 6},
+		{Path: "01-hits.md", ViewerKind: "markdown", LineNumber: 2, LineText: "second needle", MatchStart: 7, MatchLength: 6},
+		{Path: "01-hits.md", ViewerKind: "markdown", LineNumber: 3, LineText: "Straße NEEDLE", MatchStart: 8, MatchLength: 6},
+		{Path: "03-next.md", ViewerKind: "markdown", LineNumber: 1, LineText: "another needle", MatchStart: 8, MatchLength: 6},
+	}
+	for index := range want {
+		if got := response.Results[index]; got != want[index] {
+			t.Errorf("result[%d] = %#v, want %#v", index, got, want[index])
+		}
+	}
+	if response.Stats.ReadFiles != 2 || response.Stats.SkippedFiles != 2 {
+		t.Fatalf("search stats = %#v, want 2 readable and 2 skipped files", response.Stats)
+	}
+}
+
+func TestSearchTextHandlesLongLinesAcrossReaderBuffers(t *testing.T) {
+	root := t.TempDir()
+	line := append(bytes.Repeat([]byte("X"), 70*1024), []byte("NeEdLe at end")...)
+	if err := os.WriteFile(filepath.Join(root, "long.md"), line, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fsys, err := New(Options{Root: root, Include: []string{"md"}, MaxFileSizeBytes: 128 * 1024})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := fsys.SearchText("needle", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Results) != 1 {
+		t.Fatalf("results = %#v", response.Results)
+	}
+	result := response.Results[0]
+	if result.LineNumber != 1 || result.MatchStart != 70*1024 || len(result.LineText) != len(line) {
+		t.Fatalf("long-line result = %#v (line bytes %d)", result, len(line))
+	}
+}
+
+func TestSearchTextReusesOnlyExistingFilenameIndexAndReadsCurrentContent(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, root, "note.md", []byte("needle\n"))
+	fsys, err := New(Options{Root: root, Include: []string{"md"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cold, err := fsys.SearchText("needle", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cold.Stats.Cached || cold.Stats.ScannedFiles != 1 || fsys.searchIndex != nil {
+		t.Fatalf("cold search should scan without retaining a new index: %#v", cold.Stats)
+	}
+
+	if _, err := fsys.SearchFiles("note", 10); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "note.md"), []byte("change\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	warm, err := fsys.SearchText("change", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(warm.Results) != 1 || warm.Results[0].Path != "note.md" {
+		t.Fatalf("warm search results = %#v, want updated note.md content", warm.Results)
+	}
+	if !warm.Stats.Cached || warm.Stats.ScannedFiles != 0 || warm.Stats.ReadFiles != 1 {
+		t.Fatalf("warm search stats = %#v, want metadata cache hit and fresh content read", warm.Stats)
+	}
+
+	mustWrite(t, root, "new.md", []byte("change\n"))
+	fsys.InvalidateSearchIndex()
+	refreshed, err := fsys.SearchText("change", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(refreshed.Results) != 2 || refreshed.Stats.Cached || refreshed.Stats.ScannedFiles != 2 || refreshed.Stats.ReadFiles != 2 || fsys.searchIndex != nil {
+		t.Fatalf("refreshed search = %#v, want fresh scan of both files", refreshed)
 	}
 }
 

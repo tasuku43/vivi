@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/sha256"
@@ -439,42 +440,57 @@ func (fsys *FS) SearchText(query string, limit int) (TextSearchResponse, error) 
 		return TextSearchResponse{Query: normalized, Results: results, Stats: stats}, nil
 	}
 	lowerQuery := strings.ToLower(normalized)
-	err := fsys.walkFiles("", &stats, func(file FileSearchResult) bool {
+	reader := bufio.NewReaderSize(strings.NewReader(""), 64*1024)
+	lineBuffer := make([]byte, 0)
+	queryIsASCII := isASCIIString(lowerQuery)
+	processFile := func(file FileSearchResult) bool {
 		if len(results) >= limit {
 			return false
 		}
-		if !isTextSearchable(file.ViewerKind) || file.Size > fsys.maxFileSizeBytes {
+		if !isTextSearchable(file.ViewerKind) {
 			stats.SkippedFiles++
 			return true
 		}
-		payload, err := fsys.ReadFile(file.Path)
-		if err != nil || payload.Encoding != "utf8" || payload.Truncated || strings.Contains(payload.Content, "\x00") {
+		absolute := filepath.Join(fsys.root, filepath.FromSlash(file.Path))
+		inside, err := fsys.realPathInsideRoot(absolute)
+		if err != nil || !inside {
+			stats.SkippedFiles++
+			return true
+		}
+		opened, err := os.Open(absolute)
+		if err != nil {
+			stats.SkippedFiles++
+			return true
+		}
+		info, err := opened.Stat()
+		if err != nil || !info.Mode().IsRegular() || info.Size() > fsys.maxFileSizeBytes {
+			_ = opened.Close()
+			stats.SkippedFiles++
+			return true
+		}
+		maxMatches := min(3, limit-len(results))
+		matches, safeText, scanErr := scanTextSearchFile(opened, reader, &lineBuffer, file.Path, file.ViewerKind, normalized, lowerQuery, queryIsASCII, maxMatches)
+		_ = opened.Close()
+		if scanErr != nil || !safeText {
 			stats.SkippedFiles++
 			return true
 		}
 		stats.ReadFiles++
-		lines := strings.Split(payload.Content, "\n")
-		matchesForFile := 0
-		for index, line := range lines {
-			match := strings.Index(strings.ToLower(line), lowerQuery)
-			if match < 0 {
-				continue
-			}
-			results = append(results, TextSearchResult{
-				Path:        payload.Path,
-				ViewerKind:  payload.ViewerKind,
-				LineNumber:  index + 1,
-				LineText:    strings.TrimSuffix(line, "\r"),
-				MatchStart:  match,
-				MatchLength: len(normalized),
-			})
-			matchesForFile++
-			if len(results) >= limit || matchesForFile >= 3 {
+		results = append(results, matches...)
+		return len(results) < limit
+	}
+	files, cached := fsys.searchIndexSnapshot()
+	var err error
+	if cached {
+		stats.Cached = true
+		for _, file := range files {
+			if len(results) >= limit || !processFile(file) {
 				break
 			}
 		}
-		return len(results) < limit
-	})
+	} else {
+		err = fsys.walkFiles("", &stats, processFile)
+	}
 	stats.DurationMs = time.Since(started).Milliseconds()
 	operation.Record(context.Background(), "workspace.content_search", telemetry.OperationStats{
 		DurationMs:         stats.DurationMs,
@@ -482,9 +498,144 @@ func (fsys *FS) SearchText(query string, limit int) (TextSearchResponse, error) 
 		ScannedFiles:       stats.ScannedFiles,
 		ReadFiles:          stats.ReadFiles,
 		ResultCount:        len(results),
+		Cached:             stats.Cached,
 		Error:              err != nil,
 	})
 	return TextSearchResponse{Query: normalized, Results: results, Stats: stats}, err
+}
+
+func scanTextSearchFile(file *os.File, reader *bufio.Reader, lineBuffer *[]byte, pathname, viewerKind, query, lowerQuery string, queryIsASCII bool, maxMatches int) ([]TextSearchResult, bool, error) {
+	defer func() { *lineBuffer = (*lineBuffer)[:0] }()
+	reader.Reset(file)
+	var found [3]TextSearchResult
+	foundCount := 0
+	lineNumber := 0
+	var runeCount, controlCount int64
+	for {
+		fragment, readErr := reader.ReadSlice('\n')
+		if readErr != nil && readErr != bufio.ErrBufferFull && readErr != io.EOF {
+			return nil, false, readErr
+		}
+		if readErr == bufio.ErrBufferFull {
+			*lineBuffer = append(*lineBuffer, fragment...)
+			continue
+		}
+		if len(fragment) == 0 && len(*lineBuffer) == 0 && readErr == io.EOF {
+			break
+		}
+
+		line := fragment
+		if len(*lineBuffer) > 0 {
+			*lineBuffer = append(*lineBuffer, fragment...)
+			line = *lineBuffer
+		}
+		ascii, valid := countTextLine(line, lineNumber == 0, &runeCount, &controlCount)
+		if !valid {
+			return nil, false, nil
+		}
+		lineNumber++
+		searchLine := line
+		if len(searchLine) > 0 && searchLine[len(searchLine)-1] == '\n' {
+			searchLine = searchLine[:len(searchLine)-1]
+		}
+		if foundCount < maxMatches {
+			match := indexTextLine(searchLine, lowerQuery, queryIsASCII, ascii)
+			if match >= 0 {
+				lineText := strings.TrimSuffix(string(searchLine), "\r")
+				found[foundCount] = TextSearchResult{
+					Path:        pathname,
+					ViewerKind:  viewerKind,
+					LineNumber:  lineNumber,
+					LineText:    lineText,
+					MatchStart:  match,
+					MatchLength: len(query),
+				}
+				foundCount++
+			}
+		}
+		*lineBuffer = (*lineBuffer)[:0]
+		if readErr == io.EOF {
+			break
+		}
+	}
+	if runeCount > 0 && controlCount*100/runeCount > 2 {
+		return nil, false, nil
+	}
+	return found[:foundCount], true, nil
+}
+
+func countTextLine(line []byte, firstLine bool, runeCount, controlCount *int64) (bool, bool) {
+	content := line
+	if firstLine && len(content) >= 3 && content[0] == 0xEF && content[1] == 0xBB && content[2] == 0xBF {
+		content = content[3:]
+	}
+	if bytes.IndexByte(content, 0) >= 0 {
+		return false, false
+	}
+	ascii := true
+	for len(content) > 0 {
+		r, size := utf8.DecodeRune(content)
+		if r == utf8.RuneError && size == 1 {
+			return false, false
+		}
+		*runeCount++
+		if r >= utf8.RuneSelf {
+			ascii = false
+		}
+		if r < 0x20 && r != '\n' && r != '\r' && r != '\t' && r != '\f' {
+			*controlCount++
+		}
+		content = content[size:]
+	}
+	return ascii, true
+}
+
+func indexTextLine(line []byte, lowerQuery string, queryIsASCII, lineIsASCII bool) int {
+	if queryIsASCII && lineIsASCII {
+		return indexASCIIInsensitive(line, lowerQuery)
+	}
+	return strings.Index(strings.ToLower(string(line)), lowerQuery)
+}
+
+func indexASCIIInsensitive(line []byte, lowerQuery string) int {
+	patternLength := len(lowerQuery)
+	if patternLength == 0 || patternLength > len(line) {
+		return -1
+	}
+	var shifts [256]int
+	for i := range shifts {
+		shifts[i] = patternLength
+	}
+	for i := 0; i < patternLength-1; i++ {
+		shifts[lowerASCII(lowerQuery[i])] = patternLength - 1 - i
+	}
+	for offset := 0; offset <= len(line)-patternLength; {
+		index := patternLength - 1
+		for index >= 0 && lowerASCII(line[offset+index]) == lowerQuery[index] {
+			index--
+		}
+		if index < 0 {
+			return offset
+		}
+		offset += shifts[lowerASCII(line[offset+patternLength-1])]
+	}
+	return -1
+}
+
+func lowerASCII(value byte) byte {
+	if value >= 'A' && value <= 'Z' {
+		return value + ('a' - 'A')
+	}
+	return value
+}
+
+func isASCIIString(value string) bool {
+	for i := 0; i < len(value); i++ {
+		if value[i] >= utf8.RuneSelf {
+			return false
+		}
+	}
+	return true
 }
 
 func (fsys *FS) WatchEntries() (map[string]WatchEntry, error) {
@@ -690,15 +841,11 @@ func (fsys *FS) resolvePath(input string, requireNonEmpty bool) (resolvedPath, e
 }
 
 func (fsys *FS) scan(relativeDir string, parent *string, stats *TreeStats) ([]Node, error) {
-	absoluteDir, ok := fsys.internalAbsolutePath(relativeDir)
-	if !ok {
-		return nil, requestError("path escapes root")
-	}
+	absoluteDir := filepath.Join(fsys.root, filepath.FromSlash(relativeDir))
 	entries, err := os.ReadDir(absoluteDir)
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
 	stats.ScannedDirectories++
 	nodes := []Node{}
 	for _, entry := range entries {
@@ -709,19 +856,8 @@ func (fsys *FS) scan(relativeDir string, parent *string, stats *TreeStats) ([]No
 		if fsys.isHidden(relative) {
 			continue
 		}
-		absolute, ok := fsys.internalAbsolutePath(relative)
+		info, ok := fsys.workspaceEntryInfo(absoluteDir, entry)
 		if !ok {
-			continue
-		}
-		inside, err := fsys.realPathInsideRoot(absolute)
-		if err != nil || !inside {
-			continue
-		}
-		info, err := os.Stat(absolute)
-		if err != nil {
-			continue
-		}
-		if entry.Type()&os.ModeSymlink != 0 && info.IsDir() {
 			continue
 		}
 		if info.IsDir() {
@@ -796,15 +932,11 @@ func countTreeNodes(nodes []Node) int {
 }
 
 func (fsys *FS) walkFiles(relativeDir string, stats *SearchStats, onFile func(FileSearchResult) bool) error {
-	absoluteDir, ok := fsys.internalAbsolutePath(relativeDir)
-	if !ok {
-		return nil
-	}
+	absoluteDir := filepath.Join(fsys.root, filepath.FromSlash(relativeDir))
 	entries, err := os.ReadDir(absoluteDir)
 	if err != nil {
 		return nil
 	}
-	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
 	stats.ScannedDirectories++
 	for _, entry := range entries {
 		relative := entry.Name()
@@ -814,20 +946,8 @@ func (fsys *FS) walkFiles(relativeDir string, stats *SearchStats, onFile func(Fi
 		if fsys.isHidden(relative) {
 			continue
 		}
-		absolute, ok := fsys.internalAbsolutePath(relative)
+		info, ok := fsys.workspaceEntryInfo(absoluteDir, entry)
 		if !ok {
-			continue
-		}
-		inside, err := fsys.realPathInsideRoot(absolute)
-		if err != nil || !inside {
-			continue
-		}
-		info, err := os.Stat(absolute)
-		if err != nil {
-			stats.SkippedFiles++
-			continue
-		}
-		if entry.Type()&os.ModeSymlink != 0 && info.IsDir() {
 			continue
 		}
 		if info.IsDir() {
@@ -854,6 +974,20 @@ func (fsys *FS) walkFiles(relativeDir string, stats *SearchStats, onFile func(Fi
 		}
 	}
 	return nil
+}
+
+// searchIndexSnapshot returns the immutable file metadata slice without
+// cloning it. Invalidation replaces the index pointer but never mutates a
+// published slice, so an active search can safely finish on this snapshot.
+func (fsys *FS) searchIndexSnapshot() ([]FileSearchResult, bool) {
+	fsys.searchIndexMu.RLock()
+	if fsys.searchIndex != nil {
+		files := fsys.searchIndex.files
+		fsys.searchIndexMu.RUnlock()
+		return files, true
+	}
+	fsys.searchIndexMu.RUnlock()
+	return nil, false
 }
 
 func (fsys *FS) cachedFileSearchFiles() ([]FileSearchResult, SearchStats, error) {
@@ -888,10 +1022,7 @@ func cloneFileSearchResults(files []FileSearchResult) []FileSearchResult {
 }
 
 func (fsys *FS) walkWatchEntries(relativeDir string, entries map[string]WatchEntry, stats *WatchStats) error {
-	absoluteDir, ok := fsys.internalAbsolutePath(relativeDir)
-	if !ok {
-		return nil
-	}
+	absoluteDir := filepath.Join(fsys.root, filepath.FromSlash(relativeDir))
 	dirEntries, err := os.ReadDir(absoluteDir)
 	if err != nil {
 		return nil
@@ -905,19 +1036,8 @@ func (fsys *FS) walkWatchEntries(relativeDir string, entries map[string]WatchEnt
 		if fsys.isHidden(relative) {
 			continue
 		}
-		absolute, ok := fsys.internalAbsolutePath(relative)
+		info, ok := fsys.workspaceEntryInfo(absoluteDir, entry)
 		if !ok {
-			continue
-		}
-		inside, err := fsys.realPathInsideRoot(absolute)
-		if err != nil || !inside {
-			continue
-		}
-		info, err := os.Stat(absolute)
-		if err != nil {
-			continue
-		}
-		if entry.Type()&os.ModeSymlink != 0 && info.IsDir() {
 			continue
 		}
 		if info.IsDir() {
@@ -956,29 +1076,49 @@ func (fsys *FS) realPathInsideRoot(absolute string) (bool, error) {
 	return insidePath(fsys.rootReal, target), nil
 }
 
-func (fsys *FS) internalAbsolutePath(relative string) (string, bool) {
-	normalized, err := normalizeRelativePath(relative)
+// workspaceEntryInfo uses directory-entry metadata for ordinary files and
+// directories. Only symlinks need an explicit real-path containment check and
+// a second stat of the target. Recursive walks never descend through a
+// symlinked directory, so descendants of a non-symlink directory remain
+// lexically inside the selected root.
+func (fsys *FS) workspaceEntryInfo(absoluteDir string, entry os.DirEntry) (os.FileInfo, bool) {
+	info, err := entry.Info()
 	if err != nil {
-		return "", false
+		return nil, false
 	}
-	absolute := filepath.Join(fsys.root, filepath.FromSlash(normalized))
-	if !insidePath(fsys.root, absolute) {
-		return "", false
+	if info.Mode()&os.ModeSymlink == 0 {
+		return info, true
 	}
-	return absolute, true
+	absolute := filepath.Join(absoluteDir, entry.Name())
+	inside, err := fsys.realPathInsideRoot(absolute)
+	if err != nil || !inside {
+		return nil, false
+	}
+	targetInfo, err := os.Stat(absolute)
+	if err != nil || targetInfo.IsDir() {
+		return nil, false
+	}
+	return targetInfo, true
 }
 
 func (fsys *FS) isIgnored(relative string) bool {
-	for _, segment := range strings.Split(relative, "/") {
-		if fsys.ignored[segment] {
+	for start := 0; start < len(relative); {
+		end := strings.IndexByte(relative[start:], '/')
+		if end < 0 {
+			end = len(relative)
+		} else {
+			end += start
+		}
+		if fsys.ignored[relative[start:end]] {
 			return true
 		}
+		start = end + 1
 	}
 	return false
 }
 
 func (fsys *FS) isExcluded(relative string) bool {
-	return fsys.exclude.Matches(relative)
+	return fsys.exclude.matchesCanonical(relative)
 }
 
 func (fsys *FS) isHidden(relative string) bool {

@@ -31,6 +31,7 @@ const binary = path.join(cwd, process.platform === "win32" ? "vivi-otel.exe" : "
 const otelFile = path.join(artifactsDir, "otel.jsonl");
 const summaryFile = path.join(artifactsDir, "summary.json");
 const runName = process.env.VIVI_PERF_RUN_NAME ?? new Date().toISOString().replace(/[:.]/g, "-");
+const onlyScenario = process.env.VIVI_PERF_ONLY_SCENARIO;
 
 mkdirSync(artifactsDir, { recursive: true });
 ensureBinary();
@@ -103,6 +104,14 @@ try {
   }));
 
   scenarios.push(await runScenario("content_search", async ({ baseURL }) => {
+    const indexWarmup = process.env.VIVI_PERF_PRIME_CONTENT_SEARCH_INDEX === "1"
+      ? await graphql(baseURL, `query PerfTextSearchIndexWarmup {
+        fileSearch(query: "sched", limit: 1) {
+          results { path }
+          stats { durationMs scannedDirectories scannedFiles readFiles skippedFiles cached }
+        }
+      }`, {})
+      : null;
     const queries = ["EXPORT_SYMBOL_GPL", "spin_lock", "CONFIG_SCHED"];
     const results = [];
     for (const query of queries) {
@@ -118,7 +127,11 @@ try {
         stats: response.textSearch.stats,
       });
     }
-    return { queries: results, aggregate: aggregateSearchStats(results) };
+    return {
+      indexWarmup: indexWarmup?.fileSearch.stats ?? null,
+      queries: results,
+      aggregate: aggregateSearchStats(results),
+    };
   }));
 
   scenarios.push(await runScenario("file_change", async ({ baseURL }) => {
@@ -249,6 +262,9 @@ if (baselineError.length > 0) {
 }
 
 async function runScenario(name, run) {
+  if (onlyScenario && name !== onlyScenario) {
+    return { name, skipped: true };
+  }
   const started = new Date();
   resetOtelFile();
   const child = startServer();

@@ -493,6 +493,162 @@ Key harness values:
 | `coding_agent_storm` observed / first / last event | 60 of 60 / 16 ms / 133 ms |
 | `coding_agent_storm` storm CPU time | 30 ms over 1.750s |
 
+### Workspace traversal optimization on 2026-09-27
+
+The current linux-scale baseline and final run used the same workspace and
+harness settings:
+
+```bash
+VIVI_PERF_WORKSPACE=/Users/tasuku/work/github.com/torvalds/linux \
+  VIVI_PERF_IDLE_MS=3500 \
+  VIVI_PERF_BURST_CHANGES=30 \
+  VIVI_PERF_BURST_DELAY_MS=20 \
+  VIVI_PERF_CLI_ITERATIONS=5 \
+  npm run perf:otel
+```
+
+Artifacts:
+
+- `artifacts/perf/optimization-before-20260927.summary.json`
+- `artifacts/perf/optimization-before-20260927.otel.jsonl`
+- `artifacts/perf/optimization-final-20260927.summary.json`
+- `artifacts/perf/optimization-final-20260927.otel.jsonl`
+- `artifacts/perf/optimization-repeat-20260927.summary.json`
+- `artifacts/perf/optimization-repeat-20260927.otel.jsonl`
+
+The harness reports 6,142 directories and 93,609 files in this workspace.
+Each content-search query scanned 93,696 files and read 8 files under the
+current default extension allow-list. The historical June content-search row
+read 10,187 files, so its read count is not directly comparable to this run;
+the before/after rows below are comparable with each other.
+The workspace is the Torvalds Linux source tree; these measurements ran on
+macOS arm64 with Go 1.26.7, not on a Linux host.
+
+| Measurement | Before | Final | Change |
+| --- | ---: | ---: | ---: |
+| Startup `server.watch_loop` duration | 1,048 ms | 249 ms | -76% |
+| Startup total allocation | 508.5 MB | 66.6 MB | -87% |
+| Startup RSS high-water mark | 27.8 MB | 26.4 MB | -5% |
+| Idle watcher-ready time | 2,656 ms | 1,842 ms | -31% |
+| `workspace.content_search` duration per query | 1,355 ms | 300 ms | -78% |
+| Content-search CPU time per query | 2,714 ms | 628 ms | -77% |
+| Content-search CPU percent | 198.8% | 209.7% | +11 points |
+| Content-search total allocation per query | 726.1 MB | 105.6 MB | -85% |
+| Content-search heap delta per query | 9.57 MB | 5.12 MB | -46% |
+| Content-search RSS high-water mark | 92.1 MB | 50.6 MB | -45% |
+| Content-search files read / scanned | 8 / 93,696 | 8 / 93,696 | unchanged |
+| `change_burst` paths observed | 30 / 30 | 30 / 30 | unchanged |
+| Coding-agent storm paths observed | 48 / 60 | 47 / 60 | -1 path |
+| Coding-agent storm last event | 189 ms | 185 ms | -2% |
+| Coding-agent storm CPU / RSS max | 10 ms / 81.3 MB | 40 ms / 78.5 MB | within target |
+
+A repeat of the final run observed 48/60 coding-agent storm paths, with a
+183 ms last-event latency, 40 ms CPU over 1.766 s (2.27%), and 78.6 MB max
+RSS. The one-path difference in the first final run did not repeat, but the
+48/60 result still misses the 60/60 acceptance target.
+
+The primary cost was path traversal, not disk parallelism: the previous walk
+normalized and resolved every generated path, evaluated symlinks and statted
+entries, sorted results that `os.ReadDir` already returns in name order, and
+allocated segment slices while checking ignored and excluded paths. Search
+then called `ReadFile` for each candidate, adding whole-file bytes, a hash,
+UTF-8 validation/string conversion, split-line state, and lowercased copies.
+The new walk uses directory-entry metadata, performs explicit containment
+resolution for symlinks and search reads, avoids redundant sorting and path
+normalization, and checks ignore/exclude patterns without per-path segment
+arrays. Content search now reads sequentially through one reusable buffered
+reader and avoids lowercased line copies for ASCII-only query/line pairs; it
+retains only matching line strings.
+
+The current default include list means these measured search queries read only
+8 Markdown/HTML candidates, so this run primarily measures the traversal
+improvement. The scanner's long-line, CRLF, UTF-8, BOM, and binary-file
+semantics are covered by workspace tests. No persistent content index or
+parallel disk reads were added.
+
+A supplemental direct OTel run used an explicit code/document include list
+(`c,h,cpp,hpp,rs,py,sh,yml,yaml,md,markdown,mdown,html,htm,json,jsonc,txt,log`)
+with the same three queries and limit 20. It averaged 10,178 reads and 23,999
+scanned files, close to the historical 10,187 reads. Against the June historical
+row, duration was 620 ms versus 1,134 ms, CPU was 543 ms versus 2,068 ms,
+total allocation was 71.0 MB versus 613.3 MB, and heap delta was 0.61 MB versus
+9.0 MB. CPU percent was 92.3% versus 195.8%. The broad include also made the
+watcher retain 72,831 file entries, and process RSS high-water reached 145 MB
+versus the historical 72.7 MB; that RSS comparison includes the larger watcher
+map and remains close to Vivi's 150 MB ceiling. Raw spans are in
+`artifacts/perf/optimization-final-broad-include-20260927.otel.jsonl`.
+
+### Reusing an existing filename metadata index on 2026-09-27
+
+Cold text search still spends about 300 ms walking the 6,142 directories and
+93,696 visible files even though only 8 files match the default include list.
+The normal harness intentionally starts each scenario in a separate server,
+so its filename-search cache cannot warm the content-search scenario. The
+harness now has an opt-in focused mode to measure the real warm-cache case:
+
+```bash
+VIVI_PERF_WORKSPACE=/Users/tasuku/work/github.com/torvalds/linux \
+  VIVI_PERF_ONLY_SCENARIO=content_search \
+  VIVI_PERF_PRIME_CONTENT_SEARCH_INDEX=1 \
+  npm run perf:otel
+```
+
+Both runs first called the existing `fileSearch` operation in the same server
+to build its metadata cache (327 ms before, 334 ms after; one scan of 93,696
+files per run). The
+before build forced `SearchText` to keep walking despite that cache; the after
+build reused its immutable path/metadata slice and still opened and scanned
+the current contents of matching files. The index is only reused when another
+existing feature has already created it; cold text search does not create or
+retain an index.
+
+| Warm content search metric, average per query | Before reuse | After reuse |
+| --- | ---: | ---: |
+| Duration | 302 ms | <1 ms (0 ms at harness precision) |
+| CPU time / CPU percent | 630 ms / 208.7% | 1 ms / 0% (rounded) |
+| Total allocation | 90.2 MB | 0.112 MB |
+| Heap delta | 9.47 MB | 0.112 MB |
+| RSS high-water mark | 57.2 MB | 29.7 MB |
+| Read / scanned files | 8 / 93,696 | 8 / 0 |
+| Cached queries | 0 / 3 | 3 / 3 |
+
+The file-search warmup itself still pays its existing 334 ms scan and about
+130.6 MB total allocation. Reusing that already-built metadata removes the
+repeated traversal from later text queries without adding another index or
+caching file contents. The ordinary cold run after this change remained near
+the previous final result: 311 ms/query, 651 ms CPU, 105.5 MB allocation,
+5.62 MB heap delta, 50.1 MB RSS, 93,696 files scanned, and 8 files read.
+
+An experiment that made the first text query build and retain the metadata
+index was rejected. With the broad 10k-read include list it raised RSS
+high-water to 166.4 MB, above the 150 MB target, compared with 145 MB for the
+cold search. The retained implementation only uses an index that an existing
+filename search has already created. A specialized walker prototype that
+changed candidate path construction also failed to improve the three-query
+cold measurement (926 ms before, 952 ms after) and was reverted.
+
+The full harness was rerun after this change. Startup reconciliation measured
+255 ms, 66.6 MB total allocation, and 27.1 MB RSS versus 249 ms, 66.6 MB, and
+26.4 MB in the prior final run. The change burst remained 30/30. The
+coding-agent storm remained 47/60 with 184 ms last-event latency, 40 ms CPU
+over 1.767 s, and 78.2 MB maximum RSS; it still misses the 60/60 path target
+and is not a new regression from this search-only change. Artifacts:
+
+- `artifacts/perf/optimization-existing-index-before-20260927.summary.json`
+- `artifacts/perf/optimization-existing-index-before-20260927.otel.jsonl`
+- `artifacts/perf/optimization-existing-index-after-20260927.summary.json`
+- `artifacts/perf/optimization-existing-index-after-20260927.otel.jsonl`
+- `artifacts/perf/optimization-post-warm-reuse-20260927.summary.json`
+- `artifacts/perf/optimization-post-warm-reuse-20260927.otel.jsonl`
+
+The coding-agent storm hot event path was not changed. Across the two final
+runs, path coverage was 47/60 and 48/60; the repeat matched the 48/60 before
+result. Before, final, and repeat summaries all fail `npm run perf:verify` on
+missing expected paths. Last-event latency remained below 200 ms, storm CPU
+remained below 5%, and RSS stayed below the 150 MB ceiling. The storm
+acceptance target remains open and should be remeasured on the target Linux
+environment.
+
 ### Production-readiness performance targets
 
 These targets define the line Vivi should reach before it is considered
@@ -531,12 +687,14 @@ Stretch targets:
 
 The platform watcher slice removed the recurring recursive polling loop from
 the default path and added measurement separation for startup, steady idle,
-burst latency, and coding-agent write storms. The current evidence reaches the
-MVP watcher targets and the new storm target on the measured linux workspace.
-More aggressive watcher targets are realistic for steady-state writes because
-the hot path is already platform event plus single-path stat; startup and search
-targets require separate architectural work. The next performance slice should
-tighten startup reconciliation cost and reduce content search allocation.
+burst latency, and coding-agent write storms. The September 27 local run shows
+substantial startup and content-search traversal reductions without changing
+the single-path watcher event hot path. It does not clear the coding-agent
+storm's zero-missing-path target on this host, and its default document include
+list does not measure a broad code-search workload. More aggressive watcher
+targets remain realistic for steady-state writes; startup is now below one
+second for the measured reconciliation, while broad content search still needs
+a comparable large-include measurement.
 
 ## Future behavior
 
@@ -545,5 +703,11 @@ tighten startup reconciliation cost and reduce content search allocation.
 - Replace the bounded visible-row cap with smooth virtualization for very large trees.
 - Add range controls for large-file partial loading when users need a later chunk.
 - Add text diff patching only where profiling shows it matters.
-- Reduce startup reconciliation cost without delaying first UI usability.
-- Reduce content search allocation and CPU for common code-token queries.
+- Re-run the broad explicit include workload on a Linux host with a paired
+  before/after baseline; the supplemental 10k-read run above used the macOS
+  host and an older historical comparison.
+- Reduce cold content search's full-workspace traversal only with a separately
+  designed shared metadata snapshot or bounded index; automatic retention from
+  text search exceeded the RSS target on broad workspaces.
+- Recheck coding-agent storm path coverage on the target Linux environment and
+  fix any reproducible missing-path issue.
